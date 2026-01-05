@@ -1,0 +1,35 @@
+/**
+ * LessCMS Custom Styles
+ *
+ * Add your custom styles here to override the default LessCMS styles.
+ * All widget classes are prefixed with "lcms-" for easy targeting.
+ *
+ * Examples:
+ *
+ * Override primary color:
+ * :root {
+ *   --lcms-color-primary: #ff6600;
+ * }
+ *
+ * Style all headings:
+ * .lcms-heading h1,
+ * .lcms-heading h2,
+ * .lcms-heading h3 {
+ *   font-family: 'Georgia', serif;
+ * }
+ *
+ * Style specific section by data attribute:
+ * [data-section-id="hero-section"] {
+ *   min-height: 600px;
+ * }
+ *
+ * Style widget by type:
+ * .lcms-widget--button .lcms-button__link {
+ *   text-transform: uppercase;
+ * }
+ */
+
+/* ============================================
+   Your custom styles below
+   ============================================ */
+

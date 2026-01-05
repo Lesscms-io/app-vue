@@ -1,0 +1,140 @@
+/**
+ * LessCMS CSS Variables
+ *
+ * Customize these variables to style your LessCMS widgets.
+ */
+
+:root {
+  /* Colors - Primary */
+  --lcms-color-primary: #50a5f1;
+  --lcms-color-primary-light: #7dbef5;
+  --lcms-color-primary-dark: #2d8bd6;
+
+  /* Colors - Secondary */
+  --lcms-color-secondary: #74788d;
+  --lcms-color-secondary-light: #9498a8;
+  --lcms-color-secondary-dark: #545772;
+
+  /* Colors - Status */
+  --lcms-color-success: #34c38f;
+  --lcms-color-warning: #f1b44c;
+  --lcms-color-danger: #f46a6a;
+  --lcms-color-info: #50a5f1;
+
+  /* Colors - Neutral */
+  --lcms-color-white: #ffffff;
+  --lcms-color-black: #000000;
+  --lcms-color-light: #f8f9fa;
+  --lcms-color-dark: #343a40;
+  --lcms-color-gray-100: #f8f9fa;
+  --lcms-color-gray-200: #e9ecef;
+  --lcms-color-gray-300: #dee2e6;
+  --lcms-color-gray-400: #ced4da;
+  --lcms-color-gray-500: #adb5bd;
+  --lcms-color-gray-600: #6c757d;
+  --lcms-color-gray-700: #495057;
+  --lcms-color-gray-800: #343a40;
+  --lcms-color-gray-900: #212529;
+
+  /* Typography */
+  --lcms-font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --lcms-font-family-mono: SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  --lcms-font-size-base: 16px;
+  --lcms-font-size-xs: 0.75rem;
+  --lcms-font-size-sm: 0.875rem;
+  --lcms-font-size-md: 1rem;
+  --lcms-font-size-lg: 1.125rem;
+  --lcms-font-size-xl: 1.25rem;
+  --lcms-font-size-2xl: 1.5rem;
+  --lcms-font-size-3xl: 1.875rem;
+  --lcms-font-size-4xl: 2.25rem;
+  --lcms-font-size-5xl: 3rem;
+
+  /* Font Weights */
+  --lcms-font-weight-light: 300;
+  --lcms-font-weight-normal: 400;
+  --lcms-font-weight-medium: 500;
+  --lcms-font-weight-semibold: 600;
+  --lcms-font-weight-bold: 700;
+
+  /* Line Heights */
+  --lcms-line-height-tight: 1.25;
+  --lcms-line-height-normal: 1.5;
+  --lcms-line-height-relaxed: 1.75;
+
+  /* Spacing */
+  --lcms-spacing-0: 0;
+  --lcms-spacing-1: 0.25rem;
+  --lcms-spacing-2: 0.5rem;
+  --lcms-spacing-3: 0.75rem;
+  --lcms-spacing-4: 1rem;
+  --lcms-spacing-5: 1.25rem;
+  --lcms-spacing-6: 1.5rem;
+  --lcms-spacing-8: 2rem;
+  --lcms-spacing-10: 2.5rem;
+  --lcms-spacing-12: 3rem;
+  --lcms-spacing-16: 4rem;
+  --lcms-spacing-20: 5rem;
+  --lcms-spacing-24: 6rem;
+
+  /* Border Radius */
+  --lcms-radius-none: 0;
+  --lcms-radius-sm: 0.125rem;
+  --lcms-radius-md: 0.25rem;
+  --lcms-radius-lg: 0.5rem;
+  --lcms-radius-xl: 0.75rem;
+  --lcms-radius-2xl: 1rem;
+  --lcms-radius-full: 9999px;
+
+  /* Shadows */
+  --lcms-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --lcms-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --lcms-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --lcms-shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+
+  /* Transitions */
+  --lcms-transition-fast: 150ms ease-in-out;
+  --lcms-transition-normal: 250ms ease-in-out;
+  --lcms-transition-slow: 350ms ease-in-out;
+
+  /* Z-Index */
+  --lcms-z-dropdown: 1000;
+  --lcms-z-sticky: 1020;
+  --lcms-z-fixed: 1030;
+  --lcms-z-modal-backdrop: 1040;
+  --lcms-z-modal: 1050;
+  --lcms-z-popover: 1060;
+  --lcms-z-tooltip: 1070;
+
+  /* Breakpoints (for reference in JS) */
+  --lcms-breakpoint-sm: 576px;
+  --lcms-breakpoint-md: 768px;
+  --lcms-breakpoint-lg: 992px;
+  --lcms-breakpoint-xl: 1200px;
+  --lcms-breakpoint-xxl: 1400px;
+
+  /* Container Max Widths */
+  --lcms-container-sm: 540px;
+  --lcms-container-md: 720px;
+  --lcms-container-lg: 960px;
+  --lcms-container-xl: 1140px;
+  --lcms-container-xxl: 1320px;
+}
+
+/* Dark mode variables (opt-in) */
+[data-theme="dark"],
+.lcms-theme-dark {
+  --lcms-color-white: #1a1a2e;
+  --lcms-color-black: #ffffff;
+  --lcms-color-light: #16213e;
+  --lcms-color-dark: #e8e8e8;
+  --lcms-color-gray-100: #1f1f3a;
+  --lcms-color-gray-200: #2a2a4a;
+  --lcms-color-gray-300: #3a3a5a;
+  --lcms-color-gray-400: #4a4a6a;
+  --lcms-color-gray-500: #6a6a8a;
+  --lcms-color-gray-600: #8a8aaa;
+  --lcms-color-gray-700: #aaaacc;
+  --lcms-color-gray-800: #ccccee;
+  --lcms-color-gray-900: #eeeeff;
+}
