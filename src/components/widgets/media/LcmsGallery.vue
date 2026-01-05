@@ -221,13 +221,14 @@ onUnmounted(() => {
           :key="index"
           class="lcms-gallery__coverflow-slide"
           :class="{
-            'lcms-gallery__coverflow-slide--active': index === currentSlide,
+            'lcms-gallery__coverflow-slide--active': getSlideOffset(index) === 0,
             'lcms-gallery__coverflow-slide--prev': getSlideOffset(index) === -1,
+            'lcms-gallery__coverflow-slide--prev-2': getSlideOffset(index) === -2,
             'lcms-gallery__coverflow-slide--next': getSlideOffset(index) === 1,
+            'lcms-gallery__coverflow-slide--next-2': getSlideOffset(index) === 2,
             'lcms-gallery__coverflow-slide--hidden': Math.abs(getSlideOffset(index)) > 2
           }"
           :style="{
-            '--slide-offset': getSlideOffset(index),
             zIndex: 10 - Math.abs(getSlideOffset(index))
           }"
           @click="goToSlide(index)"

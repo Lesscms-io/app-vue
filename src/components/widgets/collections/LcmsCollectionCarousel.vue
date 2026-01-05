@@ -2,7 +2,8 @@
 /**
  * Collection Carousel Widget
  *
- * Renders collection entries in a carousel layout.
+ * Renders collection entries in a coverflow-style carousel.
+ * Center slide is larger, side slides are smaller with perspective effect.
  */
 
 import { computed, ref, onMounted, onUnmounted } from 'vue'
@@ -26,39 +27,24 @@ const props = defineProps<Props>()
 const { language: currentLanguage } = useLanguage(props.language)
 
 const collectionCode = computed(() => props.data.collection_code || '')
-const postsCount = computed(() => props.data.posts_count || 6)
-const slidesPerView = computed(() => Number(props.data.slides_per_view) || 3)
+const postsCount = computed(() => props.data.posts_count || 10)
 const autoplay = computed(() => props.data.autoplay !== false)
 const autoplayInterval = computed(() => props.data.autoplay_interval || 5000)
 const showArrows = computed(() => props.data.show_arrows !== false)
 const showDots = computed(() => props.data.show_dots !== false)
 
 // Field mappings
-const titleField = computed(() => props.data.title_field || 'title')
-const excerptField = computed(() => props.data.excerpt_field || '')
 const imageField = computed(() => props.data.image_field || '')
-
-// Display toggles
-const showTitle = computed(() => props.data.show_title !== false)
-const showExcerpt = computed(() => props.data.show_excerpt !== false)
 
 const { entries, loading, error } = useCollection(collectionCode, {
   pageSize: postsCount.value,
 })
 
-// Carousel state
+// Carousel state - currentSlide is the CENTER slide index
 const currentSlide = ref(0)
 let autoplayTimer: ReturnType<typeof setInterval> | null = null
 
-const totalSlides = computed(() => {
-  if (entries.value.length === 0) return 0
-  return Math.ceil(entries.value.length / slidesPerView.value)
-})
-
-const visibleEntries = computed(() => {
-  const start = currentSlide.value * slidesPerView.value
-  return entries.value.slice(start, start + slidesPerView.value)
-})
+const totalSlides = computed(() => entries.value.length)
 
 function nextSlide() {
   if (totalSlides.value <= 1) return
@@ -72,6 +58,16 @@ function prevSlide() {
 
 function goToSlide(index: number) {
   currentSlide.value = index
+}
+
+// Get offset from center for coverflow effect
+function getSlideOffset(index: number): number {
+  const diff = index - currentSlide.value
+  const total = totalSlides.value
+  // Handle wrap-around for infinite carousel feel
+  if (diff > total / 2) return diff - total
+  if (diff < -total / 2) return diff + total
+  return diff
 }
 
 function startAutoplay() {
@@ -96,15 +92,6 @@ function getFieldValue(entry: CollectionEntry, fieldCode: string): any {
     return value[currentLanguage.value] || value.pl || Object.values(value)[0]
   }
   return value
-}
-
-function getTitle(entry: CollectionEntry): string {
-  return getFieldValue(entry, titleField.value) || ''
-}
-
-function getExcerpt(entry: CollectionEntry): string {
-  const text = getFieldValue(entry, excerptField.value) || ''
-  return text.replace(/<[^>]*>/g, '').substring(0, 150) + '...'
 }
 
 function getImage(entry: CollectionEntry): string {
@@ -147,52 +134,44 @@ onUnmounted(() => {
       Failed to load collection
     </div>
 
-    <template v-else>
+    <template v-else-if="entries.length > 0">
       <div class="lcms-collection-carousel__viewport">
-        <div
-          class="lcms-collection-carousel__track"
-          :style="{ gridTemplateColumns: `repeat(${slidesPerView}, 1fr)` }"
-        >
-          <article
-            v-for="entry in visibleEntries"
-            :key="entry.metadata?.code"
+        <div class="lcms-collection-carousel__track">
+          <a
+            v-for="(entry, index) in entries"
+            :key="entry.metadata?.code || index"
+            :href="getUrl(entry)"
             class="lcms-collection-carousel__slide"
+            :class="{
+              'lcms-collection-carousel__slide--active': getSlideOffset(index) === 0,
+              'lcms-collection-carousel__slide--prev': getSlideOffset(index) === -1,
+              'lcms-collection-carousel__slide--prev-2': getSlideOffset(index) === -2,
+              'lcms-collection-carousel__slide--next': getSlideOffset(index) === 1,
+              'lcms-collection-carousel__slide--next-2': getSlideOffset(index) === 2,
+              'lcms-collection-carousel__slide--hidden': Math.abs(getSlideOffset(index)) > 2
+            }"
+            :style="{
+              '--slide-offset': getSlideOffset(index),
+              zIndex: 10 - Math.abs(getSlideOffset(index))
+            }"
+            @click.prevent="goToSlide(index)"
           >
-            <a
+            <img
               v-if="imageField && getImage(entry)"
-              :href="getUrl(entry)"
-              class="lcms-collection-carousel__image-link"
+              :src="getImage(entry)"
+              :alt="entry.metadata?.code || ''"
+              class="lcms-collection-carousel__image"
             >
-              <img
-                :src="getImage(entry)"
-                :alt="getTitle(entry)"
-                class="lcms-collection-carousel__image"
-              >
-            </a>
-
-            <div class="lcms-collection-carousel__content">
-              <h3
-                v-if="showTitle"
-                class="lcms-collection-carousel__title"
-              >
-                <a :href="getUrl(entry)">{{ getTitle(entry) }}</a>
-              </h3>
-
-              <p
-                v-if="showExcerpt && excerptField"
-                class="lcms-collection-carousel__excerpt"
-              >
-                {{ getExcerpt(entry) }}
-              </p>
-            </div>
-          </article>
+          </a>
         </div>
       </div>
 
+      <!-- Arrows on the slides -->
       <button
         v-if="showArrows && totalSlides > 1"
         class="lcms-collection-carousel__arrow lcms-collection-carousel__arrow--prev"
         @click="prevSlide"
+        type="button"
       >
         <i class="fa-solid fa-chevron-left" />
       </button>
@@ -201,10 +180,12 @@ onUnmounted(() => {
         v-if="showArrows && totalSlides > 1"
         class="lcms-collection-carousel__arrow lcms-collection-carousel__arrow--next"
         @click="nextSlide"
+        type="button"
       >
         <i class="fa-solid fa-chevron-right" />
       </button>
 
+      <!-- Dots -->
       <div
         v-if="showDots && totalSlides > 1"
         class="lcms-collection-carousel__dots"
@@ -215,6 +196,7 @@ onUnmounted(() => {
           class="lcms-collection-carousel__dot"
           :class="{ 'lcms-collection-carousel__dot--active': index - 1 === currentSlide }"
           @click="goToSlide(index - 1)"
+          type="button"
         />
       </div>
     </template>
