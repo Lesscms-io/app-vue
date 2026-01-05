@@ -83,6 +83,10 @@ function renderColumnContent(content: any[]) {
 .lcms-grid__column {
   display: flex;
   flex-direction: column;
+  /* Reset any inherited or inline styles - user requested no border/padding */
+  border: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
 }
 
 @media (max-width: 768px) {
