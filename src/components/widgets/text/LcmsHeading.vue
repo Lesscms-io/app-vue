@@ -59,6 +59,7 @@ const textAlign = computed(() => props.data.align || props.settings?.textAlign |
       v-else
       :is="headingLevel"
       class="lcms-heading__text"
+      :data-level="props.data.config?.level || props.data.level || 2"
     >
       {{ headingContent }}
     </component>
