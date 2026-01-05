@@ -1132,14 +1132,7 @@
 }
 
 .lcms-collection-grid__item {
-  border: 1px solid var(--lcms-color-gray-200);
-  border-radius: var(--lcms-radius-lg);
   overflow: hidden;
-  transition: box-shadow var(--lcms-transition-fast);
-}
-
-.lcms-collection-grid__item:hover {
-  box-shadow: var(--lcms-shadow-lg);
 }
 
 .lcms-collection-grid__image-link {
@@ -1153,7 +1146,7 @@
 }
 
 .lcms-collection-grid__content {
-  padding: var(--lcms-spacing-4);
+  /* No default padding - let users control via settings */
 }
 
 .lcms-collection-grid__title {
