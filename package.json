@@ -28,6 +28,7 @@
     "engine": "vite --config vite.engine.config.js"
   },
   "dependencies": {
+    "@unhead/vue": "^1.9.0",
     "vue": "^3.4.0",
     "vue-router": "^4.2.0"
   },

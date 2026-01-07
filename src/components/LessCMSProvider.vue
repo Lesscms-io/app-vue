@@ -24,7 +24,8 @@
  * ```
  */
 
-import { provide, reactive, watch, onMounted, ref, computed } from 'vue'
+import { provide, reactive, watch, onMounted, ref, computed, getCurrentInstance } from 'vue'
+import { createHead, type Head } from '@unhead/vue'
 import { createApiClient, type ApiClient, type ApiClientConfig } from '../api/client'
 import type { LessCMSConfig, ProjectConfig } from '../api/types'
 
@@ -69,6 +70,13 @@ interface Props {
    * @default false
    */
   proxyMode?: boolean
+
+  /**
+   * Enable automatic SEO meta tag management via @unhead/vue
+   * When enabled, LessCMSProvider will install the Unhead plugin if not already installed.
+   * @default true
+   */
+  enableSeo?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -78,6 +86,7 @@ const props = withDefaults(defineProps<Props>(), {
   defaultLanguage: 'pl',
   autoLoadConfig: true,
   proxyMode: false,
+  enableSeo: true,
 })
 
 const emit = defineEmits<{
@@ -97,6 +106,19 @@ const config = reactive<ApiClientConfig>({
 
 // Computed to check if we're in proxy mode
 const isProxyMode = computed(() => props.proxyMode)
+
+// Install @unhead/vue if SEO is enabled and not already installed
+if (props.enableSeo) {
+  const instance = getCurrentInstance()
+  if (instance) {
+    const app = instance.appContext.app
+    // Check if Unhead is already installed (avoid duplicate installation)
+    if (!app.config.globalProperties.$head) {
+      const head = createHead()
+      app.use(head)
+    }
+  }
+}
 
 // Project config state
 const projectConfig = ref<ProjectConfig | null>(null)

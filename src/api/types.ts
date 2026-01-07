@@ -211,13 +211,55 @@ export interface PageMetadata {
   updated_at: string
 }
 
-export interface SeoData {
+export interface SeoRobotsData {
+  index?: boolean
+  follow?: boolean
+  max_snippet?: number
+  max_image_preview?: 'none' | 'standard' | 'large'
+  max_video_preview?: number
+}
+
+export interface SeoOgImageData {
+  url?: string
+  alt?: string
+  width?: number
+  height?: number
+}
+
+export interface SeoOgData {
   title?: string
   description?: string
-  og_title?: string
-  og_description?: string
-  og_image?: string
+  type?: 'website' | 'article' | 'product' | 'event'
+  url?: string
+  image?: SeoOgImageData
+  site_name?: string
+  locale?: string
 }
+
+export interface SeoTwitterData {
+  card?: 'summary' | 'summary_large_image'
+  title?: string
+  description?: string
+  image?: string
+}
+
+export interface SeoCustomMeta {
+  property: string
+  content: string
+}
+
+export interface SeoLanguageData {
+  title?: string
+  meta_description?: string
+  canonical_url?: string
+  robots?: SeoRobotsData
+  og?: SeoOgData
+  twitter?: SeoTwitterData
+  custom_meta?: SeoCustomMeta[]
+}
+
+// SEO data is keyed by language code
+export type SeoData = Record<string, SeoLanguageData>
 
 // ============================================
 // Collection API

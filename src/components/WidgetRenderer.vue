@@ -184,7 +184,7 @@ function mapVerticalAlign(value: string): string {
   <!-- Wrap in link if link settings enabled -->
   <component
     :is="linkSettings ? 'a' : 'div'"
-    :id="settings.cssId || undefined"
+    :id="settings.id || undefined"
     :href="linkSettings?.url"
     :target="linkSettings?.targetBlank ? '_blank' : undefined"
     :rel="linkSettings?.targetBlank ? 'noopener noreferrer' : undefined"

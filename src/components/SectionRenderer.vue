@@ -319,7 +319,7 @@ function hexToRgba(hex: string, alpha: number): string {
 
 <template>
   <section
-    :id="settings.cssId || undefined"
+    :id="settings.id || undefined"
     :class="sectionClass"
     :data-section-id="sectionId"
     :style="sectionStyle"
@@ -331,7 +331,7 @@ function hexToRgba(hex: string, alpha: number): string {
       <div
         v-for="(column, colIndex) in columns"
         :key="column.id || colIndex"
-        :id="column.settings?.cssId || undefined"
+        :id="column.settings?.id || undefined"
         class="lcms-section__column"
         :class="{ 'lcms-hidden': isColumnHidden(column) }"
         :style="getColumnStyle(column)"

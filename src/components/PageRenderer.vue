@@ -3,19 +3,37 @@
  * Page Renderer
  *
  * Fetches and renders a complete page from the API.
+ * Automatically sets SEO meta tags when page loads.
  */
 
-import { computed, watch } from 'vue'
+import { computed, watch, toRef } from 'vue'
 import { usePage } from '@/composables/usePage'
+import { useSeo } from '@/composables/useSeo'
 import SectionRenderer from './SectionRenderer.vue'
 
 interface Props {
   code: string
   language?: string
   routeParams?: Record<string, string>
+  /**
+   * Enable automatic SEO meta tag management
+   * @default true
+   */
+  autoSeo?: boolean
+  /**
+   * Title template for SEO (use %s for title placeholder)
+   * Example: "%s | My Site"
+   */
+  titleTemplate?: string
+  /**
+   * Default title to use if SEO title is not set
+   */
+  defaultTitle?: string
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  autoSeo: true
+})
 
 const emit = defineEmits<{
   (e: 'loaded', page: any): void
@@ -23,8 +41,19 @@ const emit = defineEmits<{
 }>()
 
 const pageCode = computed(() => props.code)
+const currentLanguage = computed(() => props.language || 'en')
 
-const { page, sections, loading, error } = usePage(pageCode)
+const { page, sections, seo, loading, error } = usePage(pageCode)
+
+// Auto SEO management
+if (props.autoSeo) {
+  useSeo({
+    seo,
+    language: currentLanguage,
+    titleTemplate: props.titleTemplate,
+    defaultTitle: props.defaultTitle
+  })
+}
 
 // Emit events when page loads or errors
 watch(page, (newPage) => {
