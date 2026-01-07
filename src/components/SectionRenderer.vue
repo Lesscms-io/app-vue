@@ -4,10 +4,12 @@
  *
  * Renders a section with its columns and widgets.
  * Applies all settings: background, padding, margin, border, etc.
+ * Supports responsive settings for tablet/mobile breakpoints.
  */
 
 import { computed } from 'vue'
 import WidgetRenderer from './WidgetRenderer.vue'
+import { useResponsiveSettings } from '@/composables/useResponsiveSettings'
 import type { PageSection, PageColumn, WidgetContent, SectionSettings, ColumnSettings } from '@/api/types'
 
 interface Props {
@@ -17,8 +19,10 @@ interface Props {
 
 const props = defineProps<Props>()
 
+const { getMergedSettings, isHidden, shouldStack, currentBreakpoint } = useResponsiveSettings()
+
 const sectionId = computed(() => props.section.uuid || props.section.id)
-const settings = computed(() => props.section.settings || {})
+const settings = computed(() => getMergedSettings(props.section.settings as SectionSettings))
 const columns = computed(() => props.section.columns || [])
 
 // Grid type for column layout
@@ -133,10 +137,21 @@ const innerStyle = computed(() => {
   return style
 })
 
+// Should columns stack on current breakpoint
+const isStacked = computed(() => shouldStack(settings.value as SectionSettings))
+
 // Calculate grid template columns based on column widths
 const gridStyle = computed(() => {
   const cols = columns.value
   if (!cols.length) return { gridTemplateColumns: '1fr' }
+
+  // If stacked, use single column
+  if (isStacked.value) {
+    return {
+      gridTemplateColumns: '1fr',
+      ...innerStyle.value
+    }
+  }
 
   // Use actual column widths if available
   const templateColumns = cols.map(col => {
@@ -153,9 +168,14 @@ const gridStyle = computed(() => {
   }
 })
 
-// Column styles
+// Check if column is hidden for current breakpoint
+function isColumnHidden(column: PageColumn): boolean {
+  return isHidden(column.settings as ColumnSettings)
+}
+
+// Column styles (with responsive merge)
 function getColumnStyle(column: PageColumn) {
-  const s = (column.settings || {}) as ColumnSettings
+  const s = getMergedSettings(column.settings as ColumnSettings)
   const style: Record<string, string> = {}
 
   // Background
@@ -262,6 +282,9 @@ function getColumnWidgets(column: any) {
   })
 }
 
+// Check if section is hidden for current breakpoint
+const isSectionHidden = computed(() => isHidden(props.section.settings))
+
 // CSS class for section
 const sectionClass = computed(() => {
   const classes = ['lcms-section', `lcms-section--grid-${gridType.value}`]
@@ -270,9 +293,15 @@ const sectionClass = computed(() => {
   if (s.cssClass) {
     classes.push(s.cssClass)
   }
-  if (s.hidden) {
+  if (isSectionHidden.value) {
     classes.push('lcms-hidden')
   }
+  if (isStacked.value) {
+    classes.push('lcms-section--stacked')
+  }
+
+  // Add breakpoint class for CSS targeting
+  classes.push(`lcms-section--${currentBreakpoint.value}`)
 
   return classes.join(' ')
 })
@@ -302,7 +331,7 @@ function hexToRgba(hex: string, alpha: number): string {
         v-for="(column, colIndex) in columns"
         :key="column.id || colIndex"
         class="lcms-section__column"
-        :class="{ 'lcms-hidden': column.settings?.hidden }"
+        :class="{ 'lcms-hidden': isColumnHidden(column) }"
         :style="getColumnStyle(column)"
         :data-column-index="colIndex"
       >
@@ -322,10 +351,14 @@ function hexToRgba(hex: string, alpha: number): string {
   display: none !important;
 }
 
-/* Responsive: stack columns on mobile */
-@media (max-width: 768px) {
-  .lcms-section__grid {
-    grid-template-columns: 1fr !important;
-  }
+/* Stacked layout class (applied via JS based on breakpoint settings) */
+.lcms-section--stacked .lcms-section__grid {
+  grid-template-columns: 1fr !important;
+}
+
+/* Column flex layout for proper vertical alignment */
+.lcms-section__column {
+  display: flex;
+  flex-direction: column;
 }
 </style>

@@ -4,10 +4,12 @@
  *
  * Dynamically renders a widget based on its type.
  * Applies all widget settings: padding, margin, background, border, etc.
+ * Supports responsive settings for tablet/mobile breakpoints.
  */
 
 import { computed } from 'vue'
 import { getWidgetComponent, isWidgetSupported } from './widgets'
+import { useResponsiveSettings } from '@/composables/useResponsiveSettings'
 import type { Widget, WidgetSettings } from '@/api/types'
 
 interface Props {
@@ -17,9 +19,11 @@ interface Props {
 
 const props = defineProps<Props>()
 
+const { getMergedSettings, isHidden, currentBreakpoint } = useResponsiveSettings()
+
 const widgetType = computed(() => props.widget.type || props.widget.widget_type || '')
 const widgetData = computed(() => props.widget.data || props.widget.config || {})
-const settings = computed(() => (props.widget.settings || {}) as WidgetSettings)
+const settings = computed(() => getMergedSettings(props.widget.settings as WidgetSettings))
 
 const component = computed(() => {
   if (!widgetType.value) return null
@@ -122,6 +126,9 @@ const widgetStyle = computed(() => {
   return style
 })
 
+// Check if widget is hidden for current breakpoint
+const isWidgetHidden = computed(() => isHidden(props.widget.settings))
+
 // CSS class for widget
 const widgetClass = computed(() => {
   const classes = ['lcms-widget', `lcms-widget--${widgetType.value}`]
@@ -130,9 +137,12 @@ const widgetClass = computed(() => {
   if (s.cssClass) {
     classes.push(s.cssClass)
   }
-  if (s.hidden) {
+  if (isWidgetHidden.value) {
     classes.push('lcms-hidden')
   }
+
+  // Add breakpoint class for CSS targeting
+  classes.push(`lcms-widget--${currentBreakpoint.value}`)
 
   return classes.join(' ')
 })

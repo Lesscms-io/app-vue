@@ -8,3 +8,12 @@ export { usePage, type UsePageReturn } from './usePage'
 export { useCollection, useCollectionEntry, type UseCollectionReturn, type UseCollectionOptions } from './useCollection'
 export { useMenu, type UseMenuReturn } from './useMenu'
 export { useRoutes, type ResolvedRoute } from './useRoutes'
+export {
+  useResponsiveSettings,
+  getResponsiveValue,
+  mergeSettingsForBreakpoint,
+  isHiddenForBreakpoint,
+  BREAKPOINTS,
+  breakpointCssVars,
+  type Breakpoint
+} from './useResponsiveSettings'

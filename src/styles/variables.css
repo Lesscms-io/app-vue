@@ -106,7 +106,13 @@
   --lcms-z-popover: 1060;
   --lcms-z-tooltip: 1070;
 
-  /* Breakpoints (for reference in JS) */
+  /* Breakpoints (for reference in JS - matching useResponsiveSettings) */
+  --lcms-breakpoint-mobile: 767px;     /* max-width for mobile */
+  --lcms-breakpoint-tablet-min: 768px;  /* min-width for tablet */
+  --lcms-breakpoint-tablet-max: 1199px; /* max-width for tablet */
+  --lcms-breakpoint-desktop: 1200px;    /* min-width for desktop */
+
+  /* Legacy breakpoints (Bootstrap-style, for backwards compatibility) */
   --lcms-breakpoint-sm: 576px;
   --lcms-breakpoint-md: 768px;
   --lcms-breakpoint-lg: 992px;
@@ -164,8 +170,18 @@ h6, .h6 {
   margin: 0 0 var(--lcms-spacing-2);
 }
 
-/* Responsive headings */
-@media (max-width: 768px) {
+/* Responsive headings - tablet */
+@media (min-width: 768px) and (max-width: 1199px) {
+  h1, .h1 { font-size: 3.5rem; }
+  h2, .h2 { font-size: 2.75rem; }
+  h3, .h3 { font-size: 2.25rem; }
+  h4, .h4 { font-size: 1.875rem; }
+  h5, .h5 { font-size: 1.5rem; }
+  h6, .h6 { font-size: 1.25rem; }
+}
+
+/* Responsive headings - mobile */
+@media (max-width: 767px) {
   h1, .h1 { font-size: 2.5rem; }
   h2, .h2 { font-size: 2rem; }
   h3, .h3 { font-size: 1.75rem; }

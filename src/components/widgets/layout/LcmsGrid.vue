@@ -3,10 +3,12 @@
  * Grid Widget
  *
  * Renders a nested grid with columns containing widgets.
+ * Supports responsive stacking on tablet/mobile.
  */
 
 import { computed } from 'vue'
 import { useLanguage } from '@/composables/useLanguage'
+import { useResponsiveSettings } from '@/composables/useResponsiveSettings'
 
 defineOptions({
   inheritAttrs: false
@@ -21,16 +23,34 @@ interface Props {
 const props = defineProps<Props>()
 
 const { extractValue } = useLanguage(props.language)
+const { isMobile, isTablet, currentBreakpoint } = useResponsiveSettings()
 
 // API returns config with columns array
 const config = computed(() => props.data.config || props.data || {})
 const columns = computed(() => config.value.columns || [])
 const gap = computed(() => config.value.gap || 16)
 const stackOnMobile = computed(() => config.value.stack_on_mobile !== false)
+const stackOnTablet = computed(() => config.value.stack_on_tablet === true)
+
+// Determine if grid should be stacked based on current breakpoint
+const isStacked = computed(() => {
+  if (isMobile.value && stackOnMobile.value) return true
+  if (isTablet.value && stackOnTablet.value) return true
+  return false
+})
 
 const gridStyle = computed(() => {
   const cols = columns.value
   if (!cols.length) return {}
+
+  // If stacked, use single column
+  if (isStacked.value) {
+    return {
+      display: 'grid',
+      gridTemplateColumns: '1fr',
+      gap: `${gap.value}px`
+    }
+  }
 
   const templateColumns = cols.map((col: any) => `${col.span || 1}fr`).join(' ')
 
@@ -56,7 +76,10 @@ function renderColumnContent(content: any[]) {
 <template>
   <div
     class="lcms-grid"
-    :class="{ 'lcms-grid--stack-mobile': stackOnMobile }"
+    :class="[
+      { 'lcms-grid--stacked': isStacked },
+      `lcms-grid--${currentBreakpoint}`
+    ]"
     :style="gridStyle"
   >
     <div
@@ -89,9 +112,8 @@ function renderColumnContent(content: any[]) {
   padding: 0 !important;
 }
 
-@media (max-width: 768px) {
-  .lcms-grid--stack-mobile {
-    grid-template-columns: 1fr !important;
-  }
+/* Stacked layout (applied via JS based on breakpoint) */
+.lcms-grid--stacked {
+  grid-template-columns: 1fr !important;
 }
 </style>
