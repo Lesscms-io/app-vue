@@ -20,6 +20,7 @@ export interface LessCMSConfig {
 export interface ProjectConfig {
   fonts: string[]
   custom_css_url: string | null
+  custom_css: string | null
   available_widgets: string[]
   available_fonts: string[]
   google_fonts_url: string | null

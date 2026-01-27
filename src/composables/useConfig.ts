@@ -10,6 +10,7 @@ import { useApi } from './useApi'
 export interface ProjectConfig {
   fonts: string[]
   custom_css_url: string | null
+  custom_css: string | null
   available_widgets: string[]
   available_fonts: string[]
   google_fonts_url: string | null
@@ -18,6 +19,7 @@ export interface ProjectConfig {
 const defaultConfig: ProjectConfig = {
   fonts: ['Inter', 'Roboto'],
   custom_css_url: null,
+  custom_css: null,
   available_widgets: [],
   available_fonts: [],
   google_fonts_url: null,
@@ -60,6 +62,23 @@ function loadCustomCss(url: string) {
 }
 
 /**
+ * Load inline custom CSS by injecting a <style> tag (global, no scoping)
+ */
+function loadCustomCssInline(cssText: string) {
+  const existingStyle = document.querySelector('style[data-lesscms-custom-css-inline]')
+  if (existingStyle) {
+    existingStyle.remove()
+  }
+
+  if (!cssText || !cssText.trim()) return
+
+  const style = document.createElement('style')
+  style.dataset.lesscmsCustomCssInline = 'true'
+  style.textContent = cssText
+  document.head.appendChild(style)
+}
+
+/**
  * Set CSS variable for primary font
  */
 function setFontVariable(fonts: string[]) {
@@ -88,6 +107,7 @@ export function useConfig() {
       globalConfig.value = {
         fonts: data.fonts || defaultConfig.fonts,
         custom_css_url: data.custom_css_url,
+        custom_css: data.custom_css || null,
         available_widgets: data.available_widgets || [],
         available_fonts: data.available_fonts || [],
         google_fonts_url: data.google_fonts_url,
@@ -101,9 +121,14 @@ export function useConfig() {
       // Set font CSS variable
       setFontVariable(globalConfig.value.fonts)
 
-      // Load custom CSS
+      // Load custom CSS (external URL)
       if (globalConfig.value.custom_css_url) {
         loadCustomCss(globalConfig.value.custom_css_url)
+      }
+
+      // Load inline custom CSS
+      if (globalConfig.value.custom_css) {
+        loadCustomCssInline(globalConfig.value.custom_css)
       }
 
       isLoaded.value = true
@@ -126,6 +151,7 @@ export function useConfig() {
     // Utility functions
     loadGoogleFonts,
     loadCustomCss,
+    loadCustomCssInline,
     setFontVariable,
   }
 }

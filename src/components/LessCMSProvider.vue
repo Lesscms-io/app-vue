@@ -179,6 +179,23 @@ function loadCustomCss(url: string) {
 }
 
 /**
+ * Load inline custom CSS by injecting a <style> tag (global, no scoping)
+ */
+function loadCustomCssInline(cssText: string) {
+  const existingStyle = document.querySelector('style[data-lesscms-custom-css-inline]')
+  if (existingStyle) {
+    existingStyle.remove()
+  }
+
+  if (!cssText || !cssText.trim()) return
+
+  const style = document.createElement('style')
+  style.dataset.lesscmsCustomCssInline = 'true'
+  style.textContent = cssText
+  document.head.appendChild(style)
+}
+
+/**
  * Set CSS variable for font family
  */
 function setFontVariable(fonts: string[]) {
@@ -208,6 +225,7 @@ async function fetchProjectConfig() {
     projectConfig.value = {
       fonts: data.fonts || ['Inter', 'Roboto'],
       custom_css_url: data.custom_css_url || null,
+      custom_css: data.custom_css || null,
       available_widgets: data.available_widgets || [],
       available_fonts: data.available_fonts || [],
       google_fonts_url: data.google_fonts_url || null,
@@ -221,9 +239,14 @@ async function fetchProjectConfig() {
     // Set font CSS variable
     setFontVariable(projectConfig.value.fonts)
 
-    // Load custom CSS
+    // Load custom CSS (external URL)
     if (projectConfig.value.custom_css_url) {
       loadCustomCss(projectConfig.value.custom_css_url)
+    }
+
+    // Load inline custom CSS
+    if (projectConfig.value.custom_css) {
+      loadCustomCssInline(projectConfig.value.custom_css)
     }
 
     emit('configLoaded', projectConfig.value)
@@ -257,6 +280,7 @@ defineExpose({
   fetchProjectConfig,
   loadGoogleFonts,
   loadCustomCss,
+  loadCustomCssInline,
 })
 </script>
 
