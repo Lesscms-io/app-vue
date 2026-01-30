@@ -21,6 +21,7 @@ import LcmsHeading from './text/LcmsHeading.vue'
 import LcmsImage from './media/LcmsImage.vue'
 import LcmsGallery from './media/LcmsGallery.vue'
 import LcmsVideo from './media/LcmsVideo.vue'
+import LcmsPdfViewer from './media/LcmsPdfViewer.vue'
 import LcmsGoogleMaps from './media/LcmsGoogleMaps.vue'
 
 // Layout widgets
@@ -65,6 +66,7 @@ export const widgetComponents: Record<string, Component> = {
   image: LcmsImage,
   gallery: LcmsGallery,
   video: LcmsVideo,
+  'pdf-viewer': LcmsPdfViewer,
   'google-maps': LcmsGoogleMaps,
 
   // Layout
@@ -127,6 +129,7 @@ export {
   LcmsImage,
   LcmsGallery,
   LcmsVideo,
+  LcmsPdfViewer,
   LcmsGoogleMaps,
   // Layout
   LcmsHero,
