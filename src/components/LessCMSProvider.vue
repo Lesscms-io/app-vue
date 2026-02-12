@@ -206,6 +206,45 @@ function setFontVariable(fonts: string[]) {
 }
 
 /**
+ * Apply style variables from project config
+ */
+function applyStyleVariables(styles: Record<string, any>) {
+  if (!styles) return
+
+  const root = document.documentElement
+
+  // Theme color variables
+  if (styles.primary_color) root.style.setProperty('--lcms-color-primary', styles.primary_color)
+  if (styles.secondary_color) root.style.setProperty('--lcms-color-secondary', styles.secondary_color)
+
+  // Semantic color variables
+  if (styles.success_color) root.style.setProperty('--lcms-color-success', styles.success_color)
+  if (styles.danger_color) root.style.setProperty('--lcms-color-danger', styles.danger_color)
+  if (styles.warning_color) root.style.setProperty('--lcms-color-warning', styles.warning_color)
+  if (styles.info_color) root.style.setProperty('--lcms-color-info', styles.info_color)
+
+  // Neutral color variables
+  if (styles.light_color) root.style.setProperty('--lcms-color-light', styles.light_color)
+  if (styles.dark_color) root.style.setProperty('--lcms-color-dark', styles.dark_color)
+
+  // Content color variables
+  if (styles.text_color) root.style.setProperty('--lcms-color-text', styles.text_color)
+  if (styles.background_color) root.style.setProperty('--lcms-color-background', styles.background_color)
+  if (styles.link_color) root.style.setProperty('--lcms-color-link', styles.link_color)
+  if (styles.muted_color) root.style.setProperty('--lcms-color-muted', styles.muted_color)
+
+  // Typography variables
+  if (styles.font_heading) root.style.setProperty('--lcms-font-heading', `"${styles.font_heading}", sans-serif`)
+  if (styles.font_body) root.style.setProperty('--lcms-font-body', `"${styles.font_body}", sans-serif`)
+  if (styles.font_size_base) root.style.setProperty('--lcms-font-size-base', `${styles.font_size_base}px`)
+  if (styles.line_height) root.style.setProperty('--lcms-line-height', String(styles.line_height))
+
+  // Layout variables
+  if (styles.border_radius !== undefined) root.style.setProperty('--lcms-border-radius', `${styles.border_radius}px`)
+  if (styles.container_max_width) root.style.setProperty('--lcms-container-max-width', `${styles.container_max_width}px`)
+}
+
+/**
  * Fetch and apply project config
  */
 async function fetchProjectConfig() {
@@ -229,6 +268,7 @@ async function fetchProjectConfig() {
       available_widgets: data.available_widgets || [],
       available_fonts: data.available_fonts || [],
       google_fonts_url: data.google_fonts_url || null,
+      styles: data.styles || null,
     }
 
     // Load Google Fonts
@@ -238,6 +278,11 @@ async function fetchProjectConfig() {
 
     // Set font CSS variable
     setFontVariable(projectConfig.value.fonts)
+
+    // Apply style variables (colors, typography, layout)
+    if (projectConfig.value.styles) {
+      applyStyleVariables(projectConfig.value.styles)
+    }
 
     // Load custom CSS (external URL)
     if (projectConfig.value.custom_css_url) {

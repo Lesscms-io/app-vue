@@ -12,6 +12,15 @@ import WidgetRenderer from './WidgetRenderer.vue'
 import { useResponsiveSettings } from '@/composables/useResponsiveSettings'
 import type { PageSection, PageColumn, WidgetContent, SectionSettings, ColumnSettings } from '@/api/types'
 
+interface HoverSettings {
+  backgroundColor?: string
+  backgroundOpacity?: number
+  borderColor?: string
+  borderWidth?: number | null
+  boxShadow?: string
+  transitionDuration?: number
+}
+
 interface Props {
   section: PageSection
   language?: string
@@ -24,6 +33,51 @@ const { getMergedSettings, isHidden, shouldStack, currentBreakpoint } = useRespo
 const sectionId = computed(() => props.section.uuid || props.section.id)
 const settings = computed(() => getMergedSettings(props.section.settings as SectionSettings))
 const columns = computed(() => props.section.columns || [])
+
+// Generate unique ID for section (used for hover CSS selectors)
+const sectionUniqueId = computed(() => {
+  const id = props.section.uuid || props.section.id || Math.random().toString(36).substring(2, 11)
+  return `lcms-section-${id}`
+})
+
+// Generate hover CSS for section
+const sectionHoverCss = computed(() => {
+  const hover = (props.section.settings as any)?.hover as HoverSettings | undefined
+  if (!hover) return ''
+
+  const hasHoverStyles = hover.backgroundColor || hover.borderColor || hover.boxShadow
+  if (!hasHoverStyles) return ''
+
+  const transitionDuration = hover.transitionDuration ?? 300
+
+  let css = `#${sectionUniqueId.value} { transition: all ${transitionDuration}ms ease; }`
+  css += `#${sectionUniqueId.value}:hover {`
+
+  if (hover.backgroundColor) {
+    const opacity = hover.backgroundOpacity ?? 100
+    if (opacity < 100) {
+      css += `background-color: ${hexToRgba(hover.backgroundColor, opacity / 100)};`
+    } else {
+      css += `background-color: ${hover.backgroundColor};`
+    }
+  }
+
+  if (hover.borderColor) {
+    css += `border-color: ${hover.borderColor};`
+  }
+
+  if (hover.borderWidth !== undefined && hover.borderWidth !== null) {
+    css += `border-width: ${hover.borderWidth}px;`
+  }
+
+  if (hover.boxShadow) {
+    css += `box-shadow: ${hover.boxShadow};`
+  }
+
+  css += '}'
+
+  return css
+})
 
 // Grid type for column layout
 const gridType = computed(() => {
@@ -259,6 +313,57 @@ function getColumnStyle(column: PageColumn) {
   return style
 }
 
+// Generate unique ID for column
+function getColumnId(column: PageColumn, index: number): string {
+  const id = column.uuid || column.id || `col-${index}`
+  return `lcms-column-${id}`
+}
+
+// Generate hover CSS for a column
+function getColumnHoverCss(column: PageColumn, index: number): string {
+  const hover = (column.settings as any)?.hover as HoverSettings | undefined
+  if (!hover) return ''
+
+  const hasHoverStyles = hover.backgroundColor || hover.borderColor || hover.boxShadow
+  if (!hasHoverStyles) return ''
+
+  const columnId = getColumnId(column, index)
+  const transitionDuration = hover.transitionDuration ?? 300
+
+  let css = `#${columnId} { transition: all ${transitionDuration}ms ease; }`
+  css += `#${columnId}:hover {`
+
+  if (hover.backgroundColor) {
+    const opacity = hover.backgroundOpacity ?? 100
+    if (opacity < 100) {
+      css += `background-color: ${hexToRgba(hover.backgroundColor, opacity / 100)};`
+    } else {
+      css += `background-color: ${hover.backgroundColor};`
+    }
+  }
+
+  if (hover.borderColor) {
+    css += `border-color: ${hover.borderColor};`
+  }
+
+  if (hover.borderWidth !== undefined && hover.borderWidth !== null) {
+    css += `border-width: ${hover.borderWidth}px;`
+  }
+
+  if (hover.boxShadow) {
+    css += `box-shadow: ${hover.boxShadow};`
+  }
+
+  css += '}'
+
+  return css
+}
+
+// All columns hover CSS combined
+const columnsHoverCss = computed(() => {
+  return columns.value.map((col, idx) => getColumnHoverCss(col, idx)).filter(Boolean).join('\n')
+})
+
 // Get widgets from column content
 function getColumnWidgets(column: any) {
   // API returns widgets as "content" array with widget_type, uuid, content, config, settings
@@ -318,8 +423,20 @@ function hexToRgba(hex: string, alpha: number): string {
 </script>
 
 <template>
+  <!-- Dynamic hover styles for section -->
+  <component
+    :is="'style'"
+    v-if="sectionHoverCss"
+  >{{ sectionHoverCss }}</component>
+
+  <!-- Dynamic hover styles for columns -->
+  <component
+    :is="'style'"
+    v-if="columnsHoverCss"
+  >{{ columnsHoverCss }}</component>
+
   <section
-    :id="settings.id || undefined"
+    :id="settings.cssId || sectionUniqueId"
     :class="sectionClass"
     :data-section-id="sectionId"
     :style="sectionStyle"
@@ -331,7 +448,7 @@ function hexToRgba(hex: string, alpha: number): string {
       <div
         v-for="(column, colIndex) in columns"
         :key="column.id || colIndex"
-        :id="column.settings?.id || undefined"
+        :id="column.settings?.cssId || getColumnId(column, colIndex)"
         class="lcms-section__column"
         :class="{ 'lcms-hidden': isColumnHidden(column) }"
         :style="getColumnStyle(column)"

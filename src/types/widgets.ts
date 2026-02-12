@@ -40,6 +40,16 @@ export interface SpacerWidgetData extends BaseWidgetData {
   height?: number
 }
 
+export interface LinkWidgetData extends BaseWidgetData {
+  text: MultilingualValue
+  url?: string
+  icon?: string
+  icon_position?: 'left' | 'right' | 'none'
+  animation?: 'none' | 'slide' | 'fade' | 'underline'
+  color?: string
+  target_blank?: boolean
+}
+
 export interface StarRatingWidgetData extends BaseWidgetData {
   rating: number
   max_stars?: number
@@ -262,6 +272,7 @@ export type WidgetData =
   | IconWidgetData
   | DividerWidgetData
   | SpacerWidgetData
+  | LinkWidgetData
   | StarRatingWidgetData
   | TextWidgetData
   | HeadingWidgetData

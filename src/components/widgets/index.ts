@@ -12,6 +12,7 @@ import LcmsDivider from './basic/LcmsDivider.vue'
 import LcmsSpacer from './basic/LcmsSpacer.vue'
 import LcmsIconBox from './basic/LcmsIconBox.vue'
 import LcmsServiceCard from './basic/LcmsServiceCard.vue'
+import LcmsLink from './basic/LcmsLink.vue'
 
 // Text widgets
 import LcmsText from './text/LcmsText.vue'
@@ -57,6 +58,7 @@ export const widgetComponents: Record<string, Component> = {
   spacer: LcmsSpacer,
   'icon-box': LcmsIconBox,
   'service-card': LcmsServiceCard,
+  link: LcmsLink,
 
   // Text
   text: LcmsText,
@@ -122,6 +124,7 @@ export {
   LcmsSpacer,
   LcmsIconBox,
   LcmsServiceCard,
+  LcmsLink,
   // Text
   LcmsText,
   LcmsHeading,

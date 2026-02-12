@@ -5,12 +5,22 @@
  * Dynamically renders a widget based on its type.
  * Applies all widget settings: padding, margin, background, border, etc.
  * Supports responsive settings for tablet/mobile breakpoints.
+ * Supports hover effects via dynamic CSS generation.
  */
 
 import { computed } from 'vue'
 import { getWidgetComponent, isWidgetSupported } from './widgets'
 import { useResponsiveSettings } from '@/composables/useResponsiveSettings'
 import type { Widget, WidgetSettings } from '@/api/types'
+
+interface HoverSettings {
+  backgroundColor?: string
+  backgroundOpacity?: number
+  borderColor?: string
+  borderWidth?: number | null
+  boxShadow?: string
+  transitionDuration?: number
+}
 
 interface Props {
   widget: Widget
@@ -24,6 +34,51 @@ const { getMergedSettings, isHidden, currentBreakpoint } = useResponsiveSettings
 const widgetType = computed(() => props.widget.type || props.widget.widget_type || '')
 const widgetData = computed(() => props.widget.data || props.widget.config || {})
 const settings = computed(() => getMergedSettings(props.widget.settings as WidgetSettings))
+
+// Generate unique ID for widget (used for hover CSS selectors)
+const widgetId = computed(() => {
+  const id = props.widget.uuid || props.widget.id || Math.random().toString(36).substring(2, 11)
+  return `lcms-widget-${id}`
+})
+
+// Generate hover CSS if hover settings are defined
+const hoverCss = computed(() => {
+  const hover = settings.value.hover as HoverSettings | undefined
+  if (!hover) return ''
+
+  const hasHoverStyles = hover.backgroundColor || hover.borderColor || hover.boxShadow
+  if (!hasHoverStyles) return ''
+
+  const transitionDuration = hover.transitionDuration ?? 300
+
+  let css = `#${widgetId.value} { transition: all ${transitionDuration}ms ease; }`
+  css += `#${widgetId.value}:hover {`
+
+  if (hover.backgroundColor) {
+    const opacity = hover.backgroundOpacity ?? 100
+    if (opacity < 100) {
+      css += `background-color: ${hexToRgba(hover.backgroundColor, opacity / 100)};`
+    } else {
+      css += `background-color: ${hover.backgroundColor};`
+    }
+  }
+
+  if (hover.borderColor) {
+    css += `border-color: ${hover.borderColor};`
+  }
+
+  if (hover.borderWidth !== undefined && hover.borderWidth !== null) {
+    css += `border-width: ${hover.borderWidth}px;`
+  }
+
+  if (hover.boxShadow) {
+    css += `box-shadow: ${hover.boxShadow};`
+  }
+
+  css += '}'
+
+  return css
+})
 
 const component = computed(() => {
   if (!widgetType.value) return null
@@ -181,10 +236,16 @@ function mapVerticalAlign(value: string): string {
 </script>
 
 <template>
+  <!-- Dynamic hover styles -->
+  <component
+    :is="'style'"
+    v-if="hoverCss"
+  >{{ hoverCss }}</component>
+
   <!-- Wrap in link if link settings enabled -->
   <component
     :is="linkSettings ? 'a' : 'div'"
-    :id="settings.id || undefined"
+    :id="settings.id || widgetId"
     :href="linkSettings?.url"
     :target="linkSettings?.targetBlank ? '_blank' : undefined"
     :rel="linkSettings?.targetBlank ? 'noopener noreferrer' : undefined"
