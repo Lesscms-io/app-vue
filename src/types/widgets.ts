@@ -198,6 +198,7 @@ export interface AlertWidgetData extends BaseWidgetData {
 export interface MenuWidgetData extends BaseWidgetData {
   menu_code: string
   layout?: 'horizontal' | 'vertical'
+  hamburger_breakpoint?: 'never' | 'mobile' | 'tablet'
 }
 
 export interface SocialIconItem {

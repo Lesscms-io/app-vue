@@ -7,9 +7,10 @@
  * Supports responsive settings for tablet/mobile breakpoints.
  */
 
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import WidgetRenderer from './WidgetRenderer.vue'
 import { useResponsiveSettings } from '@/composables/useResponsiveSettings'
+import { useScrollAnimation } from '@/composables/useScrollAnimation'
 import type { PageSection, PageColumn, WidgetContent, SectionSettings, ColumnSettings } from '@/api/types'
 
 interface HoverSettings {
@@ -19,6 +20,9 @@ interface HoverSettings {
   borderWidth?: number | null
   boxShadow?: string
   transitionDuration?: number
+  hoverTranslateY?: number
+  hoverScale?: number
+  hoverRotate?: number
 }
 
 interface Props {
@@ -45,7 +49,8 @@ const sectionHoverCss = computed(() => {
   const hover = (props.section.settings as any)?.hover as HoverSettings | undefined
   if (!hover) return ''
 
-  const hasHoverStyles = hover.backgroundColor || hover.borderColor || hover.boxShadow
+  const hasTransform = hover.hoverTranslateY || (hover.hoverScale !== undefined && hover.hoverScale !== 1) || hover.hoverRotate
+  const hasHoverStyles = hover.backgroundColor || hover.borderColor || hover.boxShadow || hasTransform
   if (!hasHoverStyles) return ''
 
   const transitionDuration = hover.transitionDuration ?? 300
@@ -72,6 +77,14 @@ const sectionHoverCss = computed(() => {
 
   if (hover.boxShadow) {
     css += `box-shadow: ${hover.boxShadow};`
+  }
+
+  if (hasTransform) {
+    const parts: string[] = []
+    if (hover.hoverTranslateY) parts.push(`translateY(${hover.hoverTranslateY}px)`)
+    if (hover.hoverScale !== undefined && hover.hoverScale !== 1) parts.push(`scale(${hover.hoverScale})`)
+    if (hover.hoverRotate) parts.push(`rotate(${hover.hoverRotate}deg)`)
+    css += `transform: ${parts.join(' ')};`
   }
 
   css += '}'
@@ -161,6 +174,13 @@ const sectionStyle = computed(() => {
     style.minHeight = `${s.sectionHeight}px`
   } else if (s.minHeight) {
     style.minHeight = `${s.minHeight}px`
+  }
+
+  // Sticky
+  if (s.sticky) {
+    style.position = 'sticky'
+    style.top = '0'
+    style.zIndex = String(s.stickyZIndex ?? 100)
   }
 
   return style
@@ -387,6 +407,31 @@ function getColumnWidgets(column: any) {
   })
 }
 
+// Scroll animation for section
+const sectionAnimConfig = computed(() => {
+  const s = settings.value as SectionSettings
+  const type = (s as any).animationType || 'none'
+  if (type === 'none') return null
+  return {
+    type,
+    duration: (s as any).animationDuration ?? 600,
+    delay: (s as any).animationDelay ?? 0,
+    once: (s as any).animationOnce ?? true
+  }
+})
+
+const sectionRef = ref<HTMLElement | null>(null)
+const { isVisible: sectionVisible, hasAnimated: sectionHasAnimated } = useScrollAnimation(sectionRef, sectionAnimConfig)
+
+// Scroll animation inline style
+const sectionAnimStyle = computed(() => {
+  if (!sectionAnimConfig.value) return {}
+  return {
+    '--lcms-anim-duration': `${sectionAnimConfig.value.duration}ms`,
+    '--lcms-anim-delay': `${sectionAnimConfig.value.delay}ms`
+  }
+})
+
 // Check if section is hidden for current breakpoint
 const isSectionHidden = computed(() => isHidden(props.section.settings))
 
@@ -407,6 +452,14 @@ const sectionClass = computed(() => {
 
   // Add breakpoint class for CSS targeting
   classes.push(`lcms-section--${currentBreakpoint.value}`)
+
+  // Scroll animation classes
+  if (sectionAnimConfig.value) {
+    classes.push(`lcms-anim-${sectionAnimConfig.value.type}`)
+    if (sectionVisible.value || sectionHasAnimated.value) {
+      classes.push('lcms-anim--visible')
+    }
+  }
 
   return classes.join(' ')
 })
@@ -436,10 +489,11 @@ function hexToRgba(hex: string, alpha: number): string {
   >{{ columnsHoverCss }}</component>
 
   <section
+    ref="sectionRef"
     :id="settings.cssId || sectionUniqueId"
     :class="sectionClass"
     :data-section-id="sectionId"
-    :style="sectionStyle"
+    :style="{ ...sectionStyle, ...sectionAnimStyle }"
   >
     <div
       class="lcms-section__grid"

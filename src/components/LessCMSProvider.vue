@@ -77,6 +77,17 @@ interface Props {
    * @default true
    */
   enableSeo?: boolean
+
+  /**
+   * Email sending configuration (e.g. for form widget notifications).
+   * Currently supports Mailtrap Send API.
+   */
+  emailConfig?: {
+    provider: 'mailtrap'
+    token: string
+    fromEmail: string
+    fromName?: string
+  }
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -148,6 +159,7 @@ watch(
 provide('lesscms-config', config)
 provide('lesscms-api', apiClient)
 provide('lesscms-project-config', projectConfig)
+provide('lesscms-email-config', props.emailConfig || null)
 
 /**
  * Load Google Fonts by injecting a <link> tag

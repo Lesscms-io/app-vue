@@ -25,6 +25,11 @@ export interface ApiClient {
   get<T>(path: string, params?: Record<string, any>): Promise<T>
 
   /**
+   * Generic POST request
+   */
+  post<T>(path: string, body?: any): Promise<T>
+
+  /**
    * Get all public pages
    */
   getPages(): Promise<PagesListResponse>
@@ -182,8 +187,46 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
     return response.json()
   }
 
+  async function post<T>(path: string, body?: any): Promise<T> {
+    const url = `${basePath}${path}`
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    }
+
+    if (!isProxy && config.apiKey) {
+      headers['x-api-key'] = config.apiKey
+    }
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: body ? JSON.stringify(body) : undefined,
+      credentials: isProxy ? 'include' : 'same-origin',
+    })
+
+    if (!response.ok) {
+      let errorData
+      try {
+        errorData = await response.json()
+      } catch {
+        errorData = null
+      }
+      throw new ApiError(
+        errorData?.message || `API error: ${response.status}`,
+        response.status,
+        response.statusText,
+        errorData
+      )
+    }
+
+    return response.json()
+  }
+
   return {
     get,
+    post,
 
     isProxyMode() {
       return isProxy

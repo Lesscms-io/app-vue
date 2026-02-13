@@ -3,11 +3,13 @@
  * Menu Widget
  *
  * Renders a navigation menu fetched from the API.
+ * Supports a hamburger toggle for mobile/tablet breakpoints.
  */
 
-import { computed } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { useMenu } from '@/composables/useMenu'
 import { useLanguage } from '@/composables/useLanguage'
+import { useResponsiveSettings } from '@/composables/useResponsiveSettings'
 import type { MenuWidgetData } from '@/types/widgets'
 import type { MenuItem } from '@/api/types'
 
@@ -24,11 +26,58 @@ interface Props {
 const props = defineProps<Props>()
 
 const { extractValue } = useLanguage(props.language)
+const { currentBreakpoint } = useResponsiveSettings()
 
 const menuCode = computed(() => props.data.menu_code || '')
 const layout = computed(() => props.data.layout || 'horizontal')
+const hamburgerBreakpoint = computed(() => props.data.hamburger_breakpoint || 'never')
 
 const { items, loading, error } = useMenu(menuCode)
+
+const hamburgerOpen = ref(false)
+
+/**
+ * Determine whether the hamburger mode is active based on
+ * the configured breakpoint and the current viewport size.
+ *
+ * - 'never'  : hamburger is never shown
+ * - 'mobile' : hamburger shows on mobile only (<=767px)
+ * - 'tablet' : hamburger shows on tablet and mobile (<=1199px)
+ */
+const isHamburgerMode = computed(() => {
+  if (hamburgerBreakpoint.value === 'never') return false
+  if (hamburgerBreakpoint.value === 'mobile') return currentBreakpoint.value === 'mobile'
+  if (hamburgerBreakpoint.value === 'tablet') return currentBreakpoint.value === 'mobile' || currentBreakpoint.value === 'tablet'
+  return false
+})
+
+function toggleHamburger() {
+  hamburgerOpen.value = !hamburgerOpen.value
+}
+
+function closeHamburger() {
+  hamburgerOpen.value = false
+}
+
+function handleLinkClick() {
+  if (isHamburgerMode.value) {
+    closeHamburger()
+  }
+}
+
+function handleKeydown(e: KeyboardEvent) {
+  if (e.key === 'Escape' && hamburgerOpen.value) {
+    closeHamburger()
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('keydown', handleKeydown)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('keydown', handleKeydown)
+})
 
 function getItemLabel(item: MenuItem): string {
   return extractValue(item.label) as string
@@ -46,7 +95,10 @@ function getItemTarget(item: MenuItem): string | undefined {
 <template>
   <nav
     class="lcms-menu"
-    :class="`lcms-menu--${layout}`"
+    :class="[
+      `lcms-menu--${layout}`,
+      { 'lcms-menu--hamburger': isHamburgerMode, 'lcms-menu--open': hamburgerOpen && isHamburgerMode }
+    ]"
   >
     <div
       v-if="loading"
@@ -62,44 +114,135 @@ function getItemTarget(item: MenuItem): string | undefined {
       Failed to load menu
     </div>
 
-    <ul
-      v-else
-      class="lcms-menu__list"
-    >
-      <li
-        v-for="item in items"
-        :key="item.id"
-        class="lcms-menu__item"
-        :class="{ 'lcms-menu__item--has-children': item.children && item.children.length > 0 }"
+    <template v-else>
+      <!-- Hamburger toggle button -->
+      <button
+        v-if="isHamburgerMode"
+        class="lcms-menu__hamburger"
+        :class="{ 'lcms-menu__hamburger--active': hamburgerOpen }"
+        type="button"
+        aria-label="Toggle menu"
+        :aria-expanded="hamburgerOpen"
+        @click="toggleHamburger"
       >
-        <a
-          :href="getItemUrl(item)"
-          class="lcms-menu__link"
-          :target="getItemTarget(item)"
-        >
-          {{ getItemLabel(item) }}
-        </a>
+        <span class="lcms-menu__hamburger-bar" />
+        <span class="lcms-menu__hamburger-bar" />
+        <span class="lcms-menu__hamburger-bar" />
+      </button>
 
-        <!-- Nested menu -->
-        <ul
-          v-if="item.children && item.children.length > 0"
-          class="lcms-menu__submenu"
-        >
+      <!-- Menu list -->
+      <div
+        class="lcms-menu__panel"
+        :class="{ 'lcms-menu__panel--open': hamburgerOpen || !isHamburgerMode }"
+      >
+        <ul class="lcms-menu__list">
           <li
-            v-for="child in item.children"
-            :key="child.id"
-            class="lcms-menu__subitem"
+            v-for="item in items"
+            :key="item.id"
+            class="lcms-menu__item"
+            :class="{ 'lcms-menu__item--has-children': item.children && item.children.length > 0 }"
           >
             <a
-              :href="getItemUrl(child)"
-              class="lcms-menu__sublink"
-              :target="getItemTarget(child)"
+              :href="getItemUrl(item)"
+              class="lcms-menu__link"
+              :target="getItemTarget(item)"
+              @click="handleLinkClick"
             >
-              {{ getItemLabel(child) }}
+              {{ getItemLabel(item) }}
             </a>
+
+            <!-- Nested menu -->
+            <ul
+              v-if="item.children && item.children.length > 0"
+              class="lcms-menu__submenu"
+            >
+              <li
+                v-for="child in item.children"
+                :key="child.id"
+                class="lcms-menu__subitem"
+              >
+                <a
+                  :href="getItemUrl(child)"
+                  class="lcms-menu__sublink"
+                  :target="getItemTarget(child)"
+                  @click="handleLinkClick"
+                >
+                  {{ getItemLabel(child) }}
+                </a>
+              </li>
+            </ul>
           </li>
         </ul>
-      </li>
-    </ul>
+      </div>
+    </template>
   </nav>
 </template>
+
+<style scoped>
+/* ===========================
+   Hamburger button
+   =========================== */
+.lcms-menu__hamburger {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 5px;
+  width: 40px;
+  height: 40px;
+  padding: 6px;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.lcms-menu__hamburger-bar {
+  display: block;
+  width: 24px;
+  height: 2px;
+  background-color: currentColor;
+  border-radius: 1px;
+  transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+/* Animate bars into an X when active */
+.lcms-menu__hamburger--active .lcms-menu__hamburger-bar:nth-child(1) {
+  transform: translateY(7px) rotate(45deg);
+}
+
+.lcms-menu__hamburger--active .lcms-menu__hamburger-bar:nth-child(2) {
+  opacity: 0;
+}
+
+.lcms-menu__hamburger--active .lcms-menu__hamburger-bar:nth-child(3) {
+  transform: translateY(-7px) rotate(-45deg);
+}
+
+/* ===========================
+   Slide-down panel
+   =========================== */
+.lcms-menu__panel {
+  overflow: hidden;
+  max-height: 0;
+  opacity: 0;
+  transition: max-height 0.35s ease, opacity 0.25s ease;
+}
+
+.lcms-menu__panel--open {
+  max-height: 2000px;
+  opacity: 1;
+}
+
+/* When NOT in hamburger mode, panel is always visible without transition */
+.lcms-menu:not(.lcms-menu--hamburger) .lcms-menu__panel {
+  max-height: none;
+  opacity: 1;
+  overflow: visible;
+  transition: none;
+}
+
+/* In hamburger mode, force vertical layout for the list */
+.lcms-menu--hamburger .lcms-menu__list {
+  flex-direction: column;
+}
+</style>

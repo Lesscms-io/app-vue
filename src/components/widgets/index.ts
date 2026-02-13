@@ -39,6 +39,10 @@ import LcmsAlert from './interactive/LcmsAlert.vue'
 // Navigation widgets
 import LcmsMenu from './navigation/LcmsMenu.vue'
 import LcmsSocialIcons from './navigation/LcmsSocialIcons.vue'
+import LcmsBreadcrumbs from './navigation/LcmsBreadcrumbs.vue'
+
+// Interactive widgets (forms)
+import LcmsForm from './interactive/LcmsForm.vue'
 
 // Collection widgets
 import LcmsCollectionGrid from './collections/LcmsCollectionGrid.vue'
@@ -85,6 +89,10 @@ export const widgetComponents: Record<string, Component> = {
   // Navigation
   menu: LcmsMenu,
   'social-icons': LcmsSocialIcons,
+  breadcrumbs: LcmsBreadcrumbs,
+
+  // Forms
+  form: LcmsForm,
 
   // Collections
   'collection-grid': LcmsCollectionGrid,
@@ -146,6 +154,9 @@ export {
   // Navigation
   LcmsMenu,
   LcmsSocialIcons,
+  LcmsBreadcrumbs,
+  // Forms
+  LcmsForm,
   // Collections
   LcmsCollectionGrid,
   LcmsCollectionCarousel,

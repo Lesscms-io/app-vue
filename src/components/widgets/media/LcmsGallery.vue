@@ -4,9 +4,10 @@
  *
  * Renders an image gallery in grid or carousel mode.
  * Supports multiple carousel styles: default, coverflow, fade.
+ * Optional lightbox overlay for fullscreen image viewing.
  */
 
-import { computed, ref, onMounted, onUnmounted } from 'vue'
+import { computed, ref, onMounted, onUnmounted, Teleport, watch } from 'vue'
 import type { GalleryWidgetData, GalleryImage } from '@/types/widgets'
 
 defineOptions({
@@ -63,6 +64,11 @@ const showDots = computed(() => {
   return true
 })
 
+// Lightbox setting - support both snake_case and camelCase
+const enableLightbox = computed(() =>
+  config.value.enable_lightbox || config.value.enableLightbox || props.data.enable_lightbox
+)
+
 // Carousel state
 const currentSlide = ref(0)
 
@@ -116,13 +122,89 @@ function stopAutoplay() {
   }
 }
 
+// --- Lightbox ---
+const lightboxOpen = ref(false)
+const lightboxIndex = ref(0)
+
+function openLightbox(index: number) {
+  if (!enableLightbox.value) return
+  lightboxIndex.value = index
+  lightboxOpen.value = true
+}
+
+function closeLightbox() {
+  lightboxOpen.value = false
+}
+
+function lightboxNext() {
+  lightboxIndex.value = (lightboxIndex.value + 1) % images.value.length
+}
+
+function lightboxPrev() {
+  lightboxIndex.value = (lightboxIndex.value - 1 + images.value.length) % images.value.length
+}
+
+function onLightboxKeydown(e: KeyboardEvent) {
+  if (!lightboxOpen.value) return
+  if (e.key === 'Escape') {
+    closeLightbox()
+  } else if (e.key === 'ArrowRight') {
+    lightboxNext()
+  } else if (e.key === 'ArrowLeft') {
+    lightboxPrev()
+  }
+}
+
+// Touch swipe support
+let touchStartX = 0
+let touchEndX = 0
+const SWIPE_THRESHOLD = 50
+
+function onTouchStart(e: TouchEvent) {
+  touchStartX = e.changedTouches[0].screenX
+}
+
+function onTouchEnd(e: TouchEvent) {
+  touchEndX = e.changedTouches[0].screenX
+  const diff = touchStartX - touchEndX
+  if (Math.abs(diff) >= SWIPE_THRESHOLD) {
+    if (diff > 0) {
+      lightboxNext()
+    } else {
+      lightboxPrev()
+    }
+  }
+}
+
+function onBackdropClick(e: MouseEvent) {
+  // Only close if clicking the backdrop itself, not the image or controls
+  if ((e.target as HTMLElement).classList.contains('lcms-lightbox__backdrop')) {
+    closeLightbox()
+  }
+}
+
+// Lock body scroll when lightbox is open
+watch(lightboxOpen, (open) => {
+  if (open) {
+    document.body.style.overflow = 'hidden'
+  } else {
+    document.body.style.overflow = ''
+  }
+})
+
 onMounted(() => {
   startAutoplay()
+  document.addEventListener('keydown', onLightboxKeydown)
 })
 
 onUnmounted(() => {
   stopAutoplay()
+  document.removeEventListener('keydown', onLightboxKeydown)
+  // Ensure body scroll is restored
+  document.body.style.overflow = ''
 })
+
+const lightboxImage = computed(() => images.value[lightboxIndex.value])
 </script>
 
 <template>
@@ -144,6 +226,8 @@ onUnmounted(() => {
         :key="index"
         class="lcms-gallery__item"
         :class="aspectClass"
+        :style="enableLightbox ? { cursor: 'pointer' } : undefined"
+        @click="openLightbox(index)"
       >
         <img
           :src="image.url"
@@ -166,6 +250,8 @@ onUnmounted(() => {
           :key="index"
           class="lcms-gallery__slide"
           :class="{ 'lcms-gallery__slide--active': index === currentSlide }"
+          :style="enableLightbox ? { cursor: 'pointer' } : undefined"
+          @click="openLightbox(index)"
         >
           <img
             :src="image.url"
@@ -231,7 +317,7 @@ onUnmounted(() => {
           :style="{
             zIndex: 10 - Math.abs(getSlideOffset(index))
           }"
-          @click="goToSlide(index)"
+          @click="enableLightbox && getSlideOffset(index) === 0 ? openLightbox(index) : goToSlide(index)"
         >
           <img
             :src="image.url"
@@ -273,5 +359,62 @@ onUnmounted(() => {
         />
       </div>
     </div>
+
+    <!-- Lightbox Overlay -->
+    <Teleport to="body">
+      <Transition name="lcms-lightbox">
+        <div
+          v-if="lightboxOpen && lightboxImage"
+          class="lcms-lightbox__backdrop"
+          @click="onBackdropClick"
+          @touchstart="onTouchStart"
+          @touchend="onTouchEnd"
+        >
+          <!-- Close button -->
+          <button
+            class="lcms-lightbox__close"
+            type="button"
+            @click="closeLightbox"
+          >
+            <i class="fa-solid fa-xmark" />
+          </button>
+
+          <!-- Image counter -->
+          <div class="lcms-lightbox__counter">
+            {{ lightboxIndex + 1 }} / {{ images.length }}
+          </div>
+
+          <!-- Previous arrow -->
+          <button
+            v-if="images.length > 1"
+            class="lcms-lightbox__arrow lcms-lightbox__arrow--prev"
+            type="button"
+            @click.stop="lightboxPrev"
+          >
+            <i class="fa-solid fa-chevron-left" />
+          </button>
+
+          <!-- Current image -->
+          <div class="lcms-lightbox__image-wrapper">
+            <img
+              :src="lightboxImage.url"
+              :alt="lightboxImage.alt || ''"
+              class="lcms-lightbox__image"
+              @click.stop
+            >
+          </div>
+
+          <!-- Next arrow -->
+          <button
+            v-if="images.length > 1"
+            class="lcms-lightbox__arrow lcms-lightbox__arrow--next"
+            type="button"
+            @click.stop="lightboxNext"
+          >
+            <i class="fa-solid fa-chevron-right" />
+          </button>
+        </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>

@@ -8,9 +8,10 @@
  * Supports hover effects via dynamic CSS generation.
  */
 
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { getWidgetComponent, isWidgetSupported } from './widgets'
 import { useResponsiveSettings } from '@/composables/useResponsiveSettings'
+import { useScrollAnimation } from '@/composables/useScrollAnimation'
 import type { Widget, WidgetSettings } from '@/api/types'
 
 interface HoverSettings {
@@ -20,6 +21,9 @@ interface HoverSettings {
   borderWidth?: number | null
   boxShadow?: string
   transitionDuration?: number
+  hoverTranslateY?: number
+  hoverScale?: number
+  hoverRotate?: number
 }
 
 interface Props {
@@ -46,7 +50,8 @@ const hoverCss = computed(() => {
   const hover = settings.value.hover as HoverSettings | undefined
   if (!hover) return ''
 
-  const hasHoverStyles = hover.backgroundColor || hover.borderColor || hover.boxShadow
+  const hasTransform = hover.hoverTranslateY || (hover.hoverScale !== undefined && hover.hoverScale !== 1) || hover.hoverRotate
+  const hasHoverStyles = hover.backgroundColor || hover.borderColor || hover.boxShadow || hasTransform
   if (!hasHoverStyles) return ''
 
   const transitionDuration = hover.transitionDuration ?? 300
@@ -75,10 +80,34 @@ const hoverCss = computed(() => {
     css += `box-shadow: ${hover.boxShadow};`
   }
 
+  if (hasTransform) {
+    const parts: string[] = []
+    if (hover.hoverTranslateY) parts.push(`translateY(${hover.hoverTranslateY}px)`)
+    if (hover.hoverScale !== undefined && hover.hoverScale !== 1) parts.push(`scale(${hover.hoverScale})`)
+    if (hover.hoverRotate) parts.push(`rotate(${hover.hoverRotate}deg)`)
+    css += `transform: ${parts.join(' ')};`
+  }
+
   css += '}'
 
   return css
 })
+
+// Scroll animation
+const animationConfig = computed(() => {
+  const s = settings.value
+  const type = s.animationType || 'none'
+  if (type === 'none') return null
+  return {
+    type,
+    duration: s.animationDuration ?? 600,
+    delay: s.animationDelay ?? 0,
+    once: s.animationOnce ?? true
+  }
+})
+
+const widgetRef = ref<HTMLElement | null>(null)
+const { isVisible, hasAnimated } = useScrollAnimation(widgetRef, animationConfig)
 
 const component = computed(() => {
   if (!widgetType.value) return null
@@ -199,7 +228,24 @@ const widgetClass = computed(() => {
   // Add breakpoint class for CSS targeting
   classes.push(`lcms-widget--${currentBreakpoint.value}`)
 
+  // Scroll animation classes
+  if (animationConfig.value) {
+    classes.push(`lcms-anim-${animationConfig.value.type}`)
+    if (isVisible.value || hasAnimated.value) {
+      classes.push('lcms-anim--visible')
+    }
+  }
+
   return classes.join(' ')
+})
+
+// Scroll animation inline style (for custom duration/delay)
+const animationStyle = computed(() => {
+  if (!animationConfig.value) return {}
+  return {
+    '--lcms-anim-duration': `${animationConfig.value.duration}ms`,
+    '--lcms-anim-delay': `${animationConfig.value.delay}ms`
+  }
 })
 
 // Link settings
@@ -245,6 +291,7 @@ function mapVerticalAlign(value: string): string {
   <!-- Wrap in link if link settings enabled -->
   <component
     :is="linkSettings ? 'a' : 'div'"
+    ref="widgetRef"
     :id="settings.id || widgetId"
     :href="linkSettings?.url"
     :target="linkSettings?.targetBlank ? '_blank' : undefined"
@@ -252,7 +299,7 @@ function mapVerticalAlign(value: string): string {
     :class="[widgetClass, { 'lcms-widget-link': linkSettings }]"
     :data-widget-type="widgetType"
     :data-widget-id="widget.id"
-    :style="widgetStyle"
+    :style="{ ...widgetStyle, ...animationStyle }"
   >
     <component
       :is="component"
