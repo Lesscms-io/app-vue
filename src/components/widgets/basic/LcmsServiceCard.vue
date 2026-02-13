@@ -1,5 +1,5 @@
 <template>
-  <div class="lcms-service-card" :class="{ 'lcms-service-card--highlighted': isHighlighted }">
+  <div class="lcms-service-card" :style="cardStyles">
     <!-- Badge -->
     <div v-if="badge" class="lcms-service-card__badge" :style="badgeStyles">
       {{ badge }}
@@ -40,11 +40,12 @@ const props = defineProps<{
       description?: string
       link_text?: string
       link_url?: string
-      highlighted?: boolean
       icon_color?: string
       icon_background?: string
       badge_color?: string
       badge_background?: string
+      text_color?: string
+      background_color?: string
     }
     settings?: Record<string, unknown>
   }
@@ -58,7 +59,17 @@ const title = computed(() => config.value.title || '')
 const description = computed(() => config.value.description || '')
 const linkText = computed(() => config.value.link_text || '')
 const linkUrl = computed(() => config.value.link_url || '')
-const isHighlighted = computed(() => config.value.highlighted || false)
+
+const cardStyles = computed(() => {
+  const styles: Record<string, string> = {}
+  if (config.value.background_color) {
+    styles.backgroundColor = config.value.background_color
+  }
+  if (config.value.text_color) {
+    styles.color = config.value.text_color
+  }
+  return styles
+})
 
 const iconStyles = computed(() => {
   const styles: Record<string, string> = {}
@@ -99,23 +110,6 @@ const badgeStyles = computed(() => {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
-.lcms-service-card--highlighted {
-  background: #1a4d3e;
-  color: #fff;
-}
-
-.lcms-service-card--highlighted .lcms-service-card__title {
-  color: #fff;
-}
-
-.lcms-service-card--highlighted .lcms-service-card__description {
-  color: rgba(255, 255, 255, 0.85);
-}
-
-.lcms-service-card--highlighted .lcms-service-card__link {
-  color: #4ade80;
-}
-
 .lcms-service-card__badge {
   position: absolute;
   top: 1rem;
@@ -143,22 +137,18 @@ const badgeStyles = computed(() => {
   margin-bottom: 1.25rem;
 }
 
-.lcms-service-card--highlighted .lcms-service-card__icon {
-  background: rgba(255, 255, 255, 0.15);
-  color: #fff;
-}
-
 .lcms-service-card__title {
   font-size: 1.25rem;
   font-weight: 700;
-  color: #1a202c;
+  color: inherit;
   margin: 0 0 0.75rem 0;
 }
 
 .lcms-service-card__description {
   font-size: 0.9375rem;
   line-height: 1.6;
-  color: #4a5568;
+  color: inherit;
+  opacity: 0.75;
   margin: 0 0 1.5rem 0;
   flex: 1;
 }
@@ -169,7 +159,7 @@ const badgeStyles = computed(() => {
   gap: 0.375rem;
   font-size: 0.9375rem;
   font-weight: 500;
-  color: #2e7d32;
+  color: inherit;
   text-decoration: none;
   transition: gap 0.2s ease;
 }
