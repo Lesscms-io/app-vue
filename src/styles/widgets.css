@@ -1008,17 +1008,47 @@
   text-align: center;
 }
 
+.lcms-counter__number {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.15em;
+  flex-wrap: nowrap;
+}
+
 .lcms-counter__value {
   font-size: var(--lcms-font-size-5xl);
   font-weight: var(--lcms-font-weight-bold);
   line-height: 1;
+  color: var(--counter-number-color, inherit);
+}
+
+.lcms-counter__prefix,
+.lcms-counter__suffix {
+  font-size: 0.6em;
+  font-weight: var(--lcms-font-weight-bold);
+  color: var(--counter-prefix-color, var(--counter-number-color, inherit));
 }
 
 .lcms-counter__title {
   margin-top: var(--lcms-spacing-2);
   font-size: var(--lcms-font-size-md);
-  color: var(--lcms-color-gray-600);
+  color: var(--counter-title-color, var(--lcms-color-gray-600));
 }
+
+/* Alignment */
+.lcms-counter--align-left { text-align: left; }
+.lcms-counter--align-left .lcms-counter__number { justify-content: flex-start; }
+.lcms-counter--align-center { text-align: center; }
+.lcms-counter--align-center .lcms-counter__number { justify-content: center; }
+.lcms-counter--align-right { text-align: right; }
+.lcms-counter--align-right .lcms-counter__number { justify-content: flex-end; }
+
+/* Number size */
+.lcms-counter--size-md .lcms-counter__value { font-size: var(--lcms-font-size-2xl); }
+.lcms-counter--size-lg .lcms-counter__value { font-size: var(--lcms-font-size-4xl); }
+.lcms-counter--size-xl .lcms-counter__value { font-size: var(--lcms-font-size-5xl); }
+.lcms-counter--size-2xl .lcms-counter__value { font-size: var(--lcms-font-size-6xl, 3.75rem); }
 
 /* ==========================================================================
    Progress Bar Widget
