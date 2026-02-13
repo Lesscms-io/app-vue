@@ -1186,13 +1186,14 @@
    ========================================================================== */
 
 .lcms-menu__list {
+  display: flex;
+  flex-wrap: wrap;
   list-style: none;
   margin: 0;
   padding: 0;
 }
 
 .lcms-menu--horizontal .lcms-menu__list {
-  display: flex;
   gap: var(--lcms-spacing-6);
 }
 
@@ -1246,6 +1247,45 @@
 .lcms-menu__sublink:hover {
   background-color: var(--lcms-color-gray-100);
   color: var(--lcms-color-primary);
+}
+
+/* Menu link custom colors (via CSS variables set on .lcms-menu) */
+.lcms-menu .lcms-menu__link,
+.lcms-menu .lcms-menu__sublink {
+  color: var(--lcms-menu-link-color, var(--lcms-color-gray-800));
+  transition: color 150ms ease-in-out, background-color 150ms ease-in-out;
+}
+
+.lcms-menu .lcms-menu__link:hover,
+.lcms-menu .lcms-menu__sublink:hover {
+  color: var(--lcms-menu-link-hover-color, var(--lcms-color-primary));
+  background-color: var(--lcms-menu-link-hover-bg, transparent);
+}
+
+/* Menu items alignment */
+.lcms-menu--align-left .lcms-menu__list {
+  justify-content: flex-start;
+}
+
+.lcms-menu--align-center .lcms-menu__list {
+  justify-content: center;
+}
+
+.lcms-menu--align-right .lcms-menu__list {
+  justify-content: flex-end;
+}
+
+/* Menu items gap overrides */
+.lcms-menu--gap-sm .lcms-menu__list {
+  gap: 4px;
+}
+
+.lcms-menu--gap-md .lcms-menu__list {
+  gap: 12px;
+}
+
+.lcms-menu--gap-lg .lcms-menu__list {
+  gap: 24px;
 }
 
 /* ==========================================================================

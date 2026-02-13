@@ -31,9 +31,34 @@ const { currentBreakpoint } = useResponsiveSettings()
 const menuCode = computed(() => props.data.menu_code || '')
 const layout = computed(() => props.data.layout || 'horizontal')
 const hamburgerBreakpoint = computed(() => props.data.hamburger_breakpoint || 'never')
+const itemsAlignment = computed(() => props.data.items_alignment || 'left')
+const itemsGap = computed(() => props.data.items_gap || 'md')
+const linkColor = computed(() => props.data.link_color || null)
+const linkHoverColor = computed(() => props.data.link_hover_color || null)
+const linkHoverBg = computed(() => props.data.link_hover_bg || null)
 const ctaText = computed(() => props.data.cta_text || '')
 const ctaUrl = computed(() => props.data.cta_url || '#')
 const ctaStyle = computed(() => props.data.cta_style || 'primary')
+
+function resolveColorValue(val: string | null): string | null {
+  if (!val) return null
+  if (val.startsWith('var:')) {
+    const code = val.replace('var:', '')
+    return `var(--lcms-color-${code})`
+  }
+  return val
+}
+
+const menuCssVars = computed(() => {
+  const vars: Record<string, string> = {}
+  const lc = resolveColorValue(linkColor.value)
+  const lhc = resolveColorValue(linkHoverColor.value)
+  const lhb = resolveColorValue(linkHoverBg.value)
+  if (lc) vars['--lcms-menu-link-color'] = lc
+  if (lhc) vars['--lcms-menu-link-hover-color'] = lhc
+  if (lhb) vars['--lcms-menu-link-hover-bg'] = lhb
+  return vars
+})
 
 const { items, loading, error } = useMenu(menuCode)
 
@@ -100,8 +125,11 @@ function getItemTarget(item: MenuItem): string | undefined {
     class="lcms-menu"
     :class="[
       `lcms-menu--${layout}`,
+      `lcms-menu--align-${itemsAlignment}`,
+      `lcms-menu--gap-${itemsGap}`,
       { 'lcms-menu--hamburger': isHamburgerMode, 'lcms-menu--open': hamburgerOpen && isHamburgerMode }
     ]"
+    :style="menuCssVars"
   >
     <div
       v-if="loading"

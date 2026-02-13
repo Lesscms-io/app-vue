@@ -131,34 +131,40 @@ const widgetStyle = computed(() => {
     }
   }
 
-  // Background image
-  if (s.backgroundImage) {
-    // Encode URL to handle spaces and special characters
-    const encodedUrl = encodeURI(s.backgroundImage)
-    style.backgroundImage = `url("${encodedUrl}")`
-    style.backgroundSize = s.backgroundSize || 'cover'
-    style.backgroundPosition = s.backgroundPosition || 'center center'
-    style.backgroundRepeat = 'no-repeat'
-  }
-
-  // Gradient (API returns { gradient: { type, colorStart, colorEnd, angle } })
-  if (s.gradient && s.gradient.colorStart && s.gradient.colorEnd) {
-    const type = s.gradient.type || 'linear'
-    const angle = s.gradient.angle ?? 180
-    if (type === 'linear') {
-      style.background = `linear-gradient(${angle}deg, ${s.gradient.colorStart}, ${s.gradient.colorEnd})`
-    } else {
-      style.background = `radial-gradient(circle, ${s.gradient.colorStart}, ${s.gradient.colorEnd})`
+  // Background image + gradient (gradient overlays image)
+  {
+    let gradientValue = ''
+    if (s.gradient && s.gradient.colorStart && s.gradient.colorEnd) {
+      const type = s.gradient.type || 'linear'
+      const angle = s.gradient.angle ?? 180
+      gradientValue = type === 'linear'
+        ? `linear-gradient(${angle}deg, ${s.gradient.colorStart}, ${s.gradient.colorEnd})`
+        : `radial-gradient(circle, ${s.gradient.colorStart}, ${s.gradient.colorEnd})`
     }
-  }
-  // Also support legacy format (useGradient)
-  else if (s.useGradient && s.gradientColorStart && s.gradientColorEnd) {
-    const type = s.gradientType || 'linear'
-    const angle = s.gradientAngle ?? 180
-    if (type === 'linear') {
-      style.background = `linear-gradient(${angle}deg, ${s.gradientColorStart}, ${s.gradientColorEnd})`
-    } else {
-      style.background = `radial-gradient(circle, ${s.gradientColorStart}, ${s.gradientColorEnd})`
+    else if (s.useGradient && s.gradientColorStart && s.gradientColorEnd) {
+      const type = s.gradientType || 'linear'
+      const angle = s.gradientAngle ?? 180
+      gradientValue = type === 'linear'
+        ? `linear-gradient(${angle}deg, ${s.gradientColorStart}, ${s.gradientColorEnd})`
+        : `radial-gradient(circle, ${s.gradientColorStart}, ${s.gradientColorEnd})`
+    }
+
+    if (s.backgroundImage) {
+      const encodedUrl = encodeURI(s.backgroundImage)
+      const imgSize = s.backgroundSize || 'cover'
+      const imgPos = s.backgroundPosition || 'center center'
+      if (gradientValue) {
+        style.backgroundImage = `${gradientValue}, url("${encodedUrl}")`
+        style.backgroundSize = `auto, ${imgSize}`
+        style.backgroundPosition = `0 0, ${imgPos}`
+      } else {
+        style.backgroundImage = `url("${encodedUrl}")`
+        style.backgroundSize = imgSize
+        style.backgroundPosition = imgPos
+      }
+      style.backgroundRepeat = 'no-repeat'
+    } else if (gradientValue) {
+      style.backgroundImage = gradientValue
     }
   }
 
