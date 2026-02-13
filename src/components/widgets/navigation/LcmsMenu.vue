@@ -31,6 +31,9 @@ const { currentBreakpoint } = useResponsiveSettings()
 const menuCode = computed(() => props.data.menu_code || '')
 const layout = computed(() => props.data.layout || 'horizontal')
 const hamburgerBreakpoint = computed(() => props.data.hamburger_breakpoint || 'never')
+const ctaText = computed(() => props.data.cta_text || '')
+const ctaUrl = computed(() => props.data.cta_url || '#')
+const ctaStyle = computed(() => props.data.cta_style || 'primary')
 
 const { items, loading, error } = useMenu(menuCode)
 
@@ -173,6 +176,17 @@ function getItemTarget(item: MenuItem): string | undefined {
             </ul>
           </li>
         </ul>
+
+        <!-- CTA Button -->
+        <a
+          v-if="ctaText"
+          :href="ctaUrl"
+          class="lcms-menu__cta"
+          :class="`lcms-menu__cta--${ctaStyle}`"
+          @click="handleLinkClick"
+        >
+          {{ ctaText }}
+        </a>
       </div>
     </template>
   </nav>
@@ -244,5 +258,54 @@ function getItemTarget(item: MenuItem): string | undefined {
 /* In hamburger mode, force vertical layout for the list */
 .lcms-menu--hamburger .lcms-menu__list {
   flex-direction: column;
+}
+
+/* ===========================
+   CTA Button
+   =========================== */
+.lcms-menu__cta {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 20px;
+  font-size: inherit;
+  font-weight: 500;
+  text-decoration: none;
+  border-radius: 4px;
+  transition: opacity 0.15s;
+  white-space: nowrap;
+  margin-left: 8px;
+}
+
+.lcms-menu__cta:hover {
+  opacity: 0.85;
+}
+
+.lcms-menu__cta--primary {
+  background-color: var(--lcms-primary, #3B82F6);
+  color: #fff;
+  border: 1px solid var(--lcms-primary, #3B82F6);
+}
+
+.lcms-menu__cta--secondary {
+  background-color: var(--lcms-secondary, #64748B);
+  color: #fff;
+  border: 1px solid var(--lcms-secondary, #64748B);
+}
+
+.lcms-menu__cta--outline {
+  background-color: transparent;
+  color: var(--lcms-primary, #3B82F6);
+  border: 1px solid var(--lcms-primary, #3B82F6);
+}
+
+.lcms-menu--vertical .lcms-menu__cta {
+  margin-left: 0;
+  margin-top: 8px;
+  align-self: flex-start;
+}
+
+.lcms-menu--hamburger .lcms-menu__cta {
+  margin-left: 0;
+  margin-top: 8px;
 }
 </style>
