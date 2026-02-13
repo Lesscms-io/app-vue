@@ -40,6 +40,15 @@ export interface SpacerWidgetData extends BaseWidgetData {
   height?: number
 }
 
+export interface PillWidgetData extends BaseWidgetData {
+  text: MultilingualValue
+  variant?: 'filled' | 'outline'
+  size?: 'sm' | 'md' | 'lg'
+  background_color?: string
+  text_color?: string
+  uppercase?: boolean
+}
+
 export interface LinkWidgetData extends BaseWidgetData {
   text: MultilingualValue
   url?: string
@@ -273,6 +282,7 @@ export type WidgetData =
   | IconWidgetData
   | DividerWidgetData
   | SpacerWidgetData
+  | PillWidgetData
   | LinkWidgetData
   | StarRatingWidgetData
   | TextWidgetData

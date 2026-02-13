@@ -39,6 +39,7 @@ const linkHoverBg = computed(() => props.data.link_hover_bg || null)
 const ctaText = computed(() => props.data.cta_text || '')
 const ctaUrl = computed(() => props.data.cta_url || '#')
 const ctaStyle = computed(() => props.data.cta_style || 'primary')
+const ctaTargetBlank = computed(() => props.data.cta_target_blank || false)
 
 function hexToRgba(hex: string, opacity: number): string {
   const r = parseInt(hex.slice(1, 3), 16)
@@ -232,6 +233,8 @@ function getItemTarget(item: MenuItem): string | undefined {
           :href="ctaUrl"
           class="lcms-menu__cta"
           :class="`lcms-menu__cta--${ctaStyle}`"
+          :target="ctaTargetBlank ? '_blank' : undefined"
+          :rel="ctaTargetBlank ? 'noopener noreferrer' : undefined"
           @click="handleLinkClick"
         >
           {{ ctaText }}

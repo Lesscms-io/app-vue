@@ -13,6 +13,7 @@ import LcmsSpacer from './basic/LcmsSpacer.vue'
 import LcmsIconBox from './basic/LcmsIconBox.vue'
 import LcmsServiceCard from './basic/LcmsServiceCard.vue'
 import LcmsLink from './basic/LcmsLink.vue'
+import LcmsPill from './basic/LcmsPill.vue'
 
 // Text widgets
 import LcmsText from './text/LcmsText.vue'
@@ -63,6 +64,7 @@ export const widgetComponents: Record<string, Component> = {
   'icon-box': LcmsIconBox,
   'service-card': LcmsServiceCard,
   link: LcmsLink,
+  pill: LcmsPill,
 
   // Text
   text: LcmsText,
@@ -133,6 +135,7 @@ export {
   LcmsIconBox,
   LcmsServiceCard,
   LcmsLink,
+  LcmsPill,
   // Text
   LcmsText,
   LcmsHeading,

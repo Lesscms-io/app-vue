@@ -2028,6 +2028,47 @@
 }
 
 /* ==========================================================================
+   Pill Widget
+   ========================================================================== */
+
+.lcms-pill {
+  display: inline-block;
+  border-radius: 9999px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  line-height: 1;
+}
+
+.lcms-pill--filled {
+  /* background-color and color set via inline styles */
+}
+
+.lcms-pill--outline {
+  background: transparent;
+  border: 1.5px solid;
+  /* border-color and color set via inline styles */
+}
+
+.lcms-pill--sm {
+  padding: 4px 12px;
+  font-size: 0.7rem;
+}
+
+.lcms-pill--md {
+  padding: 6px 16px;
+  font-size: 0.8rem;
+}
+
+.lcms-pill--lg {
+  padding: 8px 20px;
+  font-size: 0.9rem;
+}
+
+.lcms-pill--uppercase {
+  text-transform: uppercase;
+}
+
+/* ==========================================================================
    Scroll Animations
    ========================================================================== */
 
