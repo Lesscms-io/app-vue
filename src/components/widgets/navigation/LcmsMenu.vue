@@ -40,11 +40,32 @@ const ctaText = computed(() => props.data.cta_text || '')
 const ctaUrl = computed(() => props.data.cta_url || '#')
 const ctaStyle = computed(() => props.data.cta_style || 'primary')
 
+function hexToRgba(hex: string, opacity: number): string {
+  const r = parseInt(hex.slice(1, 3), 16)
+  const g = parseInt(hex.slice(3, 5), 16)
+  const b = parseInt(hex.slice(5, 7), 16)
+  return `rgba(${r}, ${g}, ${b}, ${opacity / 100})`
+}
+
 function resolveColorValue(val: string | null): string | null {
   if (!val) return null
   if (val.startsWith('var:')) {
-    const code = val.replace('var:', '')
+    const parts = val.split(':')
+    const code = parts[1]
+    const opacity = parts.length >= 3 ? parseInt(parts[2]) : 100
+    if (opacity < 100) {
+      // Can't apply opacity to CSS variable directly, use color-mix
+      return `color-mix(in srgb, var(--lcms-color-${code}) ${opacity}%, transparent)`
+    }
     return `var(--lcms-color-${code})`
+  }
+  // Handle #hex:opacity format
+  if (val.startsWith('#') && val.includes(':')) {
+    const parts = val.split(':')
+    const hex = parts[0]
+    const opacity = parseInt(parts[1]) || 100
+    if (opacity < 100) return hexToRgba(hex, opacity)
+    return hex
   }
   return val
 }
