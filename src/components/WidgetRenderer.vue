@@ -10,6 +10,7 @@
 
 import { computed, ref } from 'vue'
 import { getWidgetComponent, isWidgetSupported } from './widgets'
+import LcmsMultiItemWrapper from './widgets/LcmsMultiItemWrapper.vue'
 import { useResponsiveSettings } from '@/composables/useResponsiveSettings'
 import { useScrollAnimation } from '@/composables/useScrollAnimation'
 import type { Widget, WidgetSettings } from '@/api/types'
@@ -115,6 +116,28 @@ const component = computed(() => {
 })
 
 const isSupported = computed(() => isWidgetSupported(widgetType.value))
+
+// Multi-item detection from API response
+const isMultiItem = computed(() => {
+  const w = props.widget as Record<string, unknown>
+  return w.multi_item === true && Array.isArray(w.items)
+})
+
+const multiItemColumns = computed(() => {
+  const w = props.widget as Record<string, unknown>
+  return (w.multi_columns as number) || 1
+})
+
+const multiItemGap = computed(() => {
+  const w = props.widget as Record<string, unknown>
+  const g = parseInt(String(w.multi_gap))
+  return isNaN(g) ? 16 : g
+})
+
+const multiItemItems = computed(() => {
+  const w = props.widget as Record<string, unknown>
+  return (w.items as Array<Record<string, unknown>>) || []
+})
 
 // Calculate widget styles from settings
 const widgetStyle = computed(() => {
@@ -307,9 +330,20 @@ function mapVerticalAlign(value: string): string {
     :data-widget-id="widget.id"
     :style="{ ...widgetStyle, ...animationStyle }"
   >
+    <!-- Multi-item widget rendering -->
+    <LcmsMultiItemWrapper
+      v-if="isMultiItem && component"
+      :items="multiItemItems"
+      :columns="multiItemColumns"
+      :gap="multiItemGap"
+      :inner-component="component"
+      :language="language"
+      :settings="settings"
+    />
+
     <component
       :is="component"
-      v-if="component"
+      v-else-if="component"
       :data="widgetData"
       :language="language"
       :settings="settings"

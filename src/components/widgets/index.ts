@@ -14,6 +14,8 @@ import LcmsIconBox from './basic/LcmsIconBox.vue'
 import LcmsServiceCard from './basic/LcmsServiceCard.vue'
 import LcmsLink from './basic/LcmsLink.vue'
 import LcmsPill from './basic/LcmsPill.vue'
+import LcmsTeamMember from './basic/LcmsTeamMember.vue'
+import LcmsPricingTable from './basic/LcmsPricingTable.vue'
 
 // Text widgets
 import LcmsText from './text/LcmsText.vue'
@@ -65,6 +67,8 @@ export const widgetComponents: Record<string, Component> = {
   'service-card': LcmsServiceCard,
   link: LcmsLink,
   pill: LcmsPill,
+  'team-member': LcmsTeamMember,
+  'pricing-table': LcmsPricingTable,
 
   // Text
   text: LcmsText,
@@ -136,6 +140,8 @@ export {
   LcmsServiceCard,
   LcmsLink,
   LcmsPill,
+  LcmsTeamMember,
+  LcmsPricingTable,
   // Text
   LcmsText,
   LcmsHeading,

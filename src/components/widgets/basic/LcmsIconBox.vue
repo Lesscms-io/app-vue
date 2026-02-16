@@ -21,6 +21,7 @@ const props = defineProps<{
       icon_size?: string | number
       icon_color?: string
       icon_background?: string
+      icon_border_radius?: string | number
     }
     settings?: Record<string, unknown>
   }
@@ -47,6 +48,10 @@ const iconStyles = computed(() => {
   }
   if (config.value.icon_background) {
     styles.backgroundColor = config.value.icon_background
+  }
+  const br = parseInt(String(config.value.icon_border_radius))
+  if (!isNaN(br) && br > 0) {
+    styles.borderRadius = `${br}px`
   }
 
   return styles
@@ -82,12 +87,13 @@ const iconStyles = computed(() => {
 
 .lcms-icon-box__icon {
   flex-shrink: 0;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   font-size: 2rem;
   padding: 0.5rem;
-  border-radius: 0.25rem;
+  line-height: 1;
+  box-sizing: content-box;
 }
 
 .lcms-icon-box__content {
