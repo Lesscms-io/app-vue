@@ -1,7 +1,8 @@
 <template>
   <div class="lcms-icon-box" :class="positionClass">
     <div class="lcms-icon-box__icon" :style="iconStyles">
-      <i :class="iconClass"></i>
+      <span v-if="isSvgIcon" class="lcms-icon-box__svg" v-html="svgContent"></span>
+      <i v-else :class="iconClass"></i>
     </div>
     <div class="lcms-icon-box__content" v-html="content"></div>
   </div>
@@ -29,7 +30,9 @@ const props = defineProps<{
 
 const config = computed(() => props.data.config || {})
 
-const iconClass = computed(() => config.value.icon || 'fas fa-star')
+const isSvgIcon = computed(() => (config.value.icon || '').startsWith('svg:'))
+const svgContent = computed(() => isSvgIcon.value ? (config.value.icon || '').slice(4) : '')
+const iconClass = computed(() => isSvgIcon.value ? '' : (config.value.icon || 'fas fa-star'))
 
 const content = computed(() => config.value.content || '')
 
@@ -90,13 +93,32 @@ const iconStyles = computed(() => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 2rem;
-  padding: 0.5rem;
+  font-size: 24px;
+  padding: 0;
   line-height: 1;
   box-sizing: content-box;
 }
 
 .lcms-icon-box__content {
   flex: 1;
+}
+
+.lcms-icon-box__svg {
+  display: inline-flex;
+  width: 1em;
+  height: 1em;
+}
+
+.lcms-icon-box__svg :deep(svg) {
+  width: 100%;
+  height: 100%;
+}
+
+.lcms-icon-box__svg :deep(svg[fill="none"]) {
+  fill: none;
+}
+
+.lcms-icon-box__svg :deep(svg:not([fill])) {
+  fill: currentColor;
 }
 </style>
