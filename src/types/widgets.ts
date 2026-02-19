@@ -82,6 +82,9 @@ export interface HeadingWidgetData extends BaseWidgetData {
 export interface BlockquoteWidgetData extends BaseWidgetData {
   quote: MultilingualValue
   author?: MultilingualValue
+  source?: MultilingualValue
+  style?: 'simple' | 'bordered' | 'filled'
+  accent_color?: string
 }
 
 export interface IconListItem {
@@ -200,6 +203,101 @@ export interface AlertWidgetData extends BaseWidgetData {
   dismissible?: boolean
 }
 
+export interface AccordionItem {
+  title: MultilingualValue
+  content: MultilingualValue
+}
+
+export interface AccordionWidgetData extends BaseWidgetData {
+  items: AccordionItem[]
+  icon_color?: string
+  border_color?: string
+  allow_multiple?: boolean
+  first_open?: boolean
+}
+
+export interface TabsItem {
+  title: MultilingualValue
+  content: MultilingualValue
+}
+
+export interface TabsWidgetData extends BaseWidgetData {
+  items: TabsItem[]
+  active_color?: string
+  border_color?: string
+  style?: 'underline' | 'pills' | 'boxed'
+  alignment?: 'left' | 'center' | 'right' | 'stretch'
+}
+
+export interface TableHeader {
+  text: MultilingualValue
+}
+
+export interface TableWidgetData extends BaseWidgetData {
+  headers: TableHeader[]
+  rows: any[][]
+  header_bg?: string
+  header_text?: 'light' | 'dark'
+  striped?: boolean
+  bordered?: boolean
+}
+
+export interface EmbedWidgetData extends BaseWidgetData {
+  code: string
+  height?: number | string
+}
+
+export interface CtaBoxWidgetData extends BaseWidgetData {
+  title: MultilingualValue
+  subtitle?: MultilingualValue
+  button_text?: MultilingualValue
+  button_url?: string
+  background_color?: string
+  button_color?: string
+  text_color?: 'light' | 'dark'
+  alignment?: 'left' | 'center' | 'right'
+}
+
+export interface FeatureListItem {
+  text: MultilingualValue
+  included: boolean
+}
+
+export interface FeatureListWidgetData extends BaseWidgetData {
+  items: FeatureListItem[]
+  icon_included?: string
+  icon_excluded?: string
+  color_included?: string
+  color_excluded?: string
+  columns?: number | string
+}
+
+export interface TimelineItem {
+  date: MultilingualValue
+  title: MultilingualValue
+  content: MultilingualValue
+}
+
+export interface TimelineWidgetData extends BaseWidgetData {
+  items: TimelineItem[]
+  layout?: 'left' | 'right' | 'alternate'
+  line_color?: string
+  dot_color?: string
+}
+
+export interface PdfViewerWidgetData extends BaseWidgetData {
+  file?: string
+  height?: number | string
+  height_mode?: 'fixed' | 'container'
+  page_mode?: 'single' | 'double'
+  show_controls?: boolean
+  show_thumbnails?: boolean
+  show_outline?: boolean
+  show_fullscreen?: boolean
+  show_download?: boolean
+  background_color?: string
+}
+
 // ============================================
 // Navigation Widgets
 // ============================================
@@ -300,6 +398,14 @@ export type WidgetData =
   | ProgressBarWidgetData
   | TestimonialWidgetData
   | AlertWidgetData
+  | AccordionWidgetData
+  | TabsWidgetData
+  | TableWidgetData
+  | EmbedWidgetData
+  | CtaBoxWidgetData
+  | FeatureListWidgetData
+  | TimelineWidgetData
+  | PdfViewerWidgetData
   | MenuWidgetData
   | SocialIconsWidgetData
   | CollectionGridWidgetData

@@ -16,10 +16,15 @@ import LcmsLink from './basic/LcmsLink.vue'
 import LcmsPill from './basic/LcmsPill.vue'
 import LcmsTeamMember from './basic/LcmsTeamMember.vue'
 import LcmsPricingTable from './basic/LcmsPricingTable.vue'
+import LcmsCtaBox from './basic/LcmsCtaBox.vue'
+import LcmsFeatureList from './basic/LcmsFeatureList.vue'
+import LcmsIconList from './basic/LcmsIconList.vue'
 
 // Text widgets
 import LcmsText from './text/LcmsText.vue'
 import LcmsHeading from './text/LcmsHeading.vue'
+import LcmsBlockquote from './text/LcmsBlockquote.vue'
+import LcmsTable from './text/LcmsTable.vue'
 
 // Media widgets
 import LcmsImage from './media/LcmsImage.vue'
@@ -38,6 +43,10 @@ import LcmsCounter from './interactive/LcmsCounter.vue'
 import LcmsProgressBar from './interactive/LcmsProgressBar.vue'
 import LcmsTestimonial from './interactive/LcmsTestimonial.vue'
 import LcmsAlert from './interactive/LcmsAlert.vue'
+import LcmsAccordion from './interactive/LcmsAccordion.vue'
+import LcmsTabs from './interactive/LcmsTabs.vue'
+import LcmsEmbed from './interactive/LcmsEmbed.vue'
+import LcmsTimeline from './interactive/LcmsTimeline.vue'
 
 // Navigation widgets
 import LcmsMenu from './navigation/LcmsMenu.vue'
@@ -72,10 +81,15 @@ export const widgetComponents: Record<string, Component> = {
   pill: LcmsPill,
   'team-member': LcmsTeamMember,
   'pricing-table': LcmsPricingTable,
+  'cta-box': LcmsCtaBox,
+  'feature-list': LcmsFeatureList,
+  'icon-list': LcmsIconList,
 
   // Text
   text: LcmsText,
   heading: LcmsHeading,
+  blockquote: LcmsBlockquote,
+  table: LcmsTable,
 
   // Media
   image: LcmsImage,
@@ -94,6 +108,10 @@ export const widgetComponents: Record<string, Component> = {
   'progress-bar': LcmsProgressBar,
   testimonial: LcmsTestimonial,
   alert: LcmsAlert,
+  accordion: LcmsAccordion,
+  tabs: LcmsTabs,
+  embed: LcmsEmbed,
+  timeline: LcmsTimeline,
 
   // Navigation
   menu: LcmsMenu,
@@ -148,9 +166,14 @@ export {
   LcmsPill,
   LcmsTeamMember,
   LcmsPricingTable,
+  LcmsCtaBox,
+  LcmsFeatureList,
+  LcmsIconList,
   // Text
   LcmsText,
   LcmsHeading,
+  LcmsBlockquote,
+  LcmsTable,
   // Media
   LcmsImage,
   LcmsGallery,
@@ -166,6 +189,10 @@ export {
   LcmsProgressBar,
   LcmsTestimonial,
   LcmsAlert,
+  LcmsAccordion,
+  LcmsTabs,
+  LcmsEmbed,
+  LcmsTimeline,
   // Navigation
   LcmsMenu,
   LcmsSocialIcons,
