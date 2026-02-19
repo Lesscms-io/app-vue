@@ -7,7 +7,7 @@
  * Backward compat: inline fields in widget config.
  */
 
-import { computed, ref, reactive, onMounted, watch } from 'vue'
+import { computed, ref, reactive, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { useLanguage } from '@/composables/useLanguage'
 import { useApi } from '@/composables/useApi'
 
@@ -166,8 +166,71 @@ const validationErrors = ref<Record<string, string>>({})
 const honeypot = ref('')
 const loadTimestamp = ref(0)
 
+// Cloudflare Turnstile CAPTCHA
+const captchaSiteKey = computed(() => remoteForm.value?.captcha_site_key || '')
+const captchaToken = ref('')
+const turnstileContainer = ref<HTMLElement | null>(null)
+let turnstileWidgetId: string | null = null
+
+function loadTurnstileSDK(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if ((window as any).turnstile) {
+      resolve()
+      return
+    }
+    const existing = document.querySelector('script[src*="challenges.cloudflare.com/turnstile"]')
+    if (existing) {
+      existing.addEventListener('load', () => resolve())
+      return
+    }
+    const script = document.createElement('script')
+    script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit'
+    script.async = true
+    script.onload = () => resolve()
+    script.onerror = () => reject(new Error('Failed to load Turnstile SDK'))
+    document.head.appendChild(script)
+  })
+}
+
+async function renderTurnstile() {
+  if (!captchaSiteKey.value || !turnstileContainer.value) return
+  try {
+    await loadTurnstileSDK()
+    const turnstile = (window as any).turnstile
+    if (!turnstile) return
+    if (turnstileWidgetId !== null) {
+      turnstile.remove(turnstileWidgetId)
+    }
+    turnstileWidgetId = turnstile.render(turnstileContainer.value, {
+      sitekey: captchaSiteKey.value,
+      callback: (token: string) => { captchaToken.value = token },
+      'expired-callback': () => { captchaToken.value = '' },
+      'error-callback': () => { captchaToken.value = '' },
+    })
+  } catch {
+    // Turnstile failed to load — form will still work if server has no secret key configured
+  }
+}
+
+watch(captchaSiteKey, async (key) => {
+  if (key) {
+    await nextTick()
+    renderTurnstile()
+  }
+})
+
 onMounted(() => {
   loadTimestamp.value = Date.now()
+  if (captchaSiteKey.value) {
+    nextTick(() => renderTurnstile())
+  }
+})
+
+onBeforeUnmount(() => {
+  if (turnstileWidgetId !== null && (window as any).turnstile) {
+    (window as any).turnstile.remove(turnstileWidgetId)
+    turnstileWidgetId = null
+  }
 })
 
 // Initialize form data for each field
@@ -228,17 +291,26 @@ async function handleSubmit() {
   submitStatus.value = 'idle'
 
   try {
-    await api.post(`/forms/${formUuid.value}/submit`, {
+    const payload: Record<string, any> = {
       data: { ...formData },
       _hp_field: honeypot.value,
       _ts: loadTimestamp.value,
-    })
+    }
+    if (captchaToken.value) {
+      payload._captcha_token = captchaToken.value
+    }
+    await api.post(`/forms/${formUuid.value}/submit`, payload)
     submitStatus.value = 'success'
     initFormData()
   } catch {
     submitStatus.value = 'error'
   } finally {
     isSubmitting.value = false
+    // Reset Turnstile for fresh token
+    if (turnstileWidgetId !== null && (window as any).turnstile) {
+      (window as any).turnstile.reset(turnstileWidgetId)
+      captchaToken.value = ''
+    }
   }
 }
 
@@ -451,6 +523,13 @@ const buttonClasses = computed(() => {
             </span>
           </div>
         </div>
+
+        <!-- Cloudflare Turnstile CAPTCHA -->
+        <div
+          v-if="captchaSiteKey"
+          ref="turnstileContainer"
+          class="lcms-form__captcha"
+        />
 
         <div
           class="lcms-form__submit-wrapper"
