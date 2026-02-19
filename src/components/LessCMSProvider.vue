@@ -251,6 +251,22 @@ function applyStyleVariables(styles: Record<string, any>) {
   if (styles.font_size_base) root.style.setProperty('--lcms-font-size-base', `${styles.font_size_base}px`)
   if (styles.line_height) root.style.setProperty('--lcms-line-height', String(styles.line_height))
 
+  // Heading typography variables (H1-H6)
+  for (const level of [1, 2, 3, 4, 5, 6]) {
+    if (styles[`h${level}_font_size`])
+      root.style.setProperty(`--lcms-h${level}-font-size`, styles[`h${level}_font_size`])
+    if (styles[`h${level}_font_weight`])
+      root.style.setProperty(`--lcms-h${level}-font-weight`, String(styles[`h${level}_font_weight`]))
+    if (styles[`h${level}_color`])
+      root.style.setProperty(`--lcms-h${level}-color`, styles[`h${level}_color`])
+  }
+
+  // Paragraph typography variables
+  if (styles.p_font_size) root.style.setProperty('--lcms-p-font-size', styles.p_font_size)
+  if (styles.p_font_weight) root.style.setProperty('--lcms-p-font-weight', String(styles.p_font_weight))
+  if (styles.p_color) root.style.setProperty('--lcms-p-color', styles.p_color)
+  if (styles.p_line_height) root.style.setProperty('--lcms-p-line-height', styles.p_line_height)
+
   // Layout variables
   if (styles.border_radius !== undefined) root.style.setProperty('--lcms-border-radius', `${styles.border_radius}px`)
   if (styles.container_max_width) root.style.setProperty('--lcms-container-max-width', `${styles.container_max_width}px`)

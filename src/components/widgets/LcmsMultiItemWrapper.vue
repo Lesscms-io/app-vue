@@ -13,6 +13,7 @@ interface Props {
   items: MultiItemData[]
   columns: number
   gap?: number
+  layout?: string
   innerComponent: Component
   language?: string
   settings?: Record<string, unknown>
@@ -21,16 +22,27 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   columns: 1,
   gap: 16,
+  layout: 'grid',
   language: 'pl',
   settings: () => ({})
 })
 
-const gridStyle = computed(() => ({
-  display: 'grid',
-  gridTemplateColumns: `repeat(${props.columns}, 1fr)`,
-  gap: `${props.gap}px`,
-  width: '100%'
-}))
+const gridStyle = computed(() => {
+  if (props.layout === 'inline') {
+    return {
+      display: 'flex',
+      flexWrap: 'wrap' as const,
+      gap: `${props.gap}px`,
+      width: '100%'
+    }
+  }
+  return {
+    display: 'grid',
+    gridTemplateColumns: `repeat(${props.columns}, 1fr)`,
+    gap: `${props.gap}px`,
+    width: '100%'
+  }
+})
 </script>
 
 <template>

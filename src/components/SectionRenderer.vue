@@ -120,17 +120,21 @@ const sectionStyle = computed(() => {
     if (s.gradient && s.gradient.colorStart && s.gradient.colorEnd) {
       const type = s.gradient.type || 'linear'
       const angle = s.gradient.angle ?? 180
+      const start = resolveColorOpacity(s.gradient.colorStart)
+      const end = resolveColorOpacity(s.gradient.colorEnd)
       gradientValue = type === 'linear'
-        ? `linear-gradient(${angle}deg, ${s.gradient.colorStart}, ${s.gradient.colorEnd})`
-        : `radial-gradient(circle, ${s.gradient.colorStart}, ${s.gradient.colorEnd})`
+        ? `linear-gradient(${angle}deg, ${start}, ${end})`
+        : `radial-gradient(circle, ${start}, ${end})`
     }
     // Also support legacy format (useGradient)
     else if (s.useGradient && s.gradientColorStart && s.gradientColorEnd) {
       const type = s.gradientType || 'linear'
       const angle = s.gradientAngle ?? 180
+      const start = resolveColorOpacity(s.gradientColorStart)
+      const end = resolveColorOpacity(s.gradientColorEnd)
       gradientValue = type === 'linear'
-        ? `linear-gradient(${angle}deg, ${s.gradientColorStart}, ${s.gradientColorEnd})`
-        : `radial-gradient(circle, ${s.gradientColorStart}, ${s.gradientColorEnd})`
+        ? `linear-gradient(${angle}deg, ${start}, ${end})`
+        : `radial-gradient(circle, ${start}, ${end})`
     }
 
     if (s.backgroundImage) {
@@ -277,16 +281,20 @@ function getColumnStyle(column: PageColumn) {
     if (s.gradient && s.gradient.colorStart && s.gradient.colorEnd) {
       const type = s.gradient.type || 'linear'
       const angle = s.gradient.angle ?? 180
+      const start = resolveColorOpacity(s.gradient.colorStart)
+      const end = resolveColorOpacity(s.gradient.colorEnd)
       gradientValue = type === 'linear'
-        ? `linear-gradient(${angle}deg, ${s.gradient.colorStart}, ${s.gradient.colorEnd})`
-        : `radial-gradient(circle, ${s.gradient.colorStart}, ${s.gradient.colorEnd})`
+        ? `linear-gradient(${angle}deg, ${start}, ${end})`
+        : `radial-gradient(circle, ${start}, ${end})`
     }
     else if (s.useGradient && s.gradientColorStart && s.gradientColorEnd) {
       const type = s.gradientType || 'linear'
       const angle = s.gradientAngle ?? 180
+      const start = resolveColorOpacity(s.gradientColorStart)
+      const end = resolveColorOpacity(s.gradientColorEnd)
       gradientValue = type === 'linear'
-        ? `linear-gradient(${angle}deg, ${s.gradientColorStart}, ${s.gradientColorEnd})`
-        : `radial-gradient(circle, ${s.gradientColorStart}, ${s.gradientColorEnd})`
+        ? `linear-gradient(${angle}deg, ${start}, ${end})`
+        : `radial-gradient(circle, ${start}, ${end})`
     }
 
     if (s.backgroundImage) {
@@ -488,6 +496,21 @@ function hexToRgba(hex: string, alpha: number): string {
   const g = parseInt(result[2], 16)
   const b = parseInt(result[3], 16)
   return `rgba(${r}, ${g}, ${b}, ${alpha})`
+}
+
+// Helper: resolve color with opacity suffix (#hex:opacity → rgba)
+function resolveColorOpacity(color: string): string {
+  if (!color) return color
+  // Handle "#hex:opacity" format (e.g., "#667eea:50")
+  if (color.startsWith('#') && color.includes(':')) {
+    const [hex, opacityStr] = color.split(':')
+    const opacity = parseInt(opacityStr) || 100
+    if (opacity < 100) {
+      return hexToRgba(hex, opacity / 100)
+    }
+    return hex
+  }
+  return color
 }
 </script>
 

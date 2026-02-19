@@ -1960,6 +1960,20 @@
   height: 1rem;
 }
 
+.lcms-form__input--sm,
+.lcms-form__textarea.lcms-form__input--sm,
+.lcms-form__select.lcms-form__input--sm {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+}
+
+.lcms-form__input--lg,
+.lcms-form__textarea.lcms-form__input--lg,
+.lcms-form__select.lcms-form__input--lg {
+  padding: 0.75rem 1rem;
+  font-size: 1.125rem;
+}
+
 .lcms-form__field--error .lcms-form__input,
 .lcms-form__field--error .lcms-form__textarea,
 .lcms-form__field--error .lcms-form__select {

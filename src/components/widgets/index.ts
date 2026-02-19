@@ -47,6 +47,9 @@ import LcmsBreadcrumbs from './navigation/LcmsBreadcrumbs.vue'
 // Interactive widgets (forms)
 import LcmsForm from './interactive/LcmsForm.vue'
 
+// Content widgets
+import LcmsBlockContent from './content/LcmsBlockContent.vue'
+
 // Collection widgets
 import LcmsCollectionGrid from './collections/LcmsCollectionGrid.vue'
 import LcmsCollectionCarousel from './collections/LcmsCollectionCarousel.vue'
@@ -99,6 +102,9 @@ export const widgetComponents: Record<string, Component> = {
 
   // Forms
   form: LcmsForm,
+
+  // Content
+  'block-content': LcmsBlockContent,
 
   // Collections
   'collection-grid': LcmsCollectionGrid,
@@ -166,6 +172,8 @@ export {
   LcmsBreadcrumbs,
   // Forms
   LcmsForm,
+  // Content
+  LcmsBlockContent,
   // Collections
   LcmsCollectionGrid,
   LcmsCollectionCarousel,

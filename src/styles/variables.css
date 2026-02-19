@@ -125,69 +125,113 @@
   --lcms-container-lg: 960px;
   --lcms-container-xl: 1140px;
   --lcms-container-xxl: 1320px;
+
+  /* Heading Typography */
+  --lcms-h1-font-size: 4.5rem;
+  --lcms-h1-font-weight: var(--lcms-font-weight-bold);
+  --lcms-h1-color: inherit;
+  --lcms-h2-font-size: 3.75rem;
+  --lcms-h2-font-weight: var(--lcms-font-weight-bold);
+  --lcms-h2-color: inherit;
+  --lcms-h3-font-size: 3rem;
+  --lcms-h3-font-weight: var(--lcms-font-weight-semibold);
+  --lcms-h3-color: inherit;
+  --lcms-h4-font-size: 2.25rem;
+  --lcms-h4-font-weight: var(--lcms-font-weight-semibold);
+  --lcms-h4-color: inherit;
+  --lcms-h5-font-size: 1.875rem;
+  --lcms-h5-font-weight: var(--lcms-font-weight-medium);
+  --lcms-h5-color: inherit;
+  --lcms-h6-font-size: 1.5rem;
+  --lcms-h6-font-weight: var(--lcms-font-weight-medium);
+  --lcms-h6-color: inherit;
+
+  /* Paragraph Typography */
+  --lcms-p-font-size: var(--lcms-font-size-base);
+  --lcms-p-font-weight: var(--lcms-font-weight-normal);
+  --lcms-p-color: inherit;
+  --lcms-p-line-height: var(--lcms-line-height-normal);
 }
 
 /* Headings */
 h1, .h1 {
-  font-size: 4.5rem;
-  font-weight: var(--lcms-font-weight-bold);
+  font-size: var(--lcms-h1-font-size);
+  font-weight: var(--lcms-h1-font-weight);
+  color: var(--lcms-h1-color);
   line-height: var(--lcms-line-height-tight);
   margin: 0 0 var(--lcms-spacing-4);
 }
 
 h2, .h2 {
-  font-size: 3.75rem;
-  font-weight: var(--lcms-font-weight-bold);
+  font-size: var(--lcms-h2-font-size);
+  font-weight: var(--lcms-h2-font-weight);
+  color: var(--lcms-h2-color);
   line-height: var(--lcms-line-height-tight);
   margin: 0 0 var(--lcms-spacing-4);
 }
 
 h3, .h3 {
-  font-size: 3rem;
-  font-weight: var(--lcms-font-weight-semibold);
+  font-size: var(--lcms-h3-font-size);
+  font-weight: var(--lcms-h3-font-weight);
+  color: var(--lcms-h3-color);
   line-height: var(--lcms-line-height-tight);
   margin: 0 0 var(--lcms-spacing-3);
 }
 
 h4, .h4 {
-  font-size: 2.25rem;
-  font-weight: var(--lcms-font-weight-semibold);
+  font-size: var(--lcms-h4-font-size);
+  font-weight: var(--lcms-h4-font-weight);
+  color: var(--lcms-h4-color);
   line-height: var(--lcms-line-height-tight);
   margin: 0 0 var(--lcms-spacing-3);
 }
 
 h5, .h5 {
-  font-size: 1.875rem;
-  font-weight: var(--lcms-font-weight-medium);
+  font-size: var(--lcms-h5-font-size);
+  font-weight: var(--lcms-h5-font-weight);
+  color: var(--lcms-h5-color);
   line-height: var(--lcms-line-height-normal);
   margin: 0 0 var(--lcms-spacing-2);
 }
 
 h6, .h6 {
-  font-size: 1.5rem;
-  font-weight: var(--lcms-font-weight-medium);
+  font-size: var(--lcms-h6-font-size);
+  font-weight: var(--lcms-h6-font-weight);
+  color: var(--lcms-h6-color);
   line-height: var(--lcms-line-height-normal);
   margin: 0 0 var(--lcms-spacing-2);
 }
 
+/* Paragraphs */
+p {
+  font-size: var(--lcms-p-font-size);
+  font-weight: var(--lcms-p-font-weight);
+  color: var(--lcms-p-color);
+  line-height: var(--lcms-p-line-height);
+}
+
 /* Responsive headings - tablet */
 @media (min-width: 768px) and (max-width: 1199px) {
-  h1, .h1 { font-size: 3.5rem; }
-  h2, .h2 { font-size: 2.75rem; }
-  h3, .h3 { font-size: 2.25rem; }
-  h4, .h4 { font-size: 1.875rem; }
-  h5, .h5 { font-size: 1.5rem; }
-  h6, .h6 { font-size: 1.25rem; }
+  :root {
+    --lcms-h1-font-size: 3.5rem;
+    --lcms-h2-font-size: 2.75rem;
+    --lcms-h3-font-size: 2.25rem;
+    --lcms-h4-font-size: 1.875rem;
+    --lcms-h5-font-size: 1.5rem;
+    --lcms-h6-font-size: 1.25rem;
+  }
 }
 
 /* Responsive headings - mobile */
 @media (max-width: 767px) {
-  h1, .h1 { font-size: 2.5rem; }
-  h2, .h2 { font-size: 2rem; }
-  h3, .h3 { font-size: 1.75rem; }
-  h4, .h4 { font-size: 1.5rem; }
-  h5, .h5 { font-size: 1.25rem; }
-  h6, .h6 { font-size: 1.125rem; }
+  :root {
+    --lcms-h1-font-size: 2.5rem;
+    --lcms-h2-font-size: 2rem;
+    --lcms-h3-font-size: 1.75rem;
+    --lcms-h4-font-size: 1.5rem;
+    --lcms-h5-font-size: 1.25rem;
+    --lcms-h6-font-size: 1.125rem;
+  }
 }
 
 /* Dark mode variables (opt-in) */

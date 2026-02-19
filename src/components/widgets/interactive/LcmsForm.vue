@@ -2,12 +2,12 @@
 /**
  * Form Widget
  *
- * Renders a contact form with dynamic fields.
- * Supports text, email, textarea, select, and checkbox field types.
- * Submits data to the public API forms endpoint.
+ * Renders a contact form.
+ * New mode: fetches form definition by form_code from the API.
+ * Backward compat: inline fields in widget config.
  */
 
-import { computed, ref, reactive, inject } from 'vue'
+import { computed, ref, reactive, onMounted, watch } from 'vue'
 import { useLanguage } from '@/composables/useLanguage'
 import { useApi } from '@/composables/useApi'
 
@@ -34,11 +34,56 @@ const props = defineProps<Props>()
 
 const { extractValue } = useLanguage(props.language)
 const api = useApi()
-const emailConfig = inject<{ provider: string; token: string; fromEmail: string; fromName?: string } | null>('lesscms-email-config', null)
 
 const config = computed(() => props.data.config || props.data || {})
 
+// Remote form data (fetched by form_code)
+const remoteForm = ref<Record<string, any> | null>(null)
+const loadingForm = ref(false)
+
+const isFormCodeMode = computed(() => !!config.value.form_code)
+
+// Fetch form definition from API when using form_code mode
+async function fetchForm() {
+  const formCode = config.value.form_code
+  if (!formCode) return
+
+  loadingForm.value = true
+  try {
+    const response = await api.get(`/forms/${formCode}`)
+    remoteForm.value = response.data?.data || response.data || null
+  } catch {
+    remoteForm.value = null
+  } finally {
+    loadingForm.value = false
+  }
+}
+
+onMounted(() => {
+  if (isFormCodeMode.value) {
+    fetchForm()
+  }
+})
+
+watch(() => config.value.form_code, (newCode) => {
+  if (newCode) fetchForm()
+})
+
 const fields = computed<FormField[]>(() => {
+  // New mode: fields from remote form
+  if (isFormCodeMode.value && remoteForm.value) {
+    const raw = remoteForm.value.fields || []
+    return raw.map((f: any) => ({
+      code: f.code || f.name || '',
+      type: f.type || 'text',
+      label: typeof f.label === 'object' ? (extractValue(f.label) as string) : (f.label || ''),
+      placeholder: typeof f.placeholder === 'object' ? (extractValue(f.placeholder) as string) : (f.placeholder || ''),
+      required: f.required ?? false,
+      options: f.options || []
+    }))
+  }
+
+  // Backward compat: inline fields
   const raw = config.value.fields || []
   return raw.map((f: any) => ({
     code: f.code || f.name || '',
@@ -51,32 +96,79 @@ const fields = computed<FormField[]>(() => {
 })
 
 const submitText = computed(() => {
-  const val = config.value.submit_text || config.value.submitText
-  if (val && typeof val === 'object') return extractValue(val) as string
-  return val || 'Submit'
+  // Widget-level override
+  const widgetText = config.value.submit_text
+  if (widgetText) {
+    if (typeof widgetText === 'object') return extractValue(widgetText) as string
+    return widgetText
+  }
+  // Remote form settings
+  if (remoteForm.value?.settings?.submit_text) {
+    const val = remoteForm.value.settings.submit_text
+    if (typeof val === 'object') return extractValue(val) as string
+    return val
+  }
+  // Legacy fallback
+  const legacy = config.value.submitText
+  if (legacy) return legacy
+  return 'Submit'
 })
 
 const successMessage = computed(() => {
+  if (remoteForm.value?.settings?.success_message) {
+    const val = remoteForm.value.settings.success_message
+    if (typeof val === 'object') return extractValue(val) as string
+    return val
+  }
   const val = config.value.success_message || config.value.successMessage
   if (val && typeof val === 'object') return extractValue(val) as string
   return val || 'Thank you! Your message has been sent.'
 })
 
 const errorMessage = computed(() => {
+  if (remoteForm.value?.settings?.error_message) {
+    const val = remoteForm.value.settings.error_message
+    if (typeof val === 'object') return extractValue(val) as string
+    return val
+  }
   const val = config.value.error_message || config.value.errorMessage
   if (val && typeof val === 'object') return extractValue(val) as string
   return val || 'Something went wrong. Please try again.'
 })
 
+const formUuid = computed(() => {
+  if (remoteForm.value?.uuid) return remoteForm.value.uuid
+  return config.value.form_uuid || props.data.uuid || ''
+})
+
+// Layout settings (new mode)
+const buttonAlign = computed(() => config.value.button_align || 'left')
+const labelPosition = computed(() => config.value.label_position || 'top')
+const formColumns = computed(() => config.value.columns || '1')
+
+// Button style
 const buttonColor = computed(() => config.value.button_color || config.value.buttonColor || '')
-const formUuid = computed(() => config.value.form_uuid || props.data.uuid || '')
-const emailTo = computed(() => config.value.email_to || config.value.emailTo || '')
+const buttonStyle = computed(() => config.value.button_style || '')
+const buttonSize = computed(() => config.value.button_size || 'md')
+
+// Input style
+const inputSize = computed(() => config.value.input_size || 'md')
+const inputBorderRadius = computed(() => config.value.input_border_radius || 'md')
+const inputPadding = computed(() => config.value.input_padding || '')
 
 // Form state
 const formData = reactive<Record<string, any>>({})
 const isSubmitting = ref(false)
 const submitStatus = ref<'idle' | 'success' | 'error'>('idle')
 const validationErrors = ref<Record<string, string>>({})
+
+// Anti-spam: honeypot and timestamp
+const honeypot = ref('')
+const loadTimestamp = ref(0)
+
+onMounted(() => {
+  loadTimestamp.value = Date.now()
+})
 
 // Initialize form data for each field
 function initFormData() {
@@ -88,7 +180,10 @@ function initFormData() {
     }
   }
 }
-initFormData()
+
+watch(fields, () => {
+  initFormData()
+}, { immediate: true })
 
 // Client-side validation
 function validate(): boolean {
@@ -120,59 +215,25 @@ function validate(): boolean {
   return valid
 }
 
-function formatFormDataAsHtml(): string {
-  const rows = fields.value.map(field => {
-    let value = formData[field.code]
-    if (typeof value === 'boolean') {
-      value = value ? 'Yes' : 'No'
-    }
-    const escapedLabel = String(field.label || field.code).replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    const escapedValue = String(value ?? '').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>')
-    return `<tr><td style="padding:8px 12px;border:1px solid #dee2e6;font-weight:600;background:#f8f9fa;white-space:nowrap">${escapedLabel}</td><td style="padding:8px 12px;border:1px solid #dee2e6">${escapedValue}</td></tr>`
-  }).join('')
-
-  return `<table style="border-collapse:collapse;width:100%;font-family:Arial,sans-serif;font-size:14px">${rows}</table>`
-}
-
-async function sendEmail() {
-  if (!emailConfig || !emailTo.value) return
-
-  try {
-    await fetch('https://send.api.mailtrap.io/api/send', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${emailConfig.token}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        from: {
-          email: emailConfig.fromEmail,
-          name: emailConfig.fromName || 'LessCMS'
-        },
-        to: [{ email: emailTo.value }],
-        subject: 'New form submission',
-        html: formatFormDataAsHtml()
-      })
-    })
-  } catch (err) {
-    console.error('Failed to send email notification:', err)
-  }
-}
-
 async function handleSubmit() {
   if (!validate()) return
+
+  // Client-side honeypot check
+  if (honeypot.value) {
+    submitStatus.value = 'success'
+    return
+  }
 
   isSubmitting.value = true
   submitStatus.value = 'idle'
 
   try {
     await api.post(`/forms/${formUuid.value}/submit`, {
-      data: { ...formData }
+      data: { ...formData },
+      _hp_field: honeypot.value,
+      _ts: loadTimestamp.value,
     })
     submitStatus.value = 'success'
-    // Fire-and-forget email notification
-    sendEmail()
-    // Reset form
     initFormData()
   } catch {
     submitStatus.value = 'error'
@@ -181,142 +242,239 @@ async function handleSubmit() {
   }
 }
 
-const buttonStyle = computed(() => {
-  if (!buttonColor.value) return {}
+const buttonPadding = computed(() => config.value.button_padding || '')
+const buttonBorderRadius = computed(() => config.value.button_border_radius || 'md')
+const buttonIcon = computed(() => config.value.button_icon || '')
+const buttonIconPosition = computed(() => config.value.button_icon_position || 'left')
+
+const RADIUS_MAP: Record<string, string> = { none: '0', sm: '4px', md: '8px', lg: '12px', pill: '50px' }
+
+const computedButtonStyle = computed(() => {
+  const styles: Record<string, string> = {}
+
+  // Border radius
+  if (buttonBorderRadius.value) {
+    styles.borderRadius = RADIUS_MAP[buttonBorderRadius.value] || '8px'
+  }
+
+  // Padding
+  if (buttonPadding.value) {
+    styles.padding = `${buttonPadding.value}px`
+  }
+
+  // New mode: button_style is a bootstrap variant name
+  if (buttonStyle.value) return styles
+  // Legacy: direct color
+  if (!buttonColor.value) return styles
   return {
+    ...styles,
     backgroundColor: buttonColor.value,
     borderColor: buttonColor.value,
     color: '#ffffff'
   }
 })
+
+const computedInputStyle = computed(() => {
+  const styles: Record<string, string> = {}
+  if (inputBorderRadius.value) {
+    styles.borderRadius = RADIUS_MAP[inputBorderRadius.value] || '8px'
+  }
+  if (inputPadding.value) {
+    styles.padding = `${inputPadding.value}px`
+  }
+  return styles
+})
+
+const inputSizeClass = computed(() => {
+  if (inputSize.value === 'sm') return 'lcms-form__input--sm'
+  if (inputSize.value === 'lg') return 'lcms-form__input--lg'
+  return ''
+})
+
+const buttonClasses = computed(() => {
+  const classes = ['lcms-form__submit']
+  if (buttonStyle.value) {
+    classes.push(`btn-${buttonStyle.value}`)
+  }
+  if (buttonSize.value === 'sm') classes.push('lcms-form__submit--sm')
+  if (buttonSize.value === 'lg') classes.push('lcms-form__submit--lg')
+  return classes
+})
 </script>
 
 <template>
   <div class="lcms-form">
+    <!-- Loading -->
+    <div
+      v-if="loadingForm"
+      class="lcms-form__loading"
+    >
+      <span class="lcms-form__spinner" />
+    </div>
+
     <!-- Success message -->
     <div
-      v-if="submitStatus === 'success'"
+      v-else-if="submitStatus === 'success'"
       class="lcms-form__success"
     >
       {{ successMessage }}
     </div>
 
-    <!-- Error message -->
-    <div
-      v-if="submitStatus === 'error'"
-      class="lcms-form__error"
-    >
-      {{ errorMessage }}
-    </div>
-
-    <!-- Form -->
-    <form
-      v-if="submitStatus !== 'success'"
-      class="lcms-form__form"
-      @submit.prevent="handleSubmit"
-    >
+    <template v-else>
+      <!-- Error message -->
       <div
-        v-for="field in fields"
-        :key="field.code"
-        class="lcms-form__field"
-        :class="{ 'lcms-form__field--error': validationErrors[field.code] }"
+        v-if="submitStatus === 'error'"
+        class="lcms-form__error"
       >
-        <label
-          v-if="field.type !== 'checkbox'"
-          class="lcms-form__label"
-          :for="`form-${field.code}`"
-        >
-          {{ field.label }}
-          <span v-if="field.required" class="lcms-form__required">*</span>
-        </label>
-
-        <!-- Text input -->
-        <input
-          v-if="field.type === 'text'"
-          :id="`form-${field.code}`"
-          v-model="formData[field.code]"
-          type="text"
-          class="lcms-form__input"
-          :placeholder="field.placeholder"
-          :required="field.required"
-        >
-
-        <!-- Email input -->
-        <input
-          v-else-if="field.type === 'email'"
-          :id="`form-${field.code}`"
-          v-model="formData[field.code]"
-          type="email"
-          class="lcms-form__input"
-          :placeholder="field.placeholder"
-          :required="field.required"
-        >
-
-        <!-- Textarea -->
-        <textarea
-          v-else-if="field.type === 'textarea'"
-          :id="`form-${field.code}`"
-          v-model="formData[field.code]"
-          class="lcms-form__textarea"
-          :placeholder="field.placeholder"
-          :required="field.required"
-          rows="4"
-        />
-
-        <!-- Select -->
-        <select
-          v-else-if="field.type === 'select'"
-          :id="`form-${field.code}`"
-          v-model="formData[field.code]"
-          class="lcms-form__select"
-          :required="field.required"
-        >
-          <option value="">{{ field.placeholder || '---' }}</option>
-          <option
-            v-for="opt in field.options"
-            :key="opt.value"
-            :value="opt.value"
-          >
-            {{ opt.label }}
-          </option>
-        </select>
-
-        <!-- Checkbox -->
-        <label
-          v-else-if="field.type === 'checkbox'"
-          class="lcms-form__checkbox-label"
-          :for="`form-${field.code}`"
-        >
-          <input
-            :id="`form-${field.code}`"
-            v-model="formData[field.code]"
-            type="checkbox"
-            class="lcms-form__checkbox"
-          >
-          {{ field.label }}
-          <span v-if="field.required" class="lcms-form__required">*</span>
-        </label>
-
-        <span
-          v-if="validationErrors[field.code]"
-          class="lcms-form__validation-error"
-        >
-          {{ validationErrors[field.code] }}
-        </span>
+        {{ errorMessage }}
       </div>
 
-      <button
-        type="submit"
-        class="lcms-form__submit"
-        :style="buttonStyle"
-        :disabled="isSubmitting"
+      <!-- Form -->
+      <form
+        class="lcms-form__form"
+        @submit.prevent="handleSubmit"
       >
-        <span
-          v-if="isSubmitting"
-          class="lcms-form__spinner"
-        />
-        {{ submitText }}
-      </button>
-    </form>
+        <!-- Honeypot (hidden from real users) -->
+        <input
+          v-model="honeypot"
+          type="text"
+          name="_hp_field"
+          style="position:absolute;left:-9999px;top:-9999px"
+          tabindex="-1"
+          autocomplete="off"
+        >
+
+        <div
+          class="lcms-form__fields"
+          :class="{
+            'lcms-form__fields--2col': formColumns === '2'
+          }"
+        >
+          <div
+            v-for="field in fields"
+            :key="field.code"
+            class="lcms-form__field"
+            :class="{
+              'lcms-form__field--error': validationErrors[field.code],
+              'lcms-form__field--side': labelPosition === 'side'
+            }"
+          >
+            <label
+              v-if="field.type !== 'checkbox'"
+              class="lcms-form__label"
+              :for="`form-${field.code}`"
+            >
+              {{ field.label }}
+              <span v-if="field.required" class="lcms-form__required">*</span>
+            </label>
+
+            <!-- Text input -->
+            <input
+              v-if="field.type === 'text'"
+              :id="`form-${field.code}`"
+              v-model="formData[field.code]"
+              type="text"
+              class="lcms-form__input"
+              :class="inputSizeClass"
+              :style="computedInputStyle"
+              :placeholder="field.placeholder"
+              :required="field.required"
+            >
+
+            <!-- Email input -->
+            <input
+              v-else-if="field.type === 'email'"
+              :id="`form-${field.code}`"
+              v-model="formData[field.code]"
+              type="email"
+              class="lcms-form__input"
+              :class="inputSizeClass"
+              :style="computedInputStyle"
+              :placeholder="field.placeholder"
+              :required="field.required"
+            >
+
+            <!-- Textarea -->
+            <textarea
+              v-else-if="field.type === 'textarea'"
+              :id="`form-${field.code}`"
+              v-model="formData[field.code]"
+              class="lcms-form__textarea"
+              :class="inputSizeClass"
+              :style="computedInputStyle"
+              :placeholder="field.placeholder"
+              :required="field.required"
+              rows="4"
+            />
+
+            <!-- Select -->
+            <select
+              v-else-if="field.type === 'select'"
+              :id="`form-${field.code}`"
+              v-model="formData[field.code]"
+              class="lcms-form__select"
+              :class="inputSizeClass"
+              :style="computedInputStyle"
+              :required="field.required"
+            >
+              <option value="">{{ field.placeholder || '---' }}</option>
+              <option
+                v-for="opt in field.options"
+                :key="opt.value"
+                :value="opt.value"
+              >
+                {{ opt.label }}
+              </option>
+            </select>
+
+            <!-- Checkbox -->
+            <label
+              v-else-if="field.type === 'checkbox'"
+              class="lcms-form__checkbox-label"
+              :for="`form-${field.code}`"
+            >
+              <input
+                :id="`form-${field.code}`"
+                v-model="formData[field.code]"
+                type="checkbox"
+                class="lcms-form__checkbox"
+              >
+              {{ field.label }}
+              <span v-if="field.required" class="lcms-form__required">*</span>
+            </label>
+
+            <span
+              v-if="validationErrors[field.code]"
+              class="lcms-form__validation-error"
+            >
+              {{ validationErrors[field.code] }}
+            </span>
+          </div>
+        </div>
+
+        <div
+          class="lcms-form__submit-wrapper"
+          :class="{
+            'lcms-form__submit-wrapper--center': buttonAlign === 'center',
+            'lcms-form__submit-wrapper--right': buttonAlign === 'right'
+          }"
+        >
+          <button
+            type="submit"
+            :class="buttonClasses"
+            :style="computedButtonStyle"
+            :disabled="isSubmitting"
+          >
+            <span
+              v-if="isSubmitting"
+              class="lcms-form__spinner"
+            />
+            <i v-if="buttonIcon && buttonIconPosition === 'left'" :class="buttonIcon" style="margin-right: 6px;" />
+            {{ submitText }}
+            <i v-if="buttonIcon && buttonIconPosition === 'right'" :class="buttonIcon" style="margin-left: 6px;" />
+          </button>
+        </div>
+      </form>
+    </template>
   </div>
 </template>
