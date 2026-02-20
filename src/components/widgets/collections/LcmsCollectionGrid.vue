@@ -42,6 +42,7 @@ const titleField = computed(() => config.value.title_field || 'title')
 const excerptField = computed(() => config.value.excerpt_field || '')
 const imageField = computed(() => config.value.image_field || '')
 const dateField = computed(() => config.value.date_field || '')
+const tagsField = computed(() => config.value.tags_field || '')
 
 // Display toggles (for default template)
 const showTitle = computed(() => config.value.show_title !== false)
@@ -49,6 +50,7 @@ const showExcerpt = computed(() => config.value.show_excerpt !== false)
 const showImage = computed(() => config.value.show_image !== false)
 const showDate = computed(() => config.value.show_date !== false)
 const showReadMore = computed(() => config.value.show_read_more !== false)
+const showTags = computed(() => config.value.show_tags === true)
 
 // Limits (for default template)
 const titleLimit = computed(() => config.value.title_limit || 100)
@@ -155,6 +157,21 @@ function getDate(entry: CollectionEntry): string {
     month: 'long',
     day: 'numeric',
   })
+}
+
+function getTags(entry: CollectionEntry): string[] {
+  if (!tagsField.value) return []
+  const value = getFieldValue(entry, tagsField.value)
+  if (!value) return []
+  if (Array.isArray(value)) {
+    return value.map((item: any) => {
+      if (item && typeof item === 'object' && item.value) return item.value
+      if (item && typeof item === 'object' && item.code) return item.code
+      return String(item)
+    })
+  }
+  if (typeof value === 'string') return [value]
+  return []
 }
 
 function getUrl(entry: CollectionEntry): string {
@@ -268,6 +285,17 @@ const gridStyle = computed(() => {
           >
             {{ getExcerpt(entry) }}
           </p>
+
+          <div
+            v-if="showTags && getTags(entry).length > 0"
+            class="lcms-collection-grid__tags"
+          >
+            <span
+              v-for="(tag, tagIndex) in getTags(entry)"
+              :key="tagIndex"
+              class="lcms-collection-grid__tag"
+            >{{ tag }}</span>
+          </div>
 
           <a
             v-if="showReadMore"
