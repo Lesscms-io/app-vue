@@ -36,6 +36,7 @@ const collectionCode = computed(() => config.value.collection_code || '')
 const layout = computed(() => config.value.layout || config.value.card_style || 'grid')
 const columns = computed(() => Number(config.value.columns) || 3)
 const postsCount = computed(() => config.value.posts_count || 6)
+const gapPx = computed(() => `${Number(config.value.gap) || 16}px`)
 
 // Field mappings (for default template)
 const titleField = computed(() => config.value.title_field || 'title')
@@ -179,9 +180,10 @@ function getUrl(entry: CollectionEntry): string {
 }
 
 const gridStyle = computed(() => {
-  if (layout.value === 'list') return {}
+  if (layout.value === 'list') return { gap: gapPx.value }
   return {
     gridTemplateColumns: `repeat(${columns.value}, 1fr)`,
+    gap: gapPx.value,
   }
 })
 </script>
