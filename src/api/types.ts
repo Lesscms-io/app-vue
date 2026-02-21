@@ -389,6 +389,8 @@ export interface MenuResponse {
 export interface MenuItem {
   id: string
   label: MultilingualValue
+  fields?: Record<string, any>
+  custom?: Record<string, any>
   children?: MenuItem[]
   metadata?: MenuItemMetadata
 }

@@ -37,6 +37,7 @@ const layout = computed(() => config.value.layout || config.value.card_style || 
 const columns = computed(() => Number(config.value.columns) || 3)
 const postsCount = computed(() => config.value.posts_count || 6)
 const gapPx = computed(() => `${Number(config.value.gap) || 16}px`)
+const contentGapPx = computed(() => `${Number(config.value.content_gap) || 8}px`)
 
 // Field mappings (for default template)
 const titleField = computed(() => config.value.title_field || 'title')
@@ -52,6 +53,21 @@ const showImage = computed(() => config.value.show_image !== false)
 const showDate = computed(() => config.value.show_date !== false)
 const showReadMore = computed(() => config.value.show_read_more !== false)
 const showTags = computed(() => config.value.show_tags === true)
+
+// Field order
+const DEFAULT_FIELD_ORDER = ['image', 'date', 'title', 'excerpt', 'tags', 'extra', 'read_more']
+const fieldOrder = computed(() => {
+  const order = config.value.field_order
+  if (Array.isArray(order) && order.length > 0) {
+    const existing = new Set(order)
+    const merged = [...order]
+    for (const f of DEFAULT_FIELD_ORDER) {
+      if (!existing.has(f)) merged.push(f)
+    }
+    return merged
+  }
+  return DEFAULT_FIELD_ORDER
+})
 
 // Limits (for default template)
 const titleLimit = computed(() => config.value.title_limit || 100)
@@ -266,46 +282,48 @@ const gridStyle = computed(() => {
           >
         </a>
 
-        <div class="lcms-collection-grid__content">
-          <h3
-            v-if="showTitle"
-            class="lcms-collection-grid__title"
-          >
-            <a :href="getUrl(entry)">{{ getTitle(entry) }}</a>
-          </h3>
+        <div class="lcms-collection-grid__content" :style="{ gap: contentGapPx }">
+          <template v-for="field in fieldOrder" :key="field">
+            <h3
+              v-if="field === 'title' && showTitle"
+              class="lcms-collection-grid__title"
+            >
+              <a :href="getUrl(entry)">{{ getTitle(entry) }}</a>
+            </h3>
 
-          <time
-            v-if="showDate && getDate(entry)"
-            class="lcms-collection-grid__date"
-          >
-            {{ getDate(entry) }}
-          </time>
+            <time
+              v-else-if="field === 'date' && showDate && getDate(entry)"
+              class="lcms-collection-grid__date"
+            >
+              {{ getDate(entry) }}
+            </time>
 
-          <p
-            v-if="showExcerpt && excerptField && getExcerpt(entry)"
-            class="lcms-collection-grid__excerpt"
-          >
-            {{ getExcerpt(entry) }}
-          </p>
+            <p
+              v-else-if="field === 'excerpt' && showExcerpt && excerptField && getExcerpt(entry)"
+              class="lcms-collection-grid__excerpt"
+            >
+              {{ getExcerpt(entry) }}
+            </p>
 
-          <div
-            v-if="showTags && getTags(entry).length > 0"
-            class="lcms-collection-grid__tags"
-          >
-            <span
-              v-for="(tag, tagIndex) in getTags(entry)"
-              :key="tagIndex"
-              class="lcms-collection-grid__tag"
-            >{{ tag }}</span>
-          </div>
+            <div
+              v-else-if="field === 'tags' && showTags && getTags(entry).length > 0"
+              class="lcms-collection-grid__tags"
+            >
+              <span
+                v-for="(tag, tagIndex) in getTags(entry)"
+                :key="tagIndex"
+                class="lcms-collection-grid__tag"
+              >{{ tag }}</span>
+            </div>
 
-          <a
-            v-if="showReadMore"
-            :href="getUrl(entry)"
-            class="lcms-collection-grid__read-more"
-          >
-            {{ readMoreText }}
-          </a>
+            <a
+              v-else-if="field === 'read_more' && showReadMore"
+              :href="getUrl(entry)"
+              class="lcms-collection-grid__read-more"
+            >
+              {{ readMoreText }}
+            </a>
+          </template>
         </div>
       </article>
     </div>

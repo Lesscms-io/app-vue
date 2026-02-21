@@ -29,10 +29,12 @@ const { extractValue } = useLanguage(props.language)
 const { currentBreakpoint } = useResponsiveSettings()
 
 const menuCode = computed(() => props.data.menu_code || '')
+const labelField = computed(() => props.data.label_field || '')
 const layout = computed(() => props.data.layout || 'horizontal')
 const hamburgerBreakpoint = computed(() => props.data.hamburger_breakpoint || 'never')
 const itemsAlignment = computed(() => props.data.items_alignment || 'left')
 const itemsGap = computed(() => props.data.items_gap || 'md')
+const itemsIndent = computed(() => props.data.items_indent || 0)
 const linkColor = computed(() => props.data.link_color || null)
 const linkHoverColor = computed(() => props.data.link_hover_color || null)
 const linkHoverBg = computed(() => props.data.link_hover_bg || null)
@@ -79,6 +81,7 @@ const menuCssVars = computed(() => {
   if (lc) vars['--lcms-menu-link-color'] = lc
   if (lhc) vars['--lcms-menu-link-hover-color'] = lhc
   if (lhb) vars['--lcms-menu-link-hover-bg'] = lhb
+  if (itemsIndent.value) vars['--lcms-menu-items-indent'] = `${itemsIndent.value}px`
   return vars
 })
 
@@ -130,6 +133,14 @@ onUnmounted(() => {
 })
 
 function getItemLabel(item: MenuItem): string {
+  // If a specific label field is configured, use it from item fields
+  if (labelField.value && item.fields) {
+    const val = item.fields[labelField.value]
+    if (val) {
+      const resolved = extractValue(val)
+      if (resolved) return resolved as string
+    }
+  }
   return extractValue(item.label) as string
 }
 
