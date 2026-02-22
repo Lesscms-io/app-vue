@@ -201,6 +201,36 @@ function sortItems(items: ValueItem[]): ValueItem[] {
   if (sortFieldCfg.value === 'label') {
     return items.sort((a, b) => (a.label || a.value).localeCompare(b.label || b.value) * dir)
   }
+  // Sort by collection field: build map from entries
+  if (sortFieldCfg.value && sortFieldCfg.value.startsWith('field:')) {
+    const fieldCode = sortFieldCfg.value.replace('field:', '')
+    const sortKeyMap = new Map<string, string>()
+    for (const entry of filteredEntries.value) {
+      const sortVal = entry.data?.[fieldCode]
+      const valField = entry.data?.[valueField.value]
+      if (!valField) continue
+      const vals = Array.isArray(valField) ? valField : [valField]
+      for (const v of vals) {
+        const code = typeof v === 'object' && v?.code ? v.code : String(v)
+        if (!sortKeyMap.has(code)) {
+          let key = ''
+          if (sortVal && typeof sortVal === 'object' && sortVal.code) {
+            key = sortVal.value || sortVal.code
+          } else if (typeof sortVal === 'string') {
+            key = sortVal
+          } else if (sortVal != null) {
+            key = String(sortVal)
+          }
+          sortKeyMap.set(code, key)
+        }
+      }
+    }
+    return items.sort((a, b) => {
+      const ka = sortKeyMap.get(a.value) || ''
+      const kb = sortKeyMap.get(b.value) || ''
+      return ka.localeCompare(kb) * dir
+    })
+  }
   return items.sort((a, b) => (a.label || a.value).localeCompare(b.label || b.value))
 }
 
