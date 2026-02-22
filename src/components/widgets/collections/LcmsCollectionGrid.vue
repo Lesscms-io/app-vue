@@ -6,7 +6,7 @@
  * Supports custom entry templates from the collection configuration.
  */
 
-import { computed, watch, ref, onMounted } from 'vue'
+import { computed, watch, ref, onMounted, onBeforeUnmount } from 'vue'
 import { useCollection } from '@/composables/useCollection'
 import { useLanguage } from '@/composables/useLanguage'
 import { useApi } from '@/composables/useApi'
@@ -35,6 +35,8 @@ const config = computed(() => props.data.config || props.data || {})
 const collectionCode = computed(() => config.value.collection_code || '')
 const layout = computed(() => config.value.layout || config.value.card_style || 'grid')
 const columns = computed(() => Number(config.value.columns) || 3)
+const columnsTablet = computed(() => config.value.columns_tablet ? Number(config.value.columns_tablet) : null)
+const columnsMobile = computed(() => config.value.columns_mobile ? Number(config.value.columns_mobile) : null)
 const postsCount = computed(() => config.value.posts_count || 6)
 const gapPx = computed(() => `${Number(config.value.gap) || 16}px`)
 const contentGapPx = computed(() => `${Number(config.value.content_gap) || 8}px`)
@@ -116,12 +118,24 @@ onMounted(() => {
   if (hasCustomTemplate.value) {
     fetchTemplate()
   }
+  updateResponsiveStyle()
 })
 
 // Re-fetch if template config changes
 watch([collectionCode, templateId], () => {
   if (hasCustomTemplate.value) {
     fetchTemplate()
+  }
+})
+
+// Update responsive styles when columns change
+watch([columns, columnsTablet, columnsMobile], () => {
+  updateResponsiveStyle()
+})
+
+onBeforeUnmount(() => {
+  if (responsiveStyleEl.value) {
+    responsiveStyleEl.value.remove()
   }
 })
 
@@ -195,6 +209,16 @@ function getUrl(entry: CollectionEntry): string {
   return entry.metadata?.url || '#'
 }
 
+// Build a unique ID for responsive style injection
+const responsiveStyleId = computed(() => `lcms-grid-${Math.random().toString(36).slice(2, 8)}`)
+
+const gridClass = computed(() => {
+  if (columnsTablet.value || columnsMobile.value) {
+    return responsiveStyleId.value
+  }
+  return ''
+})
+
 const gridStyle = computed(() => {
   if (layout.value === 'list') return { gap: gapPx.value }
   return {
@@ -202,6 +226,33 @@ const gridStyle = computed(() => {
     gap: gapPx.value,
   }
 })
+
+// Inject responsive CSS for tablet/mobile columns
+const responsiveStyleEl = ref<HTMLStyleElement | null>(null)
+
+function updateResponsiveStyle() {
+  if (responsiveStyleEl.value) {
+    responsiveStyleEl.value.remove()
+    responsiveStyleEl.value = null
+  }
+  if (!columnsTablet.value && !columnsMobile.value) return
+  if (layout.value === 'list') return
+
+  const cls = responsiveStyleId.value
+  let css = ''
+  if (columnsTablet.value) {
+    css += `@media (max-width: 1199px) { .${cls} { grid-template-columns: repeat(${columnsTablet.value}, 1fr) !important; } }\n`
+  }
+  if (columnsMobile.value) {
+    css += `@media (max-width: 767px) { .${cls} { grid-template-columns: repeat(${columnsMobile.value}, 1fr) !important; } }\n`
+  }
+  if (css) {
+    const style = document.createElement('style')
+    style.textContent = css
+    document.head.appendChild(style)
+    responsiveStyleEl.value = style
+  }
+}
 </script>
 
 <template>
@@ -235,6 +286,7 @@ const gridStyle = computed(() => {
     <div
       v-else-if="hasCustomTemplate && template"
       class="lcms-collection-grid__items lcms-collection-grid__items--custom"
+      :class="gridClass"
       :style="gridStyle"
     >
       <article
@@ -263,6 +315,7 @@ const gridStyle = computed(() => {
     <div
       v-else
       class="lcms-collection-grid__items"
+      :class="gridClass"
       :style="gridStyle"
     >
       <article
