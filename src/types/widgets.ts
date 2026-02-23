@@ -103,6 +103,7 @@ export interface IconListWidgetData extends BaseWidgetData {
 export interface ImageWidgetData extends BaseWidgetData {
   image: string
   alt?: MultilingualValue
+  image_style?: 'none' | 'rounded' | 'rounded-lg' | 'circle' | 'shadow-sm' | 'shadow-lg' | 'rounded-shadow' | 'border' | 'border-rounded'
 }
 
 export interface GalleryImage {

@@ -25,6 +25,23 @@ const { extractValue } = useLanguage(props.language)
 
 const imageUrl = computed(() => props.data.image || '')
 const altText = computed(() => props.data.alt ? extractValue(props.data.alt) : '')
+
+const imageStylePresets: Record<string, Record<string, string>> = {
+  'none': {},
+  'rounded': { borderRadius: '12px' },
+  'rounded-lg': { borderRadius: '24px' },
+  'circle': { borderRadius: '50%' },
+  'shadow-sm': { boxShadow: '0 2px 8px rgba(0,0,0,0.1)' },
+  'shadow-lg': { boxShadow: '0 8px 24px rgba(0,0,0,0.2)' },
+  'rounded-shadow': { borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)' },
+  'border': { border: '2px solid #e0e0e0' },
+  'border-rounded': { border: '2px solid #e0e0e0', borderRadius: '12px' }
+}
+
+const imageStyle = computed(() => {
+  const style = props.data.image_style || 'none'
+  return imageStylePresets[style] || {}
+})
 </script>
 
 <template>
@@ -34,6 +51,7 @@ const altText = computed(() => props.data.alt ? extractValue(props.data.alt) : '
       :src="imageUrl"
       :alt="altText"
       class="lcms-image__img"
+      :style="imageStyle"
     >
     <div
       v-else
