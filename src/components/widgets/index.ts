@@ -53,6 +53,7 @@ import LcmsTimeline from './interactive/LcmsTimeline.vue'
 import LcmsMenu from './navigation/LcmsMenu.vue'
 import LcmsSocialIcons from './navigation/LcmsSocialIcons.vue'
 import LcmsBreadcrumbs from './navigation/LcmsBreadcrumbs.vue'
+import LcmsToc from './navigation/LcmsToc.vue'
 
 // Interactive widgets (forms)
 import LcmsForm from './interactive/LcmsForm.vue'
@@ -119,6 +120,7 @@ export const widgetComponents: Record<string, Component> = {
   menu: LcmsMenu,
   'social-icons': LcmsSocialIcons,
   breadcrumbs: LcmsBreadcrumbs,
+  toc: LcmsToc,
 
   // Forms
   form: LcmsForm,
@@ -200,6 +202,7 @@ export {
   LcmsMenu,
   LcmsSocialIcons,
   LcmsBreadcrumbs,
+  LcmsToc,
   // Forms
   LcmsForm,
   // Content

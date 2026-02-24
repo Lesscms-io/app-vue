@@ -354,6 +354,14 @@ function getColumnStyle(column: PageColumn) {
   if (s.columnHeight) style.minHeight = `${s.columnHeight}px`
   if (s.minHeight) style.minHeight = `${s.minHeight}px`
 
+  // Sticky column
+  if (s.sticky) {
+    style.position = 'sticky'
+    style.top = s.stickyTop ? `${s.stickyTop}px` : '0px'
+    style.zIndex = String(s.stickyZIndex ?? 10)
+    style.alignSelf = 'flex-start'
+  }
+
   return style
 }
 
