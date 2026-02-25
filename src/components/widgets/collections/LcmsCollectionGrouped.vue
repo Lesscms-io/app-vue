@@ -132,8 +132,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted, watch } from 'vue'
+import { computed, ref, inject, onMounted, watch, type Ref } from 'vue'
 import { useApi } from '../../../composables/useApi'
+import type { ResolvedRoute } from '@/composables/useRoutes'
 
 interface Entry {
   uuid: string
@@ -155,6 +156,7 @@ const props = defineProps<{
       style?: string
       item_layout?: string
       posts_count?: number
+      exclude_current_entry?: boolean
       title_field?: string
       description_field?: string
       price_field?: string
@@ -189,7 +191,18 @@ const showUncategorized = computed(() => config.value.show_uncategorized ?? true
 const styleClass = computed(() => `lcms-collection-grouped--${displayStyle.value}`)
 const itemLayoutClass = computed(() => `lcms-collection-grouped__items--${itemLayout.value}`)
 
-const { api } = useApi()
+const api = useApi()
+
+// Exclude current entry support
+const resolvedRoute = inject<Ref<ResolvedRoute | null>>('routeParams', ref(null))
+
+const excludeEntryId = computed(() => {
+  if (!config.value.exclude_current_entry) return ''
+  const params = resolvedRoute?.value?.params
+  if (!params) return ''
+  return params.slug || params.entry_id || params.id || Object.values(params)[0] || ''
+})
+
 const loading = ref(false)
 const groups = ref<Group[]>([])
 const openGroups = ref(new Set<string>())
@@ -233,7 +246,11 @@ async function fetchEntries() {
 
   loading.value = true
   try {
-    const response = await api.getCollectionEntries(collectionCode.value)
+    const params: Record<string, any> = {}
+    if (excludeEntryId.value) {
+      params.exclude_entry_id = excludeEntryId.value
+    }
+    const response = await api.getCollection(collectionCode.value, params)
     const entries = (response.data || []) as Entry[]
 
     // Group entries by field value

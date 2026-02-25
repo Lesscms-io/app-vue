@@ -167,8 +167,17 @@ function formatDate(value: string | Date): string {
         :style="iconStyle"
       />
 
-      <!-- Value -->
+      <!-- Value: HTML content uses div to allow block-level elements -->
+      <div
+        v-if="isHtml"
+        class="lcms-collection-field__value"
+        :style="valueStyle"
+        v-html="formattedValue"
+      />
+
+      <!-- Value: non-HTML content uses dynamic tag -->
       <component
+        v-else
         :is="displayAs"
         class="lcms-collection-field__value"
         :style="valueStyle"
@@ -176,11 +185,6 @@ function formatDate(value: string | Date): string {
         <!-- Image field -->
         <template v-if="fieldType === 'image' && formattedValue">
           <img :src="formattedValue" :alt="label || fieldCode" class="lcms-collection-field__image" />
-        </template>
-
-        <!-- HTML content -->
-        <template v-else-if="isHtml">
-          <span v-html="formattedValue" />
         </template>
 
         <!-- Plain text -->

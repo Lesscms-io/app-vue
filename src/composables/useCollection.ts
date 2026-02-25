@@ -75,7 +75,8 @@ export interface UseCollectionOptions extends CollectionParams {
  */
 export function useCollection(
   code: Ref<string> | string,
-  options: UseCollectionOptions = {}
+  options: UseCollectionOptions = {},
+  excludeEntryId?: Ref<string>
 ): UseCollectionReturn {
   const api = useApi()
 
@@ -104,11 +105,15 @@ export function useCollection(
 
     try {
       const { immediate, ...params } = options
-      console.log('useCollection: calling API with params:', { code: codeRef.value, ...params, page: page.value })
-      const response = await api.getCollection(codeRef.value, {
+      const apiParams: CollectionParams = {
         ...params,
         page: page.value,
-      })
+      }
+      if (excludeEntryId?.value) {
+        apiParams.exclude_entry_id = excludeEntryId.value
+      }
+      console.log('useCollection: calling API with params:', { code: codeRef.value, ...apiParams })
+      const response = await api.getCollection(codeRef.value, apiParams)
       console.log('useCollection response for', codeRef.value, ':', response)
       entries.value = response.data || []
       meta.value = response.meta || null
@@ -140,8 +145,11 @@ export function useCollection(
     }
   }
 
-  // Watch for code or page changes
-  watch([codeRef, page], fetchCollection, { immediate: options.immediate !== false })
+  // Watch for code, page or excludeEntryId changes
+  const watchSources = excludeEntryId
+    ? [codeRef, page, excludeEntryId]
+    : [codeRef, page]
+  watch(watchSources, fetchCollection, { immediate: options.immediate !== false })
 
   return {
     entries,

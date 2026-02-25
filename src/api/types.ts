@@ -299,6 +299,7 @@ export interface CollectionMeta {
 export interface CollectionParams {
   page?: number
   pageSize?: number
+  exclude_entry_id?: string
   // Note: order_by and order_dir are NOT supported by the API yet
   // They would be treated as field filters
   [key: string]: any // Field filters

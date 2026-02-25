@@ -192,7 +192,7 @@ const sectionStyle = computed(() => {
   // Sticky
   if (s.sticky) {
     style.position = 'sticky'
-    style.top = '0'
+    style.top = s.stickyTop ? `${s.stickyTop}px` : '0'
     style.zIndex = String(s.stickyZIndex ?? 100)
   }
 

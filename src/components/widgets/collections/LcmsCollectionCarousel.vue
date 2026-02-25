@@ -6,11 +6,12 @@
  * Center slide is larger, side slides are smaller with perspective effect.
  */
 
-import { computed, ref, onMounted, onUnmounted } from 'vue'
+import { computed, ref, inject, onMounted, onUnmounted, type Ref } from 'vue'
 import { useCollection } from '@/composables/useCollection'
 import { useLanguage } from '@/composables/useLanguage'
 import type { CollectionCarouselWidgetData } from '@/types/widgets'
 import type { CollectionEntry } from '@/api/types'
+import type { ResolvedRoute } from '@/composables/useRoutes'
 
 defineOptions({
   inheritAttrs: false
@@ -26,6 +27,16 @@ const props = defineProps<Props>()
 
 const { language: currentLanguage } = useLanguage(props.language)
 
+// Exclude current entry support
+const resolvedRoute = inject<Ref<ResolvedRoute | null>>('routeParams', ref(null))
+
+const excludeEntryId = computed(() => {
+  if (!props.data.exclude_current_entry) return ''
+  const params = resolvedRoute?.value?.params
+  if (!params) return ''
+  return params.slug || params.entry_id || params.id || Object.values(params)[0] || ''
+})
+
 const collectionCode = computed(() => props.data.collection_code || '')
 const postsCount = computed(() => props.data.posts_count || 10)
 const autoplay = computed(() => props.data.autoplay !== false)
@@ -38,7 +49,7 @@ const imageField = computed(() => props.data.image_field || '')
 
 const { entries, loading, error } = useCollection(collectionCode, {
   pageSize: postsCount.value,
-})
+}, excludeEntryId)
 
 // Carousel state - currentSlide is the CENTER slide index
 const currentSlide = ref(0)

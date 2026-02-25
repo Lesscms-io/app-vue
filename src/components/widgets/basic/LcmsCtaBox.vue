@@ -29,8 +29,28 @@ const buttonText = computed(() => props.data.button_text ? extractValue(props.da
 const buttonUrl = computed(() => props.data.button_url || '')
 const backgroundColor = computed(() => props.data.background_color || null)
 const buttonColor = computed(() => props.data.button_color || null)
-const textColor = computed(() => props.data.text_color || 'light')
+const textColor = computed(() => {
+  const val = props.data.text_color || 'light'
+  if (val === 'light') return '#ffffff'
+  if (val === 'dark') return '#212529'
+  return val
+})
 const alignment = computed(() => props.data.alignment || 'center')
+const paddingY = computed(() => props.data.padding_y ?? 48)
+const paddingX = computed(() => props.data.padding_x ?? 32)
+const borderRadius = computed(() => props.data.border_radius ?? 12)
+const titleFontSize = computed(() => {
+  const v = props.data.title_font_size
+  if (v == null) return '28px'
+  if (typeof v === 'number') return `${v}px`
+  return String(v).match(/[a-z]/) ? v : `${v}px`
+})
+const subtitleFontSize = computed(() => {
+  const v = props.data.subtitle_font_size
+  if (v == null) return '16px'
+  if (typeof v === 'number') return `${v}px`
+  return String(v).match(/[a-z]/) ? v : `${v}px`
+})
 </script>
 
 <template>
@@ -39,11 +59,13 @@ const alignment = computed(() => props.data.alignment || 'center')
     :class="`lcms-cta-box--${alignment}`"
     :style="{
       backgroundColor: backgroundColor || undefined,
-      color: textColor === 'light' ? '#fff' : '#212529'
+      color: textColor,
+      padding: `${paddingY}px ${paddingX}px`,
+      borderRadius: `${borderRadius}px`
     }"
   >
-    <h3 v-if="title" class="lcms-cta-box__title">{{ title }}</h3>
-    <p v-if="subtitle" class="lcms-cta-box__subtitle">{{ subtitle }}</p>
+    <h3 v-if="title" class="lcms-cta-box__title" :style="{ fontSize: titleFontSize }">{{ title }}</h3>
+    <p v-if="subtitle" class="lcms-cta-box__subtitle" :style="{ fontSize: subtitleFontSize }">{{ subtitle }}</p>
     <a
       v-if="buttonText && buttonUrl"
       :href="buttonUrl"
@@ -57,8 +79,6 @@ const alignment = computed(() => props.data.alignment || 'center')
 
 <style scoped>
 .lcms-cta-box {
-  padding: 32px;
-  border-radius: 8px;
   background-color: #50a5f1;
   color: #fff;
 }
@@ -73,7 +93,6 @@ const alignment = computed(() => props.data.alignment || 'center')
 
 .lcms-cta-box__title {
   margin: 0 0 8px;
-  font-size: 1.5em;
 }
 
 .lcms-cta-box__subtitle {

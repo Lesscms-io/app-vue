@@ -331,6 +331,7 @@ export interface CollectionGridWidgetData extends BaseWidgetData {
   posts_count?: number
   order_by?: 'created_at' | 'title' | 'random'
   order_dir?: 'asc' | 'desc'
+  exclude_current_entry?: boolean
   title_field?: string
   title_limit?: number
   excerpt_field?: string
@@ -353,6 +354,7 @@ export interface CollectionCarouselWidgetData extends BaseWidgetData {
   autoplay_interval?: number
   show_arrows?: boolean
   show_dots?: boolean
+  exclude_current_entry?: boolean
   title_field?: string
   excerpt_field?: string
   image_field?: string

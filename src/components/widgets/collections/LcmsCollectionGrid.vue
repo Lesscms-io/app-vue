@@ -6,13 +6,14 @@
  * Supports custom entry templates from the collection configuration.
  */
 
-import { computed, watch, ref, onMounted, onBeforeUnmount } from 'vue'
+import { computed, watch, ref, inject, onMounted, onBeforeUnmount, type Ref } from 'vue'
 import { useCollection } from '@/composables/useCollection'
 import { useLanguage } from '@/composables/useLanguage'
 import { useApi } from '@/composables/useApi'
 import LcmsEntryTemplateRenderer from './LcmsEntryTemplateRenderer.vue'
 import type { CollectionGridWidgetData } from '@/types/widgets'
 import type { CollectionEntry, CollectionTemplate, TemplateSection } from '@/api/types'
+import type { ResolvedRoute } from '@/composables/useRoutes'
 
 defineOptions({
   inheritAttrs: false
@@ -40,6 +41,16 @@ const columnsMobile = computed(() => config.value.columns_mobile ? Number(config
 const postsCount = computed(() => config.value.posts_count || 6)
 const gapPx = computed(() => `${Number(config.value.gap) || 16}px`)
 const contentGapPx = computed(() => `${Number(config.value.content_gap) || 8}px`)
+
+// Exclude current entry support
+const resolvedRoute = inject<Ref<ResolvedRoute | null>>('routeParams', ref(null))
+
+const excludeEntryId = computed(() => {
+  if (!config.value.exclude_current_entry) return ''
+  const params = resolvedRoute?.value?.params
+  if (!params) return ''
+  return params.slug || params.entry_id || params.id || Object.values(params)[0] || ''
+})
 
 // Field mappings (for default template)
 const titleField = computed(() => config.value.title_field || 'title')
@@ -142,7 +153,7 @@ onBeforeUnmount(() => {
 // Note: order_by and order_dir are not yet supported by the API
 const { entries, loading, error } = useCollection(collectionCode, {
   pageSize: postsCount.value,
-})
+}, excludeEntryId)
 
 // Helper functions
 function getFieldValue(entry: CollectionEntry, fieldCode: string): any {
