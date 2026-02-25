@@ -58,7 +58,7 @@ function slugify(text: string): string {
     .trim()
 }
 
-// Auto-generated items from richtext content
+// Auto-generated items from richtext content (entry template mode)
 const autoItems = computed(() => {
   if (!fieldCode.value || !entry || !entry.content) return []
 
@@ -94,6 +94,32 @@ const autoItems = computed(() => {
   return result
 })
 
+// DOM-based heading scanning (page context fallback)
+const domItems = ref<Array<{ label: string; anchor: string }>>([])
+let domObserver: MutationObserver | null = null
+
+function scanDomHeadings() {
+  const tag = headingLevel.value || 'h2'
+  const headings = document.querySelectorAll(tag)
+  const result: Array<{ label: string; anchor: string }> = []
+
+  headings.forEach((el) => {
+    const text = (el.textContent || '').trim()
+    if (text) {
+      const slug = slugify(text)
+      if (!el.id) {
+        el.id = slug
+      }
+      result.push({
+        label: text,
+        anchor: el.id || slug
+      })
+    }
+  })
+
+  domItems.value = result
+}
+
 // Manual items from content
 const manualItems = computed(() => {
   const raw = content.value.items || []
@@ -105,9 +131,14 @@ const manualItems = computed(() => {
   })).filter((item: any) => item.anchor)
 })
 
-// Use auto items if field_code is set, otherwise manual
+// Use auto items if field_code is set (with DOM fallback for pages), otherwise manual
 const items = computed(() => {
-  if (fieldCode.value) return autoItems.value
+  if (fieldCode.value) {
+    // Entry template mode: use parsed HTML from entry content
+    if (autoItems.value.length > 0) return autoItems.value
+    // Page mode fallback: use DOM-scanned headings
+    return domItems.value
+  }
   return manualItems.value
 })
 
@@ -163,11 +194,30 @@ function setupObserver() {
   }
 }
 
+// Whether we need DOM scanning (page context: fieldCode set but no entry)
+const needsDomScan = computed(() => fieldCode.value && (!entry || !entry.content))
+
 onMounted(async () => {
   await nextTick()
-  addHeadingIds()
-  await nextTick()
-  setupObserver()
+
+  if (needsDomScan.value) {
+    // Page context: scan DOM for headings after sibling widgets render
+    setTimeout(() => {
+      scanDomHeadings()
+      nextTick(() => setupObserver())
+
+      // Observe DOM changes to re-scan (data-field widgets load async)
+      domObserver = new MutationObserver(() => {
+        scanDomHeadings()
+        nextTick(() => setupObserver())
+      })
+      domObserver.observe(document.body, { childList: true, subtree: true, characterData: true })
+    }, 200)
+  } else {
+    addHeadingIds()
+    await nextTick()
+    setupObserver()
+  }
 })
 
 // Re-setup when items change (e.g. entry loaded async)
@@ -182,6 +232,10 @@ onBeforeUnmount(() => {
   if (observer) {
     observer.disconnect()
     observer = null
+  }
+  if (domObserver) {
+    domObserver.disconnect()
+    domObserver = null
   }
 })
 </script>
