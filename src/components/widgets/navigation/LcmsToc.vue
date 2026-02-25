@@ -5,6 +5,12 @@
  * Renders a navigation list of anchor links that scroll to page sections.
  * Supports auto-generation from richtext field headings or manual items.
  * Uses IntersectionObserver to highlight the currently visible section.
+ *
+ * Source modes:
+ * 1. Entry template: field_code + injected entry → parse HTML content
+ * 2. Page with source_widget_uuid: scan headings inside specific widget element
+ * 3. Page without source: scan all headings on page (DOM fallback)
+ * 4. Manual items: user-defined list of anchors
  */
 
 import { computed, ref, onMounted, onBeforeUnmount, watch, nextTick, inject } from 'vue'
@@ -44,6 +50,7 @@ const showBorder = computed(() => {
 // Auto mode: field_code is set
 const fieldCode = computed(() => config.value.field_code || config.value.fieldCode || '')
 const headingLevel = computed(() => config.value.heading_level || config.value.headingLevel || 'h2')
+const sourceWidgetUuid = computed(() => config.value.source_widget_uuid || config.value.sourceWidgetUuid || '')
 
 // Get entry from context (injected by parent template renderer)
 const entry = inject<Record<string, any> | null>('lcms-collection-entry', null)
@@ -94,13 +101,24 @@ const autoItems = computed(() => {
   return result
 })
 
-// DOM-based heading scanning (page context fallback)
+// DOM-based heading scanning (page context)
 const domItems = ref<Array<{ label: string; anchor: string }>>([])
 let domObserver: MutationObserver | null = null
 
+function getSourceElement(): Element | null {
+  if (sourceWidgetUuid.value) {
+    // Try to find the source widget by its ID (lcms-widget-{uuid})
+    return document.getElementById(`lcms-widget-${sourceWidgetUuid.value}`) ||
+           document.querySelector(`[data-widget-id="${sourceWidgetUuid.value}"]`)
+  }
+  return null
+}
+
 function scanDomHeadings() {
   const tag = headingLevel.value || 'h2'
-  const headings = document.querySelectorAll(tag)
+  const sourceEl = getSourceElement()
+  const searchRoot = sourceEl || document.body
+  const headings = searchRoot.querySelectorAll(tag)
   const result: Array<{ label: string; anchor: string }> = []
 
   headings.forEach((el) => {
@@ -131,14 +149,13 @@ const manualItems = computed(() => {
   })).filter((item: any) => item.anchor)
 })
 
-// Use auto items if field_code is set (with DOM fallback for pages), otherwise manual
+// Determine items source
 const items = computed(() => {
-  if (fieldCode.value) {
-    // Entry template mode: use parsed HTML from entry content
-    if (autoItems.value.length > 0) return autoItems.value
-    // Page mode fallback: use DOM-scanned headings
-    return domItems.value
-  }
+  // Entry template mode: field_code + entry content
+  if (fieldCode.value && autoItems.value.length > 0) return autoItems.value
+  // Page mode with source widget or DOM fallback
+  if (domItems.value.length > 0) return domItems.value
+  // Manual items
   return manualItems.value
 })
 
@@ -154,10 +171,12 @@ function scrollTo(anchor: string) {
 
 // Add IDs to headings in the page that match our TOC items
 function addHeadingIds() {
-  if (!fieldCode.value || items.value.length === 0) return
+  if (items.value.length === 0) return
 
   const tag = headingLevel.value || 'h2'
-  const headings = document.querySelectorAll(tag)
+  const sourceEl = getSourceElement()
+  const searchRoot = sourceEl || document.body
+  const headings = searchRoot.querySelectorAll(tag)
 
   headings.forEach((heading) => {
     const text = (heading.textContent || '').trim()
@@ -194,24 +213,31 @@ function setupObserver() {
   }
 }
 
-// Whether we need DOM scanning (page context: fieldCode set but no entry)
-const needsDomScan = computed(() => fieldCode.value && (!entry || !entry.content))
+// Whether we need DOM scanning (page context or source widget specified)
+const needsDomScan = computed(() => {
+  // Source widget always needs DOM scan
+  if (sourceWidgetUuid.value) return true
+  // field_code set but no entry (page context)
+  if (fieldCode.value && (!entry || !entry.content)) return true
+  return false
+})
 
 onMounted(async () => {
   await nextTick()
 
   if (needsDomScan.value) {
-    // Page context: scan DOM for headings after sibling widgets render
+    // Scan DOM for headings after sibling widgets render
     setTimeout(() => {
       scanDomHeadings()
       nextTick(() => setupObserver())
 
-      // Observe DOM changes to re-scan (data-field widgets load async)
+      // Observe DOM changes to re-scan (widgets load content async)
+      const observeTarget = getSourceElement() || document.body
       domObserver = new MutationObserver(() => {
         scanDomHeadings()
         nextTick(() => setupObserver())
       })
-      domObserver.observe(document.body, { childList: true, subtree: true, characterData: true })
+      domObserver.observe(observeTarget, { childList: true, subtree: true, characterData: true })
     }, 200)
   } else {
     addHeadingIds()
