@@ -11,6 +11,7 @@ import LcmsButton from './basic/LcmsButton.vue'
 import LcmsDivider from './basic/LcmsDivider.vue'
 import LcmsSpacer from './basic/LcmsSpacer.vue'
 import LcmsIconBox from './basic/LcmsIconBox.vue'
+import LcmsNumberedBox from './basic/LcmsNumberedBox.vue'
 import LcmsServiceCard from './basic/LcmsServiceCard.vue'
 import LcmsLink from './basic/LcmsLink.vue'
 import LcmsPill from './basic/LcmsPill.vue'
@@ -78,6 +79,7 @@ export const widgetComponents: Record<string, Component> = {
   divider: LcmsDivider,
   spacer: LcmsSpacer,
   'icon-box': LcmsIconBox,
+  'numbered-box': LcmsNumberedBox,
   'service-card': LcmsServiceCard,
   link: LcmsLink,
   pill: LcmsPill,
@@ -165,6 +167,7 @@ export {
   LcmsDivider,
   LcmsSpacer,
   LcmsIconBox,
+  LcmsNumberedBox,
   LcmsServiceCard,
   LcmsLink,
   LcmsPill,
