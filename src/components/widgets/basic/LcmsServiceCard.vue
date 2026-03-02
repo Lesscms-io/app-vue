@@ -99,7 +99,7 @@ const badgeStyles = computed(() => {
   display: flex;
   flex-direction: column;
   padding: 2rem;
-  background: #fff;
+  background: var(--lcms-light, #fff);
   border-radius: 1rem;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   position: relative;
