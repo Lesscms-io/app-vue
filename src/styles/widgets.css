@@ -1945,8 +1945,13 @@
 .lcms-form__textarea:focus,
 .lcms-form__select:focus {
   outline: none;
-  border-color: #3b82f6;
+  border-color: var(--input-focus-color, #3b82f6);
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.lcms-form__input::placeholder,
+.lcms-form__textarea::placeholder {
+  color: var(--input-placeholder-color, #9ca3af);
 }
 
 .lcms-form__checkbox-label {
@@ -1959,6 +1964,28 @@
 .lcms-form__checkbox {
   width: 1rem;
   height: 1rem;
+  flex-shrink: 0;
+}
+
+.lcms-form__consent-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+.lcms-form__consent-label .lcms-form__checkbox {
+  margin-top: 0.15rem;
+}
+
+.lcms-form__consent-text {
+  flex: 1;
+}
+
+.lcms-form__consent-text p {
+  margin: 0;
 }
 
 .lcms-form__input--sm,

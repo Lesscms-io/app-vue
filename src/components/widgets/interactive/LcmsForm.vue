@@ -168,6 +168,13 @@ const buttonSize = computed(() => config.value.button_size || 'md')
 const inputSize = computed(() => config.value.input_size || 'md')
 const inputBorderRadius = computed(() => config.value.input_border_radius || 'md')
 const inputPadding = computed(() => config.value.input_padding || '')
+const inputBackgroundColor = computed(() => config.value.input_background_color || '')
+const inputTextColor = computed(() => config.value.input_text_color || '')
+const inputBorderColor = computed(() => config.value.input_border_color || '')
+const inputBorderWidth = computed(() => config.value.input_border_width || '')
+const inputBorderStyle = computed(() => config.value.input_border_style || '')
+const inputFocusBorderColor = computed(() => config.value.input_focus_border_color || '')
+const inputPlaceholderColor = computed(() => config.value.input_placeholder_color || '')
 
 // Form state
 const formData = reactive<Record<string, any>>({})
@@ -379,7 +386,30 @@ const computedInputStyle = computed(() => {
   if (inputPadding.value) {
     styles.padding = `${inputPadding.value}px`
   }
+  if (inputBackgroundColor.value) {
+    styles.backgroundColor = inputBackgroundColor.value
+  }
+  if (inputTextColor.value) {
+    styles.color = inputTextColor.value
+  }
+  if (inputBorderColor.value || inputBorderWidth.value || inputBorderStyle.value) {
+    const w = inputBorderWidth.value ? `${inputBorderWidth.value}px` : '1px'
+    const s = inputBorderStyle.value || 'solid'
+    const c = inputBorderColor.value || '#d1d5db'
+    styles.border = `${w} ${s} ${c}`
+  }
   return styles
+})
+
+const inputCssVars = computed(() => {
+  const vars: Record<string, string> = {}
+  if (inputFocusBorderColor.value) {
+    vars['--input-focus-color'] = inputFocusBorderColor.value
+  }
+  if (inputPlaceholderColor.value) {
+    vars['--input-placeholder-color'] = inputPlaceholderColor.value
+  }
+  return vars
 })
 
 const inputSizeClass = computed(() => {
@@ -400,7 +430,10 @@ const buttonClasses = computed(() => {
 </script>
 
 <template>
-  <div class="lcms-form">
+  <div
+    class="lcms-form"
+    :style="inputCssVars"
+  >
     <!-- Loading -->
     <div
       v-if="loadingForm"
