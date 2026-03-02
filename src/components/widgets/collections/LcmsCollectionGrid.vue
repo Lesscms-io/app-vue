@@ -42,6 +42,37 @@ const postsCount = computed(() => config.value.posts_count || 6)
 const gapPx = computed(() => `${Number(config.value.gap) || 16}px`)
 const contentGapPx = computed(() => `${Number(config.value.content_gap) || 8}px`)
 
+// Resolve color variable references (var:primary → var(--lcms-color-primary))
+function resolveColorValue(val: string | null): string | null {
+  if (!val) return null
+  if (val.startsWith('var:')) {
+    const parts = val.split(':')
+    const code = parts[1]
+    const opacity = parts[2] ? parseInt(parts[2]) : null
+    if (opacity !== null && opacity < 100) {
+      return `color-mix(in srgb, var(--lcms-color-${code}) ${opacity}%, transparent)`
+    }
+    return `var(--lcms-color-${code})`
+  }
+  return val
+}
+
+// Card styling
+const cardStyle = computed(() => {
+  const styles: Record<string, string> = {}
+  const bg = resolveColorValue(config.value.card_background_color)
+  if (bg) styles.backgroundColor = bg
+  const txt = resolveColorValue(config.value.card_text_color)
+  if (txt) styles.color = txt
+  if (config.value.card_border_radius != null) {
+    styles.borderRadius = `${config.value.card_border_radius}px`
+  }
+  if (config.value.card_padding != null) {
+    styles.padding = `${config.value.card_padding}px`
+  }
+  return styles
+})
+
 // Exclude current entry support
 const resolvedRoute = inject<Ref<ResolvedRoute | null>>('routeParams', ref(null))
 
@@ -304,6 +335,7 @@ function updateResponsiveStyle() {
         v-for="entry in entries"
         :key="entry.metadata?.entry_id || entry.metadata?.code"
         class="lcms-collection-grid__item lcms-collection-grid__item--custom"
+        :style="cardStyle"
       >
         <LcmsEntryTemplateRenderer
           :entry="entry"
@@ -333,6 +365,7 @@ function updateResponsiveStyle() {
         v-for="entry in entries"
         :key="entry.metadata?.entry_id || entry.metadata?.code"
         class="lcms-collection-grid__item"
+        :style="cardStyle"
       >
         <a
           v-if="showImage && imageField && getImage(entry)"
