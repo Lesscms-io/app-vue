@@ -24,6 +24,12 @@ interface FormField {
   options?: { value: string; label: string }[]
 }
 
+interface FormConsent {
+  code: string
+  content: Record<string, string>
+  required: boolean
+}
+
 interface Props {
   data: Record<string, any>
   language?: string
@@ -95,6 +101,13 @@ const fields = computed<FormField[]>(() => {
   }))
 })
 
+const consents = computed<FormConsent[]>(() => {
+  if (isFormCodeMode.value && remoteForm.value) {
+    return remoteForm.value.consents || []
+  }
+  return config.value.consents || []
+})
+
 const submitText = computed(() => {
   // Widget-level override
   const widgetText = config.value.submit_text
@@ -158,6 +171,7 @@ const inputPadding = computed(() => config.value.input_padding || '')
 
 // Form state
 const formData = reactive<Record<string, any>>({})
+const consentData = reactive<Record<string, boolean>>({})
 const isSubmitting = ref(false)
 const submitStatus = ref<'idle' | 'success' | 'error'>('idle')
 const validationErrors = ref<Record<string, string>>({})
@@ -242,9 +256,12 @@ function initFormData() {
       formData[field.code] = ''
     }
   }
+  for (const consent of consents.value) {
+    consentData[consent.code] = false
+  }
 }
 
-watch(fields, () => {
+watch([fields, consents], () => {
   initFormData()
 }, { immediate: true })
 
@@ -275,6 +292,13 @@ function validate(): boolean {
     }
   }
 
+  for (const consent of consents.value) {
+    if (consent.required && !consentData[consent.code]) {
+      validationErrors.value[consent.code] = 'Required'
+      valid = false
+    }
+  }
+
   return valid
 }
 
@@ -293,6 +317,7 @@ async function handleSubmit() {
   try {
     const payload: Record<string, any> = {
       data: { ...formData },
+      consents: { ...consentData },
       _hp_field: honeypot.value,
       _ts: loadTimestamp.value,
     }
@@ -520,6 +545,42 @@ const buttonClasses = computed(() => {
               class="lcms-form__validation-error"
             >
               {{ validationErrors[field.code] }}
+            </span>
+          </div>
+        </div>
+
+        <!-- Consents -->
+        <div
+          v-if="consents.length > 0"
+          class="lcms-form__consents"
+        >
+          <div
+            v-for="consent in consents"
+            :key="consent.code"
+            class="lcms-form__consent"
+            :class="{ 'lcms-form__consent--error': validationErrors[consent.code] }"
+          >
+            <label
+              class="lcms-form__consent-label"
+              :for="`consent-${consent.code}`"
+            >
+              <input
+                :id="`consent-${consent.code}`"
+                v-model="consentData[consent.code]"
+                type="checkbox"
+                class="lcms-form__checkbox"
+              >
+              <span
+                class="lcms-form__consent-text"
+                v-html="extractValue(consent.content) || consent.code"
+              />
+              <span v-if="consent.required" class="lcms-form__required">*</span>
+            </label>
+            <span
+              v-if="validationErrors[consent.code]"
+              class="lcms-form__validation-error"
+            >
+              {{ validationErrors[consent.code] }}
             </span>
           </div>
         </div>
