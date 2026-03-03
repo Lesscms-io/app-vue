@@ -36,6 +36,7 @@ export { useCollection, useCollectionEntry } from './composables/useCollection'
 export { useMenu } from './composables/useMenu'
 export { useConfig, type ProjectConfig } from './composables/useConfig'
 export { useSeo, type UseSeoOptions, type UseSeoReturn } from './composables/useSeo'
+export { useRedirects } from './composables/useRedirects'
 
 // API
 export { createApiClient } from './api/client'

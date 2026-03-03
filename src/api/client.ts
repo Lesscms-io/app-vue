@@ -16,6 +16,8 @@ import type {
   BlockResponse,
   ElementResponse,
   RoutesResponse,
+  RedirectsResponse,
+  Redirect,
 } from './types'
 
 export interface ApiClient {
@@ -73,6 +75,26 @@ export interface ApiClient {
    * Get routing configuration
    */
   getRoutes(): Promise<RoutesResponse>
+
+  /**
+   * Get all redirects
+   */
+  getRedirects(): Promise<RedirectsResponse>
+
+  /**
+   * Get a redirect by source path
+   */
+  getRedirectByPath(path: string): Promise<{ data: Redirect }>
+
+  /**
+   * Get robots.txt content
+   */
+  getRobotsTxt(): Promise<string>
+
+  /**
+   * Get XML sitemap
+   */
+  getSitemap(): Promise<string>
 
   /**
    * Check if client is in proxy mode
@@ -224,6 +246,32 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
     return response.json()
   }
 
+  async function getText(path: string): Promise<string> {
+    const url = new URL(`${basePath}${path}`)
+
+    const headers: Record<string, string> = {}
+
+    if (!isProxy && config.apiKey) {
+      headers['x-api-key'] = config.apiKey
+    }
+
+    const response = await fetch(url.toString(), {
+      method: 'GET',
+      headers,
+      credentials: isProxy ? 'include' : 'same-origin',
+    })
+
+    if (!response.ok) {
+      throw new ApiError(
+        `API error: ${response.status}`,
+        response.status,
+        response.statusText,
+      )
+    }
+
+    return response.text()
+  }
+
   return {
     get,
     post,
@@ -266,6 +314,22 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
 
     getRoutes() {
       return get<RoutesResponse>('/routes')
+    },
+
+    getRedirects() {
+      return get<RedirectsResponse>('/redirects')
+    },
+
+    getRedirectByPath(path: string) {
+      return get<{ data: Redirect }>(`/redirects/${encodeURIComponent(path)}`)
+    },
+
+    getRobotsTxt() {
+      return getText('/robots.txt')
+    },
+
+    getSitemap() {
+      return getText('/sitemap.xml')
     },
   }
 }

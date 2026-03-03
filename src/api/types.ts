@@ -17,14 +17,25 @@ export interface LessCMSConfig {
   language?: string
 }
 
+export interface ColorVariable {
+  code: string
+  label: string
+  value: string
+}
+
 export interface ProjectConfig {
   fonts: string[]
   custom_css_url: string | null
+  custom_css_urls: string[]
   custom_css: string | null
   available_widgets: string[]
   available_fonts: string[]
   google_fonts_url: string | null
   styles?: ProjectStyles
+  page_route_schema: string
+  collection_route_schema: string
+  homepage_uuid: string | null
+  color_variables: ColorVariable[]
 }
 
 export interface ProjectStyles {
@@ -496,6 +507,21 @@ export interface RouteCollectionItem {
   code: string
   entry_url_pattern: string | null
   entry_url_field: string | null
+}
+
+// ============================================
+// Redirects API
+// ============================================
+
+export interface Redirect {
+  source_path: string
+  target_path: string
+  status_code: number
+  is_active: boolean
+}
+
+export interface RedirectsResponse {
+  data: Redirect[]
 }
 
 // ============================================

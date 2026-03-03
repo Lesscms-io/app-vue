@@ -7,22 +7,34 @@
 import { ref, onMounted, type Ref } from 'vue'
 import { useApi } from './useApi'
 
+import type { ColorVariable } from '../api/types'
+
 export interface ProjectConfig {
   fonts: string[]
   custom_css_url: string | null
+  custom_css_urls: string[]
   custom_css: string | null
   available_widgets: string[]
   available_fonts: string[]
   google_fonts_url: string | null
+  page_route_schema: string
+  collection_route_schema: string
+  homepage_uuid: string | null
+  color_variables: ColorVariable[]
 }
 
 const defaultConfig: ProjectConfig = {
   fonts: ['Inter', 'Roboto'],
   custom_css_url: null,
+  custom_css_urls: [],
   custom_css: null,
   available_widgets: [],
   available_fonts: [],
   google_fonts_url: null,
+  page_route_schema: '/p/{slug}',
+  collection_route_schema: '/c/{collection_code}/{slug}',
+  homepage_uuid: null,
+  color_variables: [],
 }
 
 // Global config state (singleton)
@@ -59,6 +71,23 @@ function loadCustomCss(url: string) {
   link.href = url
   link.dataset.lesscmsCustomCss = 'true'
   document.head.appendChild(link)
+}
+
+/**
+ * Load multiple custom CSS URLs by injecting <link> tags
+ */
+function loadCustomCssUrls(urls: string[]) {
+  // Remove any existing custom CSS URL links
+  document.querySelectorAll('link[data-lesscms-custom-css-url]').forEach(el => el.remove())
+
+  urls.forEach(url => {
+    if (!url) return
+    const link = document.createElement('link')
+    link.rel = 'stylesheet'
+    link.href = url
+    link.dataset.lesscmsCustomCssUrl = 'true'
+    document.head.appendChild(link)
+  })
 }
 
 /**
@@ -107,10 +136,15 @@ export function useConfig() {
       globalConfig.value = {
         fonts: data.fonts || defaultConfig.fonts,
         custom_css_url: data.custom_css_url,
+        custom_css_urls: data.custom_css_urls || [],
         custom_css: data.custom_css || null,
         available_widgets: data.available_widgets || [],
         available_fonts: data.available_fonts || [],
         google_fonts_url: data.google_fonts_url,
+        page_route_schema: data.page_route_schema || defaultConfig.page_route_schema,
+        collection_route_schema: data.collection_route_schema || defaultConfig.collection_route_schema,
+        homepage_uuid: data.homepage_uuid || null,
+        color_variables: data.color_variables || [],
       }
 
       // Load fonts
@@ -121,9 +155,14 @@ export function useConfig() {
       // Set font CSS variable
       setFontVariable(globalConfig.value.fonts)
 
-      // Load custom CSS (external URL)
+      // Load custom CSS (external URL - legacy single URL)
       if (globalConfig.value.custom_css_url) {
         loadCustomCss(globalConfig.value.custom_css_url)
+      }
+
+      // Load custom CSS URLs (array)
+      if (globalConfig.value.custom_css_urls.length > 0) {
+        loadCustomCssUrls(globalConfig.value.custom_css_urls)
       }
 
       // Load inline custom CSS
@@ -151,6 +190,7 @@ export function useConfig() {
     // Utility functions
     loadGoogleFonts,
     loadCustomCss,
+    loadCustomCssUrls,
     loadCustomCssInline,
     setFontVariable,
   }

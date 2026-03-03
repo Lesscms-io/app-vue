@@ -191,6 +191,22 @@ function loadCustomCss(url: string) {
 }
 
 /**
+ * Load multiple custom CSS URLs by injecting <link> tags
+ */
+function loadCustomCssUrls(urls: string[]) {
+  document.querySelectorAll('link[data-lesscms-custom-css-url]').forEach(el => el.remove())
+
+  urls.forEach(url => {
+    if (!url) return
+    const link = document.createElement('link')
+    link.rel = 'stylesheet'
+    link.href = url
+    link.dataset.lesscmsCustomCssUrl = 'true'
+    document.head.appendChild(link)
+  })
+}
+
+/**
  * Load inline custom CSS by injecting a <style> tag (global, no scoping)
  */
 function loadCustomCssInline(cssText: string) {
@@ -292,11 +308,16 @@ async function fetchProjectConfig() {
     projectConfig.value = {
       fonts: data.fonts || ['Inter', 'Roboto'],
       custom_css_url: data.custom_css_url || null,
+      custom_css_urls: data.custom_css_urls || [],
       custom_css: data.custom_css || null,
       available_widgets: data.available_widgets || [],
       available_fonts: data.available_fonts || [],
       google_fonts_url: data.google_fonts_url || null,
-      styles: data.styles || null,
+      styles: data.styles || undefined,
+      page_route_schema: data.page_route_schema || '/p/{slug}',
+      collection_route_schema: data.collection_route_schema || '/c/{collection_code}/{slug}',
+      homepage_uuid: data.homepage_uuid || null,
+      color_variables: data.color_variables || [],
     }
 
     // Load Google Fonts
@@ -312,9 +333,14 @@ async function fetchProjectConfig() {
       applyStyleVariables(projectConfig.value.styles)
     }
 
-    // Load custom CSS (external URL)
+    // Load custom CSS (external URL - legacy single URL)
     if (projectConfig.value.custom_css_url) {
       loadCustomCss(projectConfig.value.custom_css_url)
+    }
+
+    // Load custom CSS URLs (array)
+    if (projectConfig.value.custom_css_urls.length > 0) {
+      loadCustomCssUrls(projectConfig.value.custom_css_urls)
     }
 
     // Load inline custom CSS
@@ -353,6 +379,7 @@ defineExpose({
   fetchProjectConfig,
   loadGoogleFonts,
   loadCustomCss,
+  loadCustomCssUrls,
   loadCustomCssInline,
 })
 </script>
