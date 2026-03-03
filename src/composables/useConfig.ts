@@ -74,23 +74,6 @@ function loadCustomCss(url: string) {
 }
 
 /**
- * Load multiple custom CSS URLs by injecting <link> tags
- */
-function loadCustomCssUrls(urls: string[]) {
-  // Remove any existing custom CSS URL links
-  document.querySelectorAll('link[data-lesscms-custom-css-url]').forEach(el => el.remove())
-
-  urls.forEach(url => {
-    if (!url) return
-    const link = document.createElement('link')
-    link.rel = 'stylesheet'
-    link.href = url
-    link.dataset.lesscmsCustomCssUrl = 'true'
-    document.head.appendChild(link)
-  })
-}
-
-/**
  * Load inline custom CSS by injecting a <style> tag (global, no scoping)
  */
 function loadCustomCssInline(cssText: string) {
@@ -155,14 +138,15 @@ export function useConfig() {
       // Set font CSS variable
       setFontVariable(globalConfig.value.fonts)
 
-      // Load custom CSS (external URL - legacy single URL)
-      if (globalConfig.value.custom_css_url) {
-        loadCustomCss(globalConfig.value.custom_css_url)
+      // Load custom CSS (external URLs — array format)
+      if (globalConfig.value.custom_css_urls?.length) {
+        for (const url of globalConfig.value.custom_css_urls) {
+          loadCustomCss(url)
+        }
       }
-
-      // Load custom CSS URLs (array)
-      if (globalConfig.value.custom_css_urls.length > 0) {
-        loadCustomCssUrls(globalConfig.value.custom_css_urls)
+      // Fallback: legacy single URL format
+      else if (globalConfig.value.custom_css_url) {
+        loadCustomCss(globalConfig.value.custom_css_url)
       }
 
       // Load inline custom CSS
@@ -190,7 +174,6 @@ export function useConfig() {
     // Utility functions
     loadGoogleFonts,
     loadCustomCss,
-    loadCustomCssUrls,
     loadCustomCssInline,
     setFontVariable,
   }

@@ -161,6 +161,46 @@ provide('lesscms-api', apiClient)
 provide('lesscms-project-config', projectConfig)
 provide('lesscms-email-config', props.emailConfig || null)
 
+// Route pages cache (populated after routes are loaded by DynamicPageResolver)
+const routePages = ref<Array<{ code: string; url: string; page_uuid: string }>>([])
+provide('lesscms-route-pages', routePages)
+
+// Provide route resolver for link_type:"page" widgets
+const resolvePageUrl = (pageCode: string | null, pageUuid: string | null): string => {
+  if (!pageCode && !pageUuid) return '#'
+  const schema = projectConfig.value?.page_route_schema || '/{slug}'
+
+  // Resolve by page_code (most reliable)
+  if (pageCode) {
+    return schema.replace('{slug}', pageCode)
+  }
+
+  // Resolve by page_uuid
+  if (pageUuid) {
+    // Check homepage
+    if (projectConfig.value?.homepage_uuid === pageUuid) {
+      return '/'
+    }
+    // Try to find in cached route pages
+    const page = routePages.value.find(p => p.page_uuid === pageUuid)
+    if (page) {
+      return page.url || schema.replace('{slug}', page.code)
+    }
+  }
+
+  return '#'
+}
+
+const resolveCollectionUrl = (collectionCode: string, slug: string): string => {
+  const schema = projectConfig.value?.collection_route_schema || '/{slug}'
+  return schema
+    .replace('{collection_code}', collectionCode)
+    .replace('{slug}', slug)
+}
+
+provide('lesscms-resolve-page-url', resolvePageUrl)
+provide('lesscms-resolve-collection-url', resolveCollectionUrl)
+
 /**
  * Load Google Fonts by injecting a <link> tag
  */
@@ -191,22 +231,6 @@ function loadCustomCss(url: string) {
 }
 
 /**
- * Load multiple custom CSS URLs by injecting <link> tags
- */
-function loadCustomCssUrls(urls: string[]) {
-  document.querySelectorAll('link[data-lesscms-custom-css-url]').forEach(el => el.remove())
-
-  urls.forEach(url => {
-    if (!url) return
-    const link = document.createElement('link')
-    link.rel = 'stylesheet'
-    link.href = url
-    link.dataset.lesscmsCustomCssUrl = 'true'
-    document.head.appendChild(link)
-  })
-}
-
-/**
  * Load inline custom CSS by injecting a <style> tag (global, no scoping)
  */
 function loadCustomCssInline(cssText: string) {
@@ -234,6 +258,18 @@ function setFontVariable(fonts: string[]) {
 }
 
 /**
+ * Apply color variables from project config color_variables array.
+ * These power "var:primary", "var:white" etc. in widget configs.
+ */
+function applyColorVariables(colorVariables: Array<{ code: string; value: string }>) {
+  if (!colorVariables?.length) return
+  const root = document.documentElement
+  for (const cv of colorVariables) {
+    root.style.setProperty(`--lcms-color-${cv.code}`, cv.value)
+  }
+}
+
+/**
  * Apply style variables from project config
  */
 function applyStyleVariables(styles: Record<string, any>) {
@@ -244,6 +280,7 @@ function applyStyleVariables(styles: Record<string, any>) {
   // Theme color variables
   if (styles.primary_color) root.style.setProperty('--lcms-color-primary', styles.primary_color)
   if (styles.secondary_color) root.style.setProperty('--lcms-color-secondary', styles.secondary_color)
+  if (styles.accent_color) root.style.setProperty('--lcms-color-accent', styles.accent_color)
 
   // Semantic color variables
   if (styles.success_color) root.style.setProperty('--lcms-color-success', styles.success_color)
@@ -254,12 +291,26 @@ function applyStyleVariables(styles: Record<string, any>) {
   // Neutral color variables
   if (styles.light_color) root.style.setProperty('--lcms-color-light', styles.light_color)
   if (styles.dark_color) root.style.setProperty('--lcms-color-dark', styles.dark_color)
+  if (styles.white_color) root.style.setProperty('--lcms-color-white', styles.white_color)
+  if (styles.black_color) root.style.setProperty('--lcms-color-black', styles.black_color)
 
   // Content color variables
   if (styles.text_color) root.style.setProperty('--lcms-color-text', styles.text_color)
   if (styles.background_color) root.style.setProperty('--lcms-color-background', styles.background_color)
+  if (styles.background_alt_color) root.style.setProperty('--lcms-color-background-alt', styles.background_alt_color)
   if (styles.link_color) root.style.setProperty('--lcms-color-link', styles.link_color)
   if (styles.muted_color) root.style.setProperty('--lcms-color-muted', styles.muted_color)
+  if (styles.border_color) root.style.setProperty('--lcms-color-border', styles.border_color)
+
+  // Custom colors
+  if (Array.isArray(styles.custom_colors)) {
+    for (const cc of styles.custom_colors) {
+      if (cc.name && cc.color) {
+        const code = cc.name.toLowerCase().replace(/\s+/g, '-')
+        root.style.setProperty(`--lcms-color-${code}`, cc.color)
+      }
+    }
+  }
 
   // Typography variables
   if (styles.font_heading) root.style.setProperty('--lcms-font-heading', `"${styles.font_heading}", sans-serif`)
@@ -286,6 +337,18 @@ function applyStyleVariables(styles: Record<string, any>) {
   // Layout variables
   if (styles.border_radius !== undefined) root.style.setProperty('--lcms-border-radius', `${styles.border_radius}px`)
   if (styles.container_max_width) root.style.setProperty('--lcms-container-max-width', `${styles.container_max_width}px`)
+  if (styles.section_gap) root.style.setProperty('--lcms-section-gap', styles.section_gap)
+
+  // Button defaults
+  if (styles.btn_padding) root.style.setProperty('--lcms-btn-padding', styles.btn_padding)
+  if (styles.btn_border_radius) root.style.setProperty('--lcms-btn-border-radius', styles.btn_border_radius)
+  if (styles.btn_font_size) root.style.setProperty('--lcms-btn-font-size', styles.btn_font_size)
+  if (styles.btn_font_weight) root.style.setProperty('--lcms-btn-font-weight', String(styles.btn_font_weight))
+
+  // Link defaults
+  if (styles.link_hover_color) root.style.setProperty('--lcms-link-hover-color', styles.link_hover_color)
+  if (styles.link_text_decoration) root.style.setProperty('--lcms-link-text-decoration', styles.link_text_decoration)
+  if (styles.link_hover_text_decoration) root.style.setProperty('--lcms-link-hover-text-decoration', styles.link_hover_text_decoration)
 }
 
 /**
@@ -328,19 +391,25 @@ async function fetchProjectConfig() {
     // Set font CSS variable
     setFontVariable(projectConfig.value.fonts)
 
+    // Apply color variables from API (var:primary, var:white, etc.)
+    if (projectConfig.value.color_variables?.length) {
+      applyColorVariables(projectConfig.value.color_variables)
+    }
+
     // Apply style variables (colors, typography, layout)
     if (projectConfig.value.styles) {
       applyStyleVariables(projectConfig.value.styles)
     }
 
-    // Load custom CSS (external URL - legacy single URL)
-    if (projectConfig.value.custom_css_url) {
-      loadCustomCss(projectConfig.value.custom_css_url)
+    // Load custom CSS (external URLs — array format)
+    if (projectConfig.value.custom_css_urls?.length) {
+      for (const url of projectConfig.value.custom_css_urls) {
+        loadCustomCss(url)
+      }
     }
-
-    // Load custom CSS URLs (array)
-    if (projectConfig.value.custom_css_urls.length > 0) {
-      loadCustomCssUrls(projectConfig.value.custom_css_urls)
+    // Fallback: legacy single URL format
+    else if (projectConfig.value.custom_css_url) {
+      loadCustomCss(projectConfig.value.custom_css_url)
     }
 
     // Load inline custom CSS
@@ -379,7 +448,6 @@ defineExpose({
   fetchProjectConfig,
   loadGoogleFonts,
   loadCustomCss,
-  loadCustomCssUrls,
   loadCustomCssInline,
 })
 </script>

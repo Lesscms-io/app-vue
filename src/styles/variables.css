@@ -38,6 +38,8 @@
 
   /* Typography */
   --lcms-font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --lcms-font-heading: var(--lcms-font-family);
+  --lcms-font-body: var(--lcms-font-family);
   --lcms-font-family-mono: SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
   --lcms-font-size-base: 16px;
   --lcms-font-size-xs: 0.75rem;
@@ -154,6 +156,15 @@
 }
 
 /* Headings */
+h1, .h1,
+h2, .h2,
+h3, .h3,
+h4, .h4,
+h5, .h5,
+h6, .h6 {
+  font-family: var(--lcms-font-heading);
+}
+
 h1, .h1 {
   font-size: var(--lcms-h1-font-size);
   font-weight: var(--lcms-h1-font-weight);
@@ -202,7 +213,11 @@ h6, .h6 {
   margin: 0 0 var(--lcms-spacing-2);
 }
 
-/* Paragraphs */
+/* Body / Paragraphs */
+body {
+  font-family: var(--lcms-font-body);
+}
+
 p {
   font-size: var(--lcms-p-font-size);
   font-weight: var(--lcms-p-font-weight);

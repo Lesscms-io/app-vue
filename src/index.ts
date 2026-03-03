@@ -38,6 +38,9 @@ export { useConfig, type ProjectConfig } from './composables/useConfig'
 export { useSeo, type UseSeoOptions, type UseSeoReturn } from './composables/useSeo'
 export { useRedirects } from './composables/useRedirects'
 
+// Utilities
+export { resolveColor, hexToRgba } from './utils/resolveColor'
+
 // API
 export { createApiClient } from './api/client'
 export type * from './api/types'
