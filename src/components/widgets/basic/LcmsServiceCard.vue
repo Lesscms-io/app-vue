@@ -51,7 +51,7 @@ const props = defineProps<{
   }
 }>()
 
-const config = computed(() => props.data.config || {})
+const config = computed(() => props.data.config || props.data || {})
 
 const badge = computed(() => config.value.badge || '')
 const icon = computed(() => config.value.icon || '')

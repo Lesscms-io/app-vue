@@ -28,7 +28,7 @@ const props = defineProps<{
   }
 }>()
 
-const config = computed(() => props.data.config || {})
+const config = computed(() => props.data.config || props.data || {})
 
 const isSvgIcon = computed(() => (config.value.icon || '').startsWith('svg:'))
 const svgContent = computed(() => isSvgIcon.value ? (config.value.icon || '').slice(4) : '')

@@ -37,7 +37,7 @@ const props = defineProps<Props>()
 const { getMergedSettings, isHidden, currentBreakpoint } = useResponsiveSettings()
 
 const widgetType = computed(() => props.widget.type || props.widget.widget_type || '')
-const widgetData = computed(() => props.widget.data || props.widget.config || {})
+const widgetData = computed(() => props.widget.data || props.widget.widget || props.widget.config || {})
 const settings = computed(() => getMergedSettings(props.widget.settings as WidgetSettings))
 
 // Generate unique ID for widget (used for hover CSS selectors)

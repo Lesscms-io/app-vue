@@ -525,6 +525,7 @@ export interface Widget {
   uuid?: string
   type?: string
   widget_type?: string
+  widget?: Record<string, any>
   data?: Record<string, any>
   config?: Record<string, any>
   settings?: WidgetSettings

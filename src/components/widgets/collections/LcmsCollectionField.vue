@@ -29,7 +29,7 @@ const { extractValue, language: currentLanguage } = useLanguage(props.language)
 // Get entry from context (injected by parent template renderer)
 const entry = inject<CollectionEntry | null>('lcms-collection-entry', null)
 
-const config = computed(() => props.data.config || {})
+const config = computed(() => props.data.config || props.data || {})
 const fieldCode = computed(() => config.value.field_code || '')
 const fieldType = computed(() => config.value.field_type || 'text')
 const displayAs = computed(() => config.value.display_as || 'p')

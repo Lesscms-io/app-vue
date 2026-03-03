@@ -418,14 +418,13 @@ const columnsHoverCss = computed(() => {
 
 // Get widgets from column content
 function getColumnWidgets(column: any) {
-  // API returns widgets as "content" array with widget_type, uuid, content, config, settings
+  // API returns widgets as "content" array with widget_type, uuid, widget, config, settings
   const content = column.content || []
 
   return content.map((item: any, index: number) => {
-    // For config-only widgets (social-icons, video, countdown, etc.), data is in config
-    // For content widgets (text, heading), data is in content
-    // Merge both to ensure all data is available
-    const widgetData = {
+    // New API format: all data in item.widget (flat)
+    // Legacy fallback: merge item.content + item.config
+    const widgetData = item.widget || {
       ...item.content,
       ...item.config
     }

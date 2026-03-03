@@ -4,6 +4,7 @@ import type { Component } from 'vue'
 
 interface MultiItemData {
   widget_type: string
+  widget?: Record<string, unknown>
   config?: Record<string, unknown>
   content?: Record<string, unknown>
   data?: Record<string, unknown>
@@ -92,6 +93,14 @@ const getItemStyle = (item: MultiItemData): Record<string, string> => {
   return style
 }
 
+// Compute flat data object for each item, preferring new `widget` key
+const getItemData = (item: MultiItemData) => {
+  if (item.widget) {
+    return { widget_type: item.widget_type, ...item.widget, item_settings: item.item_settings }
+  }
+  return item
+}
+
 const gridStyle = computed(() => {
   if (props.layout === 'inline') {
     return {
@@ -123,7 +132,7 @@ const gridStyle = computed(() => {
     >
       <component
         :is="innerComponent"
-        :data="item"
+        :data="getItemData(item)"
         :language="language"
         :settings="settings"
       />

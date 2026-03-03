@@ -104,7 +104,7 @@ const props = defineProps<{
   }
 }>()
 
-const config = computed(() => props.data.config || {})
+const config = computed(() => props.data.config || props.data || {})
 
 const collectionCode = computed(() => config.value.collection_code || '')
 const valueField = computed(() => config.value.value_field || '')

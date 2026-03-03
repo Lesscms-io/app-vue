@@ -28,7 +28,7 @@ const props = defineProps<{
   itemIndex?: number
 }>()
 
-const config = computed(() => props.data.config || {})
+const config = computed(() => props.data.config || props.data || {})
 
 const displayNumber = computed(() => {
   const idx = props.itemIndex ?? 0
