@@ -35,6 +35,20 @@ const buttonUrl = computed(() => config.value.button_url || '#')
 const highlighted = computed(() => config.value.highlighted || false)
 const features = computed(() => config.value.features || [])
 
+// Button link settings
+const btnStyle = computed(() => config.value.button_style || 'primary')
+const btnSize = computed(() => config.value.button_size || 'md')
+const btnBorderRadius = computed(() => config.value.button_border_radius || null)
+const btnPadding = computed(() => config.value.button_padding || null)
+const btnIcon = computed(() => config.value.button_icon || '')
+const btnIconPosition = computed(() => config.value.button_icon_position || 'left')
+const btnLinkType = computed(() => config.value.button_link_type || 'url')
+const btnTargetBlank = computed(() => config.value.button_target_blank || false)
+const btnPageId = computed(() => config.value.button_page_id || null)
+const btnRouteUuid = computed(() => config.value.button_route_uuid || null)
+const btnEntryId = computed(() => config.value.button_entry_id || null)
+const btnCollectionCode = computed(() => config.value.button_collection_code || null)
+
 const highlightColor = computed(() => {
   const val = config.value.highlight_color
   if (!val) return null

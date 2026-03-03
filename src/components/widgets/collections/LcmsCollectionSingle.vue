@@ -28,6 +28,14 @@ const collectionCode = computed(() => props.data.collection_code || '')
 const entryId = computed(() => props.data.entry_id || '')
 const layout = computed(() => props.data.layout || 'standard')
 
+// Route and entry source settings
+const routeUuid = computed(() => props.data.route_uuid || null)
+const entrySource = computed(() => props.data.entry_source || 'static')
+const entryUrlSegment = computed(() => props.data.entry_url_segment || 1)
+const entryTemplate = computed(() => props.data.entry_template || 'default:standard')
+const useCustomLayout = computed(() => props.data.use_custom_layout || false)
+const layoutConfig = computed(() => props.data.layout_config || null)
+
 // Field mappings
 const titleField = computed(() => props.data.title_field || 'title')
 const contentField = computed(() => props.data.content_field || '')

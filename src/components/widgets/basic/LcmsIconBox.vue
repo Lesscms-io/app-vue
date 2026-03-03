@@ -1,5 +1,5 @@
 <template>
-  <div class="lcms-icon-box" :class="positionClass">
+  <div class="lcms-icon-box" :class="positionClass" :data-source="contentSource">
     <div class="lcms-icon-box__icon" :style="iconStyles">
       <span v-if="isSvgIcon" class="lcms-icon-box__svg" v-html="svgContent"></span>
       <i v-else :class="iconClass"></i>
@@ -34,11 +34,26 @@ const isSvgIcon = computed(() => (config.value.icon || '').startsWith('svg:'))
 const svgContent = computed(() => isSvgIcon.value ? (config.value.icon || '').slice(4) : '')
 const iconClass = computed(() => isSvgIcon.value ? '' : (config.value.icon || 'fas fa-star'))
 
-const content = computed(() => config.value.content || '')
+const content = computed(() => config.value.html || config.value.content || '')
+
+const contentSource = computed(() => config.value.content_source || 'static')
+const iconPadding = computed(() => config.value.icon_padding || '')
+const iconVerticalAlign = computed(() => config.value.icon_vertical_align || 'top')
+const collectionCode = computed(() => config.value.collection_code || '')
+const fieldCode = computed(() => config.value.field_code || '')
+const entryId = computed(() => config.value.entry_id || '')
+const entrySource = computed(() => config.value.entry_source || '')
+const entryUrlSegment = computed(() => config.value.entry_url_segment || '')
 
 const iconPosition = computed(() => config.value.icon_position || 'left')
 
-const positionClass = computed(() => `lcms-icon-box--${iconPosition.value}`)
+const positionClass = computed(() => {
+  const classes = [`lcms-icon-box--${iconPosition.value}`]
+  if (iconPosition.value === 'left' || iconPosition.value === 'right') {
+    classes.push(`lcms-icon-box--align-${iconVerticalAlign.value}`)
+  }
+  return classes
+})
 
 const iconStyles = computed(() => {
   const styles: Record<string, string> = {}
@@ -51,6 +66,9 @@ const iconStyles = computed(() => {
   }
   if (config.value.icon_background) {
     styles.backgroundColor = config.value.icon_background
+  }
+  if (iconPadding.value) {
+    styles.padding = `${iconPadding.value}px`
   }
   const br = parseInt(String(config.value.icon_border_radius))
   if (!isNaN(br) && br > 0) {
@@ -86,6 +104,18 @@ const iconStyles = computed(() => {
 
 .lcms-icon-box--right {
   flex-direction: row-reverse;
+}
+
+.lcms-icon-box--align-top {
+  align-items: flex-start;
+}
+
+.lcms-icon-box--align-center {
+  align-items: center;
+}
+
+.lcms-icon-box--align-bottom {
+  align-items: flex-end;
 }
 
 .lcms-icon-box__icon {

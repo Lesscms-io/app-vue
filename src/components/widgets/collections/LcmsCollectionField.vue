@@ -46,12 +46,37 @@ const valueColor = computed(() => config.value.value_color || null)
 const valueBackground = computed(() => config.value.value_background || null)
 const valuePadding = computed(() => config.value.value_padding || 0)
 
+// Label styling (also used in template via config.*)
+const labelBackground = computed(() => config.value.label_background || null)
+const labelColor = computed(() => config.value.label_color || null)
+const labelPadding = computed(() => config.value.label_padding || null)
+const labelFontSize = computed(() => config.value.label_font_size || null)
+const labelFontWeight = computed(() => config.value.label_font_weight || null)
+
 // Icon settings
 const showIcon = computed(() => config.value.show_icon || false)
 const icon = computed(() => config.value.icon || '')
 const iconPosition = computed(() => config.value.icon_position || 'left')
 const iconSize = computed(() => config.value.icon_size || '24')
 const iconColor = computed(() => config.value.icon_color || '#50a5f1')
+const iconBackground = computed(() => config.value.icon_background || null)
+const iconPadding = computed(() => config.value.icon_padding || null)
+const iconBorderRadius = computed(() => config.value.icon_border_radius || null)
+const iconGap = computed(() => config.value.icon_gap || null)
+
+// Value source and dynamic settings
+const valueSource = computed(() => config.value.value_source || 'field')
+const staticValue = computed(() => config.value.static_value || '')
+const collectionCode = computed(() => config.value.collection_code || '')
+const entrySource = computed(() => config.value.entry_source || 'context')
+const entryId = computed(() => config.value.entry_id || '')
+const entryUrlSegment = computed(() => config.value.entry_url_segment || 1)
+
+// Display settings
+const customDateFormat = computed(() => config.value.custom_date_format || '')
+const linkText = computed(() => config.value.link_text || '')
+const buttonStyleField = computed(() => config.value.button_style || 'primary')
+const buttonSizeField = computed(() => config.value.button_size || 'md')
 
 // Get field value from entry
 const fieldValue = computed(() => {

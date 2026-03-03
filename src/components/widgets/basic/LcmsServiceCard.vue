@@ -1,7 +1,7 @@
 <template>
-  <div class="lcms-service-card" :style="cardStyles">
+  <div class="lcms-service-card" :class="{ 'lcms-service-card--highlighted': highlighted }" :style="cardStyles">
     <!-- Badge -->
-    <div v-if="badge" class="lcms-service-card__badge" :style="badgeStyles">
+    <div v-if="showBadge && badge" class="lcms-service-card__badge" :style="badgeStyles">
       {{ badge }}
     </div>
 
@@ -21,8 +21,14 @@
     </p>
 
     <!-- Link -->
-    <a v-if="linkText && linkUrl" :href="linkUrl" class="lcms-service-card__link">
-      {{ linkText }} <span class="lcms-service-card__arrow">→</span>
+    <a
+      v-if="linkText && linkUrl"
+      :href="linkUrl"
+      class="lcms-service-card__link"
+      :target="linkTargetBlank ? '_blank' : undefined"
+      :rel="linkTargetBlank ? 'noopener noreferrer' : undefined"
+    >
+      {{ linkText }} <span class="lcms-service-card__arrow">&rarr;</span>
     </a>
   </div>
 </template>
@@ -59,6 +65,14 @@ const title = computed(() => config.value.title || '')
 const description = computed(() => config.value.description || '')
 const linkText = computed(() => config.value.link_text || '')
 const linkUrl = computed(() => config.value.link_url || '')
+const highlighted = computed(() => config.value.highlighted || false)
+const linkType = computed(() => config.value.link_type || 'url')
+const linkPageId = computed(() => config.value.link_page_id || '')
+const linkCollectionCode = computed(() => config.value.link_collection_code || '')
+const linkEntryId = computed(() => config.value.link_entry_id || '')
+const linkRouteUuid = computed(() => config.value.link_route_uuid || '')
+const linkTargetBlank = computed(() => config.value.link_target_blank || false)
+const showBadge = computed(() => config.value.show_badge !== false)
 
 const cardStyles = computed(() => {
   const styles: Record<string, string> = {}
@@ -108,6 +122,10 @@ const badgeStyles = computed(() => {
 
 .lcms-service-card:hover {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.lcms-service-card--highlighted {
+  border: 2px solid #50a5f1;
 }
 
 .lcms-service-card__badge {

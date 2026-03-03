@@ -41,6 +41,12 @@ const headingLevel = computed(() => {
 })
 
 const textAlign = computed(() => props.data.align || props.settings?.textAlign || 'left')
+
+// Dynamic content source settings
+const contentSource = computed(() => props.data.content_source || 'static')
+const collectionCode = computed(() => props.data.collection_code || null)
+const fieldCode = computed(() => props.data.field_code || null)
+const entryId = computed(() => props.data.entry_id || null)
 </script>
 
 <template>

@@ -40,16 +40,16 @@ const hasError = ref(false)
 
 // Computed properties
 const pdfUrl = computed(() => {
-  const file = props.data?.file
+  const file = props.data.file
   if (!file) return null
   if (typeof file === 'string') return file
   return (file as any).public_link || (file as any).url || null
 })
 
-const heightMode = computed(() => props.data?.height_mode || 'fixed')
+const heightMode = computed(() => props.data.height_mode || 'fixed')
 
 const height = computed(() => {
-  const h = parseInt(String(props.data?.height))
+  const h = parseInt(String(props.data.height))
   return h > 0 ? h : 600
 })
 
@@ -60,13 +60,13 @@ const containerStyle = computed(() => {
   return { height: `${height.value}px` }
 })
 
-const pageMode = computed(() => props.data?.page_mode || 'double')
-const showControls = computed(() => props.data?.show_controls !== false)
-const showThumbnails = computed(() => props.data?.show_thumbnails !== false)
-const showOutline = computed(() => props.data?.show_outline !== false)
-const showFullscreen = computed(() => props.data?.show_fullscreen !== false)
-const showDownload = computed(() => props.data?.show_download !== false)
-const backgroundColor = computed(() => props.data?.background_color || '#1a1a1a')
+const pageMode = computed(() => props.data.page_mode || 'double')
+const showControls = computed(() => props.data.show_controls !== false)
+const showThumbnails = computed(() => props.data.show_thumbnails !== false)
+const showOutline = computed(() => props.data.show_outline !== false)
+const showFullscreen = computed(() => props.data.show_fullscreen !== false)
+const showDownload = computed(() => props.data.show_download !== false)
+const backgroundColor = computed(() => props.data.background_color || '#1a1a1a')
 
 // Check if dFlip library is available
 const isDFlipAvailable = () => {

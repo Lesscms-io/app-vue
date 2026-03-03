@@ -43,6 +43,25 @@ const ctaUrl = computed(() => props.data.cta_url || '#')
 const ctaStyle = computed(() => props.data.cta_style || 'primary')
 const ctaTargetBlank = computed(() => props.data.cta_target_blank || false)
 
+// Logo settings
+const logoLight = computed(() => props.data.logo_light || '')
+const logoDark = computed(() => props.data.logo_dark || '')
+const logoHeight = computed(() => props.data.logo_height || 40)
+const logoPosition = computed(() => props.data.logo_position || 'left')
+
+// CTA link settings
+const ctaLinkType = computed(() => props.data.cta_link_type || 'url')
+const ctaPageId = computed(() => props.data.cta_page_id || null)
+const ctaCollectionCode = computed(() => props.data.cta_collection_code || null)
+const ctaEntryId = computed(() => props.data.cta_entry_id || null)
+const ctaRouteUuid = computed(() => props.data.cta_route_uuid || null)
+const ctaSize = computed(() => props.data.cta_size || 'md')
+const ctaPosition = computed(() => props.data.cta_position || 'right')
+const ctaBorderRadius = computed(() => props.data.cta_border_radius || null)
+const ctaPadding = computed(() => props.data.cta_padding || null)
+const ctaIcon = computed(() => props.data.cta_icon || '')
+const ctaIconPosition = computed(() => props.data.cta_icon_position || 'left')
+
 function hexToRgba(hex: string, opacity: number): string {
   const r = parseInt(hex.slice(1, 3), 16)
   const g = parseInt(hex.slice(3, 5), 16)

@@ -23,14 +23,20 @@ const props = defineProps<Props>()
 
 const { extractValue } = useLanguage(props.language)
 
+const showTitle = computed(() => props.data.show_title !== false)
 const title = computed(() => props.data.title ? extractValue(props.data.title) : '')
-const content = computed(() => extractValue(props.data.content))
+const content = computed(() => extractValue(props.data.message) || extractValue(props.data.content))
 const alertType = computed(() => props.data.type || 'info')
 const dismissible = computed(() => props.data.dismissible || false)
+const customIcon = computed(() => props.data.icon || null)
+const customBgColor = computed(() => props.data.background_color || null)
+const customBorderColor = computed(() => props.data.border_color || null)
+const customTextColor = computed(() => props.data.text_color || null)
 
 const isDismissed = ref(false)
 
 const iconClass = computed(() => {
+  if (customIcon.value) return customIcon.value
   const icons: Record<string, string> = {
     info: 'fa-solid fa-circle-info',
     success: 'fa-solid fa-circle-check',
@@ -38,6 +44,14 @@ const iconClass = computed(() => {
     danger: 'fa-solid fa-circle-xmark',
   }
   return icons[alertType.value] || icons.info
+})
+
+const customStyles = computed(() => {
+  const styles: Record<string, string> = {}
+  if (customBgColor.value) styles.backgroundColor = customBgColor.value
+  if (customBorderColor.value) styles.borderColor = customBorderColor.value
+  if (customTextColor.value) styles.color = customTextColor.value
+  return styles
 })
 
 function dismiss() {
@@ -50,6 +64,7 @@ function dismiss() {
     v-if="!isDismissed"
     class="lcms-alert"
     :class="`lcms-alert--${alertType}`"
+    :style="customStyles"
     role="alert"
   >
     <div class="lcms-alert__icon">
@@ -58,7 +73,7 @@ function dismiss() {
 
     <div class="lcms-alert__content">
       <strong
-        v-if="title"
+        v-if="showTitle && title"
         class="lcms-alert__title"
       >{{ title }}</strong>
       <span class="lcms-alert__message">{{ content }}</span>

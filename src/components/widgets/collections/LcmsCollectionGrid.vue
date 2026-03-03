@@ -181,7 +181,22 @@ onBeforeUnmount(() => {
   }
 })
 
-// Note: order_by and order_dir are not yet supported by the API
+// Route, ordering, and filtering
+const routeUuid = computed(() => config.value.route_uuid || null)
+const orderBy = computed(() => config.value.order_by || '')
+const orderDir = computed(() => config.value.order_dir || 'asc')
+const extraField = computed(() => config.value.extra_field || '')
+const showPagination = computed(() => config.value.show_pagination || false)
+const showExtra = computed(() => config.value.show_extra || false)
+const excludeUrlSegment = computed(() => config.value.exclude_url_segment || null)
+const filterField = computed(() => config.value.filter_field || '')
+const filterSource = computed(() => config.value.filter_source || '')
+const filterValue = computed(() => config.value.filter_value || '')
+const filterUrlSegment = computed(() => config.value.filter_url_segment || null)
+const useCustomLayout = computed(() => config.value.use_custom_layout || false)
+const layoutConfig = computed(() => config.value.layout_config || null)
+
+// Note: order_by and order_dir are not yet fully supported by the API
 const { entries, loading, error } = useCollection(collectionCode, {
   pageSize: postsCount.value,
 }, excludeEntryId)

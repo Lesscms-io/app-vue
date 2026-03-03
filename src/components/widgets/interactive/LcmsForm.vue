@@ -43,6 +43,8 @@ const api = useApi()
 
 const config = computed(() => props.data.config || props.data || {})
 
+const emailTo = computed(() => props.data.email_to || '')
+
 // Remote form data (fetched by form_code)
 const remoteForm = ref<Record<string, any> | null>(null)
 const loadingForm = ref(false)

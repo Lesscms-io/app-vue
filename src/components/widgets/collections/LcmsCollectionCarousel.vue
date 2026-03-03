@@ -44,8 +44,18 @@ const autoplayInterval = computed(() => props.data.autoplay_interval || 5000)
 const showArrows = computed(() => props.data.show_arrows !== false)
 const showDots = computed(() => props.data.show_dots !== false)
 
+// Route and display settings
+const routeUuid = computed(() => props.data.route_uuid || null)
+const slidesPerView = computed(() => props.data.slides_per_view || 3)
+
 // Field mappings
 const imageField = computed(() => props.data.image_field || '')
+const titleField = computed(() => props.data.title_field || '')
+const excerptField = computed(() => props.data.excerpt_field || '')
+
+// Display toggles
+const showTitle = computed(() => props.data.show_title !== false)
+const showExcerpt = computed(() => props.data.show_excerpt !== false)
 
 const { entries, loading, error } = useCollection(collectionCode, {
   pageSize: postsCount.value,

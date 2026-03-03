@@ -29,6 +29,21 @@ const position = computed(() => props.data.position ? extractValue(props.data.po
 const image = computed(() => props.data.image || '')
 const rating = computed(() => props.data.rating || 0)
 
+// Dynamic content source settings
+const contentSource = computed(() => props.data.content_source || 'static')
+const collectionCode = computed(() => props.data.collection_code || null)
+const fieldCode = computed(() => props.data.field_code || null)
+const entryId = computed(() => props.data.entry_id || null)
+const entrySource = computed(() => props.data.entry_source || 'static')
+const entryUrlSegment = computed(() => props.data.entry_url_segment || 1)
+
+// Field mappings for dynamic mode
+const quoteField = computed(() => props.data.quote_field || '')
+const authorField = computed(() => props.data.author_field || '')
+const positionField = computed(() => props.data.position_field || '')
+const imageField = computed(() => props.data.image_field || '')
+const ratingField = computed(() => props.data.rating_field || '')
+
 const stars = computed(() => {
   const result = []
   for (let i = 1; i <= 5; i++) {

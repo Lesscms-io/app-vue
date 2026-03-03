@@ -51,6 +51,28 @@ const subtitleFontSize = computed(() => {
   if (typeof v === 'number') return `${v}px`
   return String(v).match(/[a-z]/) ? v : `${v}px`
 })
+
+// Button link settings
+const buttonLinkType = computed(() => props.data.button_link_type || 'url')
+const buttonPageId = computed(() => props.data.button_page_id || '')
+const buttonCollectionCode = computed(() => props.data.button_collection_code || '')
+const buttonEntryId = computed(() => props.data.button_entry_id || '')
+const buttonRouteUuid = computed(() => props.data.button_route_uuid || '')
+const buttonTargetBlank = computed(() => props.data.button_target_blank || false)
+const buttonStyle = computed(() => props.data.button_style || '')
+const buttonSize = computed(() => props.data.button_size || 'md')
+const buttonBorderRadius = computed(() => props.data.button_border_radius || '')
+const buttonPadding = computed(() => props.data.button_padding || '')
+const buttonIcon = computed(() => props.data.button_icon || '')
+const buttonIconPosition = computed(() => props.data.button_icon_position || 'left')
+
+const buttonInlineStyle = computed(() => {
+  const styles: Record<string, string> = {}
+  if (buttonColor.value) styles.backgroundColor = buttonColor.value
+  if (buttonBorderRadius.value) styles.borderRadius = `${buttonBorderRadius.value}px`
+  if (buttonPadding.value) styles.padding = `${buttonPadding.value}px`
+  return styles
+})
 </script>
 
 <template>
@@ -70,9 +92,17 @@ const subtitleFontSize = computed(() => {
       v-if="buttonText && buttonUrl"
       :href="buttonUrl"
       class="lcms-cta-box__button"
-      :style="buttonColor ? { backgroundColor: buttonColor } : {}"
+      :class="[
+        buttonStyle ? `btn-${buttonStyle}` : '',
+        buttonSize !== 'md' ? `lcms-cta-box__button--${buttonSize}` : ''
+      ]"
+      :style="buttonInlineStyle"
+      :target="buttonTargetBlank ? '_blank' : undefined"
+      :rel="buttonTargetBlank ? 'noopener noreferrer' : undefined"
     >
+      <i v-if="buttonIcon && buttonIconPosition === 'left'" :class="buttonIcon" style="margin-right: 6px;" />
       {{ buttonText }}
+      <i v-if="buttonIcon && buttonIconPosition === 'right'" :class="buttonIcon" style="margin-left: 6px;" />
     </a>
   </div>
 </template>

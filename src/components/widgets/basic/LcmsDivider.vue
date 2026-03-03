@@ -23,11 +23,12 @@ const props = defineProps<Props>()
 const dividerStyle = computed(() => props.data.style || 'solid')
 const dividerColor = computed(() => props.data.color || '#e9ecef')
 const dividerWidth = computed(() => props.data.width || '1')
+const dividerThickness = computed(() => props.data.thickness || dividerWidth.value)
 
 const lineStyle = computed(() => ({
   borderTopStyle: dividerStyle.value,
   borderTopColor: dividerColor.value,
-  borderTopWidth: `${dividerWidth.value}px`,
+  borderTopWidth: `${dividerThickness.value}px`,
 }))
 </script>
 

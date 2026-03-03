@@ -26,6 +26,9 @@ const autoplay = computed(() => props.data.autoplay || false)
 const loop = computed(() => props.data.loop || false)
 const muted = computed(() => props.data.muted || false)
 
+// Pre-computed embed URL from API
+const apiEmbedUrl = computed(() => props.data.embed_url || null)
+
 // Extract video ID from URLs
 const youtubeId = computed(() => {
   if (source.value !== 'youtube') return null
@@ -76,7 +79,8 @@ const embedUrl = computed(() => {
     return `https://player.vimeo.com/video/${vimeoId.value}${query ? '?' + query : ''}`
   }
 
-  return null
+  // Use pre-computed embed URL from API as fallback
+  return apiEmbedUrl.value || null
 })
 
 const isDirectVideo = computed(() => source.value === 'url')

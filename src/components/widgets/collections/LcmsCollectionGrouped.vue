@@ -188,6 +188,11 @@ const showPrice = computed(() => config.value.show_price ?? false)
 const showImage = computed(() => config.value.show_image ?? true)
 const showUncategorized = computed(() => config.value.show_uncategorized ?? true)
 
+// Route and custom layout
+const routeUuid = computed(() => config.value.route_uuid || null)
+const useCustomLayout = computed(() => config.value.use_custom_layout || false)
+const layoutConfig = computed(() => config.value.layout_config || null)
+
 const styleClass = computed(() => `lcms-collection-grouped--${displayStyle.value}`)
 const itemLayoutClass = computed(() => `lcms-collection-grouped__items--${itemLayout.value}`)
 

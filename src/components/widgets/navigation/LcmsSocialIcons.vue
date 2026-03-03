@@ -20,9 +20,9 @@ interface Props {
 
 const props = defineProps<Props>()
 
-const items = computed(() => props.data?.items || [])
-const size = computed(() => props.data?.size || 'md')
-const style = computed(() => props.data?.style || 'default')
+const items = computed(() => props.data.items || [])
+const size = computed(() => props.data.size || 'md')
+const iconStyle = computed(() => props.data.style || 'default')
 
 // Platform to FontAwesome icon mapping
 const platformIcons: Record<string, string> = {
@@ -76,7 +76,7 @@ function getColor(platform: string): string {
     class="lcms-social-icons"
     :class="[
       `lcms-social-icons--${size}`,
-      `lcms-social-icons--${style}`
+      `lcms-social-icons--${iconStyle}`
     ]"
   >
     <a

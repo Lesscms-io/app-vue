@@ -35,7 +35,7 @@ const displayNumber = computed(() => {
   return String(idx + 1).padStart(2, '0')
 })
 
-const content = computed(() => config.value.content || '')
+const content = computed(() => config.value.html || config.value.content || '')
 
 const numberPosition = computed(() => config.value.number_position || 'left')
 const numberVerticalAlign = computed(() => config.value.number_vertical_align || 'top')
