@@ -46,7 +46,15 @@ const showTitle = computed(() => props.data.show_title !== false)
 const showContent = computed(() => props.data.show_content !== false)
 const showImage = computed(() => props.data.show_image !== false)
 
-const { entry, loading, error } = useCollectionEntry(collectionCode, entryId)
+// Use enriched entry from API if available, otherwise fetch client-side
+const hasEnrichedData = computed(() => !!props.data.entry)
+const collectionCodeForFetch = computed(() => hasEnrichedData.value ? '' : collectionCode.value)
+
+const { entry: fetchedEntry, loading: fetchLoading, error: fetchError } = useCollectionEntry(collectionCodeForFetch, entryId)
+
+const entry = computed(() => hasEnrichedData.value ? props.data.entry : fetchedEntry.value)
+const loading = computed(() => hasEnrichedData.value ? false : fetchLoading.value)
+const error = computed(() => hasEnrichedData.value ? null : fetchError.value)
 
 // Helper functions
 function getFieldValue(fieldCode: string): any {

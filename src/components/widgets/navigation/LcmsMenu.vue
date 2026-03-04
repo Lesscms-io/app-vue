@@ -533,7 +533,7 @@ function getItemTarget(item: MenuItem): string | undefined {
 }
 
 .lcms-menu__cta:hover {
-  opacity: 0.85;
+  filter: brightness(0.9);
 }
 
 .lcms-menu__cta--primary {

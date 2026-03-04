@@ -126,13 +126,10 @@
   transition: all var(--lcms-transition-fast);
 }
 
+/* Solid variants */
 .lcms-button__link--primary {
   background-color: var(--lcms-color-primary);
   color: var(--lcms-color-white);
-}
-
-.lcms-button__link--primary:hover {
-  background-color: var(--lcms-color-primary-dark);
 }
 
 .lcms-button__link--secondary {
@@ -170,42 +167,86 @@
   color: var(--lcms-color-white);
 }
 
+/* Solid hover - darken via overlay */
+.lcms-button__link--primary:hover,
+.lcms-button__link--secondary:hover,
+.lcms-button__link--success:hover,
+.lcms-button__link--danger:hover,
+.lcms-button__link--warning:hover,
+.lcms-button__link--info:hover,
+.lcms-button__link--light:hover,
+.lcms-button__link--dark:hover {
+  filter: brightness(0.9);
+}
+
 /* Outline variants */
 .lcms-button__link--outline,
 .lcms-button__link--outline-primary {
   background-color: transparent;
   color: var(--lcms-color-primary);
-  border: 2px solid var(--lcms-color-primary);
+  border-color: var(--lcms-color-primary);
 }
 
 .lcms-button__link--outline-secondary {
   background-color: transparent;
   color: var(--lcms-color-secondary);
-  border: 2px solid var(--lcms-color-secondary);
+  border-color: var(--lcms-color-secondary);
 }
 
 .lcms-button__link--outline-success {
   background-color: transparent;
   color: var(--lcms-color-success);
-  border: 2px solid var(--lcms-color-success);
+  border-color: var(--lcms-color-success);
 }
 
 .lcms-button__link--outline-danger {
   background-color: transparent;
   color: var(--lcms-color-danger);
-  border: 2px solid var(--lcms-color-danger);
+  border-color: var(--lcms-color-danger);
 }
 
 .lcms-button__link--outline-warning {
   background-color: transparent;
   color: var(--lcms-color-warning);
-  border: 2px solid var(--lcms-color-warning);
+  border-color: var(--lcms-color-warning);
 }
 
 .lcms-button__link--outline-info {
   background-color: transparent;
   color: var(--lcms-color-info);
-  border: 2px solid var(--lcms-color-info);
+  border-color: var(--lcms-color-info);
+}
+
+/* Outline hover - fill with color */
+.lcms-button__link--outline:hover,
+.lcms-button__link--outline-primary:hover {
+  background-color: var(--lcms-color-primary);
+  color: var(--lcms-color-white);
+}
+
+.lcms-button__link--outline-secondary:hover {
+  background-color: var(--lcms-color-secondary);
+  color: var(--lcms-color-white);
+}
+
+.lcms-button__link--outline-success:hover {
+  background-color: var(--lcms-color-success);
+  color: var(--lcms-color-white);
+}
+
+.lcms-button__link--outline-danger:hover {
+  background-color: var(--lcms-color-danger);
+  color: var(--lcms-color-white);
+}
+
+.lcms-button__link--outline-warning:hover {
+  background-color: var(--lcms-color-warning);
+  color: var(--lcms-color-dark);
+}
+
+.lcms-button__link--outline-info:hover {
+  background-color: var(--lcms-color-info);
+  color: var(--lcms-color-white);
 }
 
 /* Link style */

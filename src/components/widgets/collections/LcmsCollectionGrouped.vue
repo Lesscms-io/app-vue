@@ -243,27 +243,15 @@ function toggleGroup(name: string) {
   }
 }
 
-async function fetchEntries() {
-  if (!collectionCode.value || !groupByField.value) {
-    groups.value = []
-    return
-  }
-
-  loading.value = true
-  try {
-    const params: Record<string, any> = {}
-    if (excludeEntryId.value) {
-      params.exclude_entry_id = excludeEntryId.value
-    }
-    const response = await api.getCollection(collectionCode.value, params)
-    const entries = (response.data || []) as Entry[]
-
+function processEntries(entries: Entry[]) {
     // Group entries by field value
     const groupMap = new Map<string, Entry[]>()
     const uncategorized: Entry[] = []
 
     for (const entry of entries) {
-      const groupValue = entry.data?.[groupByField.value]
+      // Support enriched entries (content key) and legacy entries (data key)
+      const entryData = entry.data || (entry as any).content || {}
+      const groupValue = entryData[groupByField.value]
       if (groupValue) {
         const key = String(groupValue)
         if (!groupMap.has(key)) {
@@ -271,10 +259,13 @@ async function fetchEntries() {
         }
         const groupEntries = groupMap.get(key)!
         if (!postsCount.value || groupEntries.length < postsCount.value) {
-          groupEntries.push(entry)
+          // Normalize enriched entry to have data key for rendering
+          const normalized = entry.data ? entry : { ...entry, data: entryData }
+          groupEntries.push(normalized as Entry)
         }
       } else {
-        uncategorized.push(entry)
+        const normalized = entry.data ? entry : { ...entry, data: entryData }
+        uncategorized.push(normalized as Entry)
       }
     }
 
@@ -298,6 +289,29 @@ async function fetchEntries() {
     if (displayStyle.value === 'accordion' && result.length > 0) {
       openGroups.value.add(result[0].name)
     }
+}
+
+async function fetchEntries() {
+  if (!collectionCode.value || !groupByField.value) {
+    groups.value = []
+    return
+  }
+
+  // Use enriched entries from API if available
+  if (Array.isArray(config.value.entries)) {
+    processEntries(config.value.entries as Entry[])
+    return
+  }
+
+  loading.value = true
+  try {
+    const params: Record<string, any> = {}
+    if (excludeEntryId.value) {
+      params.exclude_entry_id = excludeEntryId.value
+    }
+    const response = await api.getCollection(collectionCode.value, params)
+    const entries = (response.data || []) as Entry[]
+    processEntries(entries)
   } catch (error) {
     console.error('Failed to fetch entries:', error)
     groups.value = []

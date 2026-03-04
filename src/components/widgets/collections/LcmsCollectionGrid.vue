@@ -196,10 +196,18 @@ const filterUrlSegment = computed(() => config.value.filter_url_segment || null)
 const useCustomLayout = computed(() => config.value.use_custom_layout || false)
 const layoutConfig = computed(() => config.value.layout_config || null)
 
-// Note: order_by and order_dir are not yet fully supported by the API
-const { entries, loading, error } = useCollection(collectionCode, {
+// Use enriched entries from API if available, otherwise fetch client-side
+const hasEnrichedData = computed(() => Array.isArray(config.value.entries))
+
+const collectionCodeForFetch = computed(() => hasEnrichedData.value ? '' : collectionCode.value)
+
+const { entries: fetchedEntries, loading: fetchLoading, error: fetchError } = useCollection(collectionCodeForFetch, {
   pageSize: postsCount.value,
 }, excludeEntryId)
+
+const entries = computed(() => hasEnrichedData.value ? config.value.entries : fetchedEntries.value)
+const loading = computed(() => hasEnrichedData.value ? false : fetchLoading.value)
+const error = computed(() => hasEnrichedData.value ? null : fetchError.value)
 
 // Helper functions
 function getFieldValue(entry: CollectionEntry, fieldCode: string): any {

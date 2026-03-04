@@ -37,7 +37,8 @@ const excludeEntryId = computed(() => {
   return params.slug || params.entry_id || params.id || Object.values(params)[0] || ''
 })
 
-const collectionCode = computed(() => props.data.collection_code || '')
+const config = computed(() => props.data.config || props.data || {})
+const collectionCode = computed(() => config.value.collection_code || props.data.collection_code || '')
 const postsCount = computed(() => props.data.posts_count || 10)
 const autoplay = computed(() => props.data.autoplay !== false)
 const autoplayInterval = computed(() => props.data.autoplay_interval || 5000)
@@ -57,9 +58,17 @@ const excerptField = computed(() => props.data.excerpt_field || '')
 const showTitle = computed(() => props.data.show_title !== false)
 const showExcerpt = computed(() => props.data.show_excerpt !== false)
 
-const { entries, loading, error } = useCollection(collectionCode, {
+// Use enriched entries from API if available, otherwise fetch client-side
+const hasEnrichedData = computed(() => Array.isArray(config.value.entries))
+const collectionCodeForFetch = computed(() => hasEnrichedData.value ? '' : collectionCode.value)
+
+const { entries: fetchedEntries, loading: fetchLoading, error: fetchError } = useCollection(collectionCodeForFetch, {
   pageSize: postsCount.value,
 }, excludeEntryId)
+
+const entries = computed(() => hasEnrichedData.value ? config.value.entries : fetchedEntries.value)
+const loading = computed(() => hasEnrichedData.value ? false : fetchLoading.value)
+const error = computed(() => hasEnrichedData.value ? null : fetchError.value)
 
 // Carousel state - currentSlide is the CENTER slide index
 const currentSlide = ref(0)
