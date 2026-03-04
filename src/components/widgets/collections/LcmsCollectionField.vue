@@ -78,8 +78,18 @@ const linkText = computed(() => config.value.link_text || '')
 const buttonStyleField = computed(() => config.value.button_style || 'primary')
 const buttonSizeField = computed(() => config.value.button_size || 'md')
 
-// Get field value from entry
+// Get field value from entry or enriched data
 const fieldValue = computed(() => {
+  // Use enriched value from API if available
+  if (config.value.value !== undefined && config.value.value !== null) {
+    const value = config.value.value
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      return value[currentLanguage.value] || value.pl || Object.values(value)[0]
+    }
+    return value
+  }
+
+  // Fallback to injected entry (template context)
   if (!entry || !entry.content || !fieldCode.value) return null
 
   const value = entry.content[fieldCode.value]

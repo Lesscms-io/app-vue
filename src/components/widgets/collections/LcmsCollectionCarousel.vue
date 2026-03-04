@@ -31,32 +31,32 @@ const { language: currentLanguage } = useLanguage(props.language)
 const resolvedRoute = inject<Ref<ResolvedRoute | null>>('routeParams', ref(null))
 
 const excludeEntryId = computed(() => {
-  if (!props.data.exclude_current_entry) return ''
+  if (!config.value.exclude_current_entry) return ''
   const params = resolvedRoute?.value?.params
   if (!params) return ''
   return params.slug || params.entry_id || params.id || Object.values(params)[0] || ''
 })
 
 const config = computed(() => props.data.config || props.data || {})
-const collectionCode = computed(() => config.value.collection_code || props.data.collection_code || '')
-const postsCount = computed(() => props.data.posts_count || 10)
-const autoplay = computed(() => props.data.autoplay !== false)
-const autoplayInterval = computed(() => props.data.autoplay_interval || 5000)
-const showArrows = computed(() => props.data.show_arrows !== false)
-const showDots = computed(() => props.data.show_dots !== false)
+const collectionCode = computed(() => config.value.collection_code || '')
+const postsCount = computed(() => config.value.posts_count || 10)
+const autoplay = computed(() => config.value.autoplay !== false)
+const autoplayInterval = computed(() => config.value.autoplay_interval || 5000)
+const showArrows = computed(() => config.value.show_arrows !== false)
+const showDots = computed(() => config.value.show_dots !== false)
 
 // Route and display settings (for future features)
-const routeUuid = computed(() => props.data.route_uuid || null)
-const slidesPerView = computed(() => props.data.slides_per_view || 3)
+const routeUuid = computed(() => config.value.route_uuid || null)
+const slidesPerView = computed(() => config.value.slides_per_view || 3)
 
 // Field mappings
-const imageField = computed(() => props.data.image_field || '')
-const titleField = computed(() => props.data.title_field || '')
-const excerptField = computed(() => props.data.excerpt_field || '')
+const imageField = computed(() => config.value.image_field || '')
+const titleField = computed(() => config.value.title_field || '')
+const excerptField = computed(() => config.value.excerpt_field || '')
 
 // Display toggles
-const showTitle = computed(() => props.data.show_title !== false)
-const showExcerpt = computed(() => props.data.show_excerpt !== false)
+const showTitle = computed(() => config.value.show_title !== false)
+const showExcerpt = computed(() => config.value.show_excerpt !== false)
 
 // Use enriched entries from API if available, otherwise fetch client-side
 const hasEnrichedData = computed(() => Array.isArray(config.value.entries))

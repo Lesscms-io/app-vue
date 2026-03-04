@@ -1127,10 +1127,19 @@
 
 .lcms-counter__prefix,
 .lcms-counter__suffix {
-  font-size: 0.6em;
   font-weight: var(--lcms-font-weight-bold);
   color: var(--counter-prefix-color, var(--counter-number-color, inherit));
 }
+
+/* Prefix/suffix sizes matching the number size */
+.lcms-counter--size-md .lcms-counter__prefix,
+.lcms-counter--size-md .lcms-counter__suffix { font-size: calc(var(--lcms-font-size-2xl) * 0.6); }
+.lcms-counter--size-lg .lcms-counter__prefix,
+.lcms-counter--size-lg .lcms-counter__suffix { font-size: calc(var(--lcms-font-size-4xl) * 0.6); }
+.lcms-counter--size-xl .lcms-counter__prefix,
+.lcms-counter--size-xl .lcms-counter__suffix { font-size: calc(var(--lcms-font-size-5xl) * 0.6); }
+.lcms-counter--size-2xl .lcms-counter__prefix,
+.lcms-counter--size-2xl .lcms-counter__suffix { font-size: calc(var(--lcms-font-size-6xl, 3.75rem) * 0.6); }
 
 .lcms-counter__title {
   margin-top: var(--lcms-spacing-2);

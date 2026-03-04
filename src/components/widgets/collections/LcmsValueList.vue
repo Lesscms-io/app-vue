@@ -346,6 +346,16 @@ async function fetchValues() {
     return
   }
 
+  // Use enriched entries from API if available
+  if (Array.isArray(config.value.entries)) {
+    // Normalize enriched entries (content → data key for compatibility)
+    allEntries.value = config.value.entries.map((e: any) => {
+      if (e.data) return e
+      return { ...e, data: e.content || {} }
+    })
+    return
+  }
+
   loading.value = true
   try {
     const response = await api.getCollectionEntries(collectionCode.value)
