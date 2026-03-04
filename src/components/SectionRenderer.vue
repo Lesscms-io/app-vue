@@ -423,18 +423,30 @@ function getColumnWidgets(column: any) {
 
   return content.map((item: any, index: number) => {
     // New API format: all data in item.widget (flat)
-    // Legacy fallback: merge item.content + item.config
+    // Legacy fallback: merge item.content + item.config + item.data
     const widgetData = item.widget || {
       ...item.content,
-      ...item.config
+      ...item.config,
+      ...item.data
     }
 
-    return {
+    const result: any = {
       id: item.uuid || `widget-${index}`,
       type: item.widget_type || item.type || 'text',
       data: widgetData,
       settings: item.settings || {}
     }
+
+    // Pass through multi-item properties
+    if (item.multi_item) {
+      result.multi_item = true
+      result.items = item.items
+      result.multi_columns = item.multi_columns
+      result.multi_gap = item.multi_gap
+      result.multi_layout = item.multi_layout
+    }
+
+    return result
   })
 }
 

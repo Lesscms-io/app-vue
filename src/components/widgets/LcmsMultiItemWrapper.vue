@@ -98,7 +98,14 @@ const getItemData = (item: MultiItemData) => {
   if (item.widget) {
     return { widget_type: item.widget_type, ...item.widget, item_settings: item.item_settings }
   }
-  return item
+  // API format: merge config + content + data into flat object
+  return {
+    widget_type: item.widget_type,
+    ...(item.config as Record<string, unknown> || {}),
+    ...(item.content as Record<string, unknown> || {}),
+    ...(item.data as Record<string, unknown> || {}),
+    item_settings: item.item_settings
+  }
 }
 
 const gridStyle = computed(() => {
