@@ -88,24 +88,35 @@ const resolveCollectionUrl = inject<(collectionCode: string, slug: string) => st
   () => '#'
 )
 
-// Resolve CTA URL based on link type
+// Resolve CTA URL based on link type (prefer server-resolved URL)
 const resolvedCtaUrl = computed(() => {
   const linkType = ctaLinkType.value
+  const serverUrl = ctaUrl.value
 
-  if (linkType === 'page' && ctaPageId.value) {
-    return resolvePageUrl(null, ctaPageId.value)
+  if (linkType === 'page') {
+    if (serverUrl && serverUrl !== '#') return serverUrl
+    if (ctaPageId.value) {
+      const clientResolved = resolvePageUrl(null, ctaPageId.value)
+      if (clientResolved && clientResolved !== '#') return clientResolved
+    }
+    return serverUrl
   }
 
   if (linkType === 'route' && ctaRouteUuid.value) {
     return resolvePageUrl(null, ctaRouteUuid.value)
   }
 
-  if (linkType === 'entry' && ctaCollectionCode.value && ctaEntryId.value) {
-    return resolveCollectionUrl(ctaCollectionCode.value, ctaEntryId.value)
+  if (linkType === 'entry') {
+    if (serverUrl && serverUrl !== '#') return serverUrl
+    if (ctaCollectionCode.value && ctaEntryId.value) {
+      const clientResolved = resolveCollectionUrl(ctaCollectionCode.value, ctaEntryId.value)
+      if (clientResolved && clientResolved !== '#') return clientResolved
+    }
+    return serverUrl
   }
 
   // For 'url' or fallback, use raw URL
-  return ctaUrl.value
+  return serverUrl
 })
 
 const ctaInlineStyle = computed(() => {

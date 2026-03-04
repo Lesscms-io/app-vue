@@ -80,10 +80,26 @@ const cardStyle = computed(() => {
 
 const resolvedButtonUrl = computed(() => {
   const lt = btnLinkType.value
-  if (lt === 'page' && btnPageId.value) return resolvePageUrl(null, btnPageId.value)
+  const serverUrl = buttonUrl.value
+
+  if (lt === 'page') {
+    if (serverUrl && serverUrl !== '#') return serverUrl
+    if (btnPageId.value) {
+      const clientResolved = resolvePageUrl(null, btnPageId.value)
+      if (clientResolved && clientResolved !== '#') return clientResolved
+    }
+    return serverUrl
+  }
   if (lt === 'route' && btnRouteUuid.value) return resolvePageUrl(null, btnRouteUuid.value)
-  if (lt === 'entry' && btnCollectionCode.value && btnEntryId.value) return resolveCollectionUrl(btnCollectionCode.value, btnEntryId.value)
-  return buttonUrl.value
+  if (lt === 'entry') {
+    if (serverUrl && serverUrl !== '#') return serverUrl
+    if (btnCollectionCode.value && btnEntryId.value) {
+      const clientResolved = resolveCollectionUrl(btnCollectionCode.value, btnEntryId.value)
+      if (clientResolved && clientResolved !== '#') return clientResolved
+    }
+    return serverUrl
+  }
+  return serverUrl
 })
 
 const buttonInlineStyle = computed(() => {

@@ -86,10 +86,26 @@ const buttonIconPosition = computed(() => props.data.button_icon_position || 'le
 
 const resolvedButtonUrl = computed(() => {
   const lt = buttonLinkType.value
-  if (lt === 'page' && buttonPageId.value) return resolvePageUrl(null, buttonPageId.value)
+  const serverUrl = buttonUrl.value
+
+  if (lt === 'page') {
+    if (serverUrl && serverUrl !== '#') return serverUrl
+    if (buttonPageId.value) {
+      const clientResolved = resolvePageUrl(null, buttonPageId.value)
+      if (clientResolved && clientResolved !== '#') return clientResolved
+    }
+    return serverUrl
+  }
   if (lt === 'route' && buttonRouteUuid.value) return resolvePageUrl(null, buttonRouteUuid.value)
-  if (lt === 'entry' && buttonCollectionCode.value && buttonEntryId.value) return resolveCollectionUrl(buttonCollectionCode.value, buttonEntryId.value)
-  return buttonUrl.value
+  if (lt === 'entry') {
+    if (serverUrl && serverUrl !== '#') return serverUrl
+    if (buttonCollectionCode.value && buttonEntryId.value) {
+      const clientResolved = resolveCollectionUrl(buttonCollectionCode.value, buttonEntryId.value)
+      if (clientResolved && clientResolved !== '#') return clientResolved
+    }
+    return serverUrl
+  }
+  return serverUrl
 })
 
 const buttonInlineStyle = computed(() => {

@@ -84,19 +84,31 @@ const linkText = computed(() => extractValue(config.value.link_text) || '')
 const linkTargetBlank = computed(() => config.value.link_target_blank || false)
 const showBadge = computed(() => config.value.show_badge !== false)
 
-// Resolve link URL based on link_type
+// Resolve link URL based on link_type (prefer server-resolved URL)
 const resolvedLinkUrl = computed(() => {
   const linkType = config.value.link_link_type || config.value.link_type || 'url'
-  if (linkType === 'page' && config.value.link_page_id) {
-    return resolvePageUrl(null, config.value.link_page_id)
+  const serverUrl = config.value.link_url
+
+  if (linkType === 'page') {
+    if (serverUrl && serverUrl !== '#') return serverUrl
+    if (config.value.link_page_id) {
+      const clientResolved = resolvePageUrl(null, config.value.link_page_id)
+      if (clientResolved && clientResolved !== '#') return clientResolved
+    }
+    return serverUrl || ''
   }
   if (linkType === 'route' && config.value.link_route_uuid) {
     return resolvePageUrl(null, config.value.link_route_uuid)
   }
-  if (linkType === 'entry' && config.value.link_collection_code && config.value.link_entry_id) {
-    return resolveCollectionUrl(config.value.link_collection_code, config.value.link_entry_id)
+  if (linkType === 'entry') {
+    if (serverUrl && serverUrl !== '#') return serverUrl
+    if (config.value.link_collection_code && config.value.link_entry_id) {
+      const clientResolved = resolveCollectionUrl(config.value.link_collection_code, config.value.link_entry_id)
+      if (clientResolved && clientResolved !== '#') return clientResolved
+    }
+    return serverUrl || ''
   }
-  return config.value.link_url || ''
+  return serverUrl || ''
 })
 
 // Highlighted state from item_settings or config

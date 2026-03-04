@@ -47,9 +47,25 @@ const collectionCode = computed(() => props.data.collection_code || '')
 
 const resolvedUrl = computed(() => {
   const lt = linkType.value
-  if (lt === 'page' && (pageUuid.value || pageCode.value)) return resolvePageUrl(pageCode.value || null, pageUuid.value || null)
+
+  // For page/entry links, prefer server-resolved URL (in buttonUrl), then try client-side resolution
+  if (lt === 'page') {
+    if (buttonUrl.value && buttonUrl.value !== '#') return buttonUrl.value
+    if (pageUuid.value || pageCode.value) {
+      const clientResolved = resolvePageUrl(pageCode.value || null, pageUuid.value || null)
+      if (clientResolved && clientResolved !== '#') return clientResolved
+    }
+    return buttonUrl.value
+  }
   if (lt === 'route' && routeUuid.value) return resolvePageUrl(null, routeUuid.value)
-  if (lt === 'entry' && collectionCode.value && (entryUuid.value || entryCode.value)) return resolveCollectionUrl(collectionCode.value, entryUuid.value || entryCode.value)
+  if (lt === 'entry') {
+    if (buttonUrl.value && buttonUrl.value !== '#') return buttonUrl.value
+    if (collectionCode.value && (entryUuid.value || entryCode.value)) {
+      const clientResolved = resolveCollectionUrl(collectionCode.value, entryUuid.value || entryCode.value)
+      if (clientResolved && clientResolved !== '#') return clientResolved
+    }
+    return buttonUrl.value
+  }
   return buttonUrl.value
 })
 
