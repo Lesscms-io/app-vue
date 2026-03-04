@@ -38,14 +38,25 @@ const labelField = computed(() => props.data.label_field || '')
 const layout = computed(() => props.data.layout || 'horizontal')
 const hamburgerBreakpoint = computed(() => props.data.hamburger_breakpoint || 'never')
 const itemsAlignment = computed(() => props.data.items_alignment || 'left')
-const itemsGap = computed(() => props.data.items_gap || 'md')
+const itemsGap = computed(() => {
+  const v = props.data.items_gap
+  if (v === 'sm') return 4
+  if (v === 'md' || v === undefined || v === null) return 12
+  if (v === 'lg') return 24
+  return Number(v) || 12
+})
 const itemsIndent = computed(() => props.data.items_indent || 0)
 const linkColor = computed(() => props.data.link_color || null)
 const linkHoverColor = computed(() => props.data.link_hover_color || null)
 const linkHoverBg = computed(() => props.data.link_hover_bg || null)
 const linkHoverAnimation = computed(() => props.data.link_hover_animation || 'none')
 const linkHoverAnimationColor = computed(() => props.data.link_hover_animation_color || null)
-const itemsPadding = computed(() => props.data.items_padding || null)
+const itemsPadding = computed(() => {
+  const v = props.data.items_padding
+  if (v === null || v === undefined) return null
+  if (typeof v === 'number') return `${v}px`
+  return v
+})
 const ctaText = computed(() => props.data.cta_text || '')
 const ctaUrl = computed(() => props.data.cta_url || '#')
 const ctaStyle = computed(() => props.data.cta_style || 'primary')
@@ -152,11 +163,13 @@ const menuCssVars = computed(() => {
   if (lc) vars['--lcms-menu-link-color'] = lc
   if (lhc) vars['--lcms-menu-link-hover-color'] = lhc
   if (lhb) vars['--lcms-menu-link-hover-bg'] = lhb
+  vars['--lcms-menu-items-gap'] = `${itemsGap.value}px`
   if (itemsIndent.value) vars['--lcms-menu-items-indent'] = `${itemsIndent.value}px`
   const lac = resolveColorValue(linkHoverAnimationColor.value)
   if (lac) vars['--lcms-menu-link-hover-anim-color'] = lac
   else if (lhc) vars['--lcms-menu-link-hover-anim-color'] = lhc
   if (itemsPadding.value) vars['--lcms-menu-items-padding'] = itemsPadding.value
+
   return vars
 })
 
@@ -234,7 +247,6 @@ function getItemTarget(item: MenuItem): string | undefined {
     :class="[
       `lcms-menu--${layout}`,
       `lcms-menu--align-${itemsAlignment}`,
-      `lcms-menu--gap-${itemsGap}`,
       linkHoverAnimation !== 'none' ? `lcms-menu--anim-${linkHoverAnimation}` : '',
       { 'lcms-menu--hamburger': isHamburgerMode, 'lcms-menu--open': hamburgerOpen && isHamburgerMode }
     ]"
@@ -681,7 +693,7 @@ function getItemTarget(item: MenuItem): string | undefined {
   content: '';
   position: absolute;
   left: 0;
-  bottom: 0;
+  bottom: -4px;
   width: 0;
   height: 2px;
   background-color: var(--lcms-menu-link-hover-anim-color, var(--lcms-color-primary, currentColor));

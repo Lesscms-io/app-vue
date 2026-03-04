@@ -1490,17 +1490,9 @@
   justify-content: flex-end;
 }
 
-/* Menu items gap overrides */
-.lcms-menu--gap-sm .lcms-menu__list {
-  gap: 4px;
-}
-
-.lcms-menu--gap-md .lcms-menu__list {
-  gap: 12px;
-}
-
-.lcms-menu--gap-lg .lcms-menu__list {
-  gap: 24px;
+/* Menu items gap (set via CSS variable) */
+.lcms-menu .lcms-menu__list {
+  gap: var(--lcms-menu-items-gap, 12px);
 }
 
 /* ==========================================================================
