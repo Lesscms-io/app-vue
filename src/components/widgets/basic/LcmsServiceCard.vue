@@ -36,6 +36,7 @@
 
 <script setup lang="ts">
 import { computed, inject } from 'vue'
+import { useLanguage } from '@/composables/useLanguage'
 
 const props = defineProps<{
   data: {
@@ -43,7 +44,10 @@ const props = defineProps<{
     config: Record<string, any>
     settings?: Record<string, unknown>
   }
+  language?: string
 }>()
+
+const { extractValue } = useLanguage(props.language)
 
 // Resolve color variable references (var:primary → var(--lcms-color-primary))
 function resolveColor(val: string | null | undefined): string | null {
@@ -65,13 +69,18 @@ const resolveCollectionUrl = inject<(collectionCode: string, entryId: string) =>
 
 const config = computed(() => props.data.config || props.data || {})
 
-const badge = computed(() => config.value.badge || '')
-const icon = computed(() => config.value.icon || '')
+const badge = computed(() => extractValue(config.value.badge) || '')
+const icon = computed(() => {
+  const val = config.value.icon
+  if (!val) return ''
+  if (typeof val === 'object') return ''
+  return val
+})
 const isSvgIcon = computed(() => (icon.value || '').startsWith('svg:'))
 const svgContent = computed(() => isSvgIcon.value ? icon.value.slice(4) : '')
-const title = computed(() => config.value.title || '')
-const description = computed(() => config.value.description || '')
-const linkText = computed(() => config.value.link_text || '')
+const title = computed(() => extractValue(config.value.title) || '')
+const description = computed(() => extractValue(config.value.description) || '')
+const linkText = computed(() => extractValue(config.value.link_text) || '')
 const linkTargetBlank = computed(() => config.value.link_target_blank || false)
 const showBadge = computed(() => config.value.show_badge !== false)
 
@@ -156,8 +165,7 @@ const badgeStyles = computed(() => {
 .lcms-service-card__badge {
   position: absolute;
   top: -0.75rem;
-  left: 50%;
-  transform: translateX(-50%);
+  right: 1rem;
   padding: 0.375rem 0.75rem;
   background: var(--lcms-color-accent, #4ade80);
   color: #fff;

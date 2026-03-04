@@ -43,6 +43,9 @@ const itemsIndent = computed(() => props.data.items_indent || 0)
 const linkColor = computed(() => props.data.link_color || null)
 const linkHoverColor = computed(() => props.data.link_hover_color || null)
 const linkHoverBg = computed(() => props.data.link_hover_bg || null)
+const linkHoverAnimation = computed(() => props.data.link_hover_animation || 'none')
+const linkHoverAnimationColor = computed(() => props.data.link_hover_animation_color || null)
+const itemsPadding = computed(() => props.data.items_padding || null)
 const ctaText = computed(() => props.data.cta_text || '')
 const ctaUrl = computed(() => props.data.cta_url || '#')
 const ctaStyle = computed(() => props.data.cta_style || 'primary')
@@ -150,6 +153,10 @@ const menuCssVars = computed(() => {
   if (lhc) vars['--lcms-menu-link-hover-color'] = lhc
   if (lhb) vars['--lcms-menu-link-hover-bg'] = lhb
   if (itemsIndent.value) vars['--lcms-menu-items-indent'] = `${itemsIndent.value}px`
+  const lac = resolveColorValue(linkHoverAnimationColor.value)
+  if (lac) vars['--lcms-menu-link-hover-anim-color'] = lac
+  else if (lhc) vars['--lcms-menu-link-hover-anim-color'] = lhc
+  if (itemsPadding.value) vars['--lcms-menu-items-padding'] = itemsPadding.value
   return vars
 })
 
@@ -228,6 +235,7 @@ function getItemTarget(item: MenuItem): string | undefined {
       `lcms-menu--${layout}`,
       `lcms-menu--align-${itemsAlignment}`,
       `lcms-menu--gap-${itemsGap}`,
+      linkHoverAnimation !== 'none' ? `lcms-menu--anim-${linkHoverAnimation}` : '',
       { 'lcms-menu--hamburger': isHamburgerMode, 'lcms-menu--open': hamburgerOpen && isHamburgerMode }
     ]"
     :style="menuCssVars"
@@ -326,6 +334,7 @@ function getItemTarget(item: MenuItem): string | undefined {
             <a
               :href="getItemUrl(item)"
               class="lcms-menu__link"
+              :style="itemsPadding ? { padding: itemsPadding } : undefined"
               :target="getItemTarget(item)"
               @click="handleLinkClick"
             >
@@ -621,6 +630,30 @@ function getItemTarget(item: MenuItem): string | undefined {
   border: 1px solid var(--lcms-color-info, #17a2b8);
 }
 
+.lcms-menu__cta--outline-light {
+  background-color: transparent;
+  color: var(--lcms-color-light, #f8f9fa);
+  border: 1px solid var(--lcms-color-light, #f8f9fa);
+}
+
+.lcms-menu__cta--outline-dark {
+  background-color: transparent;
+  color: var(--lcms-color-dark, #343a40);
+  border: 1px solid var(--lcms-color-dark, #343a40);
+}
+
+.lcms-menu__cta--accent {
+  background-color: var(--lcms-color-accent, #FF6B35);
+  color: #fff;
+  border: 1px solid var(--lcms-color-accent, #FF6B35);
+}
+
+.lcms-menu__cta--outline-accent {
+  background-color: transparent;
+  color: var(--lcms-color-accent, #FF6B35);
+  border: 1px solid var(--lcms-color-accent, #FF6B35);
+}
+
 .lcms-menu--vertical .lcms-menu__cta {
   margin-left: 0;
   margin-top: 8px;
@@ -630,5 +663,109 @@ function getItemTarget(item: MenuItem): string | undefined {
 .lcms-menu--hamburger .lcms-menu__cta {
   margin-left: 0;
   margin-top: 8px;
+}
+
+/* ===========================
+   Hover animations
+   =========================== */
+
+/* Shared: links need position relative for pseudo-elements */
+.lcms-menu--anim-underline .lcms-menu__link,
+.lcms-menu--anim-overline .lcms-menu__link,
+.lcms-menu--anim-bracket .lcms-menu__link {
+  position: relative;
+}
+
+/* --- Underline animation --- */
+.lcms-menu--anim-underline .lcms-menu__link::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 0;
+  height: 2px;
+  background-color: var(--lcms-menu-link-hover-anim-color, var(--lcms-color-primary, currentColor));
+  transition: width 0.3s ease;
+}
+
+.lcms-menu--anim-underline .lcms-menu__link:hover::after {
+  width: 100%;
+}
+
+/* --- Overline animation --- */
+.lcms-menu--anim-overline .lcms-menu__link::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 2px;
+  background-color: var(--lcms-menu-link-hover-anim-color, var(--lcms-color-primary, currentColor));
+  transition: width 0.3s ease;
+}
+
+.lcms-menu--anim-overline .lcms-menu__link:hover::after {
+  width: 100%;
+}
+
+/* --- Highlight animation --- */
+.lcms-menu--anim-highlight .lcms-menu__link {
+  transition: background-color 0.3s ease;
+}
+
+.lcms-menu--anim-highlight .lcms-menu__link:hover {
+  background-color: var(--lcms-menu-link-hover-anim-color, var(--lcms-color-primary, rgba(0, 0, 0, 0.05)));
+  opacity: 0.85;
+}
+
+/* --- Scale animation --- */
+.lcms-menu--anim-scale .lcms-menu__link {
+  transition: transform 0.2s ease;
+}
+
+.lcms-menu--anim-scale .lcms-menu__link:hover {
+  transform: scale(1.05);
+}
+
+/* --- Bracket animation --- */
+.lcms-menu--anim-bracket .lcms-menu__link::before,
+.lcms-menu--anim-bracket .lcms-menu__link::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  border-color: var(--lcms-menu-link-hover-anim-color, var(--lcms-color-primary, currentColor));
+  border-style: solid;
+  transition: width 0.3s ease, border-width 0.3s ease;
+  border-width: 0;
+}
+
+.lcms-menu--anim-bracket .lcms-menu__link::before {
+  left: 0;
+  border-left-width: 0;
+  border-top-width: 0;
+  border-bottom-width: 0;
+}
+
+.lcms-menu--anim-bracket .lcms-menu__link::after {
+  right: 0;
+  border-right-width: 0;
+  border-top-width: 0;
+  border-bottom-width: 0;
+}
+
+.lcms-menu--anim-bracket .lcms-menu__link:hover::before {
+  width: 6px;
+  border-left-width: 2px;
+  border-top-width: 2px;
+  border-bottom-width: 2px;
+}
+
+.lcms-menu--anim-bracket .lcms-menu__link:hover::after {
+  width: 6px;
+  border-right-width: 2px;
+  border-top-width: 2px;
+  border-bottom-width: 2px;
 }
 </style>

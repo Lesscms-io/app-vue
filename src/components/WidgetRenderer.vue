@@ -13,6 +13,7 @@ import { getWidgetComponent, isWidgetSupported } from './widgets'
 import LcmsMultiItemWrapper from './widgets/LcmsMultiItemWrapper.vue'
 import { useResponsiveSettings } from '@/composables/useResponsiveSettings'
 import { useScrollAnimation } from '@/composables/useScrollAnimation'
+import { resolveColor } from '@/utils/resolveColor'
 import { useLanguage } from '@/composables/useLanguage'
 import type { Widget, WidgetSettings } from '@/api/types'
 
@@ -93,16 +94,17 @@ const hoverCss = computed(() => {
   css += `#${widgetId.value}:hover {`
 
   if (hover.backgroundColor) {
+    const resolved = resolveColor(hover.backgroundColor)
     const opacity = hover.backgroundOpacity ?? 100
-    if (opacity < 100) {
-      css += `background-color: ${hexToRgba(hover.backgroundColor, opacity / 100)};`
+    if (opacity < 100 && resolved.startsWith('#')) {
+      css += `background-color: ${hexToRgba(resolved, opacity / 100)};`
     } else {
-      css += `background-color: ${hover.backgroundColor};`
+      css += `background-color: ${resolved};`
     }
   }
 
   if (hover.borderColor) {
-    css += `border-color: ${hover.borderColor};`
+    css += `border-color: ${resolveColor(hover.borderColor)};`
   }
 
   if (hover.borderWidth !== undefined && hover.borderWidth !== null) {
@@ -183,11 +185,14 @@ const widgetStyle = computed(() => {
 
   // Background color with opacity
   if (s.backgroundColor) {
+    const resolved = resolveColor(s.backgroundColor)
     const opacity = s.backgroundOpacity ?? 100
-    if (opacity < 100) {
-      style.backgroundColor = hexToRgba(s.backgroundColor, opacity / 100)
+    if (opacity < 100 && resolved.startsWith('#')) {
+      style.backgroundColor = hexToRgba(resolved, opacity / 100)
+    } else if (opacity < 100 && resolved.startsWith('var(')) {
+      style.backgroundColor = `color-mix(in srgb, ${resolved} ${opacity}%, transparent)`
     } else {
-      style.backgroundColor = s.backgroundColor
+      style.backgroundColor = resolved
     }
   }
 
@@ -197,8 +202,8 @@ const widgetStyle = computed(() => {
     if (s.gradient && s.gradient.colorStart && s.gradient.colorEnd) {
       const type = s.gradient.type || 'linear'
       const angle = s.gradient.angle ?? 180
-      const start = resolveColorOpacity(s.gradient.colorStart)
-      const end = resolveColorOpacity(s.gradient.colorEnd)
+      const start = resolveColor(s.gradient.colorStart)
+      const end = resolveColor(s.gradient.colorEnd)
       gradientValue = type === 'linear'
         ? `linear-gradient(${angle}deg, ${start}, ${end})`
         : `radial-gradient(circle, ${start}, ${end})`
@@ -206,8 +211,8 @@ const widgetStyle = computed(() => {
     else if (s.useGradient && s.gradientColorStart && s.gradientColorEnd) {
       const type = s.gradientType || 'linear'
       const angle = s.gradientAngle ?? 180
-      const start = resolveColorOpacity(s.gradientColorStart)
-      const end = resolveColorOpacity(s.gradientColorEnd)
+      const start = resolveColor(s.gradientColorStart)
+      const end = resolveColor(s.gradientColorEnd)
       gradientValue = type === 'linear'
         ? `linear-gradient(${angle}deg, ${start}, ${end})`
         : `radial-gradient(circle, ${start}, ${end})`
@@ -249,7 +254,7 @@ const widgetStyle = computed(() => {
   if (s.borderWidth) {
     style.borderWidth = `${s.borderWidth}px`
     style.borderStyle = s.borderStyle || 'solid'
-    style.borderColor = s.borderColor || '#000000'
+    style.borderColor = resolveColor(s.borderColor) || '#000000'
   }
 
   // Shadow

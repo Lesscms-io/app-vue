@@ -108,6 +108,7 @@
 
 .lcms-button {
   display: inline-block;
+  width: fit-content;
 }
 
 .lcms-button__link {
@@ -116,7 +117,7 @@
   justify-content: center;
   gap: var(--lcms-spacing-2);
   padding: var(--lcms-spacing-2) var(--lcms-spacing-4);
-  border: 1px solid transparent;
+  border: 2px solid transparent;
   border-radius: var(--lcms-radius-md);
   font-family: var(--lcms-font-family);
   font-size: var(--lcms-font-size-md);
@@ -175,7 +176,8 @@
 .lcms-button__link--warning:hover,
 .lcms-button__link--info:hover,
 .lcms-button__link--light:hover,
-.lcms-button__link--dark:hover {
+.lcms-button__link--dark:hover,
+.lcms-button__link--accent:hover {
   filter: brightness(0.9);
 }
 
@@ -217,6 +219,30 @@
   border-color: var(--lcms-color-info);
 }
 
+.lcms-button__link--outline-light {
+  background-color: transparent;
+  color: var(--lcms-color-light, #f8f9fa);
+  border-color: var(--lcms-color-light, #f8f9fa);
+}
+
+.lcms-button__link--outline-dark {
+  background-color: transparent;
+  color: var(--lcms-color-dark, #343a40);
+  border-color: var(--lcms-color-dark, #343a40);
+}
+
+.lcms-button__link--outline-accent {
+  background-color: transparent;
+  color: var(--lcms-color-accent, #FF6B35);
+  border-color: var(--lcms-color-accent, #FF6B35);
+}
+
+/* Accent solid */
+.lcms-button__link--accent {
+  background-color: var(--lcms-color-accent, #FF6B35);
+  color: var(--lcms-color-white);
+}
+
 /* Outline hover - fill with color */
 .lcms-button__link--outline:hover,
 .lcms-button__link--outline-primary:hover {
@@ -246,6 +272,21 @@
 
 .lcms-button__link--outline-info:hover {
   background-color: var(--lcms-color-info);
+  color: var(--lcms-color-white);
+}
+
+.lcms-button__link--outline-light:hover {
+  background-color: var(--lcms-color-light, #f8f9fa);
+  color: var(--lcms-color-dark, #343a40);
+}
+
+.lcms-button__link--outline-dark:hover {
+  background-color: var(--lcms-color-dark, #343a40);
+  color: var(--lcms-color-white);
+}
+
+.lcms-button__link--outline-accent:hover {
+  background-color: var(--lcms-color-accent, #FF6B35);
   color: var(--lcms-color-white);
 }
 

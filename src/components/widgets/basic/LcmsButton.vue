@@ -53,9 +53,15 @@ const resolvedUrl = computed(() => {
   return buttonUrl.value
 })
 
+const RADIUS_MAP: Record<string, string> = {
+  none: '0', sm: '4px', md: '8px', lg: '12px', pill: '50px'
+}
+
 const buttonInlineStyle = computed(() => {
   const styles: Record<string, string> = {}
-  if (borderRadius.value) styles.borderRadius = `${borderRadius.value}px`
+  if (borderRadius.value) {
+    styles.borderRadius = RADIUS_MAP[borderRadius.value] || `${borderRadius.value}px`
+  }
   if (buttonPadding.value) styles.padding = `${buttonPadding.value}px`
   return styles
 })
