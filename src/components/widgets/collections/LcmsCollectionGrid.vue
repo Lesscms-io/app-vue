@@ -30,8 +30,8 @@ const props = defineProps<Props>()
 const api = useApi()
 const { extractValue, language: currentLanguage } = useLanguage(props.language)
 
-// API returns config in data.config
-const config = computed(() => props.data.config || props.data || {})
+// API returns widget data in data.widget
+const config = computed(() => props.data.widget || props.data || {})
 
 const collectionCode = computed(() => config.value.collection_code || '')
 const layout = computed(() => config.value.layout || config.value.card_style || 'grid')
@@ -193,6 +193,7 @@ const filterField = computed(() => config.value.filter_field || '')
 const filterSource = computed(() => config.value.filter_source || '')
 const filterValue = computed(() => config.value.filter_value || '')
 const filterUrlSegment = computed(() => config.value.filter_url_segment || null)
+const cardStylePreset = computed(() => config.value.card_style || 'default')
 const useCustomLayout = computed(() => config.value.use_custom_layout || false)
 const layoutConfig = computed(() => config.value.layout_config || null)
 
@@ -377,11 +378,74 @@ function updateResponsiveStyle() {
       <span>Loading template...</span>
     </div>
 
-    <!-- Default template rendering -->
+    <!-- Overlay style rendering -->
+    <div
+      v-else-if="cardStylePreset === 'overlay'"
+      class="lcms-collection-grid__items lcms-collection-grid--style-overlay"
+      :class="gridClass"
+      :style="gridStyle"
+    >
+      <article
+        v-for="entry in entries"
+        :key="entry.metadata?.entry_id || entry.metadata?.code"
+        class="lcms-collection-grid__item"
+        :style="{
+          ...cardStyle,
+          backgroundImage: showImage && imageField && getImage(entry) ? `url(${getImage(entry)})` : undefined,
+        }"
+      >
+        <div class="lcms-collection-grid__overlay-gradient" />
+        <div class="lcms-collection-grid__content" :style="{ gap: contentGapPx }">
+          <template v-for="field in fieldOrder" :key="field">
+            <h3
+              v-if="field === 'title' && showTitle"
+              class="lcms-collection-grid__title"
+            >
+              <a :href="getUrl(entry)">{{ getTitle(entry) }}</a>
+            </h3>
+
+            <time
+              v-else-if="field === 'date' && showDate && getDate(entry)"
+              class="lcms-collection-grid__date"
+            >
+              {{ getDate(entry) }}
+            </time>
+
+            <p
+              v-else-if="field === 'excerpt' && showExcerpt && excerptField && getExcerpt(entry)"
+              class="lcms-collection-grid__excerpt"
+            >
+              {{ getExcerpt(entry) }}
+            </p>
+
+            <div
+              v-else-if="field === 'tags' && showTags && getTags(entry).length > 0"
+              class="lcms-collection-grid__tags"
+            >
+              <span
+                v-for="(tag, tagIndex) in getTags(entry)"
+                :key="tagIndex"
+                class="lcms-collection-grid__tag"
+              >{{ tag }}</span>
+            </div>
+
+            <a
+              v-else-if="field === 'read_more' && showReadMore"
+              :href="getUrl(entry)"
+              class="lcms-collection-grid__read-more"
+            >
+              {{ readMoreText }}
+            </a>
+          </template>
+        </div>
+      </article>
+    </div>
+
+    <!-- Default template rendering (default, shadow, bordered, minimal) -->
     <div
       v-else
       class="lcms-collection-grid__items"
-      :class="gridClass"
+      :class="[gridClass, cardStylePreset !== 'default' ? 'lcms-collection-grid--style-' + cardStylePreset : '']"
       :style="gridStyle"
     >
       <article

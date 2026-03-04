@@ -56,7 +56,7 @@ const props = defineProps<Props>()
 const { extractValue } = useLanguage(props.language)
 const api = useApi()
 
-const config = computed(() => props.data.config || props.data || {})
+const config = computed(() => props.data.widget || props.data || {})
 
 const emailTo = computed(() => props.data.email_to || '')
 

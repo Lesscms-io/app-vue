@@ -42,7 +42,7 @@ const props = defineProps<{
   itemIndex?: number
 }>()
 
-const config = computed(() => props.data.config || props.data || {})
+const config = computed(() => props.data.widget || props.data || {})
 
 const displayNumber = computed(() => {
   const idx = props.itemIndex ?? 0

@@ -441,17 +441,12 @@ const columnsHoverCss = computed(() => {
 
 // Get widgets from column content
 function getColumnWidgets(column: any) {
-  // API returns widgets as "content" array with widget_type, uuid, widget, config, settings
+  // API returns widgets as "content" array with widget_type, uuid, widget, settings
   const content = column.content || []
 
   return content.map((item: any, index: number) => {
     // New API format: all data in item.widget (flat)
-    // Legacy fallback: merge item.content + item.config + item.data
-    const widgetData = item.widget || {
-      ...item.content,
-      ...item.config,
-      ...item.data
-    }
+    const widgetData = item.widget || item.data || {}
 
     const result: any = {
       id: item.uuid || `widget-${index}`,

@@ -69,7 +69,7 @@ function resolveMultilingual(data: any): any {
 }
 
 const widgetType = computed(() => props.widget.type || props.widget.widget_type || '')
-const rawWidgetData = computed(() => props.widget.data || props.widget.widget || props.widget.config || {})
+const rawWidgetData = computed(() => props.widget.data || props.widget.widget || {})
 const widgetData = computed(() => resolveMultilingual(rawWidgetData.value))
 const settings = computed(() => getMergedSettings(props.widget.settings as WidgetSettings))
 

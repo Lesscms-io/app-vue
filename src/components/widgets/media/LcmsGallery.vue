@@ -22,8 +22,8 @@ interface Props {
 
 const props = defineProps<Props>()
 
-// API returns config in data.config (snake_case from API)
-const config = computed(() => props.data.config || props.data || {})
+// API returns widget data in data.widget (snake_case from API)
+const config = computed(() => props.data.widget || props.data || {})
 
 const images = computed(() => {
   const imgs = config.value.images || props.data.images || []

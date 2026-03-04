@@ -67,7 +67,7 @@ function resolveColor(val: string | null | undefined): string | null {
 const resolvePageUrl = inject<(code: string | null, uuid: string | null) => string>('lesscms-resolve-page-url', () => '#')
 const resolveCollectionUrl = inject<(collectionCode: string, entryId: string) => string>('lesscms-resolve-collection-url', () => '#')
 
-const config = computed(() => props.data.config || props.data || {})
+const config = computed(() => props.data.widget || props.data || {})
 
 const badge = computed(() => extractValue(config.value.badge) || '')
 const icon = computed(() => {

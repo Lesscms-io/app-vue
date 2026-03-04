@@ -36,7 +36,7 @@ const isHtml = computed(() => {
 
 // Get level from config or data
 const headingLevel = computed(() => {
-  const level = props.data.config?.level || props.data.level || 2
+  const level = props.data.widget?.level || props.data.level || 2
   return `h${level}`
 })
 
@@ -65,7 +65,7 @@ const entryId = computed(() => props.data.entry_id || null)
       v-else
       :is="headingLevel"
       class="lcms-heading__text"
-      :data-level="props.data.config?.level || props.data.level || 2"
+      :data-level="props.data.widget?.level || props.data.level || 2"
     >
       {{ headingContent }}
     </component>

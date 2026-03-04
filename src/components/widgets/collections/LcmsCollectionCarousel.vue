@@ -37,7 +37,7 @@ const excludeEntryId = computed(() => {
   return params.slug || params.entry_id || params.id || Object.values(params)[0] || ''
 })
 
-const config = computed(() => props.data.config || props.data || {})
+const config = computed(() => props.data.widget || props.data || {})
 const collectionCode = computed(() => config.value.collection_code || '')
 const postsCount = computed(() => config.value.posts_count || 10)
 const autoplay = computed(() => config.value.autoplay !== false)

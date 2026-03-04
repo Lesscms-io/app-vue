@@ -171,7 +171,7 @@ const props = defineProps<{
   }
 }>()
 
-const config = computed(() => props.data.config || props.data || {})
+const config = computed(() => props.data.widget || props.data || {})
 
 const collectionCode = computed(() => config.value.collection_code || '')
 const groupByField = computed(() => config.value.group_by_field || '')

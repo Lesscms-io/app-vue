@@ -41,7 +41,7 @@ const props = defineProps<{
   }
 }>()
 
-const config = computed(() => props.data.config || props.data || {})
+const config = computed(() => props.data.widget || props.data || {})
 const text = computed(() => props.data.content?.text || '')
 const iconClass = computed(() => config.value.icon || 'fa-solid fa-circle')
 

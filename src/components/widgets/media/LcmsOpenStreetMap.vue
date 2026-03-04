@@ -34,7 +34,7 @@ const props = defineProps<{
   language?: string
 }>()
 
-const config = computed(() => props.data.config || props.data || {})
+const config = computed(() => props.data.widget || props.data || {})
 const mapContainer = ref<HTMLElement | null>(null)
 let mapInstance: any = null
 let markerInstance: any = null

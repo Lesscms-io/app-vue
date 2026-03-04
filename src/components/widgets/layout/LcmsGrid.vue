@@ -25,8 +25,8 @@ const props = defineProps<Props>()
 const { extractValue } = useLanguage(props.language)
 const { isMobile, isTablet, currentBreakpoint } = useResponsiveSettings()
 
-// API returns config with columns array
-const config = computed(() => props.data.config || props.data || {})
+// API returns widget data with columns array
+const config = computed(() => props.data.widget || props.data || {})
 const columns = computed(() => config.value.columns || [])
 const gap = computed(() => config.value.gap || 16)
 const stackOnMobile = computed(() => config.value.stack_on_mobile !== false)

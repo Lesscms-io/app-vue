@@ -24,7 +24,7 @@ const api = useApi()
 const blockData = ref<Record<string, any> | null>(null)
 const loading = ref(false)
 
-const config = computed(() => props.data.config || props.data || {})
+const config = computed(() => props.data.widget || props.data || {})
 const blockCode = computed(() => config.value.block_code || '')
 
 async function fetchBlock() {

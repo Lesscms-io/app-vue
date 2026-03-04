@@ -30,7 +30,7 @@ const props = defineProps<Props>()
 
 const { extractValue, language: currentLanguage } = useLanguage(props.language)
 
-const config = computed(() => props.data.config || props.data || {})
+const config = computed(() => props.data.widget || props.data || {})
 const content = computed(() => props.data.content || props.data || {})
 
 const title = computed(() => {

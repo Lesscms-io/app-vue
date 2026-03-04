@@ -25,7 +25,7 @@ const props = defineProps<Props>()
 const { extractValue } = useLanguage(props.language)
 const api = useApiOptional()
 
-const config = computed(() => props.data.config || props.data || {})
+const config = computed(() => props.data.widget || props.data || {})
 
 const separator = computed(() => config.value.separator || '/')
 const showHome = computed(() => {
