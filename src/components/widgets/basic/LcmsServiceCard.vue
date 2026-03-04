@@ -1,5 +1,5 @@
 <template>
-  <div class="lcms-service-card" :class="{ 'lcms-service-card--highlighted': highlighted }" :style="cardStyles">
+  <div class="lcms-service-card" :class="cardClasses" :style="cardStyles">
     <!-- Badge -->
     <div v-if="showBadge && badge" class="lcms-service-card__badge" :style="badgeStyles">
       {{ badge }}
@@ -7,7 +7,8 @@
 
     <!-- Icon -->
     <div v-if="icon" class="lcms-service-card__icon" :style="iconStyles">
-      <i :class="icon"></i>
+      <span v-if="isSvgIcon" class="lcms-service-card__svg" v-html="svgContent"></span>
+      <i v-else :class="icon"></i>
     </div>
 
     <!-- Title -->
@@ -22,8 +23,8 @@
 
     <!-- Link -->
     <a
-      v-if="linkText && linkUrl"
-      :href="linkUrl"
+      v-if="linkText && resolvedLinkUrl"
+      :href="resolvedLinkUrl"
       class="lcms-service-card__link"
       :target="linkTargetBlank ? '_blank' : undefined"
       :rel="linkTargetBlank ? 'noopener noreferrer' : undefined"
@@ -34,76 +35,92 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, inject } from 'vue'
 
 const props = defineProps<{
   data: {
     widget_type: string
-    config: {
-      badge?: string
-      icon?: string
-      title?: string
-      description?: string
-      link_text?: string
-      link_url?: string
-      icon_color?: string
-      icon_background?: string
-      badge_color?: string
-      badge_background?: string
-      text_color?: string
-      background_color?: string
-    }
+    config: Record<string, any>
     settings?: Record<string, unknown>
   }
 }>()
+
+// Resolve color variable references (var:primary → var(--lcms-color-primary))
+function resolveColor(val: string | null | undefined): string | null {
+  if (!val) return null
+  if (val.startsWith('var:')) {
+    const parts = val.split(':')
+    const code = parts[1]
+    const opacity = parts.length >= 3 ? parseInt(parts[2]) : 100
+    if (opacity < 100) {
+      return `color-mix(in srgb, var(--lcms-color-${code}) ${opacity}%, transparent)`
+    }
+    return `var(--lcms-color-${code})`
+  }
+  return val
+}
+
+const resolvePageUrl = inject<(code: string | null, uuid: string | null) => string>('lesscms-resolve-page-url', () => '#')
 
 const config = computed(() => props.data.config || props.data || {})
 
 const badge = computed(() => config.value.badge || '')
 const icon = computed(() => config.value.icon || '')
+const isSvgIcon = computed(() => (icon.value || '').startsWith('svg:'))
+const svgContent = computed(() => isSvgIcon.value ? icon.value.slice(4) : '')
 const title = computed(() => config.value.title || '')
 const description = computed(() => config.value.description || '')
 const linkText = computed(() => config.value.link_text || '')
-const linkUrl = computed(() => config.value.link_url || '')
-const highlighted = computed(() => config.value.highlighted || false)
-const linkType = computed(() => config.value.link_type || 'url')
-const linkPageId = computed(() => config.value.link_page_id || '')
-const linkCollectionCode = computed(() => config.value.link_collection_code || '')
-const linkEntryId = computed(() => config.value.link_entry_id || '')
-const linkRouteUuid = computed(() => config.value.link_route_uuid || '')
 const linkTargetBlank = computed(() => config.value.link_target_blank || false)
 const showBadge = computed(() => config.value.show_badge !== false)
 
+// Resolve link URL based on link_type
+const resolvedLinkUrl = computed(() => {
+  const linkType = config.value.link_type || 'url'
+  if (linkType === 'page' && config.value.link_page_id) {
+    return resolvePageUrl(null, config.value.link_page_id)
+  }
+  if (linkType === 'url' || linkType === 'custom') {
+    return config.value.link_url || ''
+  }
+  // Fallback
+  return config.value.link_url || ''
+})
+
+// Highlighted state from item_settings or config
+const isHighlighted = computed(() => {
+  return config.value.item_settings?.highlight || config.value.highlighted || false
+})
+
+const cardClasses = computed(() => ({
+  'lcms-service-card--highlighted': isHighlighted.value,
+  'lcms-service-card--has-bg': !!config.value.background_color
+}))
+
 const cardStyles = computed(() => {
   const styles: Record<string, string> = {}
-  if (config.value.background_color) {
-    styles.backgroundColor = config.value.background_color
-  }
-  if (config.value.text_color) {
-    styles.color = config.value.text_color
-  }
+  const bg = resolveColor(config.value.background_color)
+  if (bg) styles.backgroundColor = bg
+  const txt = resolveColor(config.value.text_color)
+  if (txt) styles.color = txt
   return styles
 })
 
 const iconStyles = computed(() => {
   const styles: Record<string, string> = {}
-  if (config.value.icon_color) {
-    styles.color = config.value.icon_color
-  }
-  if (config.value.icon_background) {
-    styles.backgroundColor = config.value.icon_background
-  }
+  const color = resolveColor(config.value.icon_color)
+  if (color) styles.color = color
+  const bg = resolveColor(config.value.icon_background)
+  if (bg) styles.backgroundColor = bg
   return styles
 })
 
 const badgeStyles = computed(() => {
   const styles: Record<string, string> = {}
-  if (config.value.badge_color) {
-    styles.color = config.value.badge_color
-  }
-  if (config.value.badge_background) {
-    styles.backgroundColor = config.value.badge_background
-  }
+  const color = resolveColor(config.value.badge_color)
+  if (color) styles.color = color
+  const bg = resolveColor(config.value.badge_background)
+  if (bg) styles.backgroundColor = bg
   return styles
 })
 </script>
@@ -113,11 +130,11 @@ const badgeStyles = computed(() => {
   display: flex;
   flex-direction: column;
   padding: 2rem;
-  background: var(--lcms-light, #fff);
+  background: var(--lcms-color-white, #fff);
   border-radius: 1rem;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   position: relative;
-  transition: box-shadow 0.2s ease;
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
 }
 
 .lcms-service-card:hover {
@@ -125,21 +142,28 @@ const badgeStyles = computed(() => {
 }
 
 .lcms-service-card--highlighted {
-  border: 2px solid #50a5f1;
+  border: 2px solid var(--lcms-color-primary, #50a5f1);
+}
+
+.lcms-service-card--has-bg .lcms-service-card__icon {
+  background: rgba(255, 255, 255, 0.15);
+  color: inherit;
 }
 
 .lcms-service-card__badge {
   position: absolute;
-  top: 1rem;
-  right: 1rem;
+  top: -0.75rem;
+  left: 50%;
+  transform: translateX(-50%);
   padding: 0.375rem 0.75rem;
-  background: #4ade80;
-  color: #1a4d3e;
-  font-size: 0.75rem;
-  font-weight: 600;
+  background: var(--lcms-color-accent, #4ade80);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
   text-transform: uppercase;
   border-radius: 9999px;
-  letter-spacing: 0.025em;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
 }
 
 .lcms-service-card__icon {
@@ -148,11 +172,30 @@ const badgeStyles = computed(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #e8f5e9;
-  color: #2e7d32;
+  background: var(--lcms-color-gray-100, #e8f5e9);
+  color: var(--lcms-color-primary, #2e7d32);
   border-radius: 0.75rem;
   font-size: 1.5rem;
   margin-bottom: 1.25rem;
+}
+
+.lcms-service-card__svg {
+  display: inline-flex;
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.lcms-service-card__svg :deep(svg) {
+  width: 100%;
+  height: 100%;
+}
+
+.lcms-service-card__svg :deep(svg[fill="none"]) {
+  fill: none;
+}
+
+.lcms-service-card__svg :deep(svg:not([fill])) {
+  fill: currentColor;
 }
 
 .lcms-service-card__title {

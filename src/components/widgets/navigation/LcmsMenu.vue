@@ -61,6 +61,25 @@ const ctaBorderRadius = computed(() => props.data.cta_border_radius || null)
 const ctaPadding = computed(() => props.data.cta_padding || null)
 const ctaIcon = computed(() => props.data.cta_icon || '')
 const ctaIconPosition = computed(() => props.data.cta_icon_position || 'left')
+const isCtaSvgIcon = computed(() => ctaIcon.value.startsWith('svg:'))
+const ctaSvgContent = computed(() => isCtaSvgIcon.value ? ctaIcon.value.slice(4) : '')
+
+const ctaInlineStyle = computed(() => {
+  const style: Record<string, string> = {}
+  if (ctaBorderRadius.value === 'pill') {
+    style.borderRadius = '50px'
+  } else if (ctaBorderRadius.value === 'lg') {
+    style.borderRadius = '12px'
+  } else if (ctaBorderRadius.value === 'sm') {
+    style.borderRadius = '2px'
+  }
+  if (ctaPadding.value) {
+    style.padding = ctaPadding.value
+  }
+  return style
+})
+
+const hasLogo = computed(() => !!(logoLight.value || logoDark.value))
 
 function hexToRgba(hex: string, opacity: number): string {
   const r = parseInt(hex.slice(1, 3), 16)
@@ -198,6 +217,20 @@ function getItemTarget(item: MenuItem): string | undefined {
     </div>
 
     <template v-else>
+      <!-- Logo (before hamburger in markup for left position) -->
+      <a
+        v-if="hasLogo && logoPosition === 'left'"
+        href="/"
+        class="lcms-menu__logo lcms-menu__logo--left"
+      >
+        <img
+          :src="logoLight || logoDark"
+          :style="{ height: `${logoHeight}px` }"
+          alt="Logo"
+          class="lcms-menu__logo-img"
+        >
+      </a>
+
       <!-- Hamburger toggle button -->
       <button
         v-if="isHamburgerMode"
@@ -218,6 +251,20 @@ function getItemTarget(item: MenuItem): string | undefined {
         class="lcms-menu__panel"
         :class="{ 'lcms-menu__panel--open': hamburgerOpen || !isHamburgerMode }"
       >
+        <!-- Logo (center position) -->
+        <a
+          v-if="hasLogo && logoPosition === 'center'"
+          href="/"
+          class="lcms-menu__logo lcms-menu__logo--center"
+        >
+          <img
+            :src="logoLight || logoDark"
+            :style="{ height: `${logoHeight}px` }"
+            alt="Logo"
+            class="lcms-menu__logo-img"
+          >
+        </a>
+
         <ul class="lcms-menu__list">
           <li
             v-for="item in items"
@@ -262,19 +309,90 @@ function getItemTarget(item: MenuItem): string | undefined {
           v-if="ctaText"
           :href="ctaUrl"
           class="lcms-menu__cta"
-          :class="`lcms-menu__cta--${ctaStyle}`"
+          :class="[
+            `lcms-menu__cta--${ctaStyle}`,
+            `lcms-menu__cta--size-${ctaSize}`
+          ]"
+          :style="ctaInlineStyle"
           :target="ctaTargetBlank ? '_blank' : undefined"
           :rel="ctaTargetBlank ? 'noopener noreferrer' : undefined"
           @click="handleLinkClick"
         >
+          <span v-if="isCtaSvgIcon && ctaIconPosition === 'left'" class="lcms-menu__cta-icon lcms-menu__cta-icon--left lcms-menu__cta-svg" v-html="ctaSvgContent" />
+          <i v-else-if="ctaIcon && ctaIconPosition === 'left'" :class="ctaIcon" class="lcms-menu__cta-icon lcms-menu__cta-icon--left" />
           {{ ctaText }}
+          <span v-if="isCtaSvgIcon && ctaIconPosition === 'right'" class="lcms-menu__cta-icon lcms-menu__cta-icon--right lcms-menu__cta-svg" v-html="ctaSvgContent" />
+          <i v-else-if="ctaIcon && ctaIconPosition === 'right'" :class="ctaIcon" class="lcms-menu__cta-icon lcms-menu__cta-icon--right" />
         </a>
       </div>
+
+      <!-- Logo (right position) -->
+      <a
+        v-if="hasLogo && logoPosition === 'right'"
+        href="/"
+        class="lcms-menu__logo lcms-menu__logo--right"
+      >
+        <img
+          :src="logoLight || logoDark"
+          :style="{ height: `${logoHeight}px` }"
+          alt="Logo"
+          class="lcms-menu__logo-img"
+        >
+      </a>
     </template>
   </nav>
 </template>
 
 <style scoped>
+/* ===========================
+   Logo
+   =========================== */
+.lcms-menu__logo {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+
+.lcms-menu__logo-img {
+  display: block;
+  width: auto;
+  object-fit: contain;
+}
+
+/* ===========================
+   CTA icon
+   =========================== */
+.lcms-menu__cta-icon--left {
+  margin-right: 6px;
+}
+
+.lcms-menu__cta-icon--right {
+  margin-left: 6px;
+}
+
+.lcms-menu__cta-svg {
+  display: inline-flex;
+  align-items: center;
+}
+
+.lcms-menu__cta-svg :deep(svg) {
+  width: 1em;
+  height: 1em;
+  fill: currentColor;
+}
+
+/* CTA sizes */
+.lcms-menu__cta--size-sm {
+  padding: 4px 12px;
+  font-size: 0.85em;
+}
+
+.lcms-menu__cta--size-lg {
+  padding: 12px 28px;
+  font-size: 1.1em;
+}
+
 /* ===========================
    Hamburger button
    =========================== */
@@ -363,21 +481,21 @@ function getItemTarget(item: MenuItem): string | undefined {
 }
 
 .lcms-menu__cta--primary {
-  background-color: var(--lcms-primary, #3B82F6);
+  background-color: var(--lcms-color-primary, #3B82F6);
   color: #fff;
-  border: 1px solid var(--lcms-primary, #3B82F6);
+  border: 1px solid var(--lcms-color-primary, #3B82F6);
 }
 
 .lcms-menu__cta--secondary {
-  background-color: var(--lcms-secondary, #64748B);
+  background-color: var(--lcms-color-secondary, #64748B);
   color: #fff;
-  border: 1px solid var(--lcms-secondary, #64748B);
+  border: 1px solid var(--lcms-color-secondary, #64748B);
 }
 
 .lcms-menu__cta--outline {
   background-color: transparent;
-  color: var(--lcms-primary, #3B82F6);
-  border: 1px solid var(--lcms-primary, #3B82F6);
+  color: var(--lcms-color-primary, #3B82F6);
+  border: 1px solid var(--lcms-color-primary, #3B82F6);
 }
 
 .lcms-menu--vertical .lcms-menu__cta {

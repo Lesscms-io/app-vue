@@ -1215,6 +1215,20 @@
    Menu Widget
    ========================================================================== */
 
+.lcms-menu--horizontal {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+}
+
+.lcms-menu--horizontal .lcms-menu__panel {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  gap: 16px;
+}
+
 .lcms-menu__list {
   display: flex;
   flex-wrap: wrap;
@@ -1224,6 +1238,7 @@
 }
 
 .lcms-menu--horizontal .lcms-menu__list {
+  flex: 1;
   gap: var(--lcms-spacing-6);
 }
 

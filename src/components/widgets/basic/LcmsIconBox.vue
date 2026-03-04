@@ -11,6 +11,21 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
+function resolveColor(val: string | null | undefined): string | null {
+  if (!val) return null
+  if (val === 'transparent') return 'transparent'
+  if (val.startsWith('var:')) {
+    const parts = val.split(':')
+    const code = parts[1]
+    const opacity = parts.length >= 3 ? parseInt(parts[2]) : 100
+    if (opacity < 100) {
+      return `color-mix(in srgb, var(--lcms-color-${code}) ${opacity}%, transparent)`
+    }
+    return `var(--lcms-color-${code})`
+  }
+  return val
+}
+
 const props = defineProps<{
   data: {
     widget_type: string
@@ -61,11 +76,13 @@ const iconStyles = computed(() => {
   if (config.value.icon_size) {
     styles.fontSize = `${config.value.icon_size}px`
   }
-  if (config.value.icon_color) {
-    styles.color = config.value.icon_color
+  const color = resolveColor(config.value.icon_color)
+  if (color) {
+    styles.color = color
   }
-  if (config.value.icon_background) {
-    styles.backgroundColor = config.value.icon_background
+  const bg = resolveColor(config.value.icon_background)
+  if (bg) {
+    styles.backgroundColor = bg
   }
   if (iconPadding.value) {
     styles.padding = `${iconPadding.value}px`

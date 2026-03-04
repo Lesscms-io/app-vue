@@ -33,6 +33,8 @@ const borderRadius = computed(() => props.data.border_radius || '')
 const buttonPadding = computed(() => props.data.padding || '')
 const buttonIcon = computed(() => props.data.icon || '')
 const iconPosition = computed(() => props.data.icon_position || 'left')
+const isSvgIcon = computed(() => buttonIcon.value.startsWith('svg:'))
+const svgContent = computed(() => isSvgIcon.value ? buttonIcon.value.slice(4) : '')
 const pageUuid = computed(() => props.data.page_uuid || '')
 const pageCode = computed(() => props.data.page_code || '')
 const routeUuid = computed(() => props.data.route_uuid || '')
@@ -61,9 +63,32 @@ const buttonInlineStyle = computed(() => {
       :target="targetBlank ? '_blank' : undefined"
       :rel="targetBlank ? 'noopener noreferrer' : undefined"
     >
-      <i v-if="buttonIcon && iconPosition === 'left'" :class="buttonIcon" style="margin-right: 6px;" />
+      <span v-if="isSvgIcon && iconPosition === 'left'" class="lcms-button__svg lcms-button__svg--left" v-html="svgContent" />
+      <i v-else-if="buttonIcon && iconPosition === 'left'" :class="buttonIcon" style="margin-right: 6px;" />
       {{ buttonText }}
-      <i v-if="buttonIcon && iconPosition === 'right'" :class="buttonIcon" style="margin-left: 6px;" />
+      <span v-if="isSvgIcon && iconPosition === 'right'" class="lcms-button__svg lcms-button__svg--right" v-html="svgContent" />
+      <i v-else-if="buttonIcon && iconPosition === 'right'" :class="buttonIcon" style="margin-left: 6px;" />
     </a>
   </div>
 </template>
+
+<style scoped>
+.lcms-button__svg {
+  display: inline-flex;
+  align-items: center;
+}
+
+.lcms-button__svg--left {
+  margin-right: 6px;
+}
+
+.lcms-button__svg--right {
+  margin-left: 6px;
+}
+
+.lcms-button__svg :deep(svg) {
+  width: 1em;
+  height: 1em;
+  fill: currentColor;
+}
+</style>

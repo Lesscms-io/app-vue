@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { Component } from 'vue'
+import { useLanguage } from '@/composables/useLanguage'
 
 interface MultiItemData {
   widget_type: string
@@ -28,6 +29,34 @@ const props = withDefaults(defineProps<Props>(), {
   language: 'pl',
   settings: () => ({})
 })
+
+const { extractValue } = useLanguage(props.language)
+
+/**
+ * Resolve multilingual values in item data.
+ * Converts { "pl": "text" } → "text" based on current language.
+ */
+function resolveMultilingual(data: any): any {
+  if (data === null || data === undefined) return data
+  if (typeof data !== 'object') return data
+  if (Array.isArray(data)) return data.map(resolveMultilingual)
+
+  const result: Record<string, any> = {}
+  for (const [key, value] of Object.entries(data)) {
+    if (value !== null && value !== undefined && typeof value === 'object' && !Array.isArray(value)) {
+      const keys = Object.keys(value as object)
+      const isLangMap = keys.length > 0 && keys.length <= 10 && keys.every(k => /^[a-z]{2,3}$/.test(k))
+      if (isLangMap) {
+        result[key] = extractValue(value as Record<string, string>)
+      } else {
+        result[key] = value
+      }
+    } else {
+      result[key] = value
+    }
+  }
+  return result
+}
 
 // Helper to convert hex color to rgba with opacity
 const hexToRgba = (hex: string, opacity: number): string => {
@@ -94,18 +123,22 @@ const getItemStyle = (item: MultiItemData): Record<string, string> => {
 }
 
 // Compute flat data object for each item, preferring new `widget` key
+// Also resolves multilingual values to current language
 const getItemData = (item: MultiItemData) => {
+  let raw: Record<string, unknown>
   if (item.widget) {
-    return { widget_type: item.widget_type, ...item.widget, item_settings: item.item_settings }
+    raw = { widget_type: item.widget_type, ...item.widget, item_settings: item.item_settings }
+  } else {
+    // API format: merge config + content + data into flat object
+    raw = {
+      widget_type: item.widget_type,
+      ...(item.config as Record<string, unknown> || {}),
+      ...(item.content as Record<string, unknown> || {}),
+      ...(item.data as Record<string, unknown> || {}),
+      item_settings: item.item_settings
+    }
   }
-  // API format: merge config + content + data into flat object
-  return {
-    widget_type: item.widget_type,
-    ...(item.config as Record<string, unknown> || {}),
-    ...(item.content as Record<string, unknown> || {}),
-    ...(item.data as Record<string, unknown> || {}),
-    item_settings: item.item_settings
-  }
+  return resolveMultilingual(raw)
 }
 
 const gridStyle = computed(() => {

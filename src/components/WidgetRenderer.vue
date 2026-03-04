@@ -13,6 +13,7 @@ import { getWidgetComponent, isWidgetSupported } from './widgets'
 import LcmsMultiItemWrapper from './widgets/LcmsMultiItemWrapper.vue'
 import { useResponsiveSettings } from '@/composables/useResponsiveSettings'
 import { useScrollAnimation } from '@/composables/useScrollAnimation'
+import { useLanguage } from '@/composables/useLanguage'
 import type { Widget, WidgetSettings } from '@/api/types'
 
 interface HoverSettings {
@@ -35,9 +36,40 @@ interface Props {
 const props = defineProps<Props>()
 
 const { getMergedSettings, isHidden, currentBreakpoint } = useResponsiveSettings()
+const { extractValue, isMultilingual } = useLanguage(props.language)
+
+/**
+ * Recursively resolve multilingual values in widget data.
+ * Converts { "pl": "text", "en": "text" } → "text" based on current language.
+ * Only resolves shallow object values that look like language maps (2-3 char keys).
+ */
+function resolveMultilingual(data: any): any {
+  if (data === null || data === undefined) return data
+  if (typeof data !== 'object') return data
+  if (Array.isArray(data)) return data.map(resolveMultilingual)
+
+  const result: Record<string, any> = {}
+  for (const [key, value] of Object.entries(data)) {
+    if (value !== null && value !== undefined && typeof value === 'object' && !Array.isArray(value)) {
+      // Check if this looks like a multilingual object (keys are 2-3 char language codes)
+      const keys = Object.keys(value as object)
+      const isLangMap = keys.length > 0 && keys.length <= 10 && keys.every(k => /^[a-z]{2,3}$/.test(k))
+      if (isLangMap) {
+        result[key] = extractValue(value as Record<string, string>)
+      } else {
+        // Recurse into nested objects (but not too deep)
+        result[key] = value
+      }
+    } else {
+      result[key] = value
+    }
+  }
+  return result
+}
 
 const widgetType = computed(() => props.widget.type || props.widget.widget_type || '')
-const widgetData = computed(() => props.widget.data || props.widget.widget || props.widget.config || {})
+const rawWidgetData = computed(() => props.widget.data || props.widget.widget || props.widget.config || {})
+const widgetData = computed(() => resolveMultilingual(rawWidgetData.value))
 const settings = computed(() => getMergedSettings(props.widget.settings as WidgetSettings))
 
 // Generate unique ID for widget (used for hover CSS selectors)
