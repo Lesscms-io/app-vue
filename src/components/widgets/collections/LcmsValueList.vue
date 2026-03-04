@@ -145,6 +145,9 @@ const itemStyle = computed(() => {
   if (config.value.tag_bg_color) s.background = config.value.tag_bg_color
   if (config.value.tag_border_color) s.borderColor = config.value.tag_border_color
   if (config.value.tag_text_color) s.color = config.value.tag_text_color
+  if (config.value.tag_padding) s.padding = config.value.tag_padding
+  if (config.value.tag_font_size) s.fontSize = config.value.tag_font_size
+  if (config.value.tag_border_radius) s.borderRadius = config.value.tag_border_radius
   return s
 })
 
@@ -155,12 +158,18 @@ const moreStyle = computed(() => {
   return s
 })
 
+const itemsGap = computed(() => config.value.items_gap || '')
+
 const columnsStyle = computed(() => {
-  if (columns.value <= 1) return {}
+  const gap = itemsGap.value || '8px'
+  if (columns.value <= 1) {
+    if (itemsGap.value) return { gap: itemsGap.value }
+    return {}
+  }
   return {
     display: 'grid',
     gridTemplateColumns: `repeat(${columns.value}, 1fr)`,
-    gap: '8px 16px'
+    gap: `${gap} 16px`
   }
 })
 
@@ -211,7 +220,7 @@ function sortItems(items: ValueItem[]): ValueItem[] {
       if (!valField) continue
       const vals = Array.isArray(valField) ? valField : [valField]
       for (const v of vals) {
-        const code = typeof v === 'object' && v?.code ? v.code : String(v)
+        const code = typeof v === 'object' && v?.code ? v.code : extractLabel(v)
         if (!sortKeyMap.has(code)) {
           let key = ''
           if (sortVal && typeof sortVal === 'object' && sortVal.code) {
@@ -236,13 +245,26 @@ function sortItems(items: ValueItem[]): ValueItem[] {
 
 function extractLabel(item: any): string {
   if (typeof item === 'string') return item
+  // Enriched select option: { code, value, value_translation }
   if (item?.value_translation) {
     const lang = document.documentElement.lang || 'pl'
+    if (typeof item.value_translation === 'string') return item.value_translation
     if (item.value_translation[lang]) return item.value_translation[lang]
     const vals = Object.values(item.value_translation) as string[]
     if (vals.length > 0 && vals[0]) return vals[0]
   }
-  return item?.value || item?.code || String(item)
+  if (item?.value || item?.code) {
+    return item.value || item.code
+  }
+  // Multilingual object: { pl: "...", en: "..." }
+  if (typeof item === 'object' && item !== null) {
+    const lang = document.documentElement.lang || 'pl'
+    if (item[lang]) return item[lang]
+    if (item.pl) return item.pl
+    const vals = Object.values(item).filter(v => v != null && v !== '') as string[]
+    if (vals.length > 0 && typeof vals[0] === 'string') return vals[0]
+  }
+  return String(item)
 }
 
 const filteredEntries = computed(() => {
@@ -260,8 +282,8 @@ const values = computed<ValueItem[]>(() => {
 
     const items = Array.isArray(fieldValue) ? fieldValue : [fieldValue]
     for (const item of items) {
-      const code = typeof item === 'object' && item?.code ? item.code : String(item)
       const label = extractLabel(item)
+      const code = typeof item === 'object' && item?.code ? item.code : label
       if (valueMap.has(code)) {
         valueMap.get(code)!.count = (valueMap.get(code)!.count || 0) + 1
       } else {
@@ -317,8 +339,8 @@ const groupedValues = computed<GroupedValues[] | null>(() => {
 
     const items = Array.isArray(fieldValue) ? fieldValue : [fieldValue]
     for (const item of items) {
-      const code = typeof item === 'object' && item?.code ? item.code : String(item)
       const label = extractLabel(item)
+      const code = typeof item === 'object' && item?.code ? item.code : label
       if (group.valuesMap.has(code)) {
         group.valuesMap.get(code)!.count = (group.valuesMap.get(code)!.count || 0) + 1
       } else {
@@ -395,7 +417,7 @@ watch([collectionCode, valueField], () => {
 .lcms-value-list--tags .lcms-value-list__item,
 .lcms-value-list--buttons .lcms-value-list__item {
   background: #f0f0f0;
-  padding: 0.25rem 0.75rem;
+  padding: 0.35rem 0.85rem;
   border-radius: 1rem;
   font-size: 0.875rem;
   border: 1px solid transparent;

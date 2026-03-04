@@ -100,6 +100,23 @@ const fieldValue = computed(() => {
   return value
 })
 
+// Extract display text from enriched select/multiselect option objects
+function extractOptionLabel(option: any): string {
+  if (!option || typeof option !== 'object') return String(option ?? '')
+  // Enriched option: { code, value, value_translation }
+  if (option.value_translation) {
+    // value_translation may be an object {pl: "...", en: "..."} or already resolved to a string
+    if (typeof option.value_translation === 'string') {
+      return option.value_translation
+    }
+    if (typeof option.value_translation === 'object') {
+      const translated = option.value_translation[currentLanguage.value]
+      if (translated) return translated
+    }
+  }
+  return option.value || option.label || option.code || ''
+}
+
 // Format value based on field type
 const formattedValue = computed(() => {
   const val = fieldValue.value
@@ -114,6 +131,14 @@ const formattedValue = computed(() => {
     case 'boolean':
       return val ? 'Yes' : 'No'
     default:
+      // Handle arrays (select/multiselect enriched values)
+      if (Array.isArray(val)) {
+        return val.map(item => extractOptionLabel(item)).filter(Boolean).join(', ')
+      }
+      // Handle single enriched option object
+      if (typeof val === 'object' && val !== null && (val.code || val.value)) {
+        return extractOptionLabel(val)
+      }
       return String(val)
   }
 })
