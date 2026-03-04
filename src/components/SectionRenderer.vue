@@ -346,16 +346,18 @@ function getColumnStyle(column: PageColumn) {
 
   if (s.boxShadow) style.boxShadow = s.boxShadow
 
-  // Alignment - column needs height to make vertical alignment work
+  // Alignment - column uses flex-direction: column, so:
+  //   justify-content = vertical axis (main axis)
+  //   align-items = horizontal axis (cross axis)
   if (s.verticalAlign) {
-    style.justifyContent = s.verticalAlign
+    style.justifyContent = mapFlexAlign(s.verticalAlign)
     // Column needs height for justify-content to work
     if (!s.columnHeight && !s.minHeight) {
       style.height = '100%'
     }
   }
   if (s.horizontalAlign) {
-    style.alignItems = s.horizontalAlign
+    style.alignItems = mapFlexAlign(s.horizontalAlign)
   }
 
   // Height
@@ -371,6 +373,18 @@ function getColumnStyle(column: PageColumn) {
   }
 
   return style
+}
+
+// Get alignment CSS class for column (controls child widget width behavior)
+function getColumnAlignClass(column: PageColumn): string {
+  const s = getMergedSettings(column.settings as ColumnSettings)
+  const align = s.horizontalAlign
+  if (!align || align === 'stretch') return ''
+  const resolved = mapFlexAlign(align)
+  if (resolved === 'center') return 'lcms-section__column--align-center'
+  if (resolved === 'flex-start') return 'lcms-section__column--align-start'
+  if (resolved === 'flex-end') return 'lcms-section__column--align-end'
+  return ''
 }
 
 // Generate unique ID for column
@@ -540,6 +554,19 @@ function resolveColorOpacity(color: string): string {
   }
   return color
 }
+
+function mapFlexAlign(value: string): string {
+  const map: Record<string, string> = {
+    'left': 'flex-start',
+    'top': 'flex-start',
+    'center': 'center',
+    'right': 'flex-end',
+    'bottom': 'flex-end',
+    'flex-start': 'flex-start',
+    'flex-end': 'flex-end'
+  }
+  return map[value] || value
+}
 </script>
 
 <template>
@@ -571,7 +598,10 @@ function resolveColorOpacity(color: string): string {
         :key="column.id || colIndex"
         :id="column.settings?.cssId || getColumnId(column, colIndex)"
         class="lcms-section__column"
-        :class="{ 'lcms-hidden': isColumnHidden(column) }"
+        :class="[
+          { 'lcms-hidden': isColumnHidden(column) },
+          getColumnAlignClass(column)
+        ]"
         :style="getColumnStyle(column)"
         :data-column-index="colIndex"
       >

@@ -274,7 +274,7 @@ const widgetStyle = computed(() => {
   // Alignment
   if (s.horizontalAlign && s.horizontalAlign !== 'stretch') {
     style.display = 'flex'
-    style.justifyContent = s.horizontalAlign
+    style.justifyContent = mapHorizontalAlign(s.horizontalAlign)
   }
 
   if (s.verticalAlign) {
@@ -363,6 +363,17 @@ function mapVerticalAlign(value: string): string {
     'top': 'flex-start',
     'center': 'center',
     'bottom': 'flex-end',
+    'flex-start': 'flex-start',
+    'flex-end': 'flex-end'
+  }
+  return map[value] || value
+}
+
+function mapHorizontalAlign(value: string): string {
+  const map: Record<string, string> = {
+    'left': 'flex-start',
+    'center': 'center',
+    'right': 'flex-end',
     'flex-start': 'flex-start',
     'flex-end': 'flex-end'
   }

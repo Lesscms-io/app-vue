@@ -71,6 +71,23 @@
   width: 100%;
 }
 
+/* When column has non-stretch horizontal alignment, widgets should shrink to content width */
+.lcms-section__column--align-center .lcms-widget,
+.lcms-section__column--align-start .lcms-widget,
+.lcms-section__column--align-end .lcms-widget {
+  width: auto;
+}
+
+/* Widgets that must always stretch to full width regardless of column alignment */
+.lcms-section__column--align-center .lcms-widget--menu,
+.lcms-section__column--align-start .lcms-widget--menu,
+.lcms-section__column--align-end .lcms-widget--menu,
+.lcms-section__column--align-center .lcms-widget--grid,
+.lcms-section__column--align-start .lcms-widget--grid,
+.lcms-section__column--align-end .lcms-widget--grid {
+  width: 100%;
+}
+
 .lcms-widget__unsupported {
   padding: var(--lcms-spacing-4);
   background-color: var(--lcms-color-gray-100);
