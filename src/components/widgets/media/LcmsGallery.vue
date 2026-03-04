@@ -38,7 +38,11 @@ const images = computed(() => {
 // Gallery settings - handle both snake_case (API) and camelCase
 const galleryType = computed(() => config.value.type || props.data.type || 'grid')
 const columns = computed(() => config.value.columns || props.data.columns || 3)
-const gap = computed(() => config.value.gap || props.data.gap || 8)
+const gap = computed(() => {
+  const v = config.value.gap ?? props.data.gap
+  if (v === 0 || v === '0') return 0
+  return parseInt(String(v)) || 8
+})
 const aspect = computed(() => config.value.aspect || props.data.aspect || 'square')
 const carouselStyle = computed(() => config.value.carousel_style || config.value.carouselStyle || 'default')
 
@@ -75,8 +79,8 @@ const collectionCode = computed(() => config.value.collection_code || null)
 const fieldCode = computed(() => config.value.field_code || null)
 const entryId = computed(() => config.value.entry_id || null)
 
-// Additional display settings (for future features)
-const mosaicVariant = computed(() => config.value.mosaic_variant || 'default')
+// Mosaic settings
+const mosaicVariant = computed(() => config.value.mosaic_variant || config.value.mosaicVariant || 'featured')
 const loopCarousel = computed(() => config.value.loop !== false)
 
 // Carousel state
@@ -222,7 +226,8 @@ const lightboxImage = computed(() => images.value[lightboxIndex.value])
     class="lcms-gallery"
     :class="[
       `lcms-gallery--${galleryType}`,
-      galleryType === 'carousel' ? `lcms-gallery--${carouselStyle}` : ''
+      galleryType === 'carousel' ? `lcms-gallery--${carouselStyle}` : '',
+      galleryType === 'mosaic' ? `lcms-gallery--mosaic-${mosaicVariant}` : ''
     ]"
   >
     <!-- Grid Mode -->
@@ -247,9 +252,87 @@ const lightboxImage = computed(() => images.value[lightboxIndex.value])
       </div>
     </div>
 
+    <!-- Mosaic Mode - Featured (first image spans 2 rows) -->
+    <div
+      v-else-if="galleryType === 'mosaic' && mosaicVariant === 'featured'"
+      class="lcms-gallery__mosaic lcms-gallery__mosaic--featured"
+      :style="{ gap: `${gap}px` }"
+    >
+      <div
+        v-for="(image, index) in images"
+        :key="index"
+        class="lcms-gallery__mosaic-item"
+        :class="{ 'lcms-gallery__mosaic-item--large': index === 0 }"
+        :style="enableLightbox ? { cursor: 'pointer' } : undefined"
+        @click="openLightbox(index)"
+      >
+        <img :src="image.url" :alt="image.alt || ''" class="lcms-gallery__img">
+      </div>
+    </div>
+
+    <!-- Mosaic Mode - Alternating (every 3rd item spans 2 columns) -->
+    <div
+      v-else-if="galleryType === 'mosaic' && mosaicVariant === 'alternating'"
+      class="lcms-gallery__mosaic lcms-gallery__mosaic--alternating"
+      :style="{ gap: `${gap}px` }"
+    >
+      <div
+        v-for="(image, index) in images"
+        :key="index"
+        class="lcms-gallery__mosaic-item"
+        :class="{ 'lcms-gallery__mosaic-item--wide': index % 3 === 0 }"
+        :style="enableLightbox ? { cursor: 'pointer' } : undefined"
+        @click="openLightbox(index)"
+      >
+        <img :src="image.url" :alt="image.alt || ''" class="lcms-gallery__img">
+      </div>
+    </div>
+
+    <!-- Mosaic Mode - Masonry (CSS columns) -->
+    <div
+      v-else-if="galleryType === 'mosaic' && mosaicVariant === 'masonry'"
+      class="lcms-gallery__mosaic lcms-gallery__mosaic--masonry"
+      :style="{ columnCount: columns, columnGap: `${gap}px` }"
+    >
+      <div
+        v-for="(image, index) in images"
+        :key="index"
+        class="lcms-gallery__masonry-item"
+        :style="{ marginBottom: `${gap}px`, cursor: enableLightbox ? 'pointer' : undefined }"
+        @click="openLightbox(index)"
+      >
+        <img :src="image.url" :alt="image.alt || ''" class="lcms-gallery__img">
+      </div>
+    </div>
+
+    <!-- Mosaic Mode - Collage (overlapping cards) -->
+    <div
+      v-else-if="galleryType === 'mosaic' && mosaicVariant === 'collage'"
+      class="lcms-gallery__mosaic lcms-gallery__mosaic--collage"
+    >
+      <div
+        v-if="images.length > 0"
+        class="lcms-gallery__collage-main"
+        :style="enableLightbox ? { cursor: 'pointer' } : undefined"
+        @click="openLightbox(0)"
+      >
+        <img :src="images[0].url" :alt="images[0].alt || ''" class="lcms-gallery__img">
+      </div>
+      <div
+        v-for="(image, index) in images.slice(1, 5)"
+        :key="index + 1"
+        class="lcms-gallery__collage-overlay"
+        :class="`lcms-gallery__collage-overlay--pos-${index}`"
+        :style="enableLightbox ? { cursor: 'pointer' } : undefined"
+        @click="openLightbox(index + 1)"
+      >
+        <img :src="image.url" :alt="image.alt || ''" class="lcms-gallery__img">
+      </div>
+    </div>
+
     <!-- Carousel Mode - Default/Fade -->
     <div
-      v-else-if="carouselStyle !== 'coverflow'"
+      v-else-if="galleryType === 'carousel' && carouselStyle !== 'coverflow'"
       class="lcms-gallery__carousel"
       @mouseenter="stopAutoplay"
       @mouseleave="startAutoplay"
@@ -306,7 +389,7 @@ const lightboxImage = computed(() => images.value[lightboxIndex.value])
 
     <!-- Carousel Mode - Coverflow -->
     <div
-      v-else
+      v-else-if="galleryType === 'carousel'"
       class="lcms-gallery__coverflow"
       @mouseenter="stopAutoplay"
       @mouseleave="startAutoplay"
