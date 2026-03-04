@@ -152,6 +152,10 @@ const iconStyles = computed(() => {
   flex: 1;
 }
 
+.lcms-icon-box__content :deep(p) {
+  margin: 0;
+}
+
 .lcms-icon-box__svg {
   display: inline-flex;
   width: 1em;

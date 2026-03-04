@@ -2426,11 +2426,6 @@
     font-size: var(--lcms-font-size-base);
   }
 
-  /* Icon box */
-  .lcms-icon-box {
-    padding: var(--lcms-spacing-4);
-  }
-
   /* Testimonial */
   .lcms-testimonial {
     padding: var(--lcms-spacing-5);
@@ -2574,16 +2569,6 @@
 
   .lcms-collection-carousel__arrow--next {
     right: calc(50% - 115px);
-  }
-
-  /* Icon box */
-  .lcms-icon-box {
-    padding: var(--lcms-spacing-3);
-    text-align: center;
-  }
-
-  .lcms-icon-box__icon {
-    margin: 0 auto var(--lcms-spacing-3);
   }
 
   /* Testimonial */
