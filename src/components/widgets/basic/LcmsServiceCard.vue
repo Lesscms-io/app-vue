@@ -61,6 +61,7 @@ function resolveColor(val: string | null | undefined): string | null {
 }
 
 const resolvePageUrl = inject<(code: string | null, uuid: string | null) => string>('lesscms-resolve-page-url', () => '#')
+const resolveCollectionUrl = inject<(collectionCode: string, entryId: string) => string>('lesscms-resolve-collection-url', () => '#')
 
 const config = computed(() => props.data.config || props.data || {})
 
@@ -76,14 +77,16 @@ const showBadge = computed(() => config.value.show_badge !== false)
 
 // Resolve link URL based on link_type
 const resolvedLinkUrl = computed(() => {
-  const linkType = config.value.link_type || 'url'
+  const linkType = config.value.link_link_type || config.value.link_type || 'url'
   if (linkType === 'page' && config.value.link_page_id) {
     return resolvePageUrl(null, config.value.link_page_id)
   }
-  if (linkType === 'url' || linkType === 'custom') {
-    return config.value.link_url || ''
+  if (linkType === 'route' && config.value.link_route_uuid) {
+    return resolvePageUrl(null, config.value.link_route_uuid)
   }
-  // Fallback
+  if (linkType === 'entry' && config.value.link_collection_code && config.value.link_entry_id) {
+    return resolveCollectionUrl(config.value.link_collection_code, config.value.link_entry_id)
+  }
   return config.value.link_url || ''
 })
 

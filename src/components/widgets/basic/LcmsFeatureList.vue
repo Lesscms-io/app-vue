@@ -32,10 +32,24 @@ const items = computed(() => {
   }))
 })
 
+function resolveColor(val: string | null | undefined): string | null {
+  if (!val) return null
+  if (val.startsWith('var:')) {
+    const parts = val.split(':')
+    const code = parts[1]
+    const opacity = parts.length >= 3 ? parseInt(parts[2]) : 100
+    if (opacity < 100) {
+      return `color-mix(in srgb, var(--lcms-color-${code}) ${opacity}%, transparent)`
+    }
+    return `var(--lcms-color-${code})`
+  }
+  return val
+}
+
 const iconIncluded = computed(() => props.data.icon_included || 'fa-solid fa-check')
 const iconExcluded = computed(() => props.data.icon_excluded || 'fa-solid fa-xmark')
-const colorIncluded = computed(() => props.data.color_included || '#28a745')
-const colorExcluded = computed(() => props.data.color_excluded || '#dc3545')
+const colorIncluded = computed(() => resolveColor(props.data.color_included) || '#28a745')
+const colorExcluded = computed(() => resolveColor(props.data.color_excluded) || '#dc3545')
 const columns = computed(() => parseInt(String(props.data.columns)) || 1)
 </script>
 

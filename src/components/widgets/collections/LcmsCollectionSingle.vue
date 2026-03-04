@@ -28,7 +28,7 @@ const collectionCode = computed(() => props.data.collection_code || '')
 const entryId = computed(() => props.data.entry_id || '')
 const layout = computed(() => props.data.layout || 'standard')
 
-// Route and entry source settings
+// Route and entry source settings (for future features)
 const routeUuid = computed(() => props.data.route_uuid || null)
 const entrySource = computed(() => props.data.entry_source || 'static')
 const entryUrlSegment = computed(() => props.data.entry_url_segment || 1)

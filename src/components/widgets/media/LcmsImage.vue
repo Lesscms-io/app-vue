@@ -23,14 +23,13 @@ const props = defineProps<Props>()
 
 const { extractValue } = useLanguage(props.language)
 
-// Dynamic content source settings
+// Dynamic content source settings (for future dynamic mode)
 const imageSource = computed(() => props.data.image_source || 'static')
 const collectionCode = computed(() => props.data.collection_code || null)
 const fieldCode = computed(() => props.data.field_code || null)
 const entryId = computed(() => props.data.entry_id || null)
-const imageUrlFromApi = computed(() => props.data.url || null)
 
-const imageUrl = computed(() => props.data.image || imageUrlFromApi.value || '')
+const imageUrl = computed(() => props.data.image || props.data.url || '')
 const altText = computed(() => props.data.alt ? extractValue(props.data.alt) : '')
 
 const imageStylePresets: Record<string, Record<string, string>> = {

@@ -10,6 +10,20 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
+function resolveColor(val: string | null | undefined): string | null {
+  if (!val) return null
+  if (val.startsWith('var:')) {
+    const parts = val.split(':')
+    const code = parts[1]
+    const opacity = parts.length >= 3 ? parseInt(parts[2]) : 100
+    if (opacity < 100) {
+      return `color-mix(in srgb, var(--lcms-color-${code}) ${opacity}%, transparent)`
+    }
+    return `var(--lcms-color-${code})`
+  }
+  return val
+}
+
 const props = defineProps<{
   data: {
     widget_type: string
@@ -54,14 +68,16 @@ const numberStyles = computed(() => {
   if (config.value.number_size) {
     styles.fontSize = `${config.value.number_size}px`
   }
-  if (config.value.number_color) {
-    styles.color = config.value.number_color
+  const color = resolveColor(config.value.number_color)
+  if (color) {
+    styles.color = color
   }
   if (config.value.number_font_weight) {
     styles.fontWeight = String(config.value.number_font_weight)
   }
-  if (config.value.number_background && config.value.number_background !== 'transparent') {
-    styles.backgroundColor = config.value.number_background
+  const bg = resolveColor(config.value.number_background)
+  if (bg && config.value.number_background !== 'transparent') {
+    styles.backgroundColor = bg
   }
   const padding = parseInt(String(config.value.number_padding))
   if (!isNaN(padding) && padding > 0) {

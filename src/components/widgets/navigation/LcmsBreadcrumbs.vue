@@ -40,8 +40,22 @@ const homeLabel = computed(() => {
   }
   return label || 'Home'
 })
-const color = computed(() => config.value.color || '')
-const activeColor = computed(() => config.value.active_color || config.value.activeColor || '')
+function resolveColor(val: string | null | undefined): string | null {
+  if (!val) return null
+  if (val.startsWith('var:')) {
+    const parts = val.split(':')
+    const code = parts[1]
+    const opacity = parts.length >= 3 ? parseInt(parts[2]) : 100
+    if (opacity < 100) {
+      return `color-mix(in srgb, var(--lcms-color-${code}) ${opacity}%, transparent)`
+    }
+    return `var(--lcms-color-${code})`
+  }
+  return val
+}
+
+const color = computed(() => resolveColor(config.value.color))
+const activeColor = computed(() => resolveColor(config.value.active_color || config.value.activeColor))
 
 // Dynamic last element
 const showDynamicLast = computed(() => config.value.show_dynamic_last || false)
@@ -124,19 +138,22 @@ const breadcrumbItems = computed(() => {
 
 const containerStyle = computed(() => {
   const style: Record<string, string> = {}
-  if (color.value) style.color = color.value
+  const c = color.value
+  if (c) style.color = c
   return style
 })
 
 const activeStyle = computed(() => {
   const style: Record<string, string> = {}
-  if (activeColor.value) style.color = activeColor.value
+  const ac = activeColor.value
+  if (ac) style.color = ac
   return style
 })
 
 const linkStyle = computed(() => {
   const style: Record<string, string> = {}
-  if (color.value) style.color = color.value
+  const c = color.value
+  if (c) style.color = c
   return style
 })
 </script>

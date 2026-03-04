@@ -33,14 +33,21 @@ const style = computed(() => config.value.style || 'card')
 const accentColor = computed(() => config.value.accent_color || null)
 const socialLinks = computed(() => config.value.social_links || [])
 
-const resolvedAccentColor = computed(() => {
-  const val = accentColor.value
+function resolveColor(val: string | null | undefined): string | null {
   if (!val) return null
   if (val.startsWith('var:')) {
-    return `var(--lcms-color-${val.split(':')[1]})`
+    const parts = val.split(':')
+    const code = parts[1]
+    const opacity = parts.length >= 3 ? parseInt(parts[2]) : 100
+    if (opacity < 100) {
+      return `color-mix(in srgb, var(--lcms-color-${code}) ${opacity}%, transparent)`
+    }
+    return `var(--lcms-color-${code})`
   }
   return val
-})
+}
+
+const resolvedAccentColor = computed(() => resolveColor(accentColor.value))
 
 const socialIcons: Record<string, string> = {
   linkedin: 'fab fa-linkedin',

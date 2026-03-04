@@ -5,7 +5,7 @@
  * Renders a styled link with optional icon and hover animation.
  */
 
-import { computed } from 'vue'
+import { computed, inject } from 'vue'
 import { useLanguage } from '@/composables/useLanguage'
 import type { LinkWidgetData } from '@/types/widgets'
 
@@ -23,6 +23,23 @@ const props = defineProps<Props>()
 
 const { extractValue } = useLanguage(props.language)
 
+function resolveColor(val: string | null | undefined): string | null {
+  if (!val) return null
+  if (val.startsWith('var:')) {
+    const parts = val.split(':')
+    const code = parts[1]
+    const opacity = parts.length >= 3 ? parseInt(parts[2]) : 100
+    if (opacity < 100) {
+      return `color-mix(in srgb, var(--lcms-color-${code}) ${opacity}%, transparent)`
+    }
+    return `var(--lcms-color-${code})`
+  }
+  return val
+}
+
+const resolvePageUrl = inject<(code: string | null, uuid: string | null) => string>('lesscms-resolve-page-url', () => '#')
+const resolveCollectionUrl = inject<(collectionCode: string, entryId: string) => string>('lesscms-resolve-collection-url', () => '#')
+
 const linkText = computed(() => extractValue(props.data.text))
 const linkUrl = computed(() => props.data.url || '#')
 const icon = computed(() => props.data.icon || 'fa-solid fa-arrow-right')
@@ -33,8 +50,9 @@ const targetBlank = computed(() => props.data.target_blank || false)
 
 const linkStyles = computed(() => {
   const styles: Record<string, string> = {}
-  if (color.value) {
-    styles.color = color.value
+  const resolved = resolveColor(color.value)
+  if (resolved) {
+    styles.color = resolved
   }
   return styles
 })

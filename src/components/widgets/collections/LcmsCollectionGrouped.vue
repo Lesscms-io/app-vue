@@ -188,7 +188,7 @@ const showPrice = computed(() => config.value.show_price ?? false)
 const showImage = computed(() => config.value.show_image ?? true)
 const showUncategorized = computed(() => config.value.show_uncategorized ?? true)
 
-// Route and custom layout
+// Route and custom layout (for future features)
 const routeUuid = computed(() => config.value.route_uuid || null)
 const useCustomLayout = computed(() => config.value.use_custom_layout || false)
 const layoutConfig = computed(() => config.value.layout_config || null)

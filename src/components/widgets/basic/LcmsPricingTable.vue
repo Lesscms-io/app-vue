@@ -5,7 +5,7 @@
  * Renders a pricing card with title, price, features and CTA button.
  */
 
-import { computed } from 'vue'
+import { computed, inject } from 'vue'
 import { useLanguage } from '@/composables/useLanguage'
 
 defineOptions({
@@ -21,6 +21,9 @@ interface Props {
 const props = defineProps<Props>()
 
 const { extractValue } = useLanguage(props.language)
+
+const resolvePageUrl = inject<(code: string | null, uuid: string | null) => string>('lesscms-resolve-page-url', () => '#')
+const resolveCollectionUrl = inject<(collectionCode: string, entryId: string) => string>('lesscms-resolve-collection-url', () => '#')
 
 const config = computed(() => props.data?.config || props.data || {})
 const content = computed(() => props.data?.content || {})
@@ -49,19 +52,23 @@ const btnRouteUuid = computed(() => config.value.button_route_uuid || null)
 const btnEntryId = computed(() => config.value.button_entry_id || null)
 const btnCollectionCode = computed(() => config.value.button_collection_code || null)
 
-const highlightColor = computed(() => {
-  const val = config.value.highlight_color
+function resolveColor(val: string | null | undefined): string | null {
   if (!val) return null
-  if (val.startsWith('var:')) return `var(--lcms-color-${val.split(':')[1]})`
+  if (val.startsWith('var:')) {
+    const parts = val.split(':')
+    const code = parts[1]
+    const opacity = parts.length >= 3 ? parseInt(parts[2]) : 100
+    if (opacity < 100) {
+      return `color-mix(in srgb, var(--lcms-color-${code}) ${opacity}%, transparent)`
+    }
+    return `var(--lcms-color-${code})`
+  }
   return val
-})
+}
 
-const buttonColor = computed(() => {
-  const val = config.value.button_color
-  if (!val) return null
-  if (val.startsWith('var:')) return `var(--lcms-color-${val.split(':')[1]})`
-  return val
-})
+const highlightColor = computed(() => resolveColor(config.value.highlight_color))
+
+const buttonColor = computed(() => resolveColor(config.value.button_color))
 
 const cardStyle = computed(() => {
   const style: Record<string, string> = {}
@@ -71,12 +78,22 @@ const cardStyle = computed(() => {
   return style
 })
 
-const buttonStyle = computed(() => {
+const resolvedButtonUrl = computed(() => {
+  const lt = btnLinkType.value
+  if (lt === 'page' && btnPageId.value) return resolvePageUrl(null, btnPageId.value)
+  if (lt === 'route' && btnRouteUuid.value) return resolvePageUrl(null, btnRouteUuid.value)
+  if (lt === 'entry' && btnCollectionCode.value && btnEntryId.value) return resolveCollectionUrl(btnCollectionCode.value, btnEntryId.value)
+  return buttonUrl.value
+})
+
+const buttonInlineStyle = computed(() => {
   const style: Record<string, string> = {}
   if (buttonColor.value) {
     style.backgroundColor = buttonColor.value
     style.borderColor = buttonColor.value
   }
+  if (btnBorderRadius.value) style.borderRadius = `${btnBorderRadius.value}px`
+  if (btnPadding.value) style.padding = `${btnPadding.value}px`
   return style
 })
 </script>
@@ -111,10 +128,20 @@ const buttonStyle = computed(() => {
     </ul>
     <a
       v-if="buttonText"
-      :href="buttonUrl"
+      :href="resolvedButtonUrl"
       class="lcms-pricing__button"
-      :style="buttonStyle"
-    >{{ buttonText }}</a>
+      :class="[
+        btnStyle ? `lcms-pricing__button--${btnStyle}` : '',
+        btnSize !== 'md' ? `lcms-pricing__button--${btnSize}` : ''
+      ]"
+      :style="buttonInlineStyle"
+      :target="btnTargetBlank ? '_blank' : undefined"
+      :rel="btnTargetBlank ? 'noopener noreferrer' : undefined"
+    >
+      <i v-if="btnIcon && btnIconPosition === 'left'" :class="btnIcon" style="margin-right: 6px;" />
+      {{ buttonText }}
+      <i v-if="btnIcon && btnIconPosition === 'right'" :class="btnIcon" style="margin-left: 6px;" />
+    </a>
   </div>
 </template>
 

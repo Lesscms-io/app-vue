@@ -29,7 +29,7 @@ const position = computed(() => props.data.position ? extractValue(props.data.po
 const image = computed(() => props.data.image || '')
 const rating = computed(() => props.data.rating || 0)
 
-// Dynamic content source settings
+// Dynamic content source settings (for future dynamic mode)
 const contentSource = computed(() => props.data.content_source || 'static')
 const collectionCode = computed(() => props.data.collection_code || null)
 const fieldCode = computed(() => props.data.field_code || null)

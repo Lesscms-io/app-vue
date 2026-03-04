@@ -51,14 +51,16 @@ const iconClass = computed(() => isSvgIcon.value ? '' : (config.value.icon || 'f
 
 const content = computed(() => config.value.html || config.value.content || '')
 
+// Dynamic content source settings (for future dynamic mode)
 const contentSource = computed(() => config.value.content_source || 'static')
-const iconPadding = computed(() => config.value.icon_padding || '')
-const iconVerticalAlign = computed(() => config.value.icon_vertical_align || 'top')
 const collectionCode = computed(() => config.value.collection_code || '')
 const fieldCode = computed(() => config.value.field_code || '')
 const entryId = computed(() => config.value.entry_id || '')
 const entrySource = computed(() => config.value.entry_source || '')
 const entryUrlSegment = computed(() => config.value.entry_url_segment || '')
+
+const iconPadding = computed(() => config.value.icon_padding || '')
+const iconVerticalAlign = computed(() => config.value.icon_vertical_align || 'top')
 
 const iconPosition = computed(() => config.value.icon_position || 'left')
 

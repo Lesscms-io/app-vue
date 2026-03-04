@@ -181,7 +181,7 @@ onBeforeUnmount(() => {
   }
 })
 
-// Route, ordering, and filtering
+// Route, ordering, and filtering (for future features)
 const routeUuid = computed(() => config.value.route_uuid || null)
 const orderBy = computed(() => config.value.order_by || '')
 const orderDir = computed(() => config.value.order_dir || 'asc')

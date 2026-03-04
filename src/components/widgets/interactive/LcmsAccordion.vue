@@ -9,6 +9,20 @@ import { ref, computed } from 'vue'
 import { useLanguage } from '@/composables/useLanguage'
 import type { AccordionWidgetData } from '@/types/widgets'
 
+function resolveColor(val: string | null | undefined): string | null {
+  if (!val) return null
+  if (val.startsWith('var:')) {
+    const parts = val.split(':')
+    const code = parts[1]
+    const opacity = parts.length >= 3 ? parseInt(parts[2]) : 100
+    if (opacity < 100) {
+      return `color-mix(in srgb, var(--lcms-color-${code}) ${opacity}%, transparent)`
+    }
+    return `var(--lcms-color-${code})`
+  }
+  return val
+}
+
 defineOptions({
   inheritAttrs: false
 })
@@ -32,8 +46,8 @@ const items = computed(() => {
   }))
 })
 
-const iconColor = computed(() => props.data.icon_color || null)
-const borderColor = computed(() => props.data.border_color || null)
+const iconColor = computed(() => resolveColor(props.data.icon_color))
+const borderColor = computed(() => resolveColor(props.data.border_color))
 const allowMultiple = computed(() => props.data.allow_multiple || false)
 const firstOpen = computed(() => props.data.first_open || false)
 

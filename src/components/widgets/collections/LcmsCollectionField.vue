@@ -64,7 +64,7 @@ const iconPadding = computed(() => config.value.icon_padding || null)
 const iconBorderRadius = computed(() => config.value.icon_border_radius || null)
 const iconGap = computed(() => config.value.icon_gap || null)
 
-// Value source and dynamic settings
+// Value source and dynamic settings (for future features)
 const valueSource = computed(() => config.value.value_source || 'field')
 const staticValue = computed(() => config.value.static_value || '')
 const collectionCode = computed(() => config.value.collection_code || '')
@@ -72,7 +72,7 @@ const entrySource = computed(() => config.value.entry_source || 'context')
 const entryId = computed(() => config.value.entry_id || '')
 const entryUrlSegment = computed(() => config.value.entry_url_segment || 1)
 
-// Display settings
+// Display settings (for future features)
 const customDateFormat = computed(() => config.value.custom_date_format || '')
 const linkText = computed(() => config.value.link_text || '')
 const buttonStyleField = computed(() => config.value.button_style || 'primary')

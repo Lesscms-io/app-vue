@@ -6,7 +6,7 @@
  * Supports a hamburger toggle for mobile/tablet breakpoints.
  */
 
-import { computed, ref, onMounted, onUnmounted } from 'vue'
+import { computed, ref, inject, onMounted, onUnmounted } from 'vue'
 import { useMenu } from '@/composables/useMenu'
 import { useLanguage } from '@/composables/useLanguage'
 import { useResponsiveSettings } from '@/composables/useResponsiveSettings'
@@ -27,6 +27,11 @@ const props = defineProps<Props>()
 
 const { extractValue } = useLanguage(props.language)
 const { currentBreakpoint } = useResponsiveSettings()
+
+const resolvePageUrl = inject<(code: string | null, uuid: string | null) => string>(
+  'lesscms-resolve-page-url',
+  () => '#'
+)
 
 const menuCode = computed(() => props.data.menu_code || '')
 const labelField = computed(() => props.data.label_field || '')
@@ -63,6 +68,31 @@ const ctaIcon = computed(() => props.data.cta_icon || '')
 const ctaIconPosition = computed(() => props.data.cta_icon_position || 'left')
 const isCtaSvgIcon = computed(() => ctaIcon.value.startsWith('svg:'))
 const ctaSvgContent = computed(() => isCtaSvgIcon.value ? ctaIcon.value.slice(4) : '')
+
+const resolveCollectionUrl = inject<(collectionCode: string, slug: string) => string>(
+  'lesscms-resolve-collection-url',
+  () => '#'
+)
+
+// Resolve CTA URL based on link type
+const resolvedCtaUrl = computed(() => {
+  const linkType = ctaLinkType.value
+
+  if (linkType === 'page' && ctaPageId.value) {
+    return resolvePageUrl(null, ctaPageId.value)
+  }
+
+  if (linkType === 'route' && ctaRouteUuid.value) {
+    return resolvePageUrl(null, ctaRouteUuid.value)
+  }
+
+  if (linkType === 'entry' && ctaCollectionCode.value && ctaEntryId.value) {
+    return resolveCollectionUrl(ctaCollectionCode.value, ctaEntryId.value)
+  }
+
+  // For 'url' or fallback, use raw URL
+  return ctaUrl.value
+})
 
 const ctaInlineStyle = computed(() => {
   const style: Record<string, string> = {}
@@ -265,6 +295,27 @@ function getItemTarget(item: MenuItem): string | undefined {
           >
         </a>
 
+        <!-- CTA Button (left position) -->
+        <a
+          v-if="ctaText && ctaPosition === 'left'"
+          :href="resolvedCtaUrl"
+          class="lcms-menu__cta lcms-menu__cta--left"
+          :class="[
+            `lcms-menu__cta--${ctaStyle}`,
+            `lcms-menu__cta--size-${ctaSize}`
+          ]"
+          :style="ctaInlineStyle"
+          :target="ctaTargetBlank ? '_blank' : undefined"
+          :rel="ctaTargetBlank ? 'noopener noreferrer' : undefined"
+          @click="handleLinkClick"
+        >
+          <span v-if="isCtaSvgIcon && ctaIconPosition === 'left'" class="lcms-menu__cta-icon lcms-menu__cta-icon--left lcms-menu__cta-svg" v-html="ctaSvgContent" />
+          <i v-else-if="ctaIcon && ctaIconPosition === 'left'" :class="ctaIcon" class="lcms-menu__cta-icon lcms-menu__cta-icon--left" />
+          {{ ctaText }}
+          <span v-if="isCtaSvgIcon && ctaIconPosition === 'right'" class="lcms-menu__cta-icon lcms-menu__cta-icon--right lcms-menu__cta-svg" v-html="ctaSvgContent" />
+          <i v-else-if="ctaIcon && ctaIconPosition === 'right'" :class="ctaIcon" class="lcms-menu__cta-icon lcms-menu__cta-icon--right" />
+        </a>
+
         <ul class="lcms-menu__list">
           <li
             v-for="item in items"
@@ -304,10 +355,10 @@ function getItemTarget(item: MenuItem): string | undefined {
           </li>
         </ul>
 
-        <!-- CTA Button -->
+        <!-- CTA Button (right position, default) -->
         <a
-          v-if="ctaText"
-          :href="ctaUrl"
+          v-if="ctaText && ctaPosition !== 'left'"
+          :href="resolvedCtaUrl"
           class="lcms-menu__cta"
           :class="[
             `lcms-menu__cta--${ctaStyle}`,
@@ -476,6 +527,11 @@ function getItemTarget(item: MenuItem): string | undefined {
   margin-left: 8px;
 }
 
+.lcms-menu__cta--left {
+  margin-left: 0;
+  margin-right: 8px;
+}
+
 .lcms-menu__cta:hover {
   opacity: 0.85;
 }
@@ -492,10 +548,77 @@ function getItemTarget(item: MenuItem): string | undefined {
   border: 1px solid var(--lcms-color-secondary, #64748B);
 }
 
-.lcms-menu__cta--outline {
+.lcms-menu__cta--success {
+  background-color: var(--lcms-color-success, #28a745);
+  color: #fff;
+  border: 1px solid var(--lcms-color-success, #28a745);
+}
+
+.lcms-menu__cta--danger {
+  background-color: var(--lcms-color-danger, #dc3545);
+  color: #fff;
+  border: 1px solid var(--lcms-color-danger, #dc3545);
+}
+
+.lcms-menu__cta--warning {
+  background-color: var(--lcms-color-warning, #ffc107);
+  color: #212529;
+  border: 1px solid var(--lcms-color-warning, #ffc107);
+}
+
+.lcms-menu__cta--info {
+  background-color: var(--lcms-color-info, #17a2b8);
+  color: #fff;
+  border: 1px solid var(--lcms-color-info, #17a2b8);
+}
+
+.lcms-menu__cta--light {
+  background-color: var(--lcms-color-light, #f8f9fa);
+  color: #212529;
+  border: 1px solid var(--lcms-color-light, #f8f9fa);
+}
+
+.lcms-menu__cta--dark {
+  background-color: var(--lcms-color-dark, #343a40);
+  color: #fff;
+  border: 1px solid var(--lcms-color-dark, #343a40);
+}
+
+.lcms-menu__cta--outline,
+.lcms-menu__cta--outline-primary {
   background-color: transparent;
   color: var(--lcms-color-primary, #3B82F6);
   border: 1px solid var(--lcms-color-primary, #3B82F6);
+}
+
+.lcms-menu__cta--outline-secondary {
+  background-color: transparent;
+  color: var(--lcms-color-secondary, #64748B);
+  border: 1px solid var(--lcms-color-secondary, #64748B);
+}
+
+.lcms-menu__cta--outline-success {
+  background-color: transparent;
+  color: var(--lcms-color-success, #28a745);
+  border: 1px solid var(--lcms-color-success, #28a745);
+}
+
+.lcms-menu__cta--outline-danger {
+  background-color: transparent;
+  color: var(--lcms-color-danger, #dc3545);
+  border: 1px solid var(--lcms-color-danger, #dc3545);
+}
+
+.lcms-menu__cta--outline-warning {
+  background-color: transparent;
+  color: var(--lcms-color-warning, #ffc107);
+  border: 1px solid var(--lcms-color-warning, #ffc107);
+}
+
+.lcms-menu__cta--outline-info {
+  background-color: transparent;
+  color: var(--lcms-color-info, #17a2b8);
+  border: 1px solid var(--lcms-color-info, #17a2b8);
 }
 
 .lcms-menu--vertical .lcms-menu__cta {

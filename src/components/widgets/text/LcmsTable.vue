@@ -43,7 +43,21 @@ const rows = computed(() => {
   })
 })
 
-const headerBg = computed(() => props.data.header_bg || null)
+function resolveColor(val: string | null | undefined): string | null {
+  if (!val) return null
+  if (val.startsWith('var:')) {
+    const parts = val.split(':')
+    const code = parts[1]
+    const opacity = parts.length >= 3 ? parseInt(parts[2]) : 100
+    if (opacity < 100) {
+      return `color-mix(in srgb, var(--lcms-color-${code}) ${opacity}%, transparent)`
+    }
+    return `var(--lcms-color-${code})`
+  }
+  return val
+}
+
+const headerBg = computed(() => resolveColor(props.data.header_bg))
 const headerText = computed(() => props.data.header_text || 'light')
 const striped = computed(() => props.data.striped || false)
 const bordered = computed(() => props.data.bordered || false)

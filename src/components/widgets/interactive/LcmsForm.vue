@@ -11,6 +11,21 @@ import { computed, ref, reactive, onMounted, onBeforeUnmount, watch, nextTick } 
 import { useLanguage } from '@/composables/useLanguage'
 import { useApi } from '@/composables/useApi'
 
+function resolveColor(val: string | null | undefined): string | null {
+  if (!val) return null
+  if (typeof val !== 'string') return null
+  if (val.startsWith('var:')) {
+    const parts = val.split(':')
+    const code = parts[1]
+    const opacity = parts.length >= 3 ? parseInt(parts[2]) : 100
+    if (opacity < 100) {
+      return `color-mix(in srgb, var(--lcms-color-${code}) ${opacity}%, transparent)`
+    }
+    return `var(--lcms-color-${code})`
+  }
+  return val
+}
+
 defineOptions({
   inheritAttrs: false
 })
@@ -372,10 +387,11 @@ const computedButtonStyle = computed(() => {
   if (buttonStyle.value) return styles
   // Legacy: direct color
   if (!buttonColor.value) return styles
+  const bg = resolveColor(buttonColor.value)
   return {
     ...styles,
-    backgroundColor: buttonColor.value,
-    borderColor: buttonColor.value,
+    backgroundColor: bg || buttonColor.value,
+    borderColor: bg || buttonColor.value,
     color: '#ffffff'
   }
 })
@@ -388,16 +404,18 @@ const computedInputStyle = computed(() => {
   if (inputPadding.value) {
     styles.padding = `${inputPadding.value}px`
   }
-  if (inputBackgroundColor.value) {
-    styles.backgroundColor = inputBackgroundColor.value
+  const bg = resolveColor(inputBackgroundColor.value)
+  if (bg) {
+    styles.backgroundColor = bg
   }
-  if (inputTextColor.value) {
-    styles.color = inputTextColor.value
+  const txt = resolveColor(inputTextColor.value)
+  if (txt) {
+    styles.color = txt
   }
   if (inputBorderColor.value || inputBorderWidth.value || inputBorderStyle.value) {
     const w = inputBorderWidth.value ? `${inputBorderWidth.value}px` : '1px'
     const s = inputBorderStyle.value || 'solid'
-    const c = inputBorderColor.value || '#d1d5db'
+    const c = resolveColor(inputBorderColor.value) || '#d1d5db'
     styles.border = `${w} ${s} ${c}`
   }
   return styles

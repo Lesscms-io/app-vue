@@ -10,6 +10,20 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
+function resolveColor(val: string | null | undefined): string | null {
+  if (!val) return null
+  if (val.startsWith('var:')) {
+    const parts = val.split(':')
+    const code = parts[1]
+    const opacity = parts.length >= 3 ? parseInt(parts[2]) : 100
+    if (opacity < 100) {
+      return `color-mix(in srgb, var(--lcms-color-${code}) ${opacity}%, transparent)`
+    }
+    return `var(--lcms-color-${code})`
+  }
+  return val
+}
+
 const props = defineProps<{
   data: {
     widget_type: string
@@ -36,7 +50,8 @@ const textSizeMap: Record<string, string> = { sm: '0.875rem', md: '1rem', lg: '1
 
 const iconStyles = computed(() => {
   const styles: Record<string, string> = {}
-  if (config.value.icon_color) styles.color = config.value.icon_color
+  const color = resolveColor(config.value.icon_color)
+  if (color) styles.color = color
   const sz = iconSizeMap[config.value.icon_size || 'md']
   if (sz) styles.fontSize = sz
   return styles
@@ -51,8 +66,9 @@ const textStyles = computed(() => {
 
 const itemStyle = computed(() => {
   const styles: Record<string, string> = {}
-  if (config.value.item_bg_color) {
-    styles.backgroundColor = config.value.item_bg_color
+  const bg = resolveColor(config.value.item_bg_color)
+  if (bg) {
+    styles.backgroundColor = bg
     styles.padding = '10px 14px'
     styles.borderRadius = '6px'
   }

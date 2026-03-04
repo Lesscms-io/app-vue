@@ -44,7 +44,7 @@ const autoplayInterval = computed(() => props.data.autoplay_interval || 5000)
 const showArrows = computed(() => props.data.show_arrows !== false)
 const showDots = computed(() => props.data.show_dots !== false)
 
-// Route and display settings
+// Route and display settings (for future features)
 const routeUuid = computed(() => props.data.route_uuid || null)
 const slidesPerView = computed(() => props.data.slides_per_view || 3)
 

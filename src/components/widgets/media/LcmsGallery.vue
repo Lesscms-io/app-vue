@@ -69,13 +69,13 @@ const enableLightbox = computed(() =>
   config.value.enable_lightbox || config.value.enableLightbox || props.data.enable_lightbox
 )
 
-// Dynamic content source settings
+// Dynamic content source settings (for future dynamic mode)
 const contentSource = computed(() => config.value.content_source || 'static')
 const collectionCode = computed(() => config.value.collection_code || null)
 const fieldCode = computed(() => config.value.field_code || null)
 const entryId = computed(() => config.value.entry_id || null)
 
-// Additional display settings
+// Additional display settings (for future features)
 const mosaicVariant = computed(() => config.value.mosaic_variant || 'default')
 const loopCarousel = computed(() => config.value.loop !== false)
 

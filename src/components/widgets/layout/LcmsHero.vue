@@ -5,7 +5,7 @@
  * Renders a hero section with background, title, subtitle, and CTA button.
  */
 
-import { computed } from 'vue'
+import { computed, inject } from 'vue'
 import { useLanguage } from '@/composables/useLanguage'
 import type { HeroWidgetData } from '@/types/widgets'
 
@@ -23,6 +23,9 @@ const props = defineProps<Props>()
 
 const { extractValue } = useLanguage(props.language)
 
+const resolvePageUrl = inject<(code: string | null, uuid: string | null) => string>('lesscms-resolve-page-url', () => '#')
+const resolveCollectionUrl = inject<(collectionCode: string, entryId: string) => string>('lesscms-resolve-collection-url', () => '#')
+
 const title = computed(() => extractValue(props.data.title))
 const subtitle = computed(() => props.data.subtitle ? extractValue(props.data.subtitle) : '')
 const backgroundImage = computed(() => props.data.background || props.data.background_url || '')
@@ -30,8 +33,10 @@ const buttonText = computed(() => props.data.button_text ? extractValue(props.da
 const buttonUrl = computed(() => props.data.button_url || '#')
 const buttonStyle = computed(() => props.data.button_style || 'primary')
 const buttonSize = computed(() => props.data.button_size || 'lg')
+const showTitle = computed(() => props.data.show_title !== false)
+const showSubtitle = computed(() => props.data.show_subtitle !== false)
 
-// Dynamic content source settings
+// Dynamic content source settings (for future dynamic mode)
 const contentSource = computed(() => props.data.content_source || 'static')
 const collectionCode = computed(() => props.data.collection_code || null)
 const entrySource = computed(() => props.data.entry_source || 'static')
@@ -42,17 +47,29 @@ const entryUrlSegment = computed(() => props.data.entry_url_segment || 1)
 const imageField = computed(() => props.data.image_field || '')
 const titleField = computed(() => props.data.title_field || '')
 const subtitleField = computed(() => props.data.subtitle_field || '')
-const showTitle = computed(() => props.data.show_title !== false)
-const showSubtitle = computed(() => props.data.show_subtitle !== false)
+
+function resolveColor(val: string | null | undefined): string | null {
+  if (!val) return null
+  if (val.startsWith('var:')) {
+    const parts = val.split(':')
+    const code = parts[1]
+    const opacity = parts.length >= 3 ? parseInt(parts[2]) : 100
+    if (opacity < 100) {
+      return `color-mix(in srgb, var(--lcms-color-${code}) ${opacity}%, transparent)`
+    }
+    return `var(--lcms-color-${code})`
+  }
+  return val
+}
 
 // Overlay settings
 const overlayOpacity = computed(() => props.data.overlay_opacity ?? 50)
-const overlayColor = computed(() => props.data.overlay_color || '#000000')
+const overlayColor = computed(() => resolveColor(props.data.overlay_color) || '#000000')
 
 // Text settings
 const textAlign = computed(() => props.data.text_align || 'center')
 const textPosition = computed(() => props.data.text_position || 'center')
-const textColor = computed(() => props.data.text_color || '#ffffff')
+const textColor = computed(() => resolveColor(props.data.text_color) || '#ffffff')
 
 // Button link settings
 const buttonBorderRadius = computed(() => props.data.button_border_radius || null)
@@ -65,6 +82,14 @@ const buttonPageId = computed(() => props.data.button_page_id || null)
 const buttonRouteUuid = computed(() => props.data.button_route_uuid || null)
 const buttonEntryId = computed(() => props.data.button_entry_id || null)
 const buttonCollectionCode = computed(() => props.data.button_collection_code || null)
+
+const resolvedButtonUrl = computed(() => {
+  const lt = buttonLinkType.value
+  if (lt === 'page' && buttonPageId.value) return resolvePageUrl(null, buttonPageId.value)
+  if (lt === 'route' && buttonRouteUuid.value) return resolvePageUrl(null, buttonRouteUuid.value)
+  if (lt === 'entry' && buttonCollectionCode.value && buttonEntryId.value) return resolveCollectionUrl(buttonCollectionCode.value, buttonEntryId.value)
+  return buttonUrl.value
+})
 
 const heroStyle = computed(() => {
   if (!backgroundImage.value) return {}
@@ -106,7 +131,7 @@ const contentStyle = computed(() => ({
       </p>
       <a
         v-if="buttonText"
-        :href="buttonUrl"
+        :href="resolvedButtonUrl"
         class="lcms-hero__button"
         :class="[
           `lcms-hero__button--${buttonStyle}`,

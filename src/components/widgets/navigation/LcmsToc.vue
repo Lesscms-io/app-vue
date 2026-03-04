@@ -39,8 +39,22 @@ const title = computed(() => {
   return t || ''
 })
 
-const textColor = computed(() => config.value.text_color || config.value.textColor || '#495057')
-const highlightColor = computed(() => config.value.highlight_color || config.value.highlightColor || '#50a5f1')
+function resolveColor(val: string | null | undefined): string | null {
+  if (!val) return null
+  if (val.startsWith('var:')) {
+    const parts = val.split(':')
+    const code = parts[1]
+    const opacity = parts.length >= 3 ? parseInt(parts[2]) : 100
+    if (opacity < 100) {
+      return `color-mix(in srgb, var(--lcms-color-${code}) ${opacity}%, transparent)`
+    }
+    return `var(--lcms-color-${code})`
+  }
+  return val
+}
+
+const textColor = computed(() => resolveColor(config.value.text_color || config.value.textColor) || '#495057')
+const highlightColor = computed(() => resolveColor(config.value.highlight_color || config.value.highlightColor) || '#50a5f1')
 const showBorder = computed(() => {
   if (config.value.show_border !== undefined) return config.value.show_border
   if (config.value.showBorder !== undefined) return config.value.showBorder

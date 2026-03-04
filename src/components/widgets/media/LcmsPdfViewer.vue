@@ -66,7 +66,21 @@ const showThumbnails = computed(() => props.data.show_thumbnails !== false)
 const showOutline = computed(() => props.data.show_outline !== false)
 const showFullscreen = computed(() => props.data.show_fullscreen !== false)
 const showDownload = computed(() => props.data.show_download !== false)
-const backgroundColor = computed(() => props.data.background_color || '#1a1a1a')
+function resolveColor(val: string | null | undefined): string | null {
+  if (!val) return null
+  if (val.startsWith('var:')) {
+    const parts = val.split(':')
+    const code = parts[1]
+    const opacity = parts.length >= 3 ? parseInt(parts[2]) : 100
+    if (opacity < 100) {
+      return `color-mix(in srgb, var(--lcms-color-${code}) ${opacity}%, transparent)`
+    }
+    return `var(--lcms-color-${code})`
+  }
+  return val
+}
+
+const backgroundColor = computed(() => resolveColor(props.data.background_color) || '#1a1a1a')
 
 // Check if dFlip library is available
 const isDFlipAvailable = () => {

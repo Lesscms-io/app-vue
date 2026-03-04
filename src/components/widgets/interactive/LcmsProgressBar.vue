@@ -9,6 +9,20 @@ import { computed } from 'vue'
 import { useLanguage } from '@/composables/useLanguage'
 import type { ProgressBarWidgetData } from '@/types/widgets'
 
+function resolveColor(val: string | null | undefined): string | null {
+  if (!val) return null
+  if (val.startsWith('var:')) {
+    const parts = val.split(':')
+    const code = parts[1]
+    const opacity = parts.length >= 3 ? parseInt(parts[2]) : 100
+    if (opacity < 100) {
+      return `color-mix(in srgb, var(--lcms-color-${code}) ${opacity}%, transparent)`
+    }
+    return `var(--lcms-color-${code})`
+  }
+  return val
+}
+
 defineOptions({
   inheritAttrs: false
 })
@@ -25,7 +39,7 @@ const { extractValue } = useLanguage(props.language)
 
 const title = computed(() => props.data.title ? extractValue(props.data.title) : '')
 const percentage = computed(() => Math.min(Math.max(props.data.percentage || 0, 0), 100))
-const barColor = computed(() => props.data.color || '#50a5f1')
+const barColor = computed(() => resolveColor(props.data.color) || '#50a5f1')
 const showPercentage = computed(() => props.data.show_percentage !== false)
 </script>
 

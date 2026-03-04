@@ -5,7 +5,7 @@
  * Renders a call-to-action box with title, subtitle and button.
  */
 
-import { computed } from 'vue'
+import { computed, inject } from 'vue'
 import { useLanguage } from '@/composables/useLanguage'
 import type { CtaBoxWidgetData } from '@/types/widgets'
 
@@ -22,6 +22,24 @@ interface Props {
 const props = defineProps<Props>()
 
 const { extractValue } = useLanguage(props.language)
+
+const resolvePageUrl = inject<(code: string | null, uuid: string | null) => string>('lesscms-resolve-page-url', () => '#')
+const resolveCollectionUrl = inject<(collectionCode: string, entryId: string) => string>('lesscms-resolve-collection-url', () => '#')
+
+// Resolve color variable references (var:primary → var(--lcms-color-primary))
+function resolveColor(val: string | null | undefined): string | null {
+  if (!val) return null
+  if (val.startsWith('var:')) {
+    const parts = val.split(':')
+    const code = parts[1]
+    const opacity = parts.length >= 3 ? parseInt(parts[2]) : 100
+    if (opacity < 100) {
+      return `color-mix(in srgb, var(--lcms-color-${code}) ${opacity}%, transparent)`
+    }
+    return `var(--lcms-color-${code})`
+  }
+  return val
+}
 
 const title = computed(() => extractValue(props.data.title))
 const subtitle = computed(() => props.data.subtitle ? extractValue(props.data.subtitle) : '')
@@ -66,9 +84,18 @@ const buttonPadding = computed(() => props.data.button_padding || '')
 const buttonIcon = computed(() => props.data.button_icon || '')
 const buttonIconPosition = computed(() => props.data.button_icon_position || 'left')
 
+const resolvedButtonUrl = computed(() => {
+  const lt = buttonLinkType.value
+  if (lt === 'page' && buttonPageId.value) return resolvePageUrl(null, buttonPageId.value)
+  if (lt === 'route' && buttonRouteUuid.value) return resolvePageUrl(null, buttonRouteUuid.value)
+  if (lt === 'entry' && buttonCollectionCode.value && buttonEntryId.value) return resolveCollectionUrl(buttonCollectionCode.value, buttonEntryId.value)
+  return buttonUrl.value
+})
+
 const buttonInlineStyle = computed(() => {
   const styles: Record<string, string> = {}
-  if (buttonColor.value) styles.backgroundColor = buttonColor.value
+  const bg = resolveColor(buttonColor.value)
+  if (bg) styles.backgroundColor = bg
   if (buttonBorderRadius.value) styles.borderRadius = `${buttonBorderRadius.value}px`
   if (buttonPadding.value) styles.padding = `${buttonPadding.value}px`
   return styles
@@ -89,8 +116,8 @@ const buttonInlineStyle = computed(() => {
     <h3 v-if="title" class="lcms-cta-box__title" :style="{ fontSize: titleFontSize }">{{ title }}</h3>
     <p v-if="subtitle" class="lcms-cta-box__subtitle" :style="{ fontSize: subtitleFontSize }">{{ subtitle }}</p>
     <a
-      v-if="buttonText && buttonUrl"
-      :href="buttonUrl"
+      v-if="buttonText && resolvedButtonUrl"
+      :href="resolvedButtonUrl"
       class="lcms-cta-box__button"
       :class="[
         buttonStyle ? `btn-${buttonStyle}` : '',
