@@ -6,7 +6,7 @@
  * Used within collection templates to display entry data.
  */
 
-import { computed, inject, unref, type Ref } from 'vue'
+import { computed, inject, ref, unref, watch, onMounted, onUnmounted, Teleport, type Ref } from 'vue'
 import { useLanguage } from '@/composables/useLanguage'
 import type { CollectionFieldConfig, CollectionEntry } from '@/api/types'
 
@@ -30,6 +30,21 @@ const { extractValue, language: currentLanguage } = useLanguage(props.language)
 // May be a plain object (from LcmsEntryTemplateRenderer) or a Ref (from DynamicPageResolver)
 const injectedEntry = inject<CollectionEntry | Ref<CollectionEntry | null> | null>('lcms-collection-entry', null)
 
+// Resolve color variables (var:primary → CSS var(--lcms-color-primary))
+function resolveColor(val: string | null | undefined): string | null {
+  if (!val) return null
+  if (val.startsWith('var:')) {
+    const parts = val.split(':')
+    const code = parts[1]
+    const opacity = parts.length >= 3 ? parseInt(parts[2]) : 100
+    if (opacity < 100) {
+      return `color-mix(in srgb, var(--lcms-color-${code}) ${opacity}%, transparent)`
+    }
+    return `var(--lcms-color-${code})`
+  }
+  return val
+}
+
 const config = computed(() => props.data.widget || props.data || {})
 const fieldCode = computed(() => config.value.field_code || '')
 const fieldType = computed(() => config.value.field_type || 'text')
@@ -43,13 +58,13 @@ const label = computed(() => {
 })
 
 // Value styling
-const valueColor = computed(() => config.value.value_color || null)
-const valueBackground = computed(() => config.value.value_background || null)
+const valueColor = computed(() => resolveColor(config.value.value_color))
+const valueBackground = computed(() => resolveColor(config.value.value_background))
 const valuePadding = computed(() => config.value.value_padding || 0)
 
 // Label styling (also used in template via config.*)
-const labelBackground = computed(() => config.value.label_background || null)
-const labelColor = computed(() => config.value.label_color || null)
+const labelBackground = computed(() => resolveColor(config.value.label_background))
+const labelColor = computed(() => resolveColor(config.value.label_color))
 const labelPadding = computed(() => config.value.label_padding || null)
 const labelFontSize = computed(() => config.value.label_font_size || null)
 const labelFontWeight = computed(() => config.value.label_font_weight || null)
@@ -59,8 +74,8 @@ const showIcon = computed(() => config.value.show_icon || false)
 const icon = computed(() => config.value.icon || '')
 const iconPosition = computed(() => config.value.icon_position || 'left')
 const iconSize = computed(() => config.value.icon_size || '24')
-const iconColor = computed(() => config.value.icon_color || '#50a5f1')
-const iconBackground = computed(() => config.value.icon_background || null)
+const iconColor = computed(() => resolveColor(config.value.icon_color) || '#50a5f1')
+const iconBackground = computed(() => resolveColor(config.value.icon_background))
 const iconPadding = computed(() => config.value.icon_padding || null)
 const iconBorderRadius = computed(() => config.value.icon_border_radius || null)
 const iconGap = computed(() => config.value.icon_gap || null)
@@ -107,7 +122,6 @@ function extractOptionLabel(option: any): string {
   if (!option || typeof option !== 'object') return String(option ?? '')
   // Enriched option: { code, value, value_translation }
   if (option.value_translation) {
-    // value_translation may be an object {pl: "...", en: "..."} or already resolved to a string
     if (typeof option.value_translation === 'string') {
       return option.value_translation
     }
@@ -118,6 +132,27 @@ function extractOptionLabel(option: any): string {
   }
   return option.value || option.label || option.code || ''
 }
+
+// Check if field type is a select-like type
+function isSelectType(type: string): boolean {
+  return ['select', 'multiselect', 'radio', 'checkbox'].includes(type)
+}
+
+// Check if field type is gallery
+function isGalleryType(type: string): boolean {
+  return type === 'gallery'
+}
+
+// Get gallery images from value
+const galleryImages = computed(() => {
+  const val = fieldValue.value
+  if (!val || !Array.isArray(val)) return []
+  return val.map((item: any) => {
+    if (typeof item === 'string') return item
+    if (typeof item === 'object' && item.url) return item.url
+    return null
+  }).filter(Boolean)
+})
 
 // Format value based on field type
 const formattedValue = computed(() => {
@@ -130,12 +165,35 @@ const formattedValue = computed(() => {
       return formatDate(val)
     case 'image':
       return typeof val === 'object' && val.url ? val.url : val
+    case 'gallery':
+      return '' // Handled by galleryImages computed
     case 'boolean':
       return val ? 'Yes' : 'No'
-    default:
-      // Handle arrays (select/multiselect enriched values)
+    case 'select':
+    case 'radio':
+      // Single select: may be enriched { code, value } or raw string
+      if (typeof val === 'object' && val !== null && !Array.isArray(val) && (val.code || val.value)) {
+        return extractOptionLabel(val)
+      }
+      // Raw string (option code) — display as-is
+      return String(val)
+    case 'multiselect':
+    case 'checkbox':
+      // Array of enriched objects or raw strings
       if (Array.isArray(val)) {
-        return val.map(item => extractOptionLabel(item)).filter(Boolean).join(', ')
+        return val.map((item: any) => {
+          if (typeof item === 'object' && (item.code || item.value)) return extractOptionLabel(item)
+          return String(item)
+        }).filter(Boolean).join(', ')
+      }
+      if (typeof val === 'object' && val !== null && (val.code || val.value)) {
+        return extractOptionLabel(val)
+      }
+      return String(val)
+    default:
+      // Handle arrays (generic)
+      if (Array.isArray(val)) {
+        return val.map((item: any) => extractOptionLabel(item)).filter(Boolean).join(', ')
       }
       // Handle single enriched option object
       if (typeof val === 'object' && val !== null && (val.code || val.value)) {
@@ -162,10 +220,16 @@ const valueStyle = computed(() => {
 })
 
 // Icon styles
-const iconStyle = computed(() => ({
-  fontSize: `${iconSize.value}px`,
-  color: iconColor.value,
-}))
+const iconStyle = computed(() => {
+  const style: Record<string, string> = {
+    fontSize: `${iconSize.value}px`,
+    color: iconColor.value,
+  }
+  if (iconBackground.value) style.backgroundColor = iconBackground.value
+  if (iconPadding.value) style.padding = `${iconPadding.value}px`
+  if (iconBorderRadius.value) style.borderRadius = `${iconBorderRadius.value}px`
+  return style
+})
 
 // Format date helper
 function formatDate(value: string | Date): string {
@@ -196,6 +260,66 @@ function formatDate(value: string | Date): string {
 
   return date.toLocaleDateString(currentLanguage.value, options)
 }
+
+// --- Lightbox (for gallery fields) ---
+const lightboxOpen = ref(false)
+const lightboxIndex = ref(0)
+
+function openLightbox(index: number) {
+  lightboxIndex.value = index
+  lightboxOpen.value = true
+}
+
+function closeLightbox() {
+  lightboxOpen.value = false
+}
+
+function lightboxNext() {
+  lightboxIndex.value = (lightboxIndex.value + 1) % galleryImages.value.length
+}
+
+function lightboxPrev() {
+  lightboxIndex.value = (lightboxIndex.value - 1 + galleryImages.value.length) % galleryImages.value.length
+}
+
+function onLightboxKeydown(e: KeyboardEvent) {
+  if (!lightboxOpen.value) return
+  if (e.key === 'Escape') closeLightbox()
+  else if (e.key === 'ArrowRight') lightboxNext()
+  else if (e.key === 'ArrowLeft') lightboxPrev()
+}
+
+let touchStartX = 0
+function onTouchStart(e: TouchEvent) {
+  touchStartX = e.changedTouches[0].screenX
+}
+function onTouchEnd(e: TouchEvent) {
+  const diff = touchStartX - e.changedTouches[0].screenX
+  if (Math.abs(diff) >= 50) {
+    diff > 0 ? lightboxNext() : lightboxPrev()
+  }
+}
+
+function onBackdropClick(e: MouseEvent) {
+  if ((e.target as HTMLElement).classList.contains('lcms-lightbox__backdrop')) {
+    closeLightbox()
+  }
+}
+
+watch(lightboxOpen, (open) => {
+  document.body.style.overflow = open ? 'hidden' : ''
+})
+
+onMounted(() => {
+  document.addEventListener('keydown', onLightboxKeydown)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('keydown', onLightboxKeydown)
+  document.body.style.overflow = ''
+})
+
+const lightboxImage = computed(() => galleryImages.value[lightboxIndex.value] || null)
 </script>
 
 <template>
@@ -206,11 +330,11 @@ function formatDate(value: string | Date): string {
       class="lcms-collection-field__label"
       :class="`lcms-collection-field__label--${labelPosition}`"
       :style="{
-        color: config.label_color || undefined,
-        backgroundColor: config.label_background || undefined,
-        padding: config.label_padding ? `${config.label_padding}px` : undefined,
-        fontSize: config.label_font_size || undefined,
-        fontWeight: config.label_font_weight || undefined,
+        color: labelColor || undefined,
+        backgroundColor: labelBackground || undefined,
+        padding: labelPadding ? `${labelPadding}px` : undefined,
+        fontSize: labelFontSize || undefined,
+        fontWeight: labelFontWeight || undefined,
       }"
     >
       {{ label }}
@@ -220,6 +344,7 @@ function formatDate(value: string | Date): string {
     <div
       class="lcms-collection-field__value-wrapper"
       :class="{ 'lcms-collection-field__value-wrapper--with-icon': showIcon }"
+      :style="showIcon && iconGap ? { gap: `${iconGap}px` } : undefined"
     >
       <!-- Icon (left) -->
       <i
@@ -236,6 +361,22 @@ function formatDate(value: string | Date): string {
         :style="valueStyle"
         v-html="formattedValue"
       />
+
+      <!-- Gallery display -->
+      <div
+        v-else-if="isGalleryType(fieldType) && galleryImages.length"
+        class="lcms-collection-field__gallery"
+      >
+        <img
+          v-for="(img, idx) in galleryImages"
+          :key="idx"
+          :src="img"
+          :alt="`${label || fieldCode} ${idx + 1}`"
+          class="lcms-collection-field__gallery-image"
+          style="cursor: pointer"
+          @click="openLightbox(idx)"
+        />
+      </div>
 
       <!-- Value: non-HTML content uses dynamic tag -->
       <component
@@ -263,6 +404,58 @@ function formatDate(value: string | Date): string {
         :style="iconStyle"
       />
     </div>
+
+    <!-- Lightbox Overlay (gallery fields) -->
+    <Teleport to="body">
+      <Transition name="lcms-lightbox">
+        <div
+          v-if="lightboxOpen && lightboxImage"
+          class="lcms-lightbox__backdrop"
+          @click="onBackdropClick"
+          @touchstart="onTouchStart"
+          @touchend="onTouchEnd"
+        >
+          <button
+            class="lcms-lightbox__close"
+            type="button"
+            @click="closeLightbox"
+          >
+            <i class="fa-solid fa-xmark" />
+          </button>
+
+          <div class="lcms-lightbox__counter">
+            {{ lightboxIndex + 1 }} / {{ galleryImages.length }}
+          </div>
+
+          <button
+            v-if="galleryImages.length > 1"
+            class="lcms-lightbox__arrow lcms-lightbox__arrow--prev"
+            type="button"
+            @click.stop="lightboxPrev"
+          >
+            <i class="fa-solid fa-chevron-left" />
+          </button>
+
+          <div class="lcms-lightbox__image-wrapper">
+            <img
+              :src="lightboxImage"
+              :alt="`${label || fieldCode} ${lightboxIndex + 1}`"
+              class="lcms-lightbox__image"
+              @click.stop
+            >
+          </div>
+
+          <button
+            v-if="galleryImages.length > 1"
+            class="lcms-lightbox__arrow lcms-lightbox__arrow--next"
+            type="button"
+            @click.stop="lightboxNext"
+          >
+            <i class="fa-solid fa-chevron-right" />
+          </button>
+        </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
@@ -303,5 +496,18 @@ function formatDate(value: string | Date): string {
 .lcms-collection-field__image {
   max-width: 100%;
   height: auto;
+}
+
+.lcms-collection-field__gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px;
+}
+
+.lcms-collection-field__gallery-image {
+  width: 100%;
+  height: 150px;
+  object-fit: cover;
+  border-radius: 4px;
 }
 </style>
