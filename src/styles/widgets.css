@@ -77,6 +77,11 @@
   flex-direction: column;
 }
 
+/* All direct children of multi-item cells stretch to fill the cell */
+.lcms-multi-item-cell > * {
+  flex: 1;
+}
+
 /* Card-like widgets should stretch to fill column height */
 .lcms-widget--service-card,
 .lcms-widget--pricing-table,
