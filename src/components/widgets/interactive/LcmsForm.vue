@@ -175,6 +175,7 @@ const formUuid = computed(() => {
 const buttonAlign = computed(() => config.value.button_align || 'left')
 const labelPosition = computed(() => config.value.label_position || 'top')
 const formColumns = computed(() => config.value.columns || '1')
+const fieldGap = computed(() => config.value.field_gap || '')
 
 // Button style
 const buttonColor = computed(() => config.value.button_color || config.value.buttonColor || '')
@@ -499,6 +500,7 @@ const buttonClasses = computed(() => {
           :class="{
             'lcms-form__fields--2col': formColumns === '2'
           }"
+          :style="fieldGap ? { '--form-field-gap': fieldGap + 'px' } : {}"
         >
           <div
             v-for="field in fields"
@@ -506,7 +508,8 @@ const buttonClasses = computed(() => {
             class="lcms-form__field"
             :class="{
               'lcms-form__field--error': validationErrors[field.code],
-              'lcms-form__field--side': labelPosition === 'side'
+              'lcms-form__field--side': labelPosition === 'side',
+              'lcms-form__field--full-width': field.type === 'textarea' || field.type === 'checkbox'
             }"
           >
             <label

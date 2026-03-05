@@ -2281,6 +2281,46 @@
   gap: 1rem;
 }
 
+.lcms-form__fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--form-field-gap, 1rem);
+}
+
+.lcms-form__fields--2col {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--form-field-gap, 1rem);
+}
+
+.lcms-form__fields--2col .lcms-form__field--full-width {
+  grid-column: 1 / -1;
+}
+
+.lcms-form__submit-wrapper {
+  display: flex;
+}
+
+.lcms-form__submit-wrapper--center {
+  justify-content: center;
+}
+
+.lcms-form__submit-wrapper--right {
+  justify-content: flex-end;
+}
+
+.lcms-form__field--side {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.lcms-form__field--side .lcms-form__label {
+  min-width: 120px;
+  padding-top: 0.5rem;
+  flex-shrink: 0;
+}
+
 .lcms-form__field {
   display: flex;
   flex-direction: column;
