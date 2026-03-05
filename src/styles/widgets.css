@@ -80,6 +80,7 @@
 .lcms-multi-item-cell {
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 /* All direct children of multi-item cells stretch to fill the cell */

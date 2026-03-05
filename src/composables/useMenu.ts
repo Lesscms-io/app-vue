@@ -57,10 +57,13 @@ export function useMenu(code: Ref<string> | string): UseMenuReturn {
     error.value = null
 
     try {
+      console.log(`[useMenu] Fetching menu "${codeRef.value}"...`)
       const response = await api.getMenu(codeRef.value)
+      console.log(`[useMenu] Menu "${codeRef.value}" loaded, items:`, response.data.content?.length || 0)
       items.value = response.data.content || []
       metadata.value = response.data.metadata || null
     } catch (e) {
+      console.error(`[useMenu] Failed to load menu "${codeRef.value}":`, e)
       error.value = e as Error
       items.value = []
       metadata.value = null
