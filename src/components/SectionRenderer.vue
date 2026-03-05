@@ -245,11 +245,13 @@ const gridStyle = computed(() => {
     }
   }
 
-  // Use actual column widths if available
+  // Use actual column widths if available (span = 12-column grid system)
   const templateColumns = cols.map(col => {
-    const width = col.width
-    if (width) {
-      return `${width}%`
+    if (col.width) {
+      return `${col.width}%`
+    }
+    if (col.span) {
+      return `${(col.span / 12) * 100}%`
     }
     return '1fr'
   }).join(' ')

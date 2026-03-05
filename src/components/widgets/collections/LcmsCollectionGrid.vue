@@ -241,8 +241,11 @@ function getExcerpt(entry: CollectionEntry): string {
 function getImage(entry: CollectionEntry): string {
   const image = getFieldValue(entry, imageField.value)
   if (!image) return ''
-  if (typeof image === 'object' && image.url) return image.url
-  return image
+  // Support gallery fields - take first image from array
+  const single = Array.isArray(image) ? image[0] : image
+  if (!single) return ''
+  if (typeof single === 'object' && single.url) return single.url
+  return single
 }
 
 function getDate(entry: CollectionEntry): string {
@@ -391,7 +394,7 @@ function updateResponsiveStyle() {
         class="lcms-collection-grid__item"
         :style="{
           ...cardStyle,
-          backgroundImage: showImage && imageField && getImage(entry) ? `url(${getImage(entry)})` : undefined,
+          backgroundImage: showImage && imageField && getImage(entry) ? `url('${getImage(entry)}')` : undefined,
         }"
       >
         <div class="lcms-collection-grid__overlay-gradient" />

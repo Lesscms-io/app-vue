@@ -6,7 +6,7 @@
  * Used within collection templates to display entry data.
  */
 
-import { computed, inject } from 'vue'
+import { computed, inject, unref, type Ref } from 'vue'
 import { useLanguage } from '@/composables/useLanguage'
 import type { CollectionFieldConfig, CollectionEntry } from '@/api/types'
 
@@ -26,8 +26,9 @@ const props = defineProps<Props>()
 
 const { extractValue, language: currentLanguage } = useLanguage(props.language)
 
-// Get entry from context (injected by parent template renderer)
-const entry = inject<CollectionEntry | null>('lcms-collection-entry', null)
+// Get entry from context (injected by parent template renderer or DynamicPageResolver)
+// May be a plain object (from LcmsEntryTemplateRenderer) or a Ref (from DynamicPageResolver)
+const injectedEntry = inject<CollectionEntry | Ref<CollectionEntry | null> | null>('lcms-collection-entry', null)
 
 const config = computed(() => props.data.widget || props.data || {})
 const fieldCode = computed(() => config.value.field_code || '')
@@ -89,7 +90,8 @@ const fieldValue = computed(() => {
     return value
   }
 
-  // Fallback to injected entry (template context)
+  // Fallback to injected entry (template context or DynamicPageResolver)
+  const entry = unref(injectedEntry)
   if (!entry || !entry.content || !fieldCode.value) return null
 
   const value = entry.content[fieldCode.value]

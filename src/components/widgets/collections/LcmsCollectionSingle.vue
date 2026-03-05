@@ -5,10 +5,12 @@
  * Renders a single collection entry.
  */
 
-import { computed } from 'vue'
+import { computed, inject, unref, type Ref } from 'vue'
 import { useCollectionEntry } from '@/composables/useCollection'
 import { useLanguage } from '@/composables/useLanguage'
 import type { CollectionSingleWidgetData } from '@/types/widgets'
+import type { CollectionEntry } from '@/api/types'
+import type { ResolvedRoute } from '@/composables/useRoutes'
 
 defineOptions({
   inheritAttrs: false
@@ -28,7 +30,7 @@ const collectionCode = computed(() => props.data.collection_code || '')
 const entryId = computed(() => props.data.entry_id || '')
 const layout = computed(() => props.data.layout || 'standard')
 
-// Route and entry source settings (for future features)
+// Route and entry source settings
 const routeUuid = computed(() => props.data.route_uuid || null)
 const entrySource = computed(() => props.data.entry_source || 'static')
 const entryUrlSegment = computed(() => props.data.entry_url_segment || 1)
@@ -46,15 +48,63 @@ const showTitle = computed(() => props.data.show_title !== false)
 const showContent = computed(() => props.data.show_content !== false)
 const showImage = computed(() => props.data.show_image !== false)
 
-// Use enriched entry from API if available, otherwise fetch client-side
+// Inject route params and collection entry from DynamicPageResolver
+const resolvedRoute = inject<Ref<ResolvedRoute | null> | null>('routeParams', null)
+const injectedEntry = inject<Ref<CollectionEntry | null> | CollectionEntry | null>('lcms-collection-entry', null)
+
+// Determine effective collection code and entry ID based on entry_source
+const effectiveCollectionCode = computed(() => {
+  if (entrySource.value === 'url') {
+    const params = unref(resolvedRoute)?.params
+    return params?.collectionCode || collectionCode.value
+  }
+  return collectionCode.value
+})
+
+const effectiveEntryId = computed(() => {
+  if (entrySource.value === 'url') {
+    const params = unref(resolvedRoute)?.params
+    if (!params) return ''
+    // Entry identifier may be named 'entry_id', 'slug', or any custom name
+    const { collectionCode: _cc, ...rest } = params
+    return rest.entry_id || rest.slug || Object.values(rest)[0] || ''
+  }
+  return entryId.value
+})
+
+// Use enriched entry from API if available, or injected entry for 'url' mode, otherwise fetch client-side
 const hasEnrichedData = computed(() => !!props.data.entry)
-const collectionCodeForFetch = computed(() => hasEnrichedData.value ? '' : collectionCode.value)
+const hasInjectedEntry = computed(() => {
+  if (entrySource.value !== 'url') return false
+  const entry = unref(injectedEntry)
+  return !!entry
+})
 
-const { entry: fetchedEntry, loading: fetchLoading, error: fetchError } = useCollectionEntry(collectionCodeForFetch, entryId)
+const collectionCodeForFetch = computed(() => {
+  if (hasEnrichedData.value || hasInjectedEntry.value) return ''
+  return effectiveCollectionCode.value
+})
 
-const entry = computed(() => hasEnrichedData.value ? props.data.entry : fetchedEntry.value)
-const loading = computed(() => hasEnrichedData.value ? false : fetchLoading.value)
-const error = computed(() => hasEnrichedData.value ? null : fetchError.value)
+const entryIdForFetch = computed(() => {
+  if (hasEnrichedData.value || hasInjectedEntry.value) return ''
+  return effectiveEntryId.value
+})
+
+const { entry: fetchedEntry, loading: fetchLoading, error: fetchError } = useCollectionEntry(collectionCodeForFetch, entryIdForFetch)
+
+const entry = computed(() => {
+  if (hasEnrichedData.value) return props.data.entry
+  if (hasInjectedEntry.value) return unref(injectedEntry)
+  return fetchedEntry.value
+})
+const loading = computed(() => {
+  if (hasEnrichedData.value || hasInjectedEntry.value) return false
+  return fetchLoading.value
+})
+const error = computed(() => {
+  if (hasEnrichedData.value || hasInjectedEntry.value) return null
+  return fetchError.value
+})
 
 // Helper functions
 function getFieldValue(fieldCode: string): any {

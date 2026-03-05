@@ -60,6 +60,23 @@ const showBorder = computed(() => {
   if (config.value.showBorder !== undefined) return config.value.showBorder
   return true
 })
+const itemsGap = computed(() => {
+  const v = config.value.items_gap ?? config.value.itemsGap
+  return v != null ? `${v}px` : '8px'
+})
+const fontSize = computed(() => {
+  const v = config.value.font_size ?? config.value.fontSize
+  if (v == null) return undefined
+  if (typeof v === 'number') return `${v}px`
+  return String(v).match(/[a-z]/) ? v : `${v}px`
+})
+const titleFontSize = computed(() => {
+  const v = config.value.title_font_size ?? config.value.titleFontSize
+  if (v == null) return undefined
+  if (typeof v === 'number') return `${v}px`
+  return String(v).match(/[a-z]/) ? v : `${v}px`
+})
+const titleColor = computed(() => resolveColor(config.value.title_color || config.value.titleColor) || undefined)
 
 // Auto mode: field_code is set
 const fieldCode = computed(() => config.value.field_code || config.value.fieldCode || '')
@@ -285,10 +302,11 @@ onBeforeUnmount(() => {
     <div
       v-if="title"
       class="lcms-toc__title"
+      :style="{ fontSize: titleFontSize, color: titleColor }"
     >
       {{ title }}
     </div>
-    <ul class="lcms-toc__list">
+    <ul class="lcms-toc__list" :style="{ gap: itemsGap }">
       <li
         v-for="(item, index) in items"
         :key="index"
@@ -300,7 +318,8 @@ onBeforeUnmount(() => {
           class="lcms-toc__link"
           :style="{
             color: activeAnchor === item.anchor ? highlightColor : textColor,
-            borderLeftColor: showBorder && activeAnchor === item.anchor ? highlightColor : undefined
+            borderLeftColor: showBorder && activeAnchor === item.anchor ? highlightColor : undefined,
+            fontSize: fontSize
           }"
           @click.prevent="scrollTo(item.anchor)"
         >
@@ -310,3 +329,27 @@ onBeforeUnmount(() => {
     </ul>
   </nav>
 </template>
+
+<style scoped>
+.lcms-toc__title {
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.lcms-toc__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.lcms-toc__link {
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.lcms-toc__link:hover {
+  opacity: 0.8;
+}
+</style>

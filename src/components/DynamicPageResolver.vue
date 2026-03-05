@@ -7,11 +7,14 @@
  * Also installs SPA link interception and loading bar via usePageTransition.
  */
 
-import { ref, watch, onMounted, provide } from 'vue'
+import { ref, computed, watch, onMounted, provide } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useRoutes, type ResolvedRoute } from '@/composables/useRoutes'
 import { usePageTransition } from '@/composables/usePageTransition'
+import { useApi } from '@/composables/useApi'
+import { useSeo } from '@/composables/useSeo'
 import PageRenderer from './PageRenderer.vue'
+import type { CollectionEntry, SeoData } from '@/api/types'
 
 interface Props {
   language?: string
@@ -21,6 +24,7 @@ const props = defineProps<Props>()
 
 const route = useRoute()
 const router = useRouter()
+const api = useApi()
 const { loadRoutes, resolve, isLoaded, isLoading: routesLoading, error: routesError } = useRoutes()
 
 // Install SPA link interception + loading bar
@@ -30,8 +34,52 @@ const resolvedRoute = ref<ResolvedRoute | null>(null)
 const loading = ref(true)
 const notFound = ref(false)
 
-// Provide route params to child components (widgets can use these)
+// Collection entry state
+const collectionEntry = ref<CollectionEntry | null>(null)
+const entrySeo = ref<SeoData | null>(null)
+
+// Provide route params and collection entry to child components
 provide('routeParams', resolvedRoute)
+provide('lcms-collection-entry', collectionEntry)
+
+// Apply entry SEO (overrides page SEO when entry has SEO data)
+const currentLanguage = computed(() => props.language || 'en')
+useSeo({
+  seo: entrySeo,
+  language: currentLanguage
+})
+
+/**
+ * Fetch collection entry when route has collection params.
+ * The entry identifier is extracted from URL params — it may be named
+ * 'entry_id', 'slug', or any custom name from the URL pattern.
+ * We use the first param that isn't 'collectionCode' as the entry identifier.
+ */
+async function fetchCollectionEntry(params: Record<string, string>): Promise<boolean> {
+  const { collectionCode, ...rest } = params
+  // Get entry identifier from the first URL param (could be 'slug', 'entry_id', etc.)
+  const entryIdentifier = rest.entry_id || rest.slug || Object.values(rest)[0]
+  if (!collectionCode || !entryIdentifier) return true
+
+  try {
+    const response = await api.getCollectionEntry(collectionCode, entryIdentifier)
+    collectionEntry.value = response.data || null
+
+    // Apply entry SEO if available
+    if (collectionEntry.value?.seo) {
+      entrySeo.value = collectionEntry.value.seo
+    }
+
+    return true
+  } catch (e: any) {
+    // 404 = entry not found
+    if (e?.response?.status === 404 || e?.status === 404) {
+      return false
+    }
+    console.error('Failed to fetch collection entry:', e)
+    return false
+  }
+}
 
 /**
  * Resolve the current path to a page
@@ -40,6 +88,8 @@ async function resolvePage() {
   loading.value = true
   notFound.value = false
   resolvedRoute.value = null
+  collectionEntry.value = null
+  entrySeo.value = null
 
   // Wait for routes to be loaded
   if (!isLoaded.value) {
@@ -61,6 +111,17 @@ async function resolvePage() {
 
   if (resolved) {
     resolvedRoute.value = resolved
+
+    // If this is a collection route, fetch the entry
+    if (resolved.params.collectionCode) {
+      const found = await fetchCollectionEntry(resolved.params)
+      if (!found) {
+        notFound.value = true
+        loading.value = false
+        return
+      }
+    }
+
     loading.value = false
     return
   }

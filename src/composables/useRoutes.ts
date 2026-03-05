@@ -136,6 +136,25 @@ export function useRoutes() {
       }
     }
 
+    // Try collection routes (e.g. /blog/{entry_id})
+    for (const collection of collections.value) {
+      if (!collection.routes) continue
+      for (const route of collection.routes) {
+        if (!route.url_pattern) continue
+        const regex = patternToRegex(route.url_pattern)
+        const match = normalizedPath.match(regex)
+
+        if (match && match.groups) {
+          return {
+            pageCode: route.page_code,
+            pageUuid: '',
+            params: { ...match.groups, collectionCode: collection.code },
+            isHomepage: false
+          }
+        }
+      }
+    }
+
     return null
   }
 
@@ -195,11 +214,13 @@ export function useRoutes() {
     }
 
     const collection = collections.value.find(c => c.code === collectionCode)
-    if (!collection || !collection.entry_url_pattern) {
-      return null
-    }
+    if (!collection) return null
 
-    const pattern = collection.entry_url_pattern
+    // Find the first route with a url_pattern (typically the detail route)
+    const route = collection.routes?.find(r => r.url_pattern)
+    const pattern = route?.url_pattern || collection.entry_url_pattern
+    if (!pattern) return null
+
     const params = extractParams(pattern)
     const paramValues: Record<string, string> = {}
 
@@ -209,9 +230,10 @@ export function useRoutes() {
           paramValues[param] = language
           break
         case 'slug':
-          if (collection.entry_url_field && entry.data) {
-            const fieldValue = entry.data[collection.entry_url_field]
-            // Handle multilingual fields
+          if (entry.data) {
+            // Try slug field from entry data
+            const slugField = collection.entry_url_field || 'slug'
+            const fieldValue = entry.data[slugField]
             if (fieldValue && typeof fieldValue === 'object' && !Array.isArray(fieldValue)) {
               paramValues[param] = fieldValue[language] || fieldValue.pl || Object.values(fieldValue)[0] as string || ''
             } else {

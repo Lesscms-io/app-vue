@@ -15,6 +15,7 @@
 
 <script setup lang="ts">
 import { computed, ref, onMounted, onBeforeUnmount, watch } from 'vue'
+import { useApiOptional } from '@/composables/useApi'
 
 const props = defineProps<{
   data: {
@@ -28,16 +29,29 @@ const props = defineProps<{
       scroll_wheel_zoom?: boolean
       zoom_control?: boolean
       draggable?: boolean
+      geojson_source?: string
+      geojson_file?: string
+      collection_code?: string
+      entry_source?: string
+      entry_id?: string
+      entry_url_segment?: number
+      geojson_field_code?: string
+      geojson_fill_color?: string
+      geojson_stroke_color?: string
+      geojson_fill_opacity?: string
     }
     settings?: Record<string, unknown>
   }
   language?: string
 }>()
 
+const api = useApiOptional()
+
 const config = computed(() => props.data.widget || props.data || {})
 const mapContainer = ref<HTMLElement | null>(null)
 let mapInstance: any = null
 let markerInstance: any = null
+let geojsonLayer: any = null
 
 const lat = computed(() => config.value.lat ?? null)
 const lng = computed(() => config.value.lng ?? null)
@@ -48,7 +62,21 @@ const scrollWheelZoom = computed(() => config.value.scroll_wheel_zoom === true)
 const zoomControl = computed(() => config.value.zoom_control !== false)
 const draggable = computed(() => config.value.draggable !== false)
 
+// GeoJSON computed
+const geojsonSource = computed(() => config.value.geojson_source || 'static')
+const geojsonFileUrl = computed(() => config.value.geojson_file || '')
+const collectionCode = computed(() => config.value.collection_code || '')
+const entrySource = computed(() => config.value.entry_source || 'static')
+const entryUrlSegment = computed(() => Number(config.value.entry_url_segment) || 1)
+const geojsonFieldCode = computed(() => config.value.geojson_field_code || '')
+const geojsonFillColor = computed(() => config.value.geojson_fill_color || '#3388ff')
+const geojsonStrokeColor = computed(() => config.value.geojson_stroke_color || '#3388ff')
+const geojsonFillOpacity = computed(() => parseFloat(config.value.geojson_fill_opacity || '0.2') || 0.2)
+
 const hasConfig = computed(() => lat.value !== null && lng.value !== null)
+
+// GeoJSON data
+const geojsonRawData = ref<any>(null)
 
 const TILE_PROVIDERS: Record<string, { url: string; attribution: string }> = {
   standard: {
@@ -91,6 +119,102 @@ function loadLeaflet(): Promise<void> {
   })
 }
 
+function getGeojsonStyle() {
+  return {
+    fillColor: geojsonFillColor.value,
+    color: geojsonStrokeColor.value,
+    fillOpacity: geojsonFillOpacity.value,
+    weight: 2
+  }
+}
+
+function renderGeojsonLayer() {
+  if (!mapInstance) return
+  const L = (window as any).L
+  if (!L) return
+
+  // Remove existing layer
+  if (geojsonLayer) {
+    mapInstance.removeLayer(geojsonLayer)
+    geojsonLayer = null
+  }
+
+  if (!geojsonRawData.value) return
+
+  try {
+    const style = getGeojsonStyle()
+    geojsonLayer = L.geoJSON(geojsonRawData.value, {
+      style: () => style,
+      pointToLayer: (_feature: any, latlng: any) => {
+        return L.circleMarker(latlng, { ...style, radius: 8 })
+      }
+    }).addTo(mapInstance)
+
+    // Fit bounds to GeoJSON data
+    const bounds = geojsonLayer.getBounds()
+    if (bounds.isValid()) {
+      mapInstance.fitBounds(bounds, { padding: [20, 20] })
+    }
+  } catch (e) {
+    console.error('Error rendering GeoJSON layer:', e)
+  }
+}
+
+function getEntryId(): string {
+  if (entrySource.value === 'url') {
+    const path = window.location.pathname
+    const segments = path.split('/').filter((s: string) => s)
+    const segmentIndex = entryUrlSegment.value - 1
+    return segments[segmentIndex] || ''
+  }
+  return config.value.entry_id || ''
+}
+
+async function fetchGeoJSON() {
+  if (geojsonSource.value === 'static') {
+    if (!geojsonFileUrl.value) {
+      geojsonRawData.value = null
+      return
+    }
+    try {
+      const response = await fetch(geojsonFileUrl.value)
+      geojsonRawData.value = await response.json()
+    } catch (e) {
+      console.error('Error fetching GeoJSON file:', e)
+      geojsonRawData.value = null
+    }
+  } else if (geojsonSource.value === 'dynamic') {
+    const resolvedEntryId = getEntryId()
+    if (!collectionCode.value || !resolvedEntryId || !geojsonFieldCode.value || !api) {
+      geojsonRawData.value = null
+      return
+    }
+    try {
+      const response = await api.getCollectionEntry(collectionCode.value, resolvedEntryId)
+      const entry = (response as any).data || response
+      const fieldValue = entry?.data?.[geojsonFieldCode.value]
+      if (!fieldValue) {
+        geojsonRawData.value = null
+        return
+      }
+      // Resolve multilingual field
+      let rawValue = fieldValue
+      if (typeof fieldValue === 'object' && !Array.isArray(fieldValue) && !fieldValue.type) {
+        rawValue = fieldValue[props.language || 'pl'] || Object.values(fieldValue)[0] || ''
+      }
+      // Parse if string
+      if (typeof rawValue === 'string') {
+        geojsonRawData.value = JSON.parse(rawValue)
+      } else {
+        geojsonRawData.value = rawValue
+      }
+    } catch (e) {
+      console.error('Error fetching dynamic GeoJSON:', e)
+      geojsonRawData.value = null
+    }
+  }
+}
+
 async function initMap() {
   if (!hasConfig.value || !mapContainer.value) return
 
@@ -102,6 +226,7 @@ async function initMap() {
       mapInstance.remove()
       mapInstance = null
       markerInstance = null
+      geojsonLayer = null
     }
 
     mapInstance = L.map(mapContainer.value, {
@@ -120,12 +245,23 @@ async function initMap() {
     if (showMarker.value) {
       markerInstance = L.marker([lat.value, lng.value]).addTo(mapInstance)
     }
+
+    // Render GeoJSON if available
+    if (geojsonRawData.value) {
+      renderGeojsonLayer()
+    }
   } catch (e) {
     console.error('Error initializing Leaflet map:', e)
   }
 }
 
-onMounted(() => {
+// Watch GeoJSON data changes
+watch(geojsonRawData, () => {
+  renderGeojsonLayer()
+})
+
+onMounted(async () => {
+  await fetchGeoJSON()
   if (hasConfig.value) initMap()
 })
 
@@ -138,6 +274,7 @@ onBeforeUnmount(() => {
     mapInstance.remove()
     mapInstance = null
     markerInstance = null
+    geojsonLayer = null
   }
 })
 </script>

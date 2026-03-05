@@ -503,10 +503,23 @@ export interface RoutePageItem {
   page_uuid: string
 }
 
+export interface RouteCollectionRoute {
+  url_pattern: string
+  url_pattern_translation?: Record<string, string>
+  filter_rules?: any
+  page_code: string
+  name?: string
+  sort_order?: number
+}
+
 export interface RouteCollectionItem {
   code: string
-  entry_url_pattern: string | null
-  entry_url_field: string | null
+  name?: string
+  name_translation?: Record<string, string>
+  routes: RouteCollectionRoute[]
+  // Legacy fields (deprecated)
+  entry_url_pattern?: string | null
+  entry_url_field?: string | null
 }
 
 // ============================================

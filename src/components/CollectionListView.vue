@@ -72,8 +72,11 @@ function getImage(entry: CollectionEntry): string {
   if (!props.imageField) return ''
   const image = getFieldValue(entry, props.imageField)
   if (!image) return ''
-  if (typeof image === 'object' && image.url) return image.url
-  return image
+  // Support gallery fields - take first image from array
+  const single = Array.isArray(image) ? image[0] : image
+  if (!single) return ''
+  if (typeof single === 'object' && single.url) return single.url
+  return single
 }
 
 function getDate(entry: CollectionEntry): string {
