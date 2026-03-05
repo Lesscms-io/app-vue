@@ -83,6 +83,27 @@ const cardStyle = computed(() => {
   if (borderColor) {
     styles.border = `1px solid ${borderColor}`
   }
+
+  // When card has its own background and is inside a multi-item cell with padding,
+  // expand to fill the entire cell by using negative margin + matching padding
+  if (bg && config.value.card_background !== 'transparent') {
+    const is = config.value.item_settings as Record<string, any> | undefined
+    if (is) {
+      const pt = parseInt(is.paddingTop) || 0
+      const pr = parseInt(is.paddingRight) || 0
+      const pb = parseInt(is.paddingBottom) || 0
+      const pl = parseInt(is.paddingLeft) || 0
+      if (pt || pr || pb || pl) {
+        styles.margin = `-${pt}px -${pr}px -${pb}px -${pl}px`
+        styles.padding = `${pt}px ${pr}px ${pb}px ${pl}px`
+        const cellBr = parseInt(is.borderRadius) || 0
+        if (cellBr > 0) {
+          styles.borderRadius = `${cellBr}px`
+        }
+      }
+    }
+  }
+
   return styles
 })
 

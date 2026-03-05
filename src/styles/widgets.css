@@ -453,6 +453,7 @@
 
 .lcms-image {
   display: block;
+  margin: 0;
 }
 
 .lcms-image__img {
