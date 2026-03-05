@@ -71,6 +71,11 @@
   width: 100%;
 }
 
+/* Multi-item wrapper should fill its parent widget container */
+.lcms-multi-item-wrapper {
+  flex: 1;
+}
+
 /* Multi-item grid cells should stretch children to full height */
 .lcms-multi-item-cell {
   display: flex;
