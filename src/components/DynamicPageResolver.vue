@@ -152,14 +152,14 @@ watch(() => route.path, resolvePage)
   font-size: 14px;
   font-weight: 500;
   color: #fff;
-  background: #50a5f1;
+  background: var(--lcms-color-primary, #50a5f1);
   border: none;
   border-radius: 6px;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: filter 0.2s;
 }
 
 .lcms-dynamic-page__back-btn:hover {
-  background: #3d8fd9;
+  filter: brightness(0.9);
 }
 </style>
