@@ -76,7 +76,6 @@ async function fetchCollectionEntry(params: Record<string, string>): Promise<boo
     if (e?.response?.status === 404 || e?.status === 404) {
       return false
     }
-    console.error('Failed to fetch collection entry:', e)
     return false
   }
 }
@@ -91,6 +90,8 @@ async function resolvePage() {
   collectionEntry.value = null
   entrySeo.value = null
 
+  const path = route.path
+
   // Wait for routes to be loaded
   if (!isLoaded.value) {
     await loadRoutes()
@@ -103,8 +104,6 @@ async function resolvePage() {
     loading.value = false
     return
   }
-
-  const path = route.path
 
   // Try to resolve the path
   const resolved = resolve(path)

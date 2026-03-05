@@ -27,6 +27,47 @@
         </div>
       </div>
     </template>
+    <!-- Cards display style -->
+    <template v-else-if="displayStyle === 'cards' && displayedValues.length > 0">
+      <div class="lcms-value-list__cards" :style="columnsStyle">
+        <component
+          v-for="item in displayedValues"
+          :key="item.value"
+          :is="linkEnabled ? 'a' : 'div'"
+          :href="linkEnabled ? getLink(item.value) : undefined"
+          class="lcms-value-list__card"
+          :style="itemStyle"
+        >
+          <div
+            v-if="item.icon"
+            class="lcms-value-list__card-icon"
+            :style="cardIconStyle"
+          >
+            <i :class="item.icon" />
+          </div>
+          <div class="lcms-value-list__card-content">
+            <div class="lcms-value-list__card-title">{{ item.label || item.value }}</div>
+            <div
+              v-if="item.subtitle"
+              class="lcms-value-list__card-subtitle"
+            >{{ item.subtitle }}</div>
+          </div>
+          <div v-if="linkEnabled" class="lcms-value-list__card-arrow">
+            <i class="fa-solid fa-arrow-right" />
+          </div>
+        </component>
+        <component
+          v-if="hasMore"
+          :is="showMoreUrl ? 'a' : 'span'"
+          :href="showMoreUrl || undefined"
+          class="lcms-value-list__card lcms-value-list__card--more"
+          :style="moreStyle"
+        >
+          {{ showMoreText || `+ ${values.length - visibleLimit}` }}
+        </component>
+      </div>
+    </template>
+
     <template v-else-if="displayedValues.length > 0">
       <div class="lcms-value-list__items" :style="columnsStyle">
         <component
@@ -67,6 +108,8 @@ interface ValueItem {
   value: string
   label?: string
   count?: number
+  subtitle?: string
+  icon?: string
 }
 
 interface GroupedValues {
@@ -82,6 +125,8 @@ const props = defineProps<{
       collection_code?: string
       value_field?: string
       group_field?: string
+      subtitle_field?: string
+      icon_field?: string
       display_style?: string
       columns?: number
       show_count?: boolean
@@ -99,6 +144,8 @@ const props = defineProps<{
       more_text_color?: string
       link_enabled?: boolean
       link_url_pattern?: string
+      card_icon_bg_color?: string
+      card_icon_color?: string
     }
     settings?: Record<string, unknown>
   }
@@ -109,6 +156,8 @@ const config = computed(() => props.data.widget || props.data || {})
 const collectionCode = computed(() => config.value.collection_code || '')
 const valueField = computed(() => config.value.value_field || '')
 const groupField = computed(() => config.value.group_field || '')
+const subtitleField = computed(() => config.value.subtitle_field || '')
+const iconField = computed(() => config.value.icon_field || '')
 const displayStyle = computed(() => config.value.display_style || 'list')
 const columns = computed(() => config.value.columns || 1)
 const showCount = computed(() => config.value.show_count ?? false)
@@ -155,6 +204,13 @@ const moreStyle = computed(() => {
   const s: Record<string, string> = {}
   if (config.value.more_bg_color) s.background = config.value.more_bg_color
   if (config.value.more_text_color) s.color = config.value.more_text_color
+  return s
+})
+
+const cardIconStyle = computed(() => {
+  const s: Record<string, string> = {}
+  if (config.value.card_icon_bg_color) s.background = config.value.card_icon_bg_color
+  if (config.value.card_icon_color) s.color = config.value.card_icon_color
   return s
 })
 
@@ -287,7 +343,17 @@ const values = computed<ValueItem[]>(() => {
       if (valueMap.has(code)) {
         valueMap.get(code)!.count = (valueMap.get(code)!.count || 0) + 1
       } else {
-        valueMap.set(code, { value: code, label, count: 1 })
+        const vi: ValueItem = { value: code, label, count: 1 }
+        // Extract subtitle and icon from entry for cards style
+        if (subtitleField.value) {
+          const sv = entry.data?.[subtitleField.value]
+          if (sv) vi.subtitle = extractLabel(sv)
+        }
+        if (iconField.value) {
+          const iv = entry.data?.[iconField.value]
+          if (iv) vi.icon = typeof iv === 'string' ? iv : extractLabel(iv)
+        }
+        valueMap.set(code, vi)
       }
     }
   }
@@ -465,5 +531,74 @@ watch([collectionCode, valueField], () => {
 .lcms-value-list__empty {
   color: #999;
   padding: 1rem;
+}
+
+/* Cards style */
+.lcms-value-list__cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.lcms-value-list__card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  background: #fff;
+  border-radius: 0.75rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  text-decoration: none;
+  color: inherit;
+  transition: box-shadow 0.2s, transform 0.2s;
+  min-width: 0;
+}
+
+a.lcms-value-list__card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  transform: translateY(-1px);
+  text-decoration: none;
+}
+
+.lcms-value-list__card-icon {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.5rem;
+  background: #2a3547;
+  color: #fff;
+  font-size: 1.25rem;
+  flex-shrink: 0;
+}
+
+.lcms-value-list__card-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.lcms-value-list__card-title {
+  font-weight: 600;
+  font-size: 1rem;
+  line-height: 1.3;
+}
+
+.lcms-value-list__card-subtitle {
+  font-size: 0.85rem;
+  color: #6c757d;
+  margin-top: 0.15rem;
+}
+
+.lcms-value-list__card-arrow {
+  flex-shrink: 0;
+  color: #adb5bd;
+  font-size: 0.875rem;
+  transition: transform 0.2s;
+}
+
+a.lcms-value-list__card:hover .lcms-value-list__card-arrow {
+  transform: translateX(3px);
+  color: #495057;
 }
 </style>
