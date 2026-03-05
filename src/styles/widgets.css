@@ -23,6 +23,35 @@
   width: 100%;
 }
 
+/* Links inside widget content areas — use project link color, no underline */
+.lcms-text a,
+.lcms-icon-box__content a,
+.lcms-numbered-box__content a,
+.lcms-accordion__content a,
+.lcms-tabs__content a,
+.lcms-timeline__content a,
+.lcms-hero__content a,
+.lcms-alert__content a,
+.lcms-collection-grid__content a,
+.lcms-collection-single__content a {
+  color: var(--lcms-color-link, var(--lcms-color-primary));
+  text-decoration: none;
+}
+
+.lcms-text a:hover,
+.lcms-icon-box__content a:hover,
+.lcms-numbered-box__content a:hover,
+.lcms-accordion__content a:hover,
+.lcms-tabs__content a:hover,
+.lcms-timeline__content a:hover,
+.lcms-hero__content a:hover,
+.lcms-alert__content a:hover,
+.lcms-collection-grid__content a:hover,
+.lcms-collection-single__content a:hover {
+  color: var(--lcms-link-hover-color, var(--lcms-color-link, var(--lcms-color-primary)));
+  text-decoration: underline;
+}
+
 .lcms-page__loading,
 .lcms-page__error,
 .lcms-page__not-found {
