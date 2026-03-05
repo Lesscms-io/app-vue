@@ -517,7 +517,6 @@ export interface RouteCollectionItem {
   name?: string
   name_translation?: Record<string, string>
   routes: RouteCollectionRoute[]
-  // Legacy fields (deprecated)
   entry_url_pattern?: string | null
   entry_url_field?: string | null
 }
