@@ -25,24 +25,7 @@ function resolveColor(val: string | null | undefined): string | null {
 }
 
 const props = defineProps<{
-  data: {
-    widget_type: string
-    config: {
-      number_position?: string
-      number_vertical_align?: string
-      number_size?: string | number
-      number_color?: string
-      number_font_weight?: string | number
-      number_background?: string
-      number_padding?: string | number
-      number_border_radius?: string | number
-      card_background?: string
-      card_padding?: string
-      card_border_radius?: string | number
-      card_border_color?: string
-    }
-    settings?: Record<string, unknown>
-  }
+  data: Record<string, any>
   itemIndex?: number
 }>()
 
@@ -73,7 +56,8 @@ const cardStyle = computed(() => {
     styles.backgroundColor = bg
   }
   if (config.value.card_padding) {
-    styles.padding = config.value.card_padding
+    const padVal = String(config.value.card_padding)
+    styles.padding = /^\d+$/.test(padVal) ? `${padVal}px` : padVal
   }
   const br = parseInt(String(config.value.card_border_radius))
   if (!isNaN(br) && br > 0) {

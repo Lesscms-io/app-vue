@@ -80,28 +80,11 @@
 .lcms-multi-item-cell {
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow: visible;
 }
 
 /* All direct children of multi-item cells stretch to fill the cell */
 .lcms-multi-item-cell > * {
-  flex: 1;
-}
-
-/* Card-like widgets should stretch to fill column height */
-.lcms-widget--service-card,
-.lcms-widget--pricing-table,
-.lcms-widget--icon-box,
-.lcms-widget--numbered-box {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
-
-.lcms-widget--service-card > *,
-.lcms-widget--pricing-table > *,
-.lcms-widget--icon-box > *,
-.lcms-widget--numbered-box > * {
   flex: 1;
 }
 

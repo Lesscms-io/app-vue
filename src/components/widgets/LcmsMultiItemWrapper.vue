@@ -176,6 +176,7 @@ const gridStyle = computed(() => {
       <component
         :is="innerComponent"
         :data="getItemData(item)"
+        :item-index="idx"
         :language="language"
         :settings="settings"
       />

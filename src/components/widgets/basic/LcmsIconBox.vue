@@ -84,7 +84,8 @@ const cardStyle = computed(() => {
     styles.backgroundColor = bg
   }
   if (config.value.card_padding) {
-    styles.padding = config.value.card_padding
+    const padVal = String(config.value.card_padding)
+    styles.padding = /^\d+$/.test(padVal) ? `${padVal}px` : padVal
   }
   const br = parseInt(String(config.value.card_border_radius))
   if (!isNaN(br) && br > 0) {
