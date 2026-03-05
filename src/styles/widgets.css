@@ -1441,7 +1441,7 @@
 
 .lcms-alert__message {
   margin: 0;
-  color: var(--lcms-color-gray-700);
+  color: inherit;
 }
 
 .lcms-alert__close {

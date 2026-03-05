@@ -7,6 +7,7 @@
 
 import { ref, computed } from 'vue'
 import { useLanguage } from '@/composables/useLanguage'
+import { resolveColor } from '@/utils/resolveColor'
 import type { AlertWidgetData } from '@/types/widgets'
 
 defineOptions({
@@ -48,9 +49,9 @@ const iconClass = computed(() => {
 
 const customStyles = computed(() => {
   const styles: Record<string, string> = {}
-  if (customBgColor.value) styles.backgroundColor = customBgColor.value
-  if (customBorderColor.value) styles.borderColor = customBorderColor.value
-  if (customTextColor.value) styles.color = customTextColor.value
+  if (customBgColor.value) styles.backgroundColor = resolveColor(customBgColor.value)
+  if (customBorderColor.value) styles.borderColor = resolveColor(customBorderColor.value)
+  if (customTextColor.value) styles.color = resolveColor(customTextColor.value)
   return styles
 })
 
