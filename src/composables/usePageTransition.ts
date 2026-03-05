@@ -2,25 +2,35 @@ import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 
 const isNavigating = ref(false)
-let barElement: HTMLDivElement | null = null
+let loaderElement: HTMLDivElement | null = null
+let loaderTimeout: ReturnType<typeof setTimeout> | null = null
 let installed = false
 
-function createBar() {
-  if (barElement) return
-  barElement = document.createElement('div')
-  barElement.className = 'lcms-loading-bar'
-  document.body.appendChild(barElement)
+function showLoader() {
+  // Only show loader after 300ms delay — fast loads won't flash it at all
+  loaderTimeout = setTimeout(() => {
+    if (loaderElement) return
+    loaderElement = document.createElement('div')
+    loaderElement.className = 'lcms-page-loader'
+    loaderElement.innerHTML = '<div class="lcms-page-loader__spinner"></div>'
+    document.body.appendChild(loaderElement)
+  }, 300)
 }
 
-function removeBar() {
-  if (barElement) {
-    barElement.remove()
-    barElement = null
+function hideLoader() {
+  if (loaderTimeout) {
+    clearTimeout(loaderTimeout)
+    loaderTimeout = null
+  }
+  if (loaderElement) {
+    loaderElement.remove()
+    loaderElement = null
   }
 }
 
 /**
- * Injects a global CSS loading bar and intercepts internal link clicks for SPA navigation.
+ * Intercepts internal link clicks for SPA navigation and shows a centered
+ * loader spinner during page transitions (only if loading takes > 300ms).
  * Call once in your root layout/provider component.
  */
 export function usePageTransition() {
@@ -49,40 +59,46 @@ export function usePageTransition() {
   if (!installed) {
     installed = true
 
-    // Inject loading bar CSS once
+    // Inject loader CSS once
     const style = document.createElement('style')
     style.textContent = `
-      .lcms-loading-bar {
+      .lcms-page-loader {
         position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 3px;
+        inset: 0;
         z-index: 999999;
-        background: var(--lcms-color-primary, #50a5f1);
-        transform-origin: left;
-        animation: lcms-bar-progress 1.2s ease-in-out infinite;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(255, 255, 255, 0.6);
+        animation: lcms-loader-fade-in 0.2s ease-out;
       }
-      @keyframes lcms-bar-progress {
-        0% { transform: scaleX(0); transform-origin: left; }
-        50% { transform: scaleX(0.7); transform-origin: left; }
-        100% { transform: scaleX(1); transform-origin: left; }
+      .lcms-page-loader__spinner {
+        width: 36px;
+        height: 36px;
+        border: 3px solid rgba(0, 0, 0, 0.08);
+        border-top-color: var(--lcms-color-primary, #50a5f1);
+        border-radius: 50%;
+        animation: lcms-loader-spin 0.7s linear infinite;
+      }
+      @keyframes lcms-loader-fade-in {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+      @keyframes lcms-loader-spin {
+        to { transform: rotate(360deg); }
       }
     `
     document.head.appendChild(style)
 
-    // Router guards for loading bar
+    // Router guards
     router.beforeEach(() => {
       isNavigating.value = true
-      createBar()
+      showLoader()
     })
 
     router.afterEach(() => {
-      // Small delay so content renders before bar disappears
-      setTimeout(() => {
-        isNavigating.value = false
-        removeBar()
-      }, 100)
+      isNavigating.value = false
+      hideLoader()
     })
   }
 
