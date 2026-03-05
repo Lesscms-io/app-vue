@@ -153,9 +153,18 @@ const badgeStyles = computed(() => {
 .lcms-service-card {
   display: flex;
   flex-direction: column;
+  padding: 2rem;
+  background: var(--lcms-color-white, #fff);
+  border-radius: 1rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   position: relative;
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
   height: 100%;
   box-sizing: border-box;
+}
+
+.lcms-service-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .lcms-service-card--highlighted {
