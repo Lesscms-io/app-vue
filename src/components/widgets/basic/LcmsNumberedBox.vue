@@ -1,5 +1,5 @@
 <template>
-  <div class="lcms-numbered-box" :class="positionClass">
+  <div class="lcms-numbered-box" :class="positionClass" :style="cardStyle">
     <div class="lcms-numbered-box__number" :style="numberStyles">
       {{ displayNumber }}
     </div>
@@ -36,6 +36,10 @@ const props = defineProps<{
       number_background?: string
       number_padding?: string | number
       number_border_radius?: string | number
+      card_background?: string
+      card_padding?: string
+      card_border_radius?: string | number
+      card_border_color?: string
     }
     settings?: Record<string, unknown>
   }
@@ -60,6 +64,26 @@ const positionClass = computed(() => {
     classes.push(`lcms-numbered-box--align-${numberVerticalAlign.value}`)
   }
   return classes
+})
+
+const cardStyle = computed(() => {
+  const styles: Record<string, string> = {}
+  const bg = resolveColor(config.value.card_background)
+  if (bg && config.value.card_background !== 'transparent') {
+    styles.backgroundColor = bg
+  }
+  if (config.value.card_padding) {
+    styles.padding = config.value.card_padding
+  }
+  const br = parseInt(String(config.value.card_border_radius))
+  if (!isNaN(br) && br > 0) {
+    styles.borderRadius = `${br}px`
+  }
+  const borderColor = resolveColor(config.value.card_border_color)
+  if (borderColor) {
+    styles.border = `1px solid ${borderColor}`
+  }
+  return styles
 })
 
 const numberStyles = computed(() => {
