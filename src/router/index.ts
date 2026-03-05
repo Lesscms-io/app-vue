@@ -85,6 +85,9 @@ export function createLessCMSRouter(options: LessCMSRouterOptions = {}): Router 
   return createRouter({
     history: createWebHistory(base),
     routes: allRoutes,
+    scrollBehavior() {
+      return { top: 0 }
+    },
     ...routerOptions,
   })
 }
