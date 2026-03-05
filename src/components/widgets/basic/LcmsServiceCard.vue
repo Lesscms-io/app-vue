@@ -159,6 +159,8 @@ const badgeStyles = computed(() => {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   position: relative;
   transition: box-shadow 0.2s ease, transform 0.2s ease;
+  height: 100%;
+  box-sizing: border-box;
 }
 
 .lcms-service-card:hover {

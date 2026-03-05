@@ -71,6 +71,14 @@
   width: 100%;
 }
 
+/* Card-like widgets should stretch to fill column height */
+.lcms-widget--service-card,
+.lcms-widget--pricing-table,
+.lcms-widget--icon-box,
+.lcms-widget--numbered-box {
+  flex: 1;
+}
+
 /* When column has non-stretch horizontal alignment, widgets should shrink to content width */
 .lcms-section__column--align-center .lcms-widget,
 .lcms-section__column--align-start .lcms-widget,
