@@ -15,19 +15,8 @@ interface Props {
   code: string
   language?: string
   routeParams?: Record<string, string>
-  /**
-   * Enable automatic SEO meta tag management
-   * @default true
-   */
   autoSeo?: boolean
-  /**
-   * Title template for SEO (use %s for title placeholder)
-   * Example: "%s | My Site"
-   */
   titleTemplate?: string
-  /**
-   * Default title to use if SEO title is not set
-   */
   defaultTitle?: string
 }
 
@@ -42,7 +31,7 @@ const emit = defineEmits<{
 
 const pageCode = computed(() => props.code)
 const currentLanguage = computed(() => props.language || 'en')
-const contentVisible = ref(false)
+const pageReady = ref(false)
 
 const { page, sections, seo, loading, error } = usePage(pageCode)
 
@@ -61,10 +50,7 @@ watch(page, async (newPage) => {
   if (newPage) {
     emit('loaded', newPage)
     await nextTick()
-    // Small delay to ensure DOM is ready before fade-in
-    requestAnimationFrame(() => {
-      contentVisible.value = true
-    })
+    pageReady.value = true
   }
 })
 
@@ -74,9 +60,9 @@ watch(error, (newError) => {
   }
 })
 
-// Reset visibility when page code changes
+// Reset when page code changes (navigation)
 watch(pageCode, () => {
-  contentVisible.value = false
+  pageReady.value = false
 })
 </script>
 
@@ -85,12 +71,6 @@ watch(pageCode, () => {
     class="lcms-page"
     :data-page-code="code"
   >
-    <!-- Top loading bar -->
-    <div
-      v-if="loading"
-      class="lcms-loading-bar"
-    />
-
     <div
       v-if="error && !loading"
       class="lcms-page__error"
@@ -110,7 +90,6 @@ watch(pageCode, () => {
     <div
       v-else-if="page"
       class="lcms-page__content"
-      :class="{ 'lcms-page__content--visible': contentVisible }"
     >
       <SectionRenderer
         v-for="section in sections"
@@ -121,32 +100,3 @@ watch(pageCode, () => {
     </div>
   </div>
 </template>
-
-<style scoped>
-.lcms-loading-bar {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 3px;
-  z-index: 99999;
-  background: var(--lcms-color-primary, #50a5f1);
-  animation: lcms-loading-bar 1.5s ease-in-out infinite;
-}
-
-@keyframes lcms-loading-bar {
-  0% { transform: scaleX(0); transform-origin: left; }
-  50% { transform: scaleX(1); transform-origin: left; }
-  50.01% { transform-origin: right; }
-  100% { transform: scaleX(0); transform-origin: right; }
-}
-
-.lcms-page__content {
-  opacity: 0;
-  transition: opacity 0.4s ease-out;
-}
-
-.lcms-page__content--visible {
-  opacity: 1;
-}
-</style>

@@ -37,6 +37,7 @@ export { useMenu } from './composables/useMenu'
 export { useConfig, type ProjectConfig } from './composables/useConfig'
 export { useSeo, type UseSeoOptions, type UseSeoReturn } from './composables/useSeo'
 export { useRedirects } from './composables/useRedirects'
+export { usePageTransition } from './composables/usePageTransition'
 
 // Utilities
 export { resolveColor, hexToRgba } from './utils/resolveColor'
