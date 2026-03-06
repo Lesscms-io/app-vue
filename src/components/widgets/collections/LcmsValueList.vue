@@ -101,9 +101,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, inject, onMounted, watch, type Ref } from 'vue'
+import { computed, ref, inject, unref, onMounted, watch, type Ref } from 'vue'
 import { useApi } from '../../../composables/useApi'
 import type { ResolvedRoute } from '../../../composables/useRoutes'
+import type { CollectionEntry } from '../../../api/types'
 
 interface ValueItem {
   value: string
@@ -161,6 +162,8 @@ const config = computed(() => props.data.widget || props.data || {})
 
 // Inject route params for URL-based filter resolution
 const resolvedRoute = inject<Ref<ResolvedRoute | null>>('routeParams', ref(null))
+// Inject collection entry for entry_field filter source
+const injectedEntry = inject<CollectionEntry | Ref<CollectionEntry | null> | null>('lcms-collection-entry', null)
 
 const collectionCode = computed(() => config.value.collection_code || '')
 const valueField = computed(() => config.value.value_field || '')
@@ -177,6 +180,7 @@ const linkUrlPattern = computed(() => config.value.link_url_pattern || '')
 const filterField = computed(() => config.value.filter_field || '')
 const filterValueSource = computed(() => config.value.filter_value_source || 'static')
 const filterUrlSegment = computed(() => Number(config.value.filter_url_segment) || 1)
+const filterEntryFieldCode = computed(() => config.value.filter_entry_field_code || '')
 const filterValue = computed(() => {
   if (filterValueSource.value === 'url') {
     // Use route params (entry_id/slug) — more reliable than manual segment parsing
@@ -190,6 +194,29 @@ const filterValue = computed(() => {
     const path = window.location.pathname
     const segments = path.split('/').filter((s: string) => s)
     return segments[filterUrlSegment.value - 1] || ''
+  }
+  if (filterValueSource.value === 'entry_field') {
+    const fieldCode = filterEntryFieldCode.value
+    if (!fieldCode) return ''
+    const entry = unref(injectedEntry)
+    if (!entry?.content) return ''
+    const fieldVal = entry.content[fieldCode]
+    if (!fieldVal) return ''
+    // Handle metadata fields
+    if (fieldCode === 'entry_id') return entry.metadata?.entry_id || ''
+    // Handle enriched select: { code, value }
+    if (typeof fieldVal === 'object' && fieldVal.code) return fieldVal.code
+    // Handle array (multiselect) — use first value
+    if (Array.isArray(fieldVal) && fieldVal.length > 0) {
+      const first = fieldVal[0]
+      return typeof first === 'object' && first?.code ? first.code : String(first)
+    }
+    // Handle multilingual object
+    if (typeof fieldVal === 'object' && !Array.isArray(fieldVal)) {
+      const lang = document.documentElement.lang || 'pl'
+      return fieldVal[lang] || fieldVal.pl || Object.values(fieldVal)[0] || ''
+    }
+    return String(fieldVal)
   }
   return config.value.filter_value || ''
 })
@@ -492,6 +519,7 @@ async function fetchValues() {
   }
 
   // Use enriched entries from API if available (and no URL filter active)
+  // For entry_field filter, enriched entries already contain all entries (unfiltered) — client-side filtering applies
   const isUrlFilter = filterValueSource.value === 'url' && filterField.value && filterValue.value
   if (Array.isArray(config.value.entries) && !isUrlFilter) {
     // Normalize enriched entries (content → data key for compatibility)

@@ -416,21 +416,27 @@ async function fetchGeoJSON() {
     try {
       const response = await api.getCollectionEntry(collectionCode.value, resolvedEntryId)
       const entry = (response as any).data || response
-      const fieldValue = entry?.data?.[geojsonFieldCode.value]
+      const fieldValue = entry?.content?.[geojsonFieldCode.value] || entry?.data?.[geojsonFieldCode.value]
       if (!fieldValue) {
         geojsonRawData.value = null
         return
       }
-      // Resolve multilingual field
-      let rawValue = fieldValue
-      if (typeof fieldValue === 'object' && !Array.isArray(fieldValue) && !fieldValue.type) {
-        rawValue = fieldValue[props.language || 'pl'] || Object.values(fieldValue)[0] || ''
+      // Use shared extraction logic (handles multilingual, URLs, JSON strings)
+      const geoData = extractGeoJsonFromField(fieldValue, props.language || 'pl')
+      if (!geoData) {
+        geojsonRawData.value = null
+        return
       }
-      // Parse if string
-      if (typeof rawValue === 'string') {
-        geojsonRawData.value = JSON.parse(rawValue)
+      // If it's a URL, fetch the file
+      if (typeof geoData === 'string') {
+        if (api) {
+          geojsonRawData.value = await api.proxyFile(geoData)
+        } else {
+          const geoResponse = await fetch(geoData)
+          geojsonRawData.value = await geoResponse.json()
+        }
       } else {
-        geojsonRawData.value = rawValue
+        geojsonRawData.value = geoData
       }
     } catch (e) {
       console.error('Error fetching dynamic GeoJSON:', e)
