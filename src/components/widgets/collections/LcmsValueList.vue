@@ -144,6 +144,7 @@ const props = defineProps<{
       more_text_color?: string
       link_enabled?: boolean
       link_url_pattern?: string
+      card_icon?: string
       card_icon_bg_color?: string
       card_icon_color?: string
     }
@@ -158,6 +159,7 @@ const valueField = computed(() => config.value.value_field || '')
 const groupField = computed(() => config.value.group_field || '')
 const subtitleField = computed(() => config.value.subtitle_field || '')
 const iconField = computed(() => config.value.icon_field || '')
+const cardIcon = computed(() => config.value.card_icon || '')
 const displayStyle = computed(() => config.value.display_style || 'list')
 const columns = computed(() => config.value.columns || 1)
 const showCount = computed(() => config.value.show_count ?? false)
@@ -352,6 +354,8 @@ const values = computed<ValueItem[]>(() => {
         if (iconField.value) {
           const iv = entry.data?.[iconField.value]
           if (iv) vi.icon = typeof iv === 'string' ? iv : extractLabel(iv)
+        } else if (cardIcon.value) {
+          vi.icon = cardIcon.value
         }
         valueMap.set(code, vi)
       }

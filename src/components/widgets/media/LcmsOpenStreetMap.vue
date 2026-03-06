@@ -43,6 +43,7 @@ const props = defineProps<{
       collection_layers_enabled?: boolean
       collection_layers_collection?: string
       collection_layers_field?: string
+      collection_layers_limit?: number
     }
     settings?: Record<string, unknown>
   }
@@ -79,9 +80,10 @@ const geojsonStrokeColor = computed(() => config.value.geojson_stroke_color || '
 const geojsonFillOpacity = computed(() => parseFloat(config.value.geojson_fill_opacity || '0.2') || 0.2)
 
 // Collection layers computed
-const collectionLayersEnabled = computed(() => config.value.collection_layers_enabled || false)
+const collectionLayersEnabled = computed(() => config.value.collection_layers_enabled || config.value.geojson_source === 'collection')
 const collectionLayersCollection = computed(() => config.value.collection_layers_collection || '')
 const collectionLayersField = computed(() => config.value.collection_layers_field || '')
+const collectionLayersLimit = computed(() => Number(config.value.collection_layers_limit) || 50)
 
 const hasConfig = computed(() => lat.value !== null && lng.value !== null)
 
@@ -216,7 +218,7 @@ async function fetchCollectionLayers() {
   if (!L) return
 
   try {
-    const response = await api.getCollection(collectionLayersCollection.value, { pageSize: 500 })
+    const response = await api.getCollection(collectionLayersCollection.value, { pageSize: collectionLayersLimit.value })
     const entries = response.data || []
     const style = getGeojsonStyle()
     const allBounds: any[] = []
