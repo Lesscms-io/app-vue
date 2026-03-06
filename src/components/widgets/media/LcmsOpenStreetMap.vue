@@ -223,21 +223,33 @@ function extractGeoJsonFromField(fieldValue: any, language: string): any {
   return rawValue
 }
 
-function matchesCollectionLayersFilter(entry: any): boolean {
-  if (!collectionLayersFilterField.value || !collectionLayersFilterValue.value) return true
-  const fieldVal = entry.content?.[collectionLayersFilterField.value]
+function matchFieldValue(fieldVal: any, target: string): boolean {
   if (!fieldVal) return false
-
   if (Array.isArray(fieldVal)) {
     return fieldVal.some((item: any) => {
-      if (item && typeof item === 'object' && item.code) return item.code === collectionLayersFilterValue.value
-      if (typeof item === 'string') return item === collectionLayersFilterValue.value
+      if (item && typeof item === 'object' && item.code) return item.code === target
+      if (typeof item === 'string') return item === target
       return false
     })
   }
-  if (fieldVal && typeof fieldVal === 'object' && fieldVal.code) return fieldVal.code === collectionLayersFilterValue.value
-  if (typeof fieldVal === 'string') return fieldVal === collectionLayersFilterValue.value
-  return String(fieldVal) === collectionLayersFilterValue.value
+  if (fieldVal && typeof fieldVal === 'object' && fieldVal.code) return fieldVal.code === target
+  if (typeof fieldVal === 'string') return fieldVal === target
+  // Multilingual object: { pl: "...", en: "..." }
+  if (typeof fieldVal === 'object' && fieldVal !== null && !fieldVal.code) {
+    return Object.values(fieldVal).some(v => typeof v === 'string' && v.toLowerCase() === target.toLowerCase())
+  }
+  return String(fieldVal) === target
+}
+
+function matchesCollectionLayersFilter(entry: any): boolean {
+  if (!collectionLayersFilterField.value || !collectionLayersFilterValue.value) return true
+  // Special: filter by entry_id (metadata)
+  if (collectionLayersFilterField.value === '_entry_id') {
+    const entryId = entry.metadata?.entry_id || entry.entry_id || ''
+    return entryId === collectionLayersFilterValue.value
+  }
+  const fieldVal = entry.content?.[collectionLayersFilterField.value]
+  return matchFieldValue(fieldVal, collectionLayersFilterValue.value)
 }
 
 async function fetchCollectionLayers() {

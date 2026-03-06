@@ -255,24 +255,38 @@ function getLink(item: ValueItem): string {
   return linkUrlPattern.value.replace('{value}', encodeURIComponent(item.value))
 }
 
-// Match a filter value in an entry field
-function matchesFilter(entry: any): boolean {
-  if (!filterField.value || !filterValue.value) return true
-  const fv = entry.data?.[valueField.value] !== undefined ? entry.data?.[filterField.value] : undefined
-  // Actually look at the filter field, not the value field
-  const fieldVal = entry.data?.[filterField.value]
+function matchFieldValue(fieldVal: any, target: string): boolean {
   if (!fieldVal) return false
 
+  // Array (multiselect)
   if (Array.isArray(fieldVal)) {
     return fieldVal.some((item: any) => {
-      if (item && typeof item === 'object' && item.code) return item.code === filterValue.value
-      if (typeof item === 'string') return item === filterValue.value
+      if (item && typeof item === 'object' && item.code) return item.code === target
+      if (typeof item === 'string') return item === target
       return false
     })
   }
-  if (fieldVal && typeof fieldVal === 'object' && fieldVal.code) return fieldVal.code === filterValue.value
-  if (typeof fieldVal === 'string') return fieldVal === filterValue.value
-  return String(fieldVal) === filterValue.value
+  // Enriched select: { code, value, value_translation }
+  if (fieldVal && typeof fieldVal === 'object' && fieldVal.code) return fieldVal.code === target
+  // Simple string
+  if (typeof fieldVal === 'string') return fieldVal === target
+  // Multilingual object: { pl: "...", en: "..." }
+  if (typeof fieldVal === 'object' && fieldVal !== null && !fieldVal.code) {
+    return Object.values(fieldVal).some(v => typeof v === 'string' && v.toLowerCase() === target.toLowerCase())
+  }
+  return String(fieldVal) === target
+}
+
+// Match a filter value in an entry field
+function matchesFilter(entry: any): boolean {
+  if (!filterField.value || !filterValue.value) return true
+  // Special: filter by entry_id (metadata)
+  if (filterField.value === '_entry_id') {
+    const entryId = entry.metadata?.entry_id || entry.entry_id || ''
+    return entryId === filterValue.value
+  }
+  const fieldVal = entry.data?.[filterField.value]
+  return matchFieldValue(fieldVal, filterValue.value)
 }
 
 function sortItems(items: ValueItem[]): ValueItem[] {
