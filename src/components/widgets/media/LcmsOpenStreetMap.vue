@@ -14,8 +14,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted, onBeforeUnmount, watch } from 'vue'
+import { computed, ref, inject, onMounted, onBeforeUnmount, watch, type Ref } from 'vue'
 import { useApiOptional } from '@/composables/useApi'
+import type { ResolvedRoute } from '@/composables/useRoutes'
 
 const props = defineProps<{
   data: {
@@ -55,6 +56,7 @@ const props = defineProps<{
 }>()
 
 const api = useApiOptional()
+const resolvedRoute = inject<Ref<ResolvedRoute | null>>('routeParams', ref(null))
 
 const config = computed(() => props.data.widget || props.data || {})
 const mapContainer = ref<HTMLElement | null>(null)
@@ -93,6 +95,14 @@ const collectionLayersFilterValueSource = computed(() => config.value.collection
 const collectionLayersFilterUrlSegment = computed(() => Number(config.value.collection_layers_filter_url_segment) || 1)
 const collectionLayersFilterValue = computed(() => {
   if (collectionLayersFilterValueSource.value === 'url') {
+    // Use route params (entry_id/slug) — more reliable than manual segment parsing
+    const params = resolvedRoute?.value?.params
+    if (params) {
+      const { collectionCode: _cc, ...rest } = params
+      const val = rest.entry_id || rest.slug || Object.values(rest)[0]
+      if (val) return val
+    }
+    // Fallback to URL segment parsing
     const path = window.location.pathname
     const segments = path.split('/').filter((s: string) => s)
     return segments[collectionLayersFilterUrlSegment.value - 1] || ''

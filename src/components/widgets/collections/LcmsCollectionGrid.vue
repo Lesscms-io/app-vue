@@ -200,9 +200,18 @@ const layoutConfig = computed(() => config.value.layout_config || null)
 // Use enriched entries from API if available, otherwise fetch client-side
 const hasEnrichedData = computed(() => Array.isArray(config.value.entries))
 
-// Resolve filter value from URL segment (for url-based filters)
+// Resolve filter value from URL (for url-based filters)
+// Use route params (entry_id/slug) from resolved route — more reliable than manual segment parsing
 const resolvedFilterValue = computed(() => {
   if (!filterField.value || filterSource.value !== 'url') return ''
+  const params = resolvedRoute?.value?.params
+  if (params) {
+    // Use entry_id, slug, or first non-collectionCode param
+    const { collectionCode: _cc, ...rest } = params
+    const val = rest.entry_id || rest.slug || Object.values(rest)[0]
+    if (val) return val
+  }
+  // Fallback to URL segment parsing
   const seg = Number(filterUrlSegment.value) || 1
   const segments = window.location.pathname.split('/').filter((s: string) => s)
   return segments[seg - 1] || ''

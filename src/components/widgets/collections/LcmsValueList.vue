@@ -101,8 +101,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted, watch } from 'vue'
+import { computed, ref, inject, onMounted, watch, type Ref } from 'vue'
 import { useApi } from '../../../composables/useApi'
+import type { ResolvedRoute } from '../../../composables/useRoutes'
 
 interface ValueItem {
   value: string
@@ -158,6 +159,9 @@ const props = defineProps<{
 
 const config = computed(() => props.data.widget || props.data || {})
 
+// Inject route params for URL-based filter resolution
+const resolvedRoute = inject<Ref<ResolvedRoute | null>>('routeParams', ref(null))
+
 const collectionCode = computed(() => config.value.collection_code || '')
 const valueField = computed(() => config.value.value_field || '')
 const groupField = computed(() => config.value.group_field || '')
@@ -175,6 +179,14 @@ const filterValueSource = computed(() => config.value.filter_value_source || 'st
 const filterUrlSegment = computed(() => Number(config.value.filter_url_segment) || 1)
 const filterValue = computed(() => {
   if (filterValueSource.value === 'url') {
+    // Use route params (entry_id/slug) — more reliable than manual segment parsing
+    const params = resolvedRoute?.value?.params
+    if (params) {
+      const { collectionCode: _cc, ...rest } = params
+      const val = rest.entry_id || rest.slug || Object.values(rest)[0]
+      if (val) return val
+    }
+    // Fallback to URL segment parsing
     const path = window.location.pathname
     const segments = path.split('/').filter((s: string) => s)
     return segments[filterUrlSegment.value - 1] || ''
