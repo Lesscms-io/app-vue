@@ -39,6 +39,10 @@ const props = defineProps<{
       geojson_fill_color?: string
       geojson_stroke_color?: string
       geojson_fill_opacity?: string
+      // Collection layers
+      collection_layers_enabled?: boolean
+      collection_layers_collection?: string
+      collection_layers_field?: string
     }
     settings?: Record<string, unknown>
   }
@@ -52,6 +56,7 @@ const mapContainer = ref<HTMLElement | null>(null)
 let mapInstance: any = null
 let markerInstance: any = null
 let geojsonLayer: any = null
+let collectionLayers: any[] = []
 
 const lat = computed(() => config.value.lat ?? null)
 const lng = computed(() => config.value.lng ?? null)
@@ -72,6 +77,11 @@ const geojsonFieldCode = computed(() => config.value.geojson_field_code || '')
 const geojsonFillColor = computed(() => config.value.geojson_fill_color || '#3388ff')
 const geojsonStrokeColor = computed(() => config.value.geojson_stroke_color || '#3388ff')
 const geojsonFillOpacity = computed(() => parseFloat(config.value.geojson_fill_opacity || '0.2') || 0.2)
+
+// Collection layers computed
+const collectionLayersEnabled = computed(() => config.value.collection_layers_enabled || false)
+const collectionLayersCollection = computed(() => config.value.collection_layers_collection || '')
+const collectionLayersField = computed(() => config.value.collection_layers_field || '')
 
 const hasConfig = computed(() => lat.value !== null && lng.value !== null)
 
@@ -150,13 +160,154 @@ function renderGeojsonLayer() {
       }
     }).addTo(mapInstance)
 
-    // Fit bounds to GeoJSON data
-    const bounds = geojsonLayer.getBounds()
-    if (bounds.isValid()) {
-      mapInstance.fitBounds(bounds, { padding: [20, 20] })
+    // Fit bounds to GeoJSON data (only if no collection layers that will also set bounds)
+    if (!collectionLayersEnabled.value) {
+      const bounds = geojsonLayer.getBounds()
+      if (bounds.isValid()) {
+        mapInstance.fitBounds(bounds, { padding: [20, 20] })
+      }
     }
   } catch (e) {
     console.error('Error rendering GeoJSON layer:', e)
+  }
+}
+
+// ---- Collection Layers ----
+
+function removeCollectionLayers() {
+  if (!mapInstance) return
+  for (const layer of collectionLayers) {
+    mapInstance.removeLayer(layer)
+  }
+  collectionLayers = []
+}
+
+function extractGeoJsonFromField(fieldValue: any, language: string): any {
+  if (!fieldValue) return null
+
+  // If it's a file field, it could be a URL string or multilingual object
+  let rawValue = fieldValue
+  if (typeof fieldValue === 'object' && !Array.isArray(fieldValue) && !fieldValue.type) {
+    rawValue = fieldValue[language] || fieldValue.pl || Object.values(fieldValue)[0] || ''
+  }
+
+  // If it's a URL to a GeoJSON file, we'll need to fetch it
+  if (typeof rawValue === 'string') {
+    if (rawValue.startsWith('http') || rawValue.startsWith('/')) {
+      return rawValue // Return URL to be fetched
+    }
+    try {
+      return JSON.parse(rawValue)
+    } catch {
+      return null
+    }
+  }
+
+  return rawValue
+}
+
+async function fetchCollectionLayers() {
+  removeCollectionLayers()
+
+  if (!collectionLayersEnabled.value || !collectionLayersCollection.value || !collectionLayersField.value || !api) return
+  if (!mapInstance) return
+
+  const L = (window as any).L
+  if (!L) return
+
+  try {
+    const response = await api.getCollection(collectionLayersCollection.value, { pageSize: 500 })
+    const entries = response.data || []
+    const style = getGeojsonStyle()
+    const allBounds: any[] = []
+
+    for (const entry of entries) {
+      const fieldValue = entry.content?.[collectionLayersField.value]
+      const geoData = extractGeoJsonFromField(fieldValue, props.language || 'pl')
+      if (!geoData) continue
+
+      const entryUrl = entry.metadata?.url || '#'
+
+      let geojsonData: any
+      if (typeof geoData === 'string') {
+        // It's a URL, fetch it
+        try {
+          const geoResponse = await fetch(geoData)
+          geojsonData = await geoResponse.json()
+        } catch {
+          continue
+        }
+      } else {
+        geojsonData = geoData
+      }
+
+      if (!geojsonData) continue
+
+      try {
+        const layer = L.geoJSON(geojsonData, {
+          style: () => ({
+            ...style,
+            cursor: 'pointer'
+          }),
+          pointToLayer: (_feature: any, latlng: any) => {
+            return L.circleMarker(latlng, { ...style, radius: 8 })
+          },
+          onEachFeature: (_feature: any, featureLayer: any) => {
+            // Add CSS class for pointer cursor
+            if (featureLayer._path) {
+              featureLayer._path.classList.add('lcms-clickable-layer')
+            }
+            featureLayer.on('add', () => {
+              if (featureLayer._path) {
+                featureLayer._path.classList.add('lcms-clickable-layer')
+              }
+            })
+            featureLayer.on('click', () => {
+              window.location.href = entryUrl
+            })
+            featureLayer.on('mouseover', () => {
+              featureLayer.setStyle({
+                fillOpacity: Math.min((style.fillOpacity || 0.2) + 0.3, 1),
+                weight: 3
+              })
+            })
+            featureLayer.on('mouseout', () => {
+              featureLayer.setStyle({
+                fillOpacity: style.fillOpacity || 0.2,
+                weight: 2
+              })
+            })
+          }
+        }).addTo(mapInstance)
+
+        collectionLayers.push(layer)
+
+        const bounds = layer.getBounds()
+        if (bounds.isValid()) {
+          allBounds.push(bounds)
+        }
+      } catch (e) {
+        console.error('Error rendering collection GeoJSON layer:', e)
+      }
+    }
+
+    // Fit map to all collection layers bounds
+    if (allBounds.length > 0) {
+      let combinedBounds = allBounds[0]
+      for (let i = 1; i < allBounds.length; i++) {
+        combinedBounds = combinedBounds.extend(allBounds[i])
+      }
+      // Also include single geojson layer bounds if present
+      if (geojsonLayer) {
+        const gBounds = geojsonLayer.getBounds()
+        if (gBounds.isValid()) {
+          combinedBounds = combinedBounds.extend(gBounds)
+        }
+      }
+      mapInstance.fitBounds(combinedBounds, { padding: [20, 20] })
+    }
+  } catch (e) {
+    console.error('Error fetching collection layers:', e)
   }
 }
 
@@ -227,6 +378,7 @@ async function initMap() {
       mapInstance = null
       markerInstance = null
       geojsonLayer = null
+      collectionLayers = []
     }
 
     mapInstance = L.map(mapContainer.value, {
@@ -249,6 +401,11 @@ async function initMap() {
     // Render GeoJSON if available
     if (geojsonRawData.value) {
       renderGeojsonLayer()
+    }
+
+    // Load collection layers
+    if (collectionLayersEnabled.value) {
+      fetchCollectionLayers()
     }
   } catch (e) {
     console.error('Error initializing Leaflet map:', e)
@@ -275,6 +432,7 @@ onBeforeUnmount(() => {
     mapInstance = null
     markerInstance = null
     geojsonLayer = null
+    collectionLayers = []
   }
 })
 </script>
@@ -305,3 +463,11 @@ onBeforeUnmount(() => {
   font-size: 3rem;
 }
 </style>
+
+<style>
+/* Pointer cursor for clickable GeoJSON areas (unscoped to target Leaflet SVG paths) */
+.lcms-openstreetmap .leaflet-interactive.lcms-clickable-layer {
+  cursor: pointer !important;
+}
+</style>
+
