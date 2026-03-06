@@ -206,9 +206,52 @@ const { entries: fetchedEntries, loading: fetchLoading, error: fetchError } = us
   pageSize: postsCount.value,
 }, excludeEntryId)
 
-const entries = computed(() => hasEnrichedData.value ? config.value.entries : fetchedEntries.value)
+const allEntries = computed(() => hasEnrichedData.value ? config.value.entries : fetchedEntries.value)
 const loading = computed(() => hasEnrichedData.value ? false : fetchLoading.value)
 const error = computed(() => hasEnrichedData.value ? null : fetchError.value)
+
+// Resolve filter value (static or from URL)
+const resolvedFilterValue = computed(() => {
+  if (!filterField.value) return ''
+  if (filterSource.value === 'url') {
+    const seg = Number(filterUrlSegment.value) || 1
+    const segments = window.location.pathname.split('/').filter((s: string) => s)
+    return segments[seg - 1] || ''
+  }
+  return filterValue.value
+})
+
+function matchFieldValue(fieldVal: any, target: string): boolean {
+  if (!fieldVal) return false
+  if (Array.isArray(fieldVal)) {
+    return fieldVal.some((item: any) => {
+      if (item && typeof item === 'object' && item.code) return item.code === target
+      if (typeof item === 'string') return item === target
+      return false
+    })
+  }
+  if (fieldVal && typeof fieldVal === 'object' && fieldVal.code) return fieldVal.code === target
+  if (typeof fieldVal === 'string') return fieldVal === target || fieldVal.toLowerCase() === target.toLowerCase()
+  // Multilingual object
+  if (fieldVal && typeof fieldVal === 'object' && !Array.isArray(fieldVal)) {
+    const lang = document.documentElement.lang || 'pl'
+    const resolved = fieldVal[lang] || fieldVal.pl || Object.values(fieldVal).find((v: any) => v != null && v !== '')
+    if (resolved) return String(resolved).toLowerCase() === target.toLowerCase()
+  }
+  return String(fieldVal) === target
+}
+
+const entries = computed(() => {
+  if (!filterField.value || !resolvedFilterValue.value) return allEntries.value
+  return allEntries.value.filter((entry: CollectionEntry) => {
+    if (filterField.value === '_entry_id') {
+      const entryId = entry.metadata?.entry_id || (entry as any).entry_id || ''
+      return entryId === resolvedFilterValue.value
+    }
+    const fieldVal = entry.content?.[filterField.value]
+    return matchFieldValue(fieldVal, resolvedFilterValue.value)
+  })
+})
 
 // Helper functions
 function getFieldValue(entry: CollectionEntry, fieldCode: string): any {

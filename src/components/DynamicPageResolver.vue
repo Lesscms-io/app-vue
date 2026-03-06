@@ -7,7 +7,7 @@
  * Also installs SPA link interception and loading bar via usePageTransition.
  */
 
-import { ref, computed, watch, onMounted, provide } from 'vue'
+import { ref, computed, watch, onMounted, provide, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useRoutes, type ResolvedRoute } from '@/composables/useRoutes'
 import { usePageTransition } from '@/composables/usePageTransition'
@@ -33,6 +33,22 @@ usePageTransition()
 const resolvedRoute = ref<ResolvedRoute | null>(null)
 const loading = ref(true)
 const notFound = ref(false)
+const isFirstLoad = ref(true)
+const fadeOut = ref(false)
+const waitingForPage = ref(false)
+
+const FADE_DURATION = 150 // ms
+
+function sleep(ms: number) {
+  return new Promise(resolve => setTimeout(resolve, ms))
+}
+
+function onPageLoaded() {
+  if (!waitingForPage.value) return
+  waitingForPage.value = false
+  window.scrollTo({ top: 0 })
+  fadeOut.value = false
+}
 
 // Collection entry state
 const collectionEntry = ref<CollectionEntry | null>(null)
@@ -86,9 +102,12 @@ async function fetchCollectionEntry(params: Record<string, string>): Promise<boo
 async function resolvePage() {
   loading.value = true
   notFound.value = false
-  resolvedRoute.value = null
-  collectionEntry.value = null
-  entrySeo.value = null
+
+  // Fade out current page (skip on first load)
+  if (!isFirstLoad.value && resolvedRoute.value) {
+    fadeOut.value = true
+    await sleep(FADE_DURATION)
+  }
 
   const path = route.path
 
@@ -100,8 +119,13 @@ async function resolvePage() {
   // Check for errors loading routes
   if (routesError.value) {
     console.error('Failed to load routes:', routesError.value)
+    resolvedRoute.value = null
+    collectionEntry.value = null
+    entrySeo.value = null
     notFound.value = true
     loading.value = false
+    fadeOut.value = false
+    isFirstLoad.value = false
     return
   }
 
@@ -109,25 +133,58 @@ async function resolvePage() {
   const resolved = resolve(path)
 
   if (resolved) {
-    resolvedRoute.value = resolved
-
-    // If this is a collection route, fetch the entry
+    // If this is a collection route, fetch the entry before swapping
     if (resolved.params.collectionCode) {
       const found = await fetchCollectionEntry(resolved.params)
       if (!found) {
+        resolvedRoute.value = null
+        collectionEntry.value = null
+        entrySeo.value = null
         notFound.value = true
         loading.value = false
+        fadeOut.value = false
+        isFirstLoad.value = false
         return
       }
+    } else {
+      collectionEntry.value = null
+      entrySeo.value = null
     }
 
+    const isSamePage = resolvedRoute.value?.pageCode === resolved.pageCode
+    resolvedRoute.value = resolved
     loading.value = false
+
+    if (isFirstLoad.value || isSamePage) {
+      // Same page (collection entry swap) or first load — content is already there
+      await nextTick()
+      window.scrollTo({ top: 0 })
+      fadeOut.value = false
+    } else {
+      // Different page — wait for PageRenderer to finish fetching
+      waitingForPage.value = true
+      // Safety: fade in after 3s max even if loaded event doesn't fire
+      setTimeout(() => {
+        if (waitingForPage.value) {
+          waitingForPage.value = false
+          window.scrollTo({ top: 0 })
+          fadeOut.value = false
+        }
+      }, 3000)
+    }
+    isFirstLoad.value = false
     return
   }
 
   // Not found
+  resolvedRoute.value = null
+  collectionEntry.value = null
+  entrySeo.value = null
   notFound.value = true
   loading.value = false
+  window.scrollTo({ top: 0 })
+  fadeOut.value = false
+  isFirstLoad.value = false
 }
 
 // Resolve on mount and when route changes
@@ -136,7 +193,10 @@ watch(() => route.path, resolvePage)
 </script>
 
 <template>
-  <div class="lcms-dynamic-page">
+  <div
+    class="lcms-dynamic-page"
+    :class="{ 'is-fading-out': fadeOut }"
+  >
     <!-- Not found state -->
     <div
       v-if="notFound"
@@ -160,11 +220,20 @@ watch(() => route.path, resolvePage)
       :code="resolvedRoute.pageCode"
       :language="language"
       :route-params="resolvedRoute.params"
+      @loaded="onPageLoaded"
     />
   </div>
 </template>
 
 <style scoped>
+.lcms-dynamic-page {
+  transition: opacity 150ms ease;
+}
+
+.lcms-dynamic-page.is-fading-out {
+  opacity: 0;
+}
+
 .lcms-dynamic-page__not-found {
   display: flex;
   align-items: center;
