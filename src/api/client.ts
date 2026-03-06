@@ -97,6 +97,11 @@ export interface ApiClient {
   getSitemap(): Promise<string>
 
   /**
+   * Proxy a file fetch through the API to avoid CORS issues
+   */
+  proxyFile(url: string): Promise<any>
+
+  /**
    * Check if client is in proxy mode
    */
   isProxyMode(): boolean
@@ -275,6 +280,10 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
   return {
     get,
     post,
+
+    proxyFile(url: string) {
+      return get('/proxy/file', { url })
+    },
 
     isProxyMode() {
       return isProxy

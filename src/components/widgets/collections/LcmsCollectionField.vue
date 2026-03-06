@@ -88,11 +88,52 @@ const entrySource = computed(() => config.value.entry_source || 'context')
 const entryId = computed(() => config.value.entry_id || '')
 const entryUrlSegment = computed(() => config.value.entry_url_segment || 1)
 
-// Display settings (for future features)
+// Display settings
 const customDateFormat = computed(() => config.value.custom_date_format || '')
-const linkText = computed(() => config.value.link_text || '')
+const linkText = computed(() => {
+  const text = config.value.link_text
+  if (!text) return ''
+  if (typeof text === 'object') {
+    return text[currentLanguage.value] || text.pl || Object.values(text)[0] || ''
+  }
+  return text
+})
 const buttonStyleField = computed(() => config.value.button_style || 'primary')
 const buttonSizeField = computed(() => config.value.button_size || 'md')
+
+// Entry link (_link system field)
+const isEntryLink = computed(() => fieldCode.value === '_link')
+
+const entryUrl = computed(() => {
+  // 1. Use pre-resolved URL from API (based on collection routes)
+  if (config.value.entry_url) return config.value.entry_url
+
+  // 2. Fallback to injected entry metadata URL
+  const entry = unref(injectedEntry)
+  if (entry?.metadata?.url) return entry.metadata.url
+
+  // 3. Final fallback: /{collection_code}/{entry_id}
+  const entry2 = unref(injectedEntry)
+  const eid = entry2?.metadata?.entry_id || entry2?.entry_id || entryId.value
+  const cc = collectionCode.value || entry2?.metadata?.code
+  if (cc && eid) return `/${cc}/${eid}`
+  return null
+})
+
+const resolvedLinkText = computed(() => {
+  return linkText.value || 'Zobacz'
+})
+
+const entryLinkButtonClass = computed(() => {
+  return `lcms-button__link--${buttonStyleField.value}`
+})
+
+const entryLinkSizeClass = computed(() => {
+  const size = buttonSizeField.value
+  if (size === 'sm') return 'lcms-button__link--size-sm'
+  if (size === 'lg') return 'lcms-button__link--size-lg'
+  return ''
+})
 
 // Get field value from entry or enriched data
 const fieldValue = computed(() => {
@@ -340,8 +381,21 @@ const lightboxImage = computed(() => galleryImages.value[lightboxIndex.value] ||
       {{ label }}
     </span>
 
+    <!-- Entry link button (_link system field) -->
+    <a
+      v-if="isEntryLink && entryUrl"
+      :href="entryUrl"
+      class="lcms-button__link"
+      :class="[entryLinkButtonClass, entryLinkSizeClass]"
+    >
+      <i v-if="showIcon && icon && iconPosition === 'left'" :class="icon" :style="iconStyle" />
+      {{ resolvedLinkText }}
+      <i v-if="showIcon && icon && iconPosition === 'right'" :class="icon" :style="iconStyle" />
+    </a>
+
     <!-- Value with optional icon -->
     <div
+      v-else
       class="lcms-collection-field__value-wrapper"
       :class="{ 'lcms-collection-field__value-wrapper--with-icon': showIcon }"
       :style="showIcon && iconGap ? { gap: `${iconGap}px` } : undefined"
