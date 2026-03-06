@@ -133,6 +133,8 @@ const props = defineProps<{
       show_count?: boolean
       filter_field?: string
       filter_value?: string
+      filter_value_source?: string
+      filter_url_segment?: number
       sort_field?: string
       sort_dir?: string
       visible_limit?: number
@@ -169,7 +171,16 @@ const linkEnabled = computed(() => config.value.link_enabled ?? false)
 const linkToEntry = computed(() => config.value.link_to_entry ?? false)
 const linkUrlPattern = computed(() => config.value.link_url_pattern || '')
 const filterField = computed(() => config.value.filter_field || '')
-const filterValue = computed(() => config.value.filter_value || '')
+const filterValueSource = computed(() => config.value.filter_value_source || 'static')
+const filterUrlSegment = computed(() => Number(config.value.filter_url_segment) || 1)
+const filterValue = computed(() => {
+  if (filterValueSource.value === 'url') {
+    const path = window.location.pathname
+    const segments = path.split('/').filter((s: string) => s)
+    return segments[filterUrlSegment.value - 1] || ''
+  }
+  return config.value.filter_value || ''
+})
 const sortFieldCfg = computed(() => config.value.sort_field || '')
 const sortDir = computed(() => config.value.sort_dir || 'asc')
 const visibleLimit = computed(() => config.value.visible_limit || 0)

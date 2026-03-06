@@ -44,6 +44,10 @@ const props = defineProps<{
       collection_layers_collection?: string
       collection_layers_field?: string
       collection_layers_limit?: number
+      collection_layers_filter_field?: string
+      collection_layers_filter_value?: string
+      collection_layers_filter_value_source?: string
+      collection_layers_filter_url_segment?: number
     }
     settings?: Record<string, unknown>
   }
@@ -84,6 +88,17 @@ const collectionLayersEnabled = computed(() => config.value.collection_layers_en
 const collectionLayersCollection = computed(() => config.value.collection_layers_collection || '')
 const collectionLayersField = computed(() => config.value.collection_layers_field || '')
 const collectionLayersLimit = computed(() => Number(config.value.collection_layers_limit) || 50)
+const collectionLayersFilterField = computed(() => config.value.collection_layers_filter_field || '')
+const collectionLayersFilterValueSource = computed(() => config.value.collection_layers_filter_value_source || 'static')
+const collectionLayersFilterUrlSegment = computed(() => Number(config.value.collection_layers_filter_url_segment) || 1)
+const collectionLayersFilterValue = computed(() => {
+  if (collectionLayersFilterValueSource.value === 'url') {
+    const path = window.location.pathname
+    const segments = path.split('/').filter((s: string) => s)
+    return segments[collectionLayersFilterUrlSegment.value - 1] || ''
+  }
+  return config.value.collection_layers_filter_value || ''
+})
 
 const hasConfig = computed(() => lat.value !== null && lng.value !== null)
 
@@ -208,6 +223,23 @@ function extractGeoJsonFromField(fieldValue: any, language: string): any {
   return rawValue
 }
 
+function matchesCollectionLayersFilter(entry: any): boolean {
+  if (!collectionLayersFilterField.value || !collectionLayersFilterValue.value) return true
+  const fieldVal = entry.content?.[collectionLayersFilterField.value]
+  if (!fieldVal) return false
+
+  if (Array.isArray(fieldVal)) {
+    return fieldVal.some((item: any) => {
+      if (item && typeof item === 'object' && item.code) return item.code === collectionLayersFilterValue.value
+      if (typeof item === 'string') return item === collectionLayersFilterValue.value
+      return false
+    })
+  }
+  if (fieldVal && typeof fieldVal === 'object' && fieldVal.code) return fieldVal.code === collectionLayersFilterValue.value
+  if (typeof fieldVal === 'string') return fieldVal === collectionLayersFilterValue.value
+  return String(fieldVal) === collectionLayersFilterValue.value
+}
+
 async function fetchCollectionLayers() {
   removeCollectionLayers()
 
@@ -219,7 +251,8 @@ async function fetchCollectionLayers() {
 
   try {
     const response = await api.getCollection(collectionLayersCollection.value, { pageSize: collectionLayersLimit.value })
-    const entries = response.data || []
+    const allEntries = response.data || []
+    const entries = allEntries.filter(matchesCollectionLayersFilter)
     const style = getGeojsonStyle()
     const allBounds: any[] = []
 
