@@ -15,7 +15,7 @@
             v-for="item in group.values"
             :key="item.value"
             :is="linkEnabled ? 'a' : 'span'"
-            :href="linkEnabled ? getLink(item.value) : undefined"
+            :href="linkEnabled ? getLink(item) : undefined"
             class="lcms-value-list__item"
             :style="itemStyle"
           >
@@ -34,7 +34,7 @@
           v-for="item in displayedValues"
           :key="item.value"
           :is="linkEnabled ? 'a' : 'div'"
-          :href="linkEnabled ? getLink(item.value) : undefined"
+          :href="linkEnabled ? getLink(item) : undefined"
           class="lcms-value-list__card"
           :style="itemStyle"
         >
@@ -74,7 +74,7 @@
           v-for="item in displayedValues"
           :key="item.value"
           :is="linkEnabled ? 'a' : 'span'"
-          :href="linkEnabled ? getLink(item.value) : undefined"
+          :href="linkEnabled ? getLink(item) : undefined"
           class="lcms-value-list__item"
           :style="itemStyle"
         >
@@ -110,6 +110,7 @@ interface ValueItem {
   count?: number
   subtitle?: string
   icon?: string
+  entryUrl?: string
 }
 
 interface GroupedValues {
@@ -143,6 +144,7 @@ const props = defineProps<{
       more_bg_color?: string
       more_text_color?: string
       link_enabled?: boolean
+      link_to_entry?: boolean
       link_url_pattern?: string
       card_icon?: string
       card_icon_bg_color?: string
@@ -164,6 +166,7 @@ const displayStyle = computed(() => config.value.display_style || 'list')
 const columns = computed(() => config.value.columns || 1)
 const showCount = computed(() => config.value.show_count ?? false)
 const linkEnabled = computed(() => config.value.link_enabled ?? false)
+const linkToEntry = computed(() => config.value.link_to_entry ?? false)
 const linkUrlPattern = computed(() => config.value.link_url_pattern || '')
 const filterField = computed(() => config.value.filter_field || '')
 const filterValue = computed(() => config.value.filter_value || '')
@@ -235,9 +238,10 @@ const { api } = useApi()
 const loading = ref(false)
 const allEntries = ref<any[]>([])
 
-function getLink(value: string): string {
+function getLink(item: ValueItem): string {
+  if (linkToEntry.value && item.entryUrl) return item.entryUrl
   if (!linkUrlPattern.value) return '#'
-  return linkUrlPattern.value.replace('{value}', encodeURIComponent(value))
+  return linkUrlPattern.value.replace('{value}', encodeURIComponent(item.value))
 }
 
 // Match a filter value in an entry field
@@ -346,6 +350,10 @@ const values = computed<ValueItem[]>(() => {
         valueMap.get(code)!.count = (valueMap.get(code)!.count || 0) + 1
       } else {
         const vi: ValueItem = { value: code, label, count: 1 }
+        // Store entry URL for link_to_entry mode
+        if (linkToEntry.value && entry.metadata?.url) {
+          vi.entryUrl = entry.metadata.url
+        }
         // Extract subtitle and icon from entry for cards style
         if (subtitleField.value) {
           const sv = entry.data?.[subtitleField.value]
