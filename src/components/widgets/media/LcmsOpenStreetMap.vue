@@ -211,6 +211,14 @@ function extractGeoJsonFromField(fieldValue: any, language: string): any {
 async function fetchCollectionLayers() {
   removeCollectionLayers()
 
+  console.log('[OSM] fetchCollectionLayers called', {
+    enabled: collectionLayersEnabled.value,
+    collection: collectionLayersCollection.value,
+    field: collectionLayersField.value,
+    hasApi: !!api,
+    hasMap: !!mapInstance
+  })
+
   if (!collectionLayersEnabled.value || !collectionLayersCollection.value || !collectionLayersField.value || !api) return
   if (!mapInstance) return
 
@@ -220,12 +228,15 @@ async function fetchCollectionLayers() {
   try {
     const response = await api.getCollection(collectionLayersCollection.value, { pageSize: collectionLayersLimit.value })
     const entries = response.data || []
+    console.log('[OSM] Got entries:', entries.length, entries)
     const style = getGeojsonStyle()
     const allBounds: any[] = []
 
     for (const entry of entries) {
       const fieldValue = entry.content?.[collectionLayersField.value]
+      console.log('[OSM] Entry field value:', collectionLayersField.value, fieldValue)
       const geoData = extractGeoJsonFromField(fieldValue, props.language || 'pl')
+      console.log('[OSM] Extracted geoData:', geoData)
       if (!geoData) continue
 
       const entryUrl = entry.metadata?.url || '#'
@@ -406,6 +417,7 @@ async function initMap() {
     }
 
     // Load collection layers
+    console.log('[OSM] initMap: collectionLayersEnabled =', collectionLayersEnabled.value, 'config =', JSON.stringify(config.value))
     if (collectionLayersEnabled.value) {
       fetchCollectionLayers()
     }
