@@ -255,6 +255,15 @@ function getLink(item: ValueItem): string {
   return linkUrlPattern.value.replace('{value}', encodeURIComponent(item.value))
 }
 
+function resolveMultilingual(val: any): string | null {
+  if (typeof val === 'string') return val
+  if (val && typeof val === 'object' && !Array.isArray(val) && !val.code) {
+    const lang = document.documentElement.lang || 'pl'
+    return val[lang] || val.pl || (Object.values(val).find(v => v != null && v !== '') as string) || null
+  }
+  return null
+}
+
 function matchFieldValue(fieldVal: any, target: string): boolean {
   if (!fieldVal) return false
 
@@ -270,10 +279,9 @@ function matchFieldValue(fieldVal: any, target: string): boolean {
   if (fieldVal && typeof fieldVal === 'object' && fieldVal.code) return fieldVal.code === target
   // Simple string
   if (typeof fieldVal === 'string') return fieldVal === target
-  // Multilingual object: { pl: "...", en: "..." }
-  if (typeof fieldVal === 'object' && fieldVal !== null && !fieldVal.code) {
-    return Object.values(fieldVal).some(v => typeof v === 'string' && v.toLowerCase() === target.toLowerCase())
-  }
+  // Multilingual object: { pl: "...", en: "..." } — resolve to current language
+  const resolved = resolveMultilingual(fieldVal)
+  if (resolved) return resolved.toLowerCase() === target.toLowerCase()
   return String(fieldVal) === target
 }
 

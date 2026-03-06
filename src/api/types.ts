@@ -36,6 +36,8 @@ export interface ProjectConfig {
   collection_route_schema: string
   homepage_uuid: string | null
   color_variables: ColorVariable[]
+  languages: string[]
+  default_language: string
 }
 
 export interface ProjectStyles {
