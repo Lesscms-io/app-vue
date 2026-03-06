@@ -274,6 +274,10 @@ const itemsGap = computed(() => config.value.items_gap || '')
 const columnsStyle = computed(() => {
   const gap = itemsGap.value || '8px'
   if (columns.value <= 1) {
+    // Cards need grid even with 1 column to ensure full-width items
+    if (displayStyle.value === 'cards') {
+      return { display: 'grid', gridTemplateColumns: '1fr', gap }
+    }
     if (itemsGap.value) return { gap: itemsGap.value }
     return {}
   }
