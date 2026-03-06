@@ -236,12 +236,13 @@ function matchFieldValue(fieldVal: any, target: string): boolean {
   if (!fieldVal) return false
   if (Array.isArray(fieldVal)) {
     return fieldVal.some((item: any) => {
-      if (item && typeof item === 'object' && item.code) return item.code === target
+      if (item && typeof item === 'object' && (item.code || item.entry_id)) return (item.code || item.entry_id) === target
       if (typeof item === 'string') return item === target
       return false
     })
   }
-  if (fieldVal && typeof fieldVal === 'object' && fieldVal.code) return fieldVal.code === target
+  // Enriched select: { code, value } or relation: { entry_id, collection_code, value }
+  if (fieldVal && typeof fieldVal === 'object' && (fieldVal.code || fieldVal.entry_id)) return (fieldVal.code || fieldVal.entry_id) === target
   if (typeof fieldVal === 'string') return fieldVal === target
   // Multilingual object — resolve to current language
   const resolved = resolveMultilingual(fieldVal)
