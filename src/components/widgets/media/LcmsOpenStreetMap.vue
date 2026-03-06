@@ -271,9 +271,13 @@ async function fetchCollectionLayers() {
   if (!L) return
 
   try {
-    const response = await api.getCollection(collectionLayersCollection.value, { pageSize: collectionLayersLimit.value })
-    const allEntries = response.data || []
-    const entries = allEntries.filter(matchesCollectionLayersFilter)
+    const fetchParams: Record<string, any> = { pageSize: collectionLayersLimit.value }
+    // Pass filter as query param for server-side filtering (handles relations, selects, text)
+    if (collectionLayersFilterField.value && collectionLayersFilterValue.value) {
+      fetchParams[collectionLayersFilterField.value] = collectionLayersFilterValue.value
+    }
+    const response = await api.getCollection(collectionLayersCollection.value, fetchParams)
+    const entries = response.data || []
     const style = getGeojsonStyle()
     const allBounds: any[] = []
 

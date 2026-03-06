@@ -245,7 +245,7 @@ const columnsStyle = computed(() => {
   }
 })
 
-const { api } = useApi()
+const api = useApi()
 const loading = ref(false)
 const allEntries = ref<any[]>([])
 
@@ -479,8 +479,9 @@ async function fetchValues() {
     return
   }
 
-  // Use enriched entries from API if available
-  if (Array.isArray(config.value.entries)) {
+  // Use enriched entries from API if available (and no URL filter active)
+  const isUrlFilter = filterValueSource.value === 'url' && filterField.value && filterValue.value
+  if (Array.isArray(config.value.entries) && !isUrlFilter) {
     // Normalize enriched entries (content → data key for compatibility)
     allEntries.value = config.value.entries.map((e: any) => {
       if (e.data) return e
@@ -491,8 +492,17 @@ async function fetchValues() {
 
   loading.value = true
   try {
-    const response = await api.getCollectionEntries(collectionCode.value)
-    allEntries.value = response.data || []
+    const params: Record<string, any> = { pageSize: 1000 }
+    // Pass filter as query param for server-side filtering
+    if (filterField.value && filterValue.value) {
+      params[filterField.value] = filterValue.value
+    }
+    const response = await api.getCollection(collectionCode.value, params)
+    // Normalize entries (content → data key for compatibility)
+    allEntries.value = (response.data || []).map((e: any) => {
+      if (e.data) return e
+      return { ...e, data: e.content || {} }
+    })
   } catch (error) {
     console.error('Failed to fetch values:', error)
     allEntries.value = []
@@ -505,7 +515,7 @@ onMounted(() => {
   fetchValues()
 })
 
-watch([collectionCode, valueField], () => {
+watch([collectionCode, valueField, filterValue], () => {
   fetchValues()
 })
 </script>

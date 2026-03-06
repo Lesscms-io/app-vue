@@ -200,58 +200,81 @@ const layoutConfig = computed(() => config.value.layout_config || null)
 // Use enriched entries from API if available, otherwise fetch client-side
 const hasEnrichedData = computed(() => Array.isArray(config.value.entries))
 
-const collectionCodeForFetch = computed(() => hasEnrichedData.value ? '' : collectionCode.value)
+// Resolve filter value from URL segment (for url-based filters)
+const resolvedFilterValue = computed(() => {
+  if (!filterField.value || filterSource.value !== 'url') return ''
+  const seg = Number(filterUrlSegment.value) || 1
+  const segments = window.location.pathname.split('/').filter((s: string) => s)
+  return segments[seg - 1] || ''
+})
+
+// For URL-based filters: fetch from collections API with filter param (server-side filtering)
+// For static/no filter: use enriched data from page API, or fetch without filter
+const isUrlFilter = computed(() => filterSource.value === 'url' && filterField.value)
+const needsClientFetch = computed(() => isUrlFilter.value && resolvedFilterValue.value)
+
+// For useCollection: only fetch when NOT using URL filter and NOT having enriched data
+const collectionCodeForFetch = computed(() => {
+  if (needsClientFetch.value) return ''
+  if (hasEnrichedData.value) return ''
+  return collectionCode.value
+})
 
 const { entries: fetchedEntries, loading: fetchLoading, error: fetchError } = useCollection(collectionCodeForFetch, {
   pageSize: postsCount.value,
 }, excludeEntryId)
 
-const allEntries = computed(() => hasEnrichedData.value ? config.value.entries : fetchedEntries.value)
-const loading = computed(() => hasEnrichedData.value ? false : fetchLoading.value)
-const error = computed(() => hasEnrichedData.value ? null : fetchError.value)
+// Manual fetch with dynamic params (useCollection doesn't support reactive params well)
+const urlFilterEntries = ref<CollectionEntry[]>([])
+const urlFilterLoading = ref(false)
+const urlFilterError = ref<Error | null>(null)
 
-// Resolve filter value (static or from URL)
-const resolvedFilterValue = computed(() => {
-  if (!filterField.value) return ''
-  if (filterSource.value === 'url') {
-    const seg = Number(filterUrlSegment.value) || 1
-    const segments = window.location.pathname.split('/').filter((s: string) => s)
-    return segments[seg - 1] || ''
+async function fetchWithUrlFilter() {
+  if (!needsClientFetch.value || !collectionCode.value) {
+    urlFilterEntries.value = []
+    return
   }
-  return filterValue.value
-})
-
-function matchFieldValue(fieldVal: any, target: string): boolean {
-  if (!fieldVal) return false
-  if (Array.isArray(fieldVal)) {
-    return fieldVal.some((item: any) => {
-      if (item && typeof item === 'object' && (item.code || item.entry_id)) return (item.code || item.entry_id) === target
-      if (typeof item === 'string') return item === target
-      return false
-    })
+  urlFilterLoading.value = true
+  urlFilterError.value = null
+  try {
+    const params: Record<string, any> = {
+      pageSize: postsCount.value,
+      [filterField.value]: resolvedFilterValue.value,
+    }
+    if (excludeEntryId.value) {
+      params.exclude_entry_id = excludeEntryId.value
+    }
+    const response = await api.getCollection(collectionCode.value, params)
+    urlFilterEntries.value = response.data || []
+  } catch (e) {
+    urlFilterError.value = e as Error
+    urlFilterEntries.value = []
+  } finally {
+    urlFilterLoading.value = false
   }
-  // Enriched select: { code, value } or relation: { entry_id, collection_code, value }
-  if (fieldVal && typeof fieldVal === 'object' && (fieldVal.code || fieldVal.entry_id)) return (fieldVal.code || fieldVal.entry_id) === target
-  if (typeof fieldVal === 'string') return fieldVal === target || fieldVal.toLowerCase() === target.toLowerCase()
-  // Multilingual object
-  if (fieldVal && typeof fieldVal === 'object' && !Array.isArray(fieldVal)) {
-    const lang = document.documentElement.lang || 'pl'
-    const resolved = fieldVal[lang] || fieldVal.pl || Object.values(fieldVal).find((v: any) => v != null && v !== '')
-    if (resolved) return String(resolved).toLowerCase() === target.toLowerCase()
-  }
-  return String(fieldVal) === target
 }
 
+// Trigger URL filter fetch when filter value changes
+watch([resolvedFilterValue, collectionCode], () => {
+  if (needsClientFetch.value) {
+    fetchWithUrlFilter()
+  }
+}, { immediate: true })
+
 const entries = computed(() => {
-  if (!filterField.value || !resolvedFilterValue.value) return allEntries.value
-  return allEntries.value.filter((entry: CollectionEntry) => {
-    if (filterField.value === '_entry_id') {
-      const entryId = entry.metadata?.entry_id || (entry as any).entry_id || ''
-      return entryId === resolvedFilterValue.value
-    }
-    const fieldVal = entry.content?.[filterField.value]
-    return matchFieldValue(fieldVal, resolvedFilterValue.value)
-  })
+  if (needsClientFetch.value) return urlFilterEntries.value
+  if (hasEnrichedData.value) return config.value.entries || []
+  return fetchedEntries.value
+})
+const loading = computed(() => {
+  if (needsClientFetch.value) return urlFilterLoading.value
+  if (hasEnrichedData.value) return false
+  return fetchLoading.value
+})
+const error = computed(() => {
+  if (needsClientFetch.value) return urlFilterError.value
+  if (hasEnrichedData.value) return null
+  return fetchError.value
 })
 
 // Helper functions
