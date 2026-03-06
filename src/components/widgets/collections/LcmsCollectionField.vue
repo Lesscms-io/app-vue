@@ -80,6 +80,9 @@ const iconPadding = computed(() => config.value.icon_padding || null)
 const iconBorderRadius = computed(() => config.value.icon_border_radius || null)
 const iconGap = computed(() => config.value.icon_gap || null)
 
+// Link to entry
+const linkToEntry = computed(() => config.value.link_to_entry === true)
+
 // Value source and dynamic settings (for future features)
 const valueSource = computed(() => config.value.value_source || 'field')
 const staticValue = computed(() => config.value.static_value || '')
@@ -393,11 +396,16 @@ const lightboxImage = computed(() => galleryImages.value[lightboxIndex.value] ||
       <i v-if="showIcon && icon && iconPosition === 'right'" :class="icon" :style="iconStyle" />
     </a>
 
-    <!-- Value with optional icon -->
-    <div
+    <!-- Value with optional icon (optionally linked to entry) -->
+    <component
       v-else
+      :is="linkToEntry && entryUrl ? 'a' : 'div'"
+      :href="linkToEntry && entryUrl ? entryUrl : undefined"
       class="lcms-collection-field__value-wrapper"
-      :class="{ 'lcms-collection-field__value-wrapper--with-icon': showIcon }"
+      :class="{
+        'lcms-collection-field__value-wrapper--with-icon': showIcon,
+        'lcms-collection-field__value-wrapper--linked': linkToEntry && entryUrl
+      }"
       :style="showIcon && iconGap ? { gap: `${iconGap}px` } : undefined"
     >
       <!-- Icon (left) -->
@@ -457,7 +465,7 @@ const lightboxImage = computed(() => galleryImages.value[lightboxIndex.value] ||
         class="lcms-collection-field__icon"
         :style="iconStyle"
       />
-    </div>
+    </component>
 
     <!-- Lightbox Overlay (gallery fields) -->
     <Teleport to="body">
@@ -545,6 +553,15 @@ const lightboxImage = computed(() => galleryImages.value[lightboxIndex.value] ||
 
 .lcms-collection-field__icon {
   flex-shrink: 0;
+}
+
+a.lcms-collection-field__value-wrapper--linked {
+  text-decoration: none;
+  color: inherit;
+}
+
+a.lcms-collection-field__value-wrapper--linked:hover {
+  text-decoration: underline;
 }
 
 .lcms-collection-field__image {
