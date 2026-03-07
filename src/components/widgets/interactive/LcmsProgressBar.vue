@@ -41,10 +41,18 @@ const title = computed(() => props.data.title ? extractValue(props.data.title) :
 const percentage = computed(() => Math.min(Math.max(props.data.percentage || 0, 0), 100))
 const barColor = computed(() => resolveColor(props.data.color) || '#50a5f1')
 const showPercentage = computed(() => props.data.show_percentage !== false)
+
+const progressContainerStyle = computed(() => {
+  const style: Record<string, string> = {}
+  const hoverColor = resolveColor(props.data.hover_color)
+  if (hoverColor) style['--hover-color'] = hoverColor
+  style['--transition-duration'] = `${props.data.transition_duration ?? 200}ms`
+  return style
+})
 </script>
 
 <template>
-  <div class="lcms-progress-bar">
+  <div class="lcms-progress-bar" :class="{ 'has-hover': !!data.hover_color }" :style="progressContainerStyle">
     <div
       v-if="title || showPercentage"
       class="lcms-progress-bar__header"
@@ -69,3 +77,13 @@ const showPercentage = computed(() => props.data.show_percentage !== false)
     </div>
   </div>
 </template>
+
+<style scoped>
+.lcms-progress-bar__fill {
+  transition: background-color var(--transition-duration, 200ms) ease;
+}
+
+.lcms-progress-bar.has-hover:hover .lcms-progress-bar__fill {
+  background-color: var(--hover-color);
+}
+</style>

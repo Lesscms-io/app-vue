@@ -168,18 +168,28 @@ const buttonSizeClass = computed(() => {
   const map: Record<string, string> = { sm: 'lcms-cta-box__button--sm', lg: 'lcms-cta-box__button--lg' }
   return map[buttonSize.value] || ''
 })
+
+const boxStyle = computed(() => {
+  const style: Record<string, string> = {
+    padding: `${paddingY.value}px ${paddingX.value}px`,
+    borderRadius: `${borderRadius.value}px`
+  }
+  if (backgroundColor.value) style.backgroundColor = backgroundColor.value
+  if (textColor.value) style.color = textColor.value
+  const hoverBg = resolveColor(props.data.hover_background_color)
+  if (hoverBg) style['--hover-bg'] = hoverBg
+  const hoverTxt = resolveColor(props.data.hover_text_color)
+  if (hoverTxt) style['--hover-color'] = hoverTxt
+  style['--transition-duration'] = `${props.data.transition_duration ?? 200}ms`
+  return style
+})
 </script>
 
 <template>
   <div
     class="lcms-cta-box"
-    :class="`lcms-cta-box--${alignment}`"
-    :style="{
-      backgroundColor: backgroundColor,
-      color: textColor,
-      padding: `${paddingY}px ${paddingX}px`,
-      borderRadius: `${borderRadius}px`
-    }"
+    :class="[`lcms-cta-box--${alignment}`, { 'has-hover': !!(data.hover_background_color || data.hover_text_color) }]"
+    :style="boxStyle"
   >
     <h3 v-if="title" class="lcms-cta-box__title" :style="{ fontSize: titleFontSize }">{{ title }}</h3>
     <p v-if="subtitle" class="lcms-cta-box__subtitle" :style="{ fontSize: subtitleFontSize }">{{ subtitle }}</p>
@@ -204,6 +214,12 @@ const buttonSizeClass = computed(() => {
 .lcms-cta-box {
   background-color: #50a5f1;
   color: #fff;
+  transition: background-color var(--transition-duration, 200ms) ease, color var(--transition-duration, 200ms) ease;
+}
+
+.lcms-cta-box.has-hover:hover {
+  background-color: var(--hover-bg);
+  color: var(--hover-color);
 }
 
 .lcms-cta-box--center {

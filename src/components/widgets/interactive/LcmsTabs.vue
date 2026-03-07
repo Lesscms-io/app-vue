@@ -61,10 +61,20 @@ const tabListStyle = computed(() => {
   if (borderColor.value) styles.borderColor = borderColor.value
   return styles
 })
+
+const tabsContainerStyle = computed(() => {
+  const styles: Record<string, string> = {}
+  const hoverActive = resolveColor(props.data.hover_active_color)
+  if (hoverActive) styles['--hover-active-color'] = hoverActive
+  const hoverBorder = resolveColor(props.data.hover_border_color)
+  if (hoverBorder) styles['--hover-border-color'] = hoverBorder
+  styles['--transition-duration'] = `${props.data.transition_duration ?? 200}ms`
+  return styles
+})
 </script>
 
 <template>
-  <div class="lcms-tabs" :class="`lcms-tabs--${tabStyle}`">
+  <div class="lcms-tabs" :class="[`lcms-tabs--${tabStyle}`, { 'has-hover': !!(data.hover_active_color || data.hover_border_color) }]" :style="tabsContainerStyle">
     <div
       class="lcms-tabs__list"
       :style="tabListStyle"
@@ -99,6 +109,20 @@ const tabListStyle = computed(() => {
   display: flex;
   gap: 0;
   border-bottom: 2px solid #e0e0e0;
+  transition: border-color var(--transition-duration, 200ms) ease;
+}
+
+.lcms-tabs.has-hover:hover .lcms-tabs__list {
+  border-color: var(--hover-border-color);
+}
+
+.lcms-tabs__tab {
+  transition: color var(--transition-duration, 200ms) ease, border-color var(--transition-duration, 200ms) ease;
+}
+
+.lcms-tabs.has-hover:hover .lcms-tabs__tab--active {
+  color: var(--hover-active-color);
+  border-color: var(--hover-active-color);
 }
 
 .lcms-tabs__tab {

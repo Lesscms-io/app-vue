@@ -108,10 +108,17 @@ const resolvedButtonUrl = computed(() => {
 })
 
 const heroStyle = computed(() => {
-  if (!backgroundImage.value) return {}
-  return {
-    backgroundImage: `url(${backgroundImage.value})`,
+  const style: Record<string, string> = {}
+  if (backgroundImage.value) {
+    style.backgroundImage = `url(${backgroundImage.value})`
   }
+  // hover CSS custom properties
+  const hoverOverlay = resolveColor(props.data.hover_overlay_color)
+  if (hoverOverlay) style['--hover-overlay-color'] = hoverOverlay
+  const hoverTxt = resolveColor(props.data.hover_text_color)
+  if (hoverTxt) style['--hover-color'] = hoverTxt
+  style['--transition-duration'] = `${props.data.transition_duration ?? 200}ms`
+  return style
 })
 
 const overlayStyle = computed(() => ({
@@ -128,7 +135,7 @@ const contentStyle = computed(() => ({
 <template>
   <section
     class="lcms-hero"
-    :class="{ 'lcms-hero--has-bg': backgroundImage }"
+    :class="{ 'lcms-hero--has-bg': backgroundImage, 'has-hover': !!(data.hover_overlay_color || data.hover_text_color) }"
     :style="heroStyle"
   >
     <div class="lcms-hero__overlay" :style="overlayStyle" />
@@ -167,3 +174,21 @@ const contentStyle = computed(() => ({
     </div>
   </section>
 </template>
+
+<style scoped>
+.lcms-hero {
+  transition: color var(--transition-duration, 200ms) ease;
+}
+
+.lcms-hero__overlay {
+  transition: background-color var(--transition-duration, 200ms) ease;
+}
+
+.lcms-hero.has-hover:hover {
+  color: var(--hover-color);
+}
+
+.lcms-hero.has-hover:hover .lcms-hero__overlay {
+  background-color: var(--hover-overlay-color);
+}
+</style>

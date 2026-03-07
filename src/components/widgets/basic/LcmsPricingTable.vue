@@ -75,6 +75,10 @@ const cardStyle = computed(() => {
   if (highlighted.value && highlightColor.value) {
     style.borderColor = highlightColor.value
   }
+  // hover CSS custom properties
+  const hoverHighlight = resolveColor(config.value.hover_highlight_color)
+  if (hoverHighlight) style['--hover-highlight-color'] = hoverHighlight
+  style['--transition-duration'] = `${config.value.transition_duration ?? 200}ms`
   return style
 })
 
@@ -117,7 +121,7 @@ const buttonInlineStyle = computed(() => {
 <template>
   <div
     class="lcms-pricing"
-    :class="{ 'lcms-pricing--highlighted': highlighted }"
+    :class="{ 'lcms-pricing--highlighted': highlighted, 'has-hover': !!config.hover_highlight_color }"
     :style="cardStyle"
   >
     <div v-if="badge" class="lcms-pricing__badge" :style="highlightColor ? { backgroundColor: highlightColor } : {}">
@@ -171,6 +175,12 @@ const buttonInlineStyle = computed(() => {
   padding: 2rem;
   position: relative;
   text-align: center;
+  transition: border-color var(--transition-duration, 200ms) ease, box-shadow var(--transition-duration, 200ms) ease;
+}
+
+.lcms-pricing.has-hover:hover {
+  border-color: var(--hover-highlight-color);
+  box-shadow: 0 4px 20px color-mix(in srgb, var(--hover-highlight-color) 15%, transparent);
 }
 
 .lcms-pricing--highlighted {

@@ -55,10 +55,20 @@ function itemSide(index: number): string {
   if (layout.value === 'alternate') return index % 2 === 0 ? 'left' : 'right'
   return layout.value
 }
+
+const timelineContainerStyle = computed(() => {
+  const styles: Record<string, string> = {}
+  const hoverLine = resolveColor(props.data.hover_line_color)
+  if (hoverLine) styles['--hover-line-color'] = hoverLine
+  const hoverDot = resolveColor(props.data.hover_dot_color)
+  if (hoverDot) styles['--hover-dot-color'] = hoverDot
+  styles['--transition-duration'] = `${props.data.transition_duration ?? 200}ms`
+  return styles
+})
 </script>
 
 <template>
-  <div class="lcms-timeline" :class="`lcms-timeline--${layout}`">
+  <div class="lcms-timeline" :class="[`lcms-timeline--${layout}`, { 'has-hover': !!(data.hover_line_color || data.hover_dot_color) }]" :style="timelineContainerStyle">
     <div
       class="lcms-timeline__line"
       :style="{ backgroundColor: lineColor }"
@@ -86,6 +96,22 @@ function itemSide(index: number): string {
 .lcms-timeline {
   position: relative;
   padding: 16px 0;
+}
+
+.lcms-timeline__line {
+  transition: background-color var(--transition-duration, 200ms) ease;
+}
+
+.lcms-timeline__dot {
+  transition: background-color var(--transition-duration, 200ms) ease;
+}
+
+.lcms-timeline.has-hover:hover .lcms-timeline__line {
+  background-color: var(--hover-line-color);
+}
+
+.lcms-timeline.has-hover:hover .lcms-timeline__dot {
+  background-color: var(--hover-dot-color);
 }
 
 .lcms-timeline__line {

@@ -42,13 +42,22 @@ const author = computed(() => props.data.author ? extractValue(props.data.author
 const source = computed(() => props.data.source ? extractValue(props.data.source) : '')
 const blockquoteStyle = computed(() => props.data.style || 'simple')
 const accentColor = computed(() => resolveColor(props.data.accent_color))
+
+const blockquoteContainerStyle = computed(() => {
+  const style: Record<string, string> = {}
+  if (accentColor.value) style['--accent-color'] = accentColor.value
+  const hoverAccent = resolveColor(props.data.hover_accent_color)
+  if (hoverAccent) style['--hover-accent-color'] = hoverAccent
+  style['--transition-duration'] = `${props.data.transition_duration ?? 200}ms`
+  return style
+})
 </script>
 
 <template>
   <figure
     class="lcms-blockquote"
-    :class="`lcms-blockquote--${blockquoteStyle}`"
-    :style="accentColor ? { '--accent-color': accentColor } as any : {}"
+    :class="[`lcms-blockquote--${blockquoteStyle}`, { 'has-hover': !!data.hover_accent_color }]"
+    :style="blockquoteContainerStyle"
   >
     <blockquote class="lcms-blockquote__text">
       <i class="fa-solid fa-quote-left lcms-blockquote__icon" />
@@ -74,6 +83,11 @@ const accentColor = computed(() => resolveColor(props.data.accent_color))
 .lcms-blockquote--bordered {
   border-left: 4px solid var(--accent-color);
   padding-left: 20px;
+  transition: border-color var(--transition-duration, 200ms) ease;
+}
+
+.lcms-blockquote.has-hover:hover {
+  --accent-color: var(--hover-accent-color);
 }
 
 .lcms-blockquote--filled {

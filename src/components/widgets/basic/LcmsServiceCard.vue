@@ -1,5 +1,5 @@
 <template>
-  <div class="lcms-service-card" :class="cardClasses" :style="cardStyles" @mouseenter="hovered = true" @mouseleave="hovered = false">
+  <div class="lcms-service-card" :class="cardClasses" :style="cardStyles">
     <!-- Badge -->
     <div v-if="showBadge && badge" class="lcms-service-card__badge" :style="badgeStyles">
       {{ badge }}
@@ -35,7 +35,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, inject, ref } from 'vue'
+import { computed, inject } from 'vue'
 import { useLanguage } from '@/composables/useLanguage'
 
 const props = defineProps<{
@@ -67,7 +67,6 @@ function resolveColor(val: string | null | undefined): string | null {
 const resolvePageUrl = inject<(code: string | null, uuid: string | null) => string>('lesscms-resolve-page-url', () => '#')
 const resolveCollectionUrl = inject<(collectionCode: string, entryId: string) => string>('lesscms-resolve-collection-url', () => '#')
 
-const hovered = ref(false)
 const config = computed(() => props.data.widget || props.data || {})
 
 const badge = computed(() => extractValue(config.value.badge) || '')
@@ -119,15 +118,9 @@ const isHighlighted = computed(() => {
 
 const cardClasses = computed(() => ({
   'lcms-service-card--highlighted': isHighlighted.value,
-  'lcms-service-card--has-bg': !!config.value.background_color
+  'lcms-service-card--has-bg': !!config.value.background_color,
+  'has-hover': !!(config.value.hover_background_color || config.value.hover_text_color)
 }))
-
-const hoverBg = computed(() => resolveColor(config.value.hover_background_color))
-const hoverTxt = computed(() => resolveColor(config.value.hover_text_color))
-const transitionMs = computed(() => {
-  const val = config.value.transition_duration
-  return val !== undefined && val !== null ? val : 200
-})
 
 const cardStyles = computed(() => {
   const styles: Record<string, string> = {}
@@ -138,23 +131,18 @@ const cardStyles = computed(() => {
     styles.borderRadius = `${br}px`
   }
 
-  // transition
-  styles.transition = `background-color ${transitionMs.value}ms ease, color ${transitionMs.value}ms ease, box-shadow 0.2s ease, transform 0.2s ease`
+  // base colors
+  const bg = resolveColor(config.value.background_color)
+  if (bg) styles.backgroundColor = bg
+  const txt = resolveColor(config.value.text_color)
+  if (txt) styles.color = txt
 
-  // base or hovered colors
-  if (hovered.value && hoverBg.value) {
-    styles.backgroundColor = hoverBg.value
-  } else {
-    const bg = resolveColor(config.value.background_color)
-    if (bg) styles.backgroundColor = bg
-  }
-
-  if (hovered.value && hoverTxt.value) {
-    styles.color = hoverTxt.value
-  } else {
-    const txt = resolveColor(config.value.text_color)
-    if (txt) styles.color = txt
-  }
+  // hover CSS custom properties
+  const hoverBg = resolveColor(config.value.hover_background_color)
+  if (hoverBg) styles['--hover-bg'] = hoverBg
+  const hoverTxt = resolveColor(config.value.hover_text_color)
+  if (hoverTxt) styles['--hover-color'] = hoverTxt
+  styles['--transition-duration'] = `${config.value.transition_duration ?? 200}ms`
 
   return styles
 })
@@ -189,10 +177,16 @@ const badgeStyles = computed(() => {
   position: relative;
   height: 100%;
   box-sizing: border-box;
+  transition: background-color var(--transition-duration, 200ms) ease, color var(--transition-duration, 200ms) ease, box-shadow 0.2s ease, transform 0.2s ease;
 }
 
 .lcms-service-card:hover {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.lcms-service-card.has-hover:hover {
+  background-color: var(--hover-bg);
+  color: var(--hover-color);
 }
 
 .lcms-service-card--highlighted {

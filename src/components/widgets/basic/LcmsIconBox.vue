@@ -1,5 +1,5 @@
 <template>
-  <div class="lcms-icon-box" :class="positionClass" :data-source="contentSource" :style="cardStyle">
+  <div class="lcms-icon-box" :class="[positionClass, { 'has-hover': !!(config.hover_card_background || config.hover_card_border_color) }]" :data-source="contentSource" :style="cardStyle">
     <div class="lcms-icon-box__icon" :style="iconStyles">
       <span v-if="isSvgIcon" class="lcms-icon-box__svg" v-html="svgContent"></span>
       <i v-else :class="iconClass"></i>
@@ -117,6 +117,13 @@ const cardStyle = computed(() => {
     }
   }
 
+  // hover CSS custom properties
+  const hoverBg = resolveColor(config.value.hover_card_background)
+  if (hoverBg) styles['--hover-bg'] = hoverBg
+  const hoverBorder = resolveColor(config.value.hover_card_border_color)
+  if (hoverBorder) styles['--hover-border-color'] = hoverBorder
+  styles['--transition-duration'] = `${config.value.transition_duration ?? 200}ms`
+
   return styles
 })
 
@@ -151,6 +158,12 @@ const iconStyles = computed(() => {
   display: flex;
   gap: 1rem;
   align-items: flex-start;
+  transition: background-color var(--transition-duration, 200ms) ease, border-color var(--transition-duration, 200ms) ease;
+}
+
+.lcms-icon-box.has-hover:hover {
+  background-color: var(--hover-bg);
+  border-color: var(--hover-border-color);
 }
 
 .lcms-icon-box--top {

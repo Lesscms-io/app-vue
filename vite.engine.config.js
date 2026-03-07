@@ -12,6 +12,14 @@ export default defineConfig({
       '@': resolve(__dirname, 'src'),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        entryFileNames: 'assets/engine.js',
+        assetFileNames: 'assets/style.css',
+      },
+    },
+  },
   server: {
     port: 3000,
     open: true,

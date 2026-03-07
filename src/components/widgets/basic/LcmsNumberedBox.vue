@@ -1,5 +1,5 @@
 <template>
-  <div class="lcms-numbered-box" :class="positionClass" :style="cardStyle">
+  <div class="lcms-numbered-box" :class="[positionClass, { 'has-hover': !!(config.hover_card_background || config.hover_card_border_color) }]" :style="cardStyle">
     <div class="lcms-numbered-box__number" :style="numberStyles">
       {{ displayNumber }}
     </div>
@@ -88,6 +88,13 @@ const cardStyle = computed(() => {
     }
   }
 
+  // hover CSS custom properties
+  const hoverBg = resolveColor(config.value.hover_card_background)
+  if (hoverBg) styles['--hover-bg'] = hoverBg
+  const hoverBorder = resolveColor(config.value.hover_card_border_color)
+  if (hoverBorder) styles['--hover-border-color'] = hoverBorder
+  styles['--transition-duration'] = `${config.value.transition_duration ?? 200}ms`
+
   return styles
 })
 
@@ -126,6 +133,12 @@ const numberStyles = computed(() => {
   display: flex;
   gap: 1rem;
   align-items: flex-start;
+  transition: background-color var(--transition-duration, 200ms) ease, border-color var(--transition-duration, 200ms) ease;
+}
+
+.lcms-numbered-box.has-hover:hover {
+  background-color: var(--hover-bg);
+  border-color: var(--hover-border-color);
 }
 
 .lcms-numbered-box--top {

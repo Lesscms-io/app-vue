@@ -68,6 +68,16 @@ const counterStyle = computed(() => {
   if (tc) style['--counter-title-color'] = tc
   const pc = resolveColorValue(prefixColor.value)
   if (pc) style['--counter-prefix-color'] = pc
+
+  // hover CSS custom properties
+  const hoverNumber = resolveColorValue(props.data.hover_number_color || null)
+  if (hoverNumber) style['--hover-number-color'] = hoverNumber
+  const hoverTitle = resolveColorValue(props.data.hover_title_color || null)
+  if (hoverTitle) style['--hover-title-color'] = hoverTitle
+  const hoverPrefix = resolveColorValue(props.data.hover_prefix_color || null)
+  if (hoverPrefix) style['--hover-prefix-color'] = hoverPrefix
+  style['--transition-duration'] = `${props.data.transition_duration ?? 200}ms`
+
   return style
 })
 
@@ -113,7 +123,8 @@ watch(targetNumber, () => {
     class="lcms-counter"
     :class="[
       `lcms-counter--align-${alignment}`,
-      `lcms-counter--size-${numberSize}`
+      `lcms-counter--size-${numberSize}`,
+      { 'has-hover': !!(data.hover_number_color || data.hover_title_color || data.hover_prefix_color) }
     ]"
     :style="counterStyle"
   >
@@ -136,3 +147,28 @@ watch(targetNumber, () => {
     </div>
   </div>
 </template>
+
+<style scoped>
+.lcms-counter__value,
+.lcms-counter__prefix,
+.lcms-counter__suffix {
+  transition: color var(--transition-duration, 200ms) ease;
+}
+
+.lcms-counter__title {
+  transition: color var(--transition-duration, 200ms) ease;
+}
+
+.lcms-counter.has-hover:hover .lcms-counter__value {
+  color: var(--hover-number-color);
+}
+
+.lcms-counter.has-hover:hover .lcms-counter__title {
+  color: var(--hover-title-color);
+}
+
+.lcms-counter.has-hover:hover .lcms-counter__prefix,
+.lcms-counter.has-hover:hover .lcms-counter__suffix {
+  color: var(--hover-prefix-color);
+}
+</style>
