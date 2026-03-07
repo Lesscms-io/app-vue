@@ -1,5 +1,5 @@
 <template>
-  <div class="lcms-service-card" :class="cardClasses" :style="cardStyles">
+  <div class="lcms-service-card" :class="cardClasses" :style="cardStyles" @mouseenter="hovered = true" @mouseleave="hovered = false">
     <!-- Badge -->
     <div v-if="showBadge && badge" class="lcms-service-card__badge" :style="badgeStyles">
       {{ badge }}
@@ -35,7 +35,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, inject } from 'vue'
+import { computed, inject, ref } from 'vue'
 import { useLanguage } from '@/composables/useLanguage'
 
 const props = defineProps<{
@@ -67,6 +67,7 @@ function resolveColor(val: string | null | undefined): string | null {
 const resolvePageUrl = inject<(code: string | null, uuid: string | null) => string>('lesscms-resolve-page-url', () => '#')
 const resolveCollectionUrl = inject<(collectionCode: string, entryId: string) => string>('lesscms-resolve-collection-url', () => '#')
 
+const hovered = ref(false)
 const config = computed(() => props.data.widget || props.data || {})
 
 const badge = computed(() => extractValue(config.value.badge) || '')
@@ -121,12 +122,40 @@ const cardClasses = computed(() => ({
   'lcms-service-card--has-bg': !!config.value.background_color
 }))
 
+const hoverBg = computed(() => resolveColor(config.value.hover_background_color))
+const hoverTxt = computed(() => resolveColor(config.value.hover_text_color))
+const transitionMs = computed(() => {
+  const val = config.value.transition_duration
+  return val !== undefined && val !== null ? val : 200
+})
+
 const cardStyles = computed(() => {
   const styles: Record<string, string> = {}
-  const bg = resolveColor(config.value.background_color)
-  if (bg) styles.backgroundColor = bg
-  const txt = resolveColor(config.value.text_color)
-  if (txt) styles.color = txt
+
+  // border-radius
+  const br = config.value.border_radius
+  if (br !== undefined && br !== null) {
+    styles.borderRadius = `${br}px`
+  }
+
+  // transition
+  styles.transition = `background-color ${transitionMs.value}ms ease, color ${transitionMs.value}ms ease, box-shadow 0.2s ease, transform 0.2s ease`
+
+  // base or hovered colors
+  if (hovered.value && hoverBg.value) {
+    styles.backgroundColor = hoverBg.value
+  } else {
+    const bg = resolveColor(config.value.background_color)
+    if (bg) styles.backgroundColor = bg
+  }
+
+  if (hovered.value && hoverTxt.value) {
+    styles.color = hoverTxt.value
+  } else {
+    const txt = resolveColor(config.value.text_color)
+    if (txt) styles.color = txt
+  }
+
   return styles
 })
 
@@ -155,10 +184,9 @@ const badgeStyles = computed(() => {
   flex-direction: column;
   padding: 2rem;
   background: var(--lcms-color-white, #fff);
-  border-radius: 1rem;
+  border-radius: 16px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   position: relative;
-  transition: box-shadow 0.2s ease, transform 0.2s ease;
   height: 100%;
   box-sizing: border-box;
 }
