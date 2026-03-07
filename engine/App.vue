@@ -9,14 +9,28 @@ import { computed } from 'vue'
 import { RouterView } from 'vue-router'
 import { LessCMSProvider } from '../src'
 
-// Get config from environment variables
-const config = computed(() => ({
-  baseUrl: import.meta.env.VITE_LESSCMS_API_URL || 'https://api.lesscms.io',
-  apiKey: import.meta.env.VITE_LESSCMS_API_KEY || '',
-  workspaceCode: import.meta.env.VITE_LESSCMS_WORKSPACE || '',
-  projectCode: import.meta.env.VITE_LESSCMS_PROJECT || '',
-  defaultLanguage: import.meta.env.VITE_LESSCMS_LANGUAGE || 'pl',
-}))
+// Check for renderer-injected config (window.__LCMS_CONFIG__)
+const rendererConfig = typeof window !== 'undefined' ? (window as any).__LCMS_CONFIG__ : null
+
+// Get config: from renderer (injected) or from env vars (standalone)
+const config = computed(() => {
+  if (rendererConfig?.apiKey) {
+    return {
+      baseUrl: rendererConfig.apiUrl || 'https://api.lesscms.io',
+      apiKey: rendererConfig.apiKey,
+      workspaceCode: rendererConfig.workspaceCode || '',
+      projectCode: rendererConfig.projectCode || '',
+      defaultLanguage: rendererConfig.defaultLanguage || 'pl',
+    }
+  }
+  return {
+    baseUrl: import.meta.env.VITE_LESSCMS_API_URL || 'https://api.lesscms.io',
+    apiKey: import.meta.env.VITE_LESSCMS_API_KEY || '',
+    workspaceCode: import.meta.env.VITE_LESSCMS_WORKSPACE || '',
+    projectCode: import.meta.env.VITE_LESSCMS_PROJECT || '',
+    defaultLanguage: import.meta.env.VITE_LESSCMS_LANGUAGE || 'pl',
+  }
+})
 
 const isConfigured = computed(() => {
   return config.value.apiKey && config.value.workspaceCode && config.value.projectCode
