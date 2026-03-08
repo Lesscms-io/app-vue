@@ -22,6 +22,12 @@ export interface ButtonWidgetData extends BaseWidgetData {
   style?: 'primary' | 'secondary' | 'outline'
   size?: 'sm' | 'md' | 'lg'
   target_blank?: boolean
+  hover_background_color?: string
+  hover_text_color?: string
+  hover_lift?: number
+  hover_scale?: number
+  hover_shadow?: string
+  transition_duration?: number
 }
 
 export interface IconWidgetData extends BaseWidgetData {

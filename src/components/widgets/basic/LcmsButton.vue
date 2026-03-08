@@ -7,6 +7,7 @@
 
 import { computed, inject } from 'vue'
 import { useLanguage } from '@/composables/useLanguage'
+import { resolveColor } from '@/utils/resolveColor'
 import type { ButtonWidgetData } from '@/types/widgets'
 
 defineOptions({
@@ -81,6 +82,29 @@ const buttonInlineStyle = computed(() => {
   if (buttonPadding.value) styles.padding = `${buttonPadding.value}px`
   return styles
 })
+
+const hasHover = computed(() => !!(
+  props.data.hover_background_color || props.data.hover_text_color ||
+  props.data.hover_lift || (props.data.hover_scale && props.data.hover_scale !== 1) ||
+  (props.data.hover_shadow && props.data.hover_shadow !== 'none')
+))
+
+const hoverStyles = computed(() => {
+  const style: Record<string, string> = {}
+  const hoverBg = resolveColor(props.data.hover_background_color)
+  if (hoverBg) style['--hover-bg'] = hoverBg
+  const hoverTxt = resolveColor(props.data.hover_text_color)
+  if (hoverTxt) style['--hover-color'] = hoverTxt
+  style['--transition-duration'] = `${props.data.transition_duration ?? 200}ms`
+  const lift = props.data.hover_lift || 0
+  if (lift) style['--hover-lift'] = `-${lift}px`
+  const scale = props.data.hover_scale
+  if (scale && scale !== 1) style['--hover-scale'] = String(scale)
+  const shadowMap: Record<string, string> = { sm: '0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06)', md: '0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05)', lg: '0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)' }
+  const shadowVal = props.data.hover_shadow || 'none'
+  if (shadowVal !== 'none' && shadowMap[shadowVal]) style['--hover-shadow'] = shadowMap[shadowVal]
+  return style
+})
 </script>
 
 <template>
@@ -90,9 +114,10 @@ const buttonInlineStyle = computed(() => {
       class="lcms-button__link"
       :class="[
         `lcms-button__link--${buttonStyle}`,
-        `lcms-button__link--size-${buttonSize}`
+        `lcms-button__link--size-${buttonSize}`,
+        { 'has-hover': hasHover }
       ]"
-      :style="buttonInlineStyle"
+      :style="{ ...buttonInlineStyle, ...hoverStyles }"
       :target="targetBlank ? '_blank' : undefined"
       :rel="targetBlank ? 'noopener noreferrer' : undefined"
     >
@@ -106,6 +131,17 @@ const buttonInlineStyle = computed(() => {
 </template>
 
 <style scoped>
+.lcms-button__link {
+  transition: background-color var(--transition-duration, 200ms) ease, color var(--transition-duration, 200ms) ease, transform var(--transition-duration, 200ms) ease, box-shadow var(--transition-duration, 200ms) ease, border-color var(--transition-duration, 200ms) ease;
+}
+
+.lcms-button__link.has-hover:hover {
+  background-color: var(--hover-bg) !important;
+  color: var(--hover-color) !important;
+  transform: translateY(var(--hover-lift, 0)) scale(var(--hover-scale, 1));
+  box-shadow: var(--hover-shadow, none);
+}
+
 .lcms-button__svg {
   display: inline-flex;
   align-items: center;
