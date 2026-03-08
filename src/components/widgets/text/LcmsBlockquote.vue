@@ -49,6 +49,16 @@ const blockquoteContainerStyle = computed(() => {
   const hoverAccent = resolveColor(props.data.hover_accent_color)
   if (hoverAccent) style['--hover-accent-color'] = hoverAccent
   style['--transition-duration'] = `${props.data.transition_duration ?? 200}ms`
+
+  // Hover transform effects
+  const lift = props.data.hover_lift || 0
+  if (lift) style['--hover-lift'] = `-${lift}px`
+  const scale = props.data.hover_scale
+  if (scale && scale !== 1) style['--hover-scale'] = String(scale)
+  const shadowMap: Record<string, string> = { sm: '0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06)', md: '0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05)', lg: '0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)' }
+  const shadowVal = props.data.hover_shadow || 'none'
+  if (shadowVal !== 'none' && shadowMap[shadowVal]) style['--hover-shadow'] = shadowMap[shadowVal]
+
   return style
 })
 </script>
@@ -56,7 +66,7 @@ const blockquoteContainerStyle = computed(() => {
 <template>
   <figure
     class="lcms-blockquote"
-    :class="[`lcms-blockquote--${blockquoteStyle}`, { 'has-hover': !!data.hover_accent_color }]"
+    :class="[`lcms-blockquote--${blockquoteStyle}`, { 'has-hover': !!(data.hover_accent_color || data.hover_lift || (data.hover_scale !== undefined && data.hover_scale !== 1) || (data.hover_shadow && data.hover_shadow !== 'none')) }]"
     :style="blockquoteContainerStyle"
   >
     <blockquote class="lcms-blockquote__text">
@@ -78,16 +88,19 @@ const blockquoteContainerStyle = computed(() => {
   --accent-color: #50a5f1;
   margin: 0;
   padding: 16px 0;
+  transition: transform var(--transition-duration, 200ms) ease, box-shadow var(--transition-duration, 200ms) ease;
 }
 
 .lcms-blockquote--bordered {
   border-left: 4px solid var(--accent-color);
   padding-left: 20px;
-  transition: border-color var(--transition-duration, 200ms) ease;
+  transition: border-color var(--transition-duration, 200ms) ease, transform var(--transition-duration, 200ms) ease, box-shadow var(--transition-duration, 200ms) ease;
 }
 
 .lcms-blockquote.has-hover:hover {
   --accent-color: var(--hover-accent-color);
+  transform: translateY(var(--hover-lift, 0)) scale(var(--hover-scale, 1));
+  box-shadow: var(--hover-shadow, none);
 }
 
 .lcms-blockquote--filled {

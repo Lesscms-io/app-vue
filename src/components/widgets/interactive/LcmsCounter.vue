@@ -78,6 +78,15 @@ const counterStyle = computed(() => {
   if (hoverPrefix) style['--hover-prefix-color'] = hoverPrefix
   style['--transition-duration'] = `${props.data.transition_duration ?? 200}ms`
 
+  // Hover transform effects
+  const lift = props.data.hover_lift || 0
+  if (lift) style['--hover-lift'] = `-${lift}px`
+  const scale = props.data.hover_scale
+  if (scale && scale !== 1) style['--hover-scale'] = String(scale)
+  const shadowMap: Record<string, string> = { sm: '0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06)', md: '0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05)', lg: '0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)' }
+  const shadowVal = props.data.hover_shadow || 'none'
+  if (shadowVal !== 'none' && shadowMap[shadowVal]) style['--hover-shadow'] = shadowMap[shadowVal]
+
   return style
 })
 
@@ -124,7 +133,7 @@ watch(targetNumber, () => {
     :class="[
       `lcms-counter--align-${alignment}`,
       `lcms-counter--size-${numberSize}`,
-      { 'has-hover': !!(data.hover_number_color || data.hover_title_color || data.hover_prefix_color) }
+      { 'has-hover': !!(data.hover_number_color || data.hover_title_color || data.hover_prefix_color || data.hover_lift || (data.hover_scale !== undefined && data.hover_scale !== 1) || (data.hover_shadow && data.hover_shadow !== 'none')) }
     ]"
     :style="counterStyle"
   >
@@ -149,6 +158,15 @@ watch(targetNumber, () => {
 </template>
 
 <style scoped>
+.lcms-counter {
+  transition: transform var(--transition-duration, 200ms) ease, box-shadow var(--transition-duration, 200ms) ease;
+}
+
+.lcms-counter.has-hover:hover {
+  transform: translateY(var(--hover-lift, 0)) scale(var(--hover-scale, 1));
+  box-shadow: var(--hover-shadow, none);
+}
+
 .lcms-counter__value,
 .lcms-counter__prefix,
 .lcms-counter__suffix {

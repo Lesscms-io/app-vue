@@ -119,7 +119,7 @@ const isHighlighted = computed(() => {
 const cardClasses = computed(() => ({
   'lcms-service-card--highlighted': isHighlighted.value,
   'lcms-service-card--has-bg': !!config.value.background_color,
-  'has-hover': !!(config.value.hover_background_color || config.value.hover_text_color)
+  'has-hover': !!(config.value.hover_background_color || config.value.hover_text_color || config.value.hover_lift || (config.value.hover_scale !== undefined && config.value.hover_scale !== 1) || (config.value.hover_shadow && config.value.hover_shadow !== 'none'))
 }))
 
 const cardStyles = computed(() => {
@@ -143,6 +143,15 @@ const cardStyles = computed(() => {
   const hoverTxt = resolveColor(config.value.hover_text_color)
   if (hoverTxt) styles['--hover-color'] = hoverTxt
   styles['--transition-duration'] = `${config.value.transition_duration ?? 200}ms`
+
+  // Hover transform effects
+  const lift = config.value.hover_lift || 0
+  if (lift) styles['--hover-lift'] = `-${lift}px`
+  const scale = config.value.hover_scale
+  if (scale && scale !== 1) styles['--hover-scale'] = String(scale)
+  const shadowMap: Record<string, string> = { sm: '0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06)', md: '0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05)', lg: '0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)' }
+  const shadowVal = config.value.hover_shadow || 'none'
+  if (shadowVal !== 'none' && shadowMap[shadowVal]) styles['--hover-shadow'] = shadowMap[shadowVal]
 
   return styles
 })
@@ -177,16 +186,17 @@ const badgeStyles = computed(() => {
   position: relative;
   height: 100%;
   box-sizing: border-box;
-  transition: background-color var(--transition-duration, 200ms) ease, color var(--transition-duration, 200ms) ease, box-shadow 0.2s ease, transform 0.2s ease;
+  transition: background-color var(--transition-duration, 200ms) ease, color var(--transition-duration, 200ms) ease, box-shadow var(--transition-duration, 200ms) ease, transform var(--transition-duration, 200ms) ease;
 }
 
 .lcms-service-card:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--hover-shadow, 0 4px 12px rgba(0, 0, 0, 0.15));
 }
 
 .lcms-service-card.has-hover:hover {
   background-color: var(--hover-bg);
   color: var(--hover-color);
+  transform: translateY(var(--hover-lift, 0)) scale(var(--hover-scale, 1));
 }
 
 .lcms-service-card--highlighted {

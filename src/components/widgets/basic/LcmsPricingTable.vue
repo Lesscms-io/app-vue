@@ -79,6 +79,16 @@ const cardStyle = computed(() => {
   const hoverHighlight = resolveColor(config.value.hover_highlight_color)
   if (hoverHighlight) style['--hover-highlight-color'] = hoverHighlight
   style['--transition-duration'] = `${config.value.transition_duration ?? 200}ms`
+
+  // Hover transform effects
+  const lift = config.value.hover_lift || 0
+  if (lift) style['--hover-lift'] = `-${lift}px`
+  const scale = config.value.hover_scale
+  if (scale && scale !== 1) style['--hover-scale'] = String(scale)
+  const shadowMap: Record<string, string> = { sm: '0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06)', md: '0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05)', lg: '0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)' }
+  const shadowVal = config.value.hover_shadow || 'none'
+  if (shadowVal !== 'none' && shadowMap[shadowVal]) style['--hover-shadow'] = shadowMap[shadowVal]
+
   return style
 })
 
@@ -121,7 +131,7 @@ const buttonInlineStyle = computed(() => {
 <template>
   <div
     class="lcms-pricing"
-    :class="{ 'lcms-pricing--highlighted': highlighted, 'has-hover': !!config.hover_highlight_color }"
+    :class="{ 'lcms-pricing--highlighted': highlighted, 'has-hover': !!(config.hover_highlight_color || config.hover_lift || (config.hover_scale !== undefined && config.hover_scale !== 1) || (config.hover_shadow && config.hover_shadow !== 'none')) }"
     :style="cardStyle"
   >
     <div v-if="badge" class="lcms-pricing__badge" :style="highlightColor ? { backgroundColor: highlightColor } : {}">
@@ -175,12 +185,13 @@ const buttonInlineStyle = computed(() => {
   padding: 2rem;
   position: relative;
   text-align: center;
-  transition: border-color var(--transition-duration, 200ms) ease, box-shadow var(--transition-duration, 200ms) ease;
+  transition: border-color var(--transition-duration, 200ms) ease, box-shadow var(--transition-duration, 200ms) ease, transform var(--transition-duration, 200ms) ease;
 }
 
 .lcms-pricing.has-hover:hover {
   border-color: var(--hover-highlight-color);
-  box-shadow: 0 4px 20px color-mix(in srgb, var(--hover-highlight-color) 15%, transparent);
+  box-shadow: var(--hover-shadow, 0 4px 20px color-mix(in srgb, var(--hover-highlight-color, transparent) 15%, transparent));
+  transform: translateY(var(--hover-lift, 0)) scale(var(--hover-scale, 1));
 }
 
 .lcms-pricing--highlighted {

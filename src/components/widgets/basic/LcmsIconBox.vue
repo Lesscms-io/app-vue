@@ -1,5 +1,5 @@
 <template>
-  <div class="lcms-icon-box" :class="[positionClass, { 'has-hover': !!(config.hover_card_background || config.hover_card_border_color) }]" :data-source="contentSource" :style="cardStyle">
+  <div class="lcms-icon-box" :class="[positionClass, { 'has-hover': !!(config.hover_card_background || config.hover_card_border_color || config.hover_lift || (config.hover_scale !== undefined && config.hover_scale !== 1) || (config.hover_shadow && config.hover_shadow !== 'none')) }]" :data-source="contentSource" :style="cardStyle">
     <div class="lcms-icon-box__icon" :style="iconStyles">
       <span v-if="isSvgIcon" class="lcms-icon-box__svg" v-html="svgContent"></span>
       <i v-else :class="iconClass"></i>
@@ -124,6 +124,15 @@ const cardStyle = computed(() => {
   if (hoverBorder) styles['--hover-border-color'] = hoverBorder
   styles['--transition-duration'] = `${config.value.transition_duration ?? 200}ms`
 
+  // Hover transform effects
+  const lift = config.value.hover_lift || 0
+  if (lift) styles['--hover-lift'] = `-${lift}px`
+  const scale = config.value.hover_scale
+  if (scale && scale !== 1) styles['--hover-scale'] = String(scale)
+  const shadowMap: Record<string, string> = { sm: '0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06)', md: '0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05)', lg: '0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)' }
+  const shadowVal = config.value.hover_shadow || 'none'
+  if (shadowVal !== 'none' && shadowMap[shadowVal]) styles['--hover-shadow'] = shadowMap[shadowVal]
+
   return styles
 })
 
@@ -158,12 +167,14 @@ const iconStyles = computed(() => {
   display: flex;
   gap: 1rem;
   align-items: flex-start;
-  transition: background-color var(--transition-duration, 200ms) ease, border-color var(--transition-duration, 200ms) ease;
+  transition: background-color var(--transition-duration, 200ms) ease, border-color var(--transition-duration, 200ms) ease, transform var(--transition-duration, 200ms) ease, box-shadow var(--transition-duration, 200ms) ease;
 }
 
 .lcms-icon-box.has-hover:hover {
   background-color: var(--hover-bg);
   border-color: var(--hover-border-color);
+  transform: translateY(var(--hover-lift, 0)) scale(var(--hover-scale, 1));
+  box-shadow: var(--hover-shadow, none);
 }
 
 .lcms-icon-box--top {

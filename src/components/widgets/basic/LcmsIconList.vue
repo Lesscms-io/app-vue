@@ -72,7 +72,7 @@ const textStyles = computed(() => {
   return styles
 })
 
-const hasItemHover = computed(() => !!(config.value.hover_icon_color || config.value.hover_item_bg_color))
+const hasItemHover = computed(() => !!(config.value.hover_icon_color || config.value.hover_item_bg_color || config.value.hover_lift || (config.value.hover_scale !== undefined && config.value.hover_scale !== 1) || (config.value.hover_shadow && config.value.hover_shadow !== 'none')))
 
 const itemStyle = computed(() => {
   const styles: Record<string, string> = {}
@@ -85,6 +85,16 @@ const itemStyle = computed(() => {
   const hoverBg = resolveColor(config.value.hover_item_bg_color)
   if (hoverBg) styles['--hover-item-bg'] = hoverBg
   styles['--transition-duration'] = transitionDuration.value
+
+  // Hover transform effects
+  const lift = config.value.hover_lift || 0
+  if (lift) styles['--hover-lift'] = `-${lift}px`
+  const scale = config.value.hover_scale
+  if (scale && scale !== 1) styles['--hover-scale'] = String(scale)
+  const shadowMap: Record<string, string> = { sm: '0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06)', md: '0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05)', lg: '0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)' }
+  const shadowVal = config.value.hover_shadow || 'none'
+  if (shadowVal !== 'none' && shadowMap[shadowVal]) styles['--hover-shadow'] = shadowMap[shadowVal]
+
   return styles
 })
 </script>
@@ -94,11 +104,13 @@ const itemStyle = computed(() => {
   display: flex;
   align-items: center;
   gap: 12px;
-  transition: background-color var(--transition-duration, 200ms) ease;
+  transition: background-color var(--transition-duration, 200ms) ease, transform var(--transition-duration, 200ms) ease, box-shadow var(--transition-duration, 200ms) ease;
 }
 
 .lcms-icon-list-item.has-hover:hover {
   background-color: var(--hover-item-bg) !important;
+  transform: translateY(var(--hover-lift, 0)) scale(var(--hover-scale, 1));
+  box-shadow: var(--hover-shadow, none);
 }
 
 .lcms-icon-list-item__icon {
