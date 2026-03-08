@@ -7,7 +7,6 @@
 
 import { computed, inject } from 'vue'
 import { useLanguage } from '@/composables/useLanguage'
-import { resolveColor } from '@/utils/resolveColor'
 import type { ButtonWidgetData } from '@/types/widgets'
 
 defineOptions({
@@ -83,18 +82,13 @@ const buttonInlineStyle = computed(() => {
   return styles
 })
 
-const hasHover = computed(() => !!(
-  props.data.hover_background_color || props.data.hover_text_color ||
+const hasEffects = computed(() => !!(
   props.data.hover_lift || (props.data.hover_scale && props.data.hover_scale !== 1) ||
   (props.data.hover_shadow && props.data.hover_shadow !== 'none')
 ))
 
 const hoverStyles = computed(() => {
   const style: Record<string, string> = {}
-  const hoverBg = resolveColor(props.data.hover_background_color)
-  if (hoverBg) style['--hover-bg'] = hoverBg
-  const hoverTxt = resolveColor(props.data.hover_text_color)
-  if (hoverTxt) style['--hover-color'] = hoverTxt
   style['--transition-duration'] = `${props.data.transition_duration ?? 200}ms`
   const lift = props.data.hover_lift || 0
   if (lift) style['--hover-lift'] = `-${lift}px`
@@ -115,7 +109,7 @@ const hoverStyles = computed(() => {
       :class="[
         `lcms-button__link--${buttonStyle}`,
         `lcms-button__link--size-${buttonSize}`,
-        { 'has-hover': hasHover }
+        { 'has-effects': hasEffects }
       ]"
       :style="{ ...buttonInlineStyle, ...hoverStyles }"
       :target="targetBlank ? '_blank' : undefined"
@@ -132,12 +126,14 @@ const hoverStyles = computed(() => {
 
 <style scoped>
 .lcms-button__link {
-  transition: background-color var(--transition-duration, 200ms) ease, color var(--transition-duration, 200ms) ease, transform var(--transition-duration, 200ms) ease, box-shadow var(--transition-duration, 200ms) ease, border-color var(--transition-duration, 200ms) ease;
+  transition: filter var(--transition-duration, 200ms) ease, transform var(--transition-duration, 200ms) ease, box-shadow var(--transition-duration, 200ms) ease;
 }
 
-.lcms-button__link.has-hover:hover {
-  background-color: var(--hover-bg) !important;
-  color: var(--hover-color) !important;
+.lcms-button__link:hover {
+  filter: brightness(0.9);
+}
+
+.lcms-button__link.has-effects:hover {
   transform: translateY(var(--hover-lift, 0)) scale(var(--hover-scale, 1));
   box-shadow: var(--hover-shadow, none);
 }
