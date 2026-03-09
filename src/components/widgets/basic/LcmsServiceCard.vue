@@ -162,6 +162,12 @@ const iconStyles = computed(() => {
   if (color) styles.color = color
   const bg = resolveColor(config.value.icon_background)
   if (bg) styles.backgroundColor = bg
+  const size = config.value.icon_size
+  if (size !== undefined && size !== null) {
+    styles.width = `${size}px`
+    styles.height = `${size}px`
+    styles.fontSize = `${Math.round(size * 0.5)}px`
+  }
   return styles
 })
 
@@ -238,8 +244,8 @@ const badgeStyles = computed(() => {
 
 .lcms-service-card__svg {
   display: inline-flex;
-  width: 1.5rem;
-  height: 1.5rem;
+  width: 60%;
+  height: 60%;
 }
 
 .lcms-service-card__svg :deep(svg) {

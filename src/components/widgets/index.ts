@@ -49,6 +49,7 @@ import LcmsAccordion from './interactive/LcmsAccordion.vue'
 import LcmsTabs from './interactive/LcmsTabs.vue'
 import LcmsEmbed from './interactive/LcmsEmbed.vue'
 import LcmsTimeline from './interactive/LcmsTimeline.vue'
+import LcmsCookieConsent from './interactive/LcmsCookieConsent.vue'
 
 // Navigation widgets
 import LcmsMenu from './navigation/LcmsMenu.vue'
@@ -117,6 +118,7 @@ export const widgetComponents: Record<string, Component> = {
   tabs: LcmsTabs,
   embed: LcmsEmbed,
   timeline: LcmsTimeline,
+  'cookie-consent': LcmsCookieConsent,
 
   // Navigation
   menu: LcmsMenu,
@@ -201,6 +203,7 @@ export {
   LcmsTabs,
   LcmsEmbed,
   LcmsTimeline,
+  LcmsCookieConsent,
   // Navigation
   LcmsMenu,
   LcmsSocialIcons,

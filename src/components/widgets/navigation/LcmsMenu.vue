@@ -428,6 +428,26 @@ function getItemTarget(item: MenuItem): string | undefined {
 
 <style scoped>
 /* ===========================
+   Base nav layout
+   =========================== */
+.lcms-menu {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  gap: var(--lcms-menu-items-gap, 12px);
+}
+
+.lcms-menu--vertical:not(.lcms-menu--hamburger) {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.lcms-menu--centered:not(.lcms-menu--hamburger) {
+  flex-direction: column;
+  align-items: center;
+}
+
+/* ===========================
    Logo
    =========================== */
 .lcms-menu__logo {
@@ -536,6 +556,46 @@ function getItemTarget(item: MenuItem): string | undefined {
   opacity: 1;
   overflow: visible;
   transition: none;
+  display: flex;
+  align-items: center;
+  gap: var(--lcms-menu-items-gap, 12px);
+  flex: 1;
+  min-width: 0;
+}
+
+/* Menu list */
+.lcms-menu__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  gap: var(--lcms-menu-items-gap, 12px);
+  flex: 1;
+  flex-wrap: wrap;
+}
+
+/* Items alignment — higher specificity to override layout defaults */
+.lcms-menu.lcms-menu--align-left .lcms-menu__list {
+  justify-content: flex-start;
+}
+
+.lcms-menu.lcms-menu--align-center .lcms-menu__list {
+  justify-content: center;
+}
+
+.lcms-menu.lcms-menu--align-right .lcms-menu__list {
+  justify-content: flex-end;
+}
+
+/* Vertical layout */
+.lcms-menu--vertical .lcms-menu__list {
+  flex-direction: column;
+  flex-wrap: nowrap;
+}
+
+.lcms-menu--vertical:not(.lcms-menu--hamburger) .lcms-menu__panel {
+  flex-direction: column;
+  align-items: flex-start;
 }
 
 /* In hamburger mode, force vertical layout for the list */
