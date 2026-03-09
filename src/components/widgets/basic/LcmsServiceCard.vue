@@ -23,9 +23,10 @@
 
     <!-- Link -->
     <a
-      v-if="linkText && resolvedLinkUrl"
+      v-if="showLink && linkText && resolvedLinkUrl"
       :href="resolvedLinkUrl"
       class="lcms-service-card__link"
+      :style="linkStyles"
       :target="linkTargetBlank ? '_blank' : undefined"
       :rel="linkTargetBlank ? 'noopener noreferrer' : undefined"
     >
@@ -49,7 +50,6 @@ const props = defineProps<{
 
 const { extractValue } = useLanguage(props.language)
 
-// Resolve color variable references (var:primary → var(--lcms-color-primary))
 function resolveColor(val: string | null | undefined): string | null {
   if (!val) return null
   if (val.startsWith('var:')) {
@@ -83,6 +83,7 @@ const description = computed(() => extractValue(config.value.description) || '')
 const linkText = computed(() => extractValue(config.value.link_text) || '')
 const linkTargetBlank = computed(() => config.value.link_target_blank || false)
 const showBadge = computed(() => config.value.show_badge !== false)
+const showLink = computed(() => config.value.show_link !== false)
 
 // Resolve link URL based on link_type (prefer server-resolved URL)
 const resolvedLinkUrl = computed(() => {
@@ -119,32 +120,32 @@ const isHighlighted = computed(() => {
 const cardClasses = computed(() => ({
   'lcms-service-card--highlighted': isHighlighted.value,
   'lcms-service-card--has-bg': !!config.value.background_color,
-  'has-hover': !!(config.value.hover_background_color || config.value.hover_text_color || config.value.hover_lift || (config.value.hover_scale !== undefined && config.value.hover_scale !== 1) || (config.value.hover_shadow && config.value.hover_shadow !== 'none'))
+  'has-hover': !!(config.value.hover_background_color || config.value.hover_text_color || config.value.hover_icon_color || config.value.hover_icon_background || config.value.hover_lift || (config.value.hover_scale !== undefined && config.value.hover_scale !== 1) || (config.value.hover_shadow && config.value.hover_shadow !== 'none'))
 }))
 
 const cardStyles = computed(() => {
   const styles: Record<string, string> = {}
 
-  // border-radius
   const br = config.value.border_radius
   if (br !== undefined && br !== null) {
     styles.borderRadius = `${br}px`
   }
 
-  // base colors
   const bg = resolveColor(config.value.background_color)
   if (bg) styles.backgroundColor = bg
   const txt = resolveColor(config.value.text_color)
   if (txt) styles.color = txt
 
-  // hover CSS custom properties
   const hoverBg = resolveColor(config.value.hover_background_color)
   if (hoverBg) styles['--hover-bg'] = hoverBg
   const hoverTxt = resolveColor(config.value.hover_text_color)
   if (hoverTxt) styles['--hover-color'] = hoverTxt
+  const hoverIconColor = resolveColor(config.value.hover_icon_color)
+  if (hoverIconColor) styles['--hover-icon-color'] = hoverIconColor
+  const hoverIconBg = resolveColor(config.value.hover_icon_background)
+  if (hoverIconBg) styles['--hover-icon-bg'] = hoverIconBg
   styles['--transition-duration'] = `${config.value.transition_duration ?? 200}ms`
 
-  // Hover transform effects
   const lift = config.value.hover_lift || 0
   if (lift) styles['--hover-lift'] = `-${lift}px`
   const scale = config.value.hover_scale
@@ -168,6 +169,13 @@ const iconStyles = computed(() => {
     styles.height = `${size}px`
     styles.fontSize = `${Math.round(size * 0.5)}px`
   }
+  return styles
+})
+
+const linkStyles = computed(() => {
+  const styles: Record<string, string> = {}
+  const color = resolveColor(config.value.link_color)
+  if (color) styles.color = color
   return styles
 })
 
@@ -205,6 +213,11 @@ const badgeStyles = computed(() => {
   transform: translateY(var(--hover-lift, 0)) scale(var(--hover-scale, 1));
 }
 
+.lcms-service-card.has-hover:hover .lcms-service-card__icon {
+  color: var(--hover-icon-color);
+  background-color: var(--hover-icon-bg);
+}
+
 .lcms-service-card--highlighted {
   border: 2px solid var(--lcms-color-primary, #50a5f1);
 }
@@ -240,6 +253,7 @@ const badgeStyles = computed(() => {
   border-radius: 0.75rem;
   font-size: 1.5rem;
   margin-bottom: 1.25rem;
+  transition: color var(--transition-duration, 200ms) ease, background-color var(--transition-duration, 200ms) ease;
 }
 
 .lcms-service-card__svg {
