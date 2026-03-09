@@ -349,6 +349,15 @@ function applyStyleVariables(styles: Record<string, any>) {
   if (styles.link_hover_color) root.style.setProperty('--lcms-link-hover-color', styles.link_hover_color)
   if (styles.link_text_decoration) root.style.setProperty('--lcms-link-text-decoration', styles.link_text_decoration)
   if (styles.link_hover_text_decoration) root.style.setProperty('--lcms-link-hover-text-decoration', styles.link_hover_text_decoration)
+
+  // Input defaults
+  if (styles.input_background_color) root.style.setProperty('--lcms-input-bg-color', styles.input_background_color)
+  if (styles.input_text_color) root.style.setProperty('--lcms-input-text-color', styles.input_text_color)
+  if (styles.input_border_color) root.style.setProperty('--lcms-input-border-color', styles.input_border_color)
+  if (styles.input_border_width) root.style.setProperty('--lcms-input-border-width', `${styles.input_border_width}px`)
+  if (styles.input_border_style) root.style.setProperty('--lcms-input-border-style', styles.input_border_style)
+  if (styles.input_focus_border_color) root.style.setProperty('--lcms-input-focus-border-color', styles.input_focus_border_color)
+  if (styles.input_placeholder_color) root.style.setProperty('--lcms-input-placeholder-color', styles.input_placeholder_color)
 }
 
 /**
