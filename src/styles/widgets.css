@@ -400,12 +400,12 @@
 .lcms-heading__text {
   /* Apply default sizes only to plain text headings */
 }
-.lcms-heading__text[data-level="1"] { font-size: var(--lcms-font-size-5xl); }
-.lcms-heading__text[data-level="2"] { font-size: var(--lcms-font-size-4xl); }
-.lcms-heading__text[data-level="3"] { font-size: var(--lcms-font-size-3xl); }
-.lcms-heading__text[data-level="4"] { font-size: var(--lcms-font-size-2xl); }
-.lcms-heading__text[data-level="5"] { font-size: var(--lcms-font-size-xl); }
-.lcms-heading__text[data-level="6"] { font-size: var(--lcms-font-size-lg); }
+.lcms-heading__text[data-level="1"] { font-size: var(--lcms-h1-font-size); font-weight: var(--lcms-h1-font-weight); color: var(--lcms-h1-color); }
+.lcms-heading__text[data-level="2"] { font-size: var(--lcms-h2-font-size); font-weight: var(--lcms-h2-font-weight); color: var(--lcms-h2-color); }
+.lcms-heading__text[data-level="3"] { font-size: var(--lcms-h3-font-size); font-weight: var(--lcms-h3-font-weight); color: var(--lcms-h3-color); }
+.lcms-heading__text[data-level="4"] { font-size: var(--lcms-h4-font-size); font-weight: var(--lcms-h4-font-weight); color: var(--lcms-h4-color); }
+.lcms-heading__text[data-level="5"] { font-size: var(--lcms-h5-font-size); font-weight: var(--lcms-h5-font-weight); color: var(--lcms-h5-color); }
+.lcms-heading__text[data-level="6"] { font-size: var(--lcms-h6-font-size); font-weight: var(--lcms-h6-font-weight); color: var(--lcms-h6-color); }
 
 /* HTML content from editor - reset h1-h6 to not have default browser/css sizes */
 .lcms-heading__html h1,

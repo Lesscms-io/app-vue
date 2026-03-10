@@ -60,8 +60,11 @@ function resolveColorValue(val: string | null): string | null {
   return val
 }
 
+const backgroundColor = computed(() => resolveColorValue(props.data.background_color || null))
+
 const counterStyle = computed(() => {
   const style: Record<string, string> = {}
+  if (backgroundColor.value) style.backgroundColor = backgroundColor.value
   const nc = resolveColorValue(numberColor.value)
   if (nc) style['--counter-number-color'] = nc
   const tc = resolveColorValue(titleColor.value)
