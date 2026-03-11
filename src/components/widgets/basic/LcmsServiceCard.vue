@@ -82,7 +82,7 @@ const title = computed(() => extractValue(config.value.title) || '')
 const description = computed(() => extractValue(config.value.description) || '')
 const linkText = computed(() => extractValue(config.value.link_text) || '')
 const linkTargetBlank = computed(() => config.value.link_target_blank || false)
-const showBadge = computed(() => config.value.show_badge !== false)
+const showBadge = computed(() => config.value.show_badge === true)
 const showLink = computed(() => config.value.show_link !== false)
 
 // Resolve link URL based on link_type (prefer server-resolved URL)
