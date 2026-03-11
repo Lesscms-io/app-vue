@@ -119,27 +119,24 @@ const isHighlighted = computed(() => {
 
 const cardClasses = computed(() => ({
   'lcms-service-card--highlighted': isHighlighted.value,
-  'lcms-service-card--has-bg': !!config.value.background_color,
-  'has-hover': !!(config.value.hover_background_color || config.value.hover_text_color || config.value.hover_icon_color || config.value.hover_icon_background || config.value.hover_lift || (config.value.hover_scale !== undefined && config.value.hover_scale !== 1) || (config.value.hover_shadow && config.value.hover_shadow !== 'none'))
+  'has-hover': !!(config.value.hover_text_color || config.value.hover_icon_color || config.value.hover_icon_background || config.value.hover_lift || (config.value.hover_scale !== undefined && config.value.hover_scale !== 1) || (config.value.hover_shadow && config.value.hover_shadow !== 'none'))
 }))
 
 const cardStyles = computed(() => {
   const styles: Record<string, string> = {}
 
-  const br = config.value.border_radius
-  if (br !== undefined && br !== null) {
-    styles.borderRadius = `${br}px`
-  }
-
   const bg = resolveColor(config.value.background_color)
   if (bg) styles.backgroundColor = bg
+  const br = config.value.border_radius
+  if (br !== undefined && br !== null) styles.borderRadius = `${br}px`
+
   const txt = resolveColor(config.value.text_color)
   if (txt) styles.color = txt
 
-  const hoverBg = resolveColor(config.value.hover_background_color)
-  if (hoverBg) styles['--hover-bg'] = hoverBg
   const hoverTxt = resolveColor(config.value.hover_text_color)
   if (hoverTxt) styles['--hover-color'] = hoverTxt
+  const hoverBg = resolveColor(config.value.hover_background_color)
+  if (hoverBg) styles['--hover-bg'] = hoverBg
   const hoverIconColor = resolveColor(config.value.hover_icon_color)
   if (hoverIconColor) styles['--hover-icon-color'] = hoverIconColor
   const hoverIconBg = resolveColor(config.value.hover_icon_background)
@@ -193,24 +190,17 @@ const badgeStyles = computed(() => {
 .lcms-service-card {
   display: flex;
   flex-direction: column;
-  padding: 2rem;
-  background: var(--lcms-color-white, #fff);
-  border-radius: 16px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   position: relative;
   height: 100%;
   box-sizing: border-box;
-  transition: background-color var(--transition-duration, 200ms) ease, color var(--transition-duration, 200ms) ease, box-shadow var(--transition-duration, 200ms) ease, transform var(--transition-duration, 200ms) ease;
-}
-
-.lcms-service-card:hover {
-  box-shadow: var(--hover-shadow, 0 4px 12px rgba(0, 0, 0, 0.15));
+  transition: color var(--transition-duration, 200ms) ease, box-shadow var(--transition-duration, 200ms) ease, transform var(--transition-duration, 200ms) ease, background-color var(--transition-duration, 200ms) ease;
 }
 
 .lcms-service-card.has-hover:hover {
-  background-color: var(--hover-bg);
   color: var(--hover-color);
   transform: translateY(var(--hover-lift, 0)) scale(var(--hover-scale, 1));
+  box-shadow: var(--hover-shadow, none);
+  background-color: var(--hover-bg);
 }
 
 .lcms-service-card.has-hover:hover .lcms-service-card__icon {
@@ -220,11 +210,6 @@ const badgeStyles = computed(() => {
 
 .lcms-service-card--highlighted {
   border: 2px solid var(--lcms-color-primary, #50a5f1);
-}
-
-.lcms-service-card--has-bg .lcms-service-card__icon {
-  background: rgba(255, 255, 255, 0.15);
-  color: inherit;
 }
 
 .lcms-service-card__badge {

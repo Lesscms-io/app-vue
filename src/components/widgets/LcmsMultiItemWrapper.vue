@@ -75,44 +75,38 @@ const getItemStyle = (item: MultiItemData): Record<string, string> => {
 
   const style: Record<string, string> = {}
 
-  // Widgets with built-in card styling (padding, bg, border-radius, shadow) —
-  // skip all cell-level appearance to avoid doubling
-  const hasBuiltInCardStyle = ['service-card', 'pricing-table'].includes(item.widget_type)
-
-  if (!hasBuiltInCardStyle) {
-    // Background color
-    if (itemSettings.backgroundColor) {
-      const bgOpacity = itemSettings.backgroundOpacity ?? 100
-      if (bgOpacity < 100) {
-        style.backgroundColor = hexToRgba(itemSettings.backgroundColor, bgOpacity)
-      } else {
-        style.backgroundColor = itemSettings.backgroundColor
-      }
+  // Background color
+  if (itemSettings.backgroundColor) {
+    const bgOpacity = itemSettings.backgroundOpacity ?? 100
+    if (bgOpacity < 100) {
+      style.backgroundColor = hexToRgba(itemSettings.backgroundColor, bgOpacity)
+    } else {
+      style.backgroundColor = itemSettings.backgroundColor
     }
-
-    // Gradient
-    if (itemSettings.useGradient) {
-      const type = itemSettings.gradientType || 'linear'
-      const start = itemSettings.gradientColorStart || '#667eea'
-      const end = itemSettings.gradientColorEnd || '#764ba2'
-      const angle = itemSettings.gradientAngle ?? 180
-      if (type === 'radial') {
-        style.background = `radial-gradient(circle, ${start} 0%, ${end} 100%)`
-      } else {
-        style.background = `linear-gradient(${angle}deg, ${start} 0%, ${end} 100%)`
-      }
-    }
-
-    // Padding
-    if (itemSettings.paddingTop) style.paddingTop = `${itemSettings.paddingTop}px`
-    if (itemSettings.paddingRight) style.paddingRight = `${itemSettings.paddingRight}px`
-    if (itemSettings.paddingBottom) style.paddingBottom = `${itemSettings.paddingBottom}px`
-    if (itemSettings.paddingLeft) style.paddingLeft = `${itemSettings.paddingLeft}px`
-
-    // Border
-    if (itemSettings.borderRadius) style.borderRadius = `${itemSettings.borderRadius}px`
-    if (itemSettings.boxShadow) style.boxShadow = itemSettings.boxShadow
   }
+
+  // Gradient
+  if (itemSettings.useGradient) {
+    const type = itemSettings.gradientType || 'linear'
+    const start = itemSettings.gradientColorStart || '#667eea'
+    const end = itemSettings.gradientColorEnd || '#764ba2'
+    const angle = itemSettings.gradientAngle ?? 180
+    if (type === 'radial') {
+      style.background = `radial-gradient(circle, ${start} 0%, ${end} 100%)`
+    } else {
+      style.background = `linear-gradient(${angle}deg, ${start} 0%, ${end} 100%)`
+    }
+  }
+
+  // Padding
+  if (itemSettings.paddingTop) style.paddingTop = `${itemSettings.paddingTop}px`
+  if (itemSettings.paddingRight) style.paddingRight = `${itemSettings.paddingRight}px`
+  if (itemSettings.paddingBottom) style.paddingBottom = `${itemSettings.paddingBottom}px`
+  if (itemSettings.paddingLeft) style.paddingLeft = `${itemSettings.paddingLeft}px`
+
+  // Border
+  if (itemSettings.borderRadius) style.borderRadius = `${itemSettings.borderRadius}px`
+  if (itemSettings.boxShadow) style.boxShadow = itemSettings.boxShadow
 
   if (itemSettings.borderWidth && itemSettings.borderWidth > 0) {
     style.borderWidth = `${itemSettings.borderWidth}px`

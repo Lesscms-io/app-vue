@@ -1,10 +1,10 @@
 <template>
-  <div class="lcms-icon-box" :class="[positionClass, { 'has-hover': !!(config.hover_card_background || config.hover_card_border_color || config.hover_lift || (config.hover_scale !== undefined && config.hover_scale !== 1) || (config.hover_shadow && config.hover_shadow !== 'none')) }]" :data-source="contentSource" :style="cardStyle">
+  <div class="lcms-icon-box" :class="[positionClass, { 'has-hover': hasHover, 'has-hover-icon-color': !!hoverIconColor, 'has-hover-icon-bg': !!hoverIconBg, 'has-hover-title-color': !!hoverTitleColor, 'has-hover-text-color': !!hoverTextColor }]" :data-source="contentSource" :style="cardStyle">
     <div class="lcms-icon-box__icon" :style="iconStyles">
       <span v-if="isSvgIcon" class="lcms-icon-box__svg" v-html="svgContent"></span>
       <i v-else :class="iconClass"></i>
     </div>
-    <div class="lcms-icon-box__content" v-html="content"></div>
+    <div class="lcms-icon-box__content" :style="contentStyle" v-html="content"></div>
   </div>
 </template>
 
@@ -38,10 +38,6 @@ const props = defineProps<{
       icon_color?: string
       icon_background?: string
       icon_border_radius?: string | number
-      card_background?: string
-      card_padding?: string
-      card_border_radius?: string | number
-      card_border_color?: string
     }
     settings?: Record<string, unknown>
   }
@@ -76,53 +72,56 @@ const positionClass = computed(() => {
   return classes
 })
 
+// Title/text style
+const titleFontSize = computed(() => config.value.title_font_size || '')
+const titleFontWeight = computed(() => config.value.title_font_weight || '')
+const titleColor = computed(() => resolveColor(config.value.title_color) || '')
+const textFontSize = computed(() => config.value.text_font_size || '')
+const textFontWeight = computed(() => config.value.text_font_weight || '')
+const textColor = computed(() => resolveColor(config.value.text_color) || '')
+
+// Hover color effects
+const hoverIconColor = computed(() => resolveColor(config.value.hover_icon_color) || '')
+const hoverIconBg = computed(() => resolveColor(config.value.hover_icon_background) || '')
+const hoverTitleColor = computed(() => resolveColor(config.value.hover_title_color) || '')
+const hoverTextColor = computed(() => resolveColor(config.value.hover_text_color) || '')
+
+const hasHover = computed(() => !!(config.value.hover_lift || (config.value.hover_scale !== undefined && config.value.hover_scale !== 1) || (config.value.hover_shadow && config.value.hover_shadow !== 'none') || hoverIconColor.value || hoverIconBg.value || hoverTitleColor.value || hoverTextColor.value))
+
+const contentStyle = computed(() => {
+  const styles: Record<string, string> = {}
+  if (titleFontSize.value) styles['--title-font-size'] = titleFontSize.value
+  if (titleFontWeight.value) styles['--title-font-weight'] = titleFontWeight.value
+  if (titleColor.value) styles['--title-color'] = titleColor.value
+  if (textFontSize.value) styles['--text-font-size'] = textFontSize.value
+  if (textFontWeight.value) styles['--text-font-weight'] = textFontWeight.value
+  if (textColor.value) styles['--text-color'] = textColor.value
+  return styles
+})
+
 const cardStyle = computed(() => {
   const styles: Record<string, string> = {}
-  const bg = resolveColor(config.value.card_background)
-  const hasBg = bg && config.value.card_background !== 'transparent'
-  if (hasBg) {
-    styles.backgroundColor = bg
-  }
-  if (config.value.card_padding) {
-    const padVal = String(config.value.card_padding)
-    styles.padding = /^\d+$/.test(padVal) ? `${padVal}px` : padVal
-  }
-  const br = parseInt(String(config.value.card_border_radius))
-  if (!isNaN(br) && br > 0) {
-    styles.borderRadius = `${br}px`
-  }
-  const borderColor = resolveColor(config.value.card_border_color)
-  if (borderColor) {
-    styles.border = `1px solid ${borderColor}`
-  }
 
-  // When card has its own background and is inside a multi-item cell with padding,
-  // expand to fill the entire cell by using negative margin + matching padding
-  if (hasBg) {
-    const is = config.value.item_settings as Record<string, any> | undefined
-    if (is) {
-      const pt = parseInt(is.paddingTop) || 0
-      const pr = parseInt(is.paddingRight) || 0
-      const pb = parseInt(is.paddingBottom) || 0
-      const pl = parseInt(is.paddingLeft) || 0
-      if (pt || pr || pb || pl) {
-        styles.margin = `-${pt}px -${pr}px -${pb}px -${pl}px`
-        styles.padding = `${pt}px ${pr}px ${pb}px ${pl}px`
-        // Inherit cell border-radius so bg fills rounded corners
-        const cellBr = parseInt(is.borderRadius) || 0
-        if (cellBr > 0) {
-          styles.borderRadius = `${cellBr}px`
-        }
-      }
-    }
-  }
+  // Card styling
+  const cardBg = resolveColor(config.value.card_background)
+  if (cardBg) styles.backgroundColor = cardBg
+  if (config.value.card_padding) styles.padding = `${config.value.card_padding}px`
+  const cardBr = parseInt(String(config.value.card_border_radius))
+  if (!isNaN(cardBr) && cardBr > 0) styles.borderRadius = `${cardBr}px`
+  const cardBorderColor = resolveColor(config.value.card_border_color)
+  if (cardBorderColor) styles.border = `1px solid ${cardBorderColor}`
 
-  // hover CSS custom properties
-  const hoverBg = resolveColor(config.value.hover_card_background)
-  if (hoverBg) styles['--hover-bg'] = hoverBg
-  const hoverBorder = resolveColor(config.value.hover_card_border_color)
-  if (hoverBorder) styles['--hover-border-color'] = hoverBorder
   styles['--transition-duration'] = `${config.value.transition_duration ?? 200}ms`
+
+  // Hover color CSS variables
+  if (hoverIconColor.value) styles['--hover-icon-color'] = hoverIconColor.value
+  if (hoverIconBg.value) styles['--hover-icon-bg'] = hoverIconBg.value
+  if (hoverTitleColor.value) styles['--hover-title-color'] = hoverTitleColor.value
+  if (hoverTextColor.value) styles['--hover-text-color'] = hoverTextColor.value
+  const hoverCardBg = resolveColor(config.value.hover_card_background)
+  if (hoverCardBg) styles['--hover-card-bg'] = hoverCardBg
+  const hoverCardBorder = resolveColor(config.value.hover_card_border_color)
+  if (hoverCardBorder) styles['--hover-card-border-color'] = hoverCardBorder
 
   // Hover transform effects
   const lift = config.value.hover_lift || 0
@@ -167,14 +166,14 @@ const iconStyles = computed(() => {
   display: flex;
   gap: 1rem;
   align-items: flex-start;
-  transition: background-color var(--transition-duration, 200ms) ease, border-color var(--transition-duration, 200ms) ease, transform var(--transition-duration, 200ms) ease, box-shadow var(--transition-duration, 200ms) ease;
+  transition: transform var(--transition-duration, 200ms) ease, box-shadow var(--transition-duration, 200ms) ease, background-color var(--transition-duration, 200ms) ease, border-color var(--transition-duration, 200ms) ease;
 }
 
 .lcms-icon-box.has-hover:hover {
-  background-color: var(--hover-bg);
-  border-color: var(--hover-border-color);
   transform: translateY(var(--hover-lift, 0)) scale(var(--hover-scale, 1));
   box-shadow: var(--hover-shadow, none);
+  background-color: var(--hover-card-bg);
+  border-color: var(--hover-card-border-color);
 }
 
 .lcms-icon-box--top {
@@ -218,6 +217,15 @@ const iconStyles = computed(() => {
   padding: 0;
   line-height: 1;
   box-sizing: content-box;
+  transition: color var(--transition-duration, 200ms) ease, background-color var(--transition-duration, 200ms) ease;
+}
+
+.lcms-icon-box.has-hover.has-hover-icon-color:hover .lcms-icon-box__icon {
+  color: var(--hover-icon-color) !important;
+}
+
+.lcms-icon-box.has-hover.has-hover-icon-bg:hover .lcms-icon-box__icon {
+  background-color: var(--hover-icon-bg) !important;
 }
 
 .lcms-icon-box__content {
@@ -226,6 +234,42 @@ const iconStyles = computed(() => {
 
 .lcms-icon-box__content :deep(p) {
   margin: 0;
+}
+
+/* Title style: apply to headings */
+.lcms-icon-box__content :deep(h1),
+.lcms-icon-box__content :deep(h2),
+.lcms-icon-box__content :deep(h3),
+.lcms-icon-box__content :deep(h4),
+.lcms-icon-box__content :deep(h5),
+.lcms-icon-box__content :deep(h6) {
+  font-size: var(--title-font-size, inherit);
+  font-weight: var(--title-font-weight, inherit);
+  color: var(--title-color, inherit);
+  transition: color var(--transition-duration, 200ms) ease;
+}
+
+/* Text style: apply to paragraphs */
+.lcms-icon-box__content :deep(p) {
+  font-size: var(--text-font-size, inherit);
+  font-weight: var(--text-font-weight, inherit);
+  color: var(--text-color, inherit);
+  transition: color var(--transition-duration, 200ms) ease;
+}
+
+/* Hover title color */
+.lcms-icon-box.has-hover.has-hover-title-color:hover .lcms-icon-box__content :deep(h1),
+.lcms-icon-box.has-hover.has-hover-title-color:hover .lcms-icon-box__content :deep(h2),
+.lcms-icon-box.has-hover.has-hover-title-color:hover .lcms-icon-box__content :deep(h3),
+.lcms-icon-box.has-hover.has-hover-title-color:hover .lcms-icon-box__content :deep(h4),
+.lcms-icon-box.has-hover.has-hover-title-color:hover .lcms-icon-box__content :deep(h5),
+.lcms-icon-box.has-hover.has-hover-title-color:hover .lcms-icon-box__content :deep(h6) {
+  color: var(--hover-title-color) !important;
+}
+
+/* Hover text color */
+.lcms-icon-box.has-hover.has-hover-text-color:hover .lcms-icon-box__content :deep(p) {
+  color: var(--hover-text-color) !important;
 }
 
 .lcms-icon-box__svg {

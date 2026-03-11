@@ -51,12 +51,25 @@ const iconExcluded = computed(() => props.data.icon_excluded || 'fa-solid fa-xma
 const colorIncluded = computed(() => resolveColor(props.data.color_included) || '#28a745')
 const colorExcluded = computed(() => resolveColor(props.data.color_excluded) || '#dc3545')
 const columns = computed(() => parseInt(String(props.data.columns)) || 1)
+
+// Hover colors
+const hoverColorIncluded = computed(() => resolveColor(props.data.hover_color_included) || '')
+const hoverColorExcluded = computed(() => resolveColor(props.data.hover_color_excluded) || '')
+const hasHover = computed(() => !!(hoverColorIncluded.value || hoverColorExcluded.value))
+
+const widgetStyle = computed(() => {
+  const style: Record<string, string> = {}
+  if (hoverColorIncluded.value) style['--hover-color-included'] = hoverColorIncluded.value
+  if (hoverColorExcluded.value) style['--hover-color-excluded'] = hoverColorExcluded.value
+  return style
+})
 </script>
 
 <template>
   <ul
     class="lcms-feature-list"
-    :style="columns > 1 ? { columnCount: columns } : {}"
+    :class="{ 'has-hover': hasHover }"
+    :style="{ ...(columns > 1 ? { columnCount: columns } : {}), ...widgetStyle }"
   >
     <li
       v-for="(item, index) in items"
@@ -97,9 +110,18 @@ const columns = computed(() => parseInt(String(props.data.columns)) || 1)
   flex-shrink: 0;
   width: 20px;
   text-align: center;
+  transition: color var(--transition-duration, 200ms) ease;
 }
 
 .lcms-feature-list__text {
   flex: 1;
+}
+
+.lcms-feature-list.has-hover:hover .lcms-feature-list__item:not(.lcms-feature-list__item--excluded) .lcms-feature-list__icon {
+  color: var(--hover-color-included) !important;
+}
+
+.lcms-feature-list.has-hover:hover .lcms-feature-list__item--excluded .lcms-feature-list__icon {
+  color: var(--hover-color-excluded) !important;
 }
 </style>

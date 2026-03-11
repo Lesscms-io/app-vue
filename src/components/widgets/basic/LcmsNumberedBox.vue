@@ -1,9 +1,9 @@
 <template>
-  <div class="lcms-numbered-box" :class="[positionClass, { 'has-hover': !!(config.hover_card_background || config.hover_card_border_color || config.hover_lift || (config.hover_scale !== undefined && config.hover_scale !== 1) || (config.hover_shadow && config.hover_shadow !== 'none')) }]" :style="cardStyle">
+  <div class="lcms-numbered-box" :class="[positionClass, { 'has-hover': hasHover, 'has-hover-number-color': !!hoverNumberColor, 'has-hover-number-bg': !!hoverNumberBg, 'has-hover-title-color': !!hoverTitleColor, 'has-hover-text-color': !!hoverTextColor }]" :style="cardStyle">
     <div class="lcms-numbered-box__number" :style="numberStyles">
       {{ displayNumber }}
     </div>
-    <div class="lcms-numbered-box__content" v-html="content"></div>
+    <div class="lcms-numbered-box__content" :style="contentStyle" v-html="content"></div>
   </div>
 </template>
 
@@ -49,51 +49,58 @@ const positionClass = computed(() => {
   return classes
 })
 
+// Title/text style
+const titleFontSize = computed(() => config.value.title_font_size || '')
+const titleFontWeight = computed(() => config.value.title_font_weight || '')
+const titleColor = computed(() => resolveColor(config.value.title_color) || '')
+const textFontSize = computed(() => config.value.text_font_size || '')
+const textFontWeight = computed(() => config.value.text_font_weight || '')
+const textColor = computed(() => resolveColor(config.value.text_color) || '')
+
+// Hover color effects
+const hoverNumberColor = computed(() => resolveColor(config.value.hover_number_color) || '')
+const hoverNumberBg = computed(() => resolveColor(config.value.hover_number_background) || '')
+const hoverTitleColor = computed(() => resolveColor(config.value.hover_title_color) || '')
+const hoverTextColor = computed(() => resolveColor(config.value.hover_text_color) || '')
+
+const hasHover = computed(() => !!(config.value.hover_lift || (config.value.hover_scale !== undefined && config.value.hover_scale !== 1) || (config.value.hover_shadow && config.value.hover_shadow !== 'none') || hoverNumberColor.value || hoverNumberBg.value || hoverTitleColor.value || hoverTextColor.value))
+
+const contentStyle = computed(() => {
+  const styles: Record<string, string> = {}
+  if (titleFontSize.value) styles['--title-font-size'] = titleFontSize.value
+  if (titleFontWeight.value) styles['--title-font-weight'] = titleFontWeight.value
+  if (titleColor.value) styles['--title-color'] = titleColor.value
+  if (textFontSize.value) styles['--text-font-size'] = textFontSize.value
+  if (textFontWeight.value) styles['--text-font-weight'] = textFontWeight.value
+  if (textColor.value) styles['--text-color'] = textColor.value
+  return styles
+})
+
+const titleTag = computed(() => config.value.title_tag || 'h3')
+
 const cardStyle = computed(() => {
   const styles: Record<string, string> = {}
-  const bg = resolveColor(config.value.card_background)
-  if (bg && config.value.card_background !== 'transparent') {
-    styles.backgroundColor = bg
-  }
-  if (config.value.card_padding) {
-    const padVal = String(config.value.card_padding)
-    styles.padding = /^\d+$/.test(padVal) ? `${padVal}px` : padVal
-  }
-  const br = parseInt(String(config.value.card_border_radius))
-  if (!isNaN(br) && br > 0) {
-    styles.borderRadius = `${br}px`
-  }
-  const borderColor = resolveColor(config.value.card_border_color)
-  if (borderColor) {
-    styles.border = `1px solid ${borderColor}`
-  }
 
-  // When card has its own background and is inside a multi-item cell with padding,
-  // expand to fill the entire cell by using negative margin + matching padding
-  if (bg && config.value.card_background !== 'transparent') {
-    const is = config.value.item_settings as Record<string, any> | undefined
-    if (is) {
-      const pt = parseInt(is.paddingTop) || 0
-      const pr = parseInt(is.paddingRight) || 0
-      const pb = parseInt(is.paddingBottom) || 0
-      const pl = parseInt(is.paddingLeft) || 0
-      if (pt || pr || pb || pl) {
-        styles.margin = `-${pt}px -${pr}px -${pb}px -${pl}px`
-        styles.padding = `${pt}px ${pr}px ${pb}px ${pl}px`
-        const cellBr = parseInt(is.borderRadius) || 0
-        if (cellBr > 0) {
-          styles.borderRadius = `${cellBr}px`
-        }
-      }
-    }
-  }
+  // Card styling
+  const cardBg = resolveColor(config.value.card_background)
+  if (cardBg) styles.backgroundColor = cardBg
+  if (config.value.card_padding) styles.padding = `${config.value.card_padding}px`
+  const cardBr = parseInt(String(config.value.card_border_radius))
+  if (!isNaN(cardBr) && cardBr > 0) styles.borderRadius = `${cardBr}px`
+  const cardBorderColor = resolveColor(config.value.card_border_color)
+  if (cardBorderColor) styles.border = `1px solid ${cardBorderColor}`
 
-  // hover CSS custom properties
-  const hoverBg = resolveColor(config.value.hover_card_background)
-  if (hoverBg) styles['--hover-bg'] = hoverBg
-  const hoverBorder = resolveColor(config.value.hover_card_border_color)
-  if (hoverBorder) styles['--hover-border-color'] = hoverBorder
   styles['--transition-duration'] = `${config.value.transition_duration ?? 200}ms`
+
+  // Hover color CSS variables
+  if (hoverNumberColor.value) styles['--hover-number-color'] = hoverNumberColor.value
+  if (hoverNumberBg.value) styles['--hover-number-bg'] = hoverNumberBg.value
+  if (hoverTitleColor.value) styles['--hover-title-color'] = hoverTitleColor.value
+  if (hoverTextColor.value) styles['--hover-text-color'] = hoverTextColor.value
+  const hoverCardBg = resolveColor(config.value.hover_card_background)
+  if (hoverCardBg) styles['--hover-card-bg'] = hoverCardBg
+  const hoverCardBorder = resolveColor(config.value.hover_card_border_color)
+  if (hoverCardBorder) styles['--hover-card-border-color'] = hoverCardBorder
 
   // Hover transform effects
   const lift = config.value.hover_lift || 0
@@ -142,14 +149,14 @@ const numberStyles = computed(() => {
   display: flex;
   gap: 1rem;
   align-items: flex-start;
-  transition: background-color var(--transition-duration, 200ms) ease, border-color var(--transition-duration, 200ms) ease, transform var(--transition-duration, 200ms) ease, box-shadow var(--transition-duration, 200ms) ease;
+  transition: transform var(--transition-duration, 200ms) ease, box-shadow var(--transition-duration, 200ms) ease, background-color var(--transition-duration, 200ms) ease, border-color var(--transition-duration, 200ms) ease;
 }
 
 .lcms-numbered-box.has-hover:hover {
-  background-color: var(--hover-bg);
-  border-color: var(--hover-border-color);
   transform: translateY(var(--hover-lift, 0)) scale(var(--hover-scale, 1));
   box-shadow: var(--hover-shadow, none);
+  background-color: var(--hover-card-bg);
+  border-color: var(--hover-card-border-color);
 }
 
 .lcms-numbered-box--top {
@@ -194,9 +201,54 @@ const numberStyles = computed(() => {
   line-height: 1;
   box-sizing: content-box;
   font-variant-numeric: tabular-nums;
+  transition: color var(--transition-duration, 200ms) ease, background-color var(--transition-duration, 200ms) ease;
+}
+
+.lcms-numbered-box.has-hover.has-hover-number-color:hover .lcms-numbered-box__number {
+  color: var(--hover-number-color) !important;
+}
+
+.lcms-numbered-box.has-hover.has-hover-number-bg:hover .lcms-numbered-box__number {
+  background-color: var(--hover-number-bg) !important;
 }
 
 .lcms-numbered-box__content {
   flex: 1;
+}
+
+/* Title style: apply to headings */
+.lcms-numbered-box__content :deep(h1),
+.lcms-numbered-box__content :deep(h2),
+.lcms-numbered-box__content :deep(h3),
+.lcms-numbered-box__content :deep(h4),
+.lcms-numbered-box__content :deep(h5),
+.lcms-numbered-box__content :deep(h6) {
+  font-size: var(--title-font-size, inherit);
+  font-weight: var(--title-font-weight, inherit);
+  color: var(--title-color, inherit);
+  transition: color var(--transition-duration, 200ms) ease;
+}
+
+/* Text style: apply to paragraphs */
+.lcms-numbered-box__content :deep(p) {
+  font-size: var(--text-font-size, inherit);
+  font-weight: var(--text-font-weight, inherit);
+  color: var(--text-color, inherit);
+  transition: color var(--transition-duration, 200ms) ease;
+}
+
+/* Hover title color */
+.lcms-numbered-box.has-hover.has-hover-title-color:hover .lcms-numbered-box__content :deep(h1),
+.lcms-numbered-box.has-hover.has-hover-title-color:hover .lcms-numbered-box__content :deep(h2),
+.lcms-numbered-box.has-hover.has-hover-title-color:hover .lcms-numbered-box__content :deep(h3),
+.lcms-numbered-box.has-hover.has-hover-title-color:hover .lcms-numbered-box__content :deep(h4),
+.lcms-numbered-box.has-hover.has-hover-title-color:hover .lcms-numbered-box__content :deep(h5),
+.lcms-numbered-box.has-hover.has-hover-title-color:hover .lcms-numbered-box__content :deep(h6) {
+  color: var(--hover-title-color) !important;
+}
+
+/* Hover text color */
+.lcms-numbered-box.has-hover.has-hover-text-color:hover .lcms-numbered-box__content :deep(p) {
+  color: var(--hover-text-color) !important;
 }
 </style>

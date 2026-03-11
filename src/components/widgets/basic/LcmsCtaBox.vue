@@ -45,7 +45,6 @@ const buttonText = computed(() => {
   return typeof v === 'object' ? extractValue(v) : v
 })
 const buttonUrl = computed(() => props.data.button_url || '')
-const backgroundColor = computed(() => resolveColor(props.data.background_color) || undefined)
 const textColor = computed(() => {
   const val = props.data.text_color || 'light'
   if (val === 'light') return '#ffffff'
@@ -53,9 +52,6 @@ const textColor = computed(() => {
   return resolveColor(val) || val
 })
 const alignment = computed(() => props.data.alignment || 'center')
-const paddingY = computed(() => props.data.padding_y ?? 48)
-const paddingX = computed(() => props.data.padding_x ?? 32)
-const borderRadius = computed(() => props.data.border_radius ?? 12)
 const titleFontSize = computed(() => {
   const v = props.data.title_font_size
   if (v == null) return '28px'
@@ -170,16 +166,22 @@ const buttonSizeClass = computed(() => {
 })
 
 const boxStyle = computed(() => {
-  const style: Record<string, string> = {
-    padding: `${paddingY.value}px ${paddingX.value}px`,
-    borderRadius: `${borderRadius.value}px`
-  }
-  if (backgroundColor.value) style.backgroundColor = backgroundColor.value
+  const style: Record<string, string> = {}
   if (textColor.value) style.color = textColor.value
-  const hoverBg = resolveColor(props.data.hover_background_color)
-  if (hoverBg) style['--hover-bg'] = hoverBg
+
+  // Box styling
+  const bg = resolveColor(props.data.background_color)
+  if (bg) style.backgroundColor = bg
+  const py = props.data.padding_y
+  const px = props.data.padding_x
+  if (py != null || px != null) style.padding = `${py ?? 48}px ${px ?? 32}px`
+  const br = props.data.border_radius
+  if (br != null) style.borderRadius = `${br}px`
+
   const hoverTxt = resolveColor(props.data.hover_text_color)
   if (hoverTxt) style['--hover-color'] = hoverTxt
+  const hoverBg = resolveColor(props.data.hover_background_color)
+  if (hoverBg) style['--hover-bg'] = hoverBg
   style['--transition-duration'] = `${props.data.transition_duration ?? 200}ms`
 
   // Hover transform effects
@@ -198,7 +200,7 @@ const boxStyle = computed(() => {
 <template>
   <div
     class="lcms-cta-box"
-    :class="[`lcms-cta-box--${alignment}`, { 'has-hover': !!(data.hover_background_color || data.hover_text_color || data.hover_lift || (data.hover_scale !== undefined && data.hover_scale !== 1) || (data.hover_shadow && data.hover_shadow !== 'none')) }]"
+    :class="[`lcms-cta-box--${alignment}`, { 'has-hover': !!(data.hover_text_color || data.hover_lift || (data.hover_scale !== undefined && data.hover_scale !== 1) || (data.hover_shadow && data.hover_shadow !== 'none')), 'has-hover-text-color': !!resolveColor(data.hover_text_color) }]"
     :style="boxStyle"
   >
     <h3 v-if="title" class="lcms-cta-box__title" :style="{ fontSize: titleFontSize }">{{ title }}</h3>
@@ -222,16 +224,18 @@ const boxStyle = computed(() => {
 
 <style scoped>
 .lcms-cta-box {
-  background-color: #50a5f1;
-  color: #fff;
-  transition: background-color var(--transition-duration, 200ms) ease, color var(--transition-duration, 200ms) ease, transform var(--transition-duration, 200ms) ease, box-shadow var(--transition-duration, 200ms) ease;
+  transition: color var(--transition-duration, 200ms) ease, transform var(--transition-duration, 200ms) ease, box-shadow var(--transition-duration, 200ms) ease, background-color var(--transition-duration, 200ms) ease;
 }
 
 .lcms-cta-box.has-hover:hover {
-  background-color: var(--hover-bg);
-  color: var(--hover-color);
   transform: translateY(var(--hover-lift, 0)) scale(var(--hover-scale, 1));
   box-shadow: var(--hover-shadow, none);
+  background-color: var(--hover-bg);
+}
+
+.lcms-cta-box.has-hover.has-hover-text-color:hover .lcms-cta-box__title,
+.lcms-cta-box.has-hover.has-hover-text-color:hover .lcms-cta-box__subtitle {
+  color: var(--hover-color) !important;
 }
 
 .lcms-cta-box--center {
@@ -244,11 +248,13 @@ const boxStyle = computed(() => {
 
 .lcms-cta-box__title {
   margin: 0 0 8px;
+  transition: color var(--transition-duration, 200ms) ease;
 }
 
 .lcms-cta-box__subtitle {
   margin: 0 0 16px;
   opacity: 0.9;
+  transition: color var(--transition-duration, 200ms) ease;
 }
 
 .lcms-cta-box__button {
