@@ -121,9 +121,22 @@ const isHighlighted = computed(() => {
 // Only color-based hover effects stay on the inner component.
 const isMultiItem = computed(() => !!config.value.item_settings)
 
+const hasHoverTextColor = computed(() => !!config.value.hover_text_color)
+const hasHoverIconColor = computed(() => !!config.value.hover_icon_color)
+const hasHoverIconBg = computed(() => !!config.value.hover_icon_background)
+const hasHoverLinkColor = computed(() => !!config.value.hover_link_color)
+const hasHoverBadgeColor = computed(() => !!config.value.hover_badge_color)
+const hasHoverBadgeBg = computed(() => !!config.value.hover_badge_background)
+
 const cardClasses = computed(() => ({
   'lcms-service-card--highlighted': isHighlighted.value,
-  'has-hover': !!(config.value.hover_text_color || config.value.hover_icon_color || config.value.hover_icon_background || (!isMultiItem.value && (config.value.hover_lift || (config.value.hover_scale !== undefined && config.value.hover_scale !== 1) || (config.value.hover_shadow && config.value.hover_shadow !== 'none'))))
+  'has-hover': !!(hasHoverTextColor.value || hasHoverIconColor.value || hasHoverIconBg.value || hasHoverLinkColor.value || hasHoverBadgeColor.value || hasHoverBadgeBg.value || (!isMultiItem.value && (config.value.hover_lift || (config.value.hover_scale !== undefined && config.value.hover_scale !== 1) || (config.value.hover_shadow && config.value.hover_shadow !== 'none')))),
+  'has-hover-text-color': hasHoverTextColor.value,
+  'has-hover-icon-color': hasHoverIconColor.value,
+  'has-hover-icon-bg': hasHoverIconBg.value,
+  'has-hover-link-color': hasHoverLinkColor.value,
+  'has-hover-badge-color': hasHoverBadgeColor.value,
+  'has-hover-badge-bg': hasHoverBadgeBg.value
 }))
 
 const cardStyles = computed(() => {
@@ -148,6 +161,12 @@ const cardStyles = computed(() => {
   if (hoverIconColor) styles['--hover-icon-color'] = hoverIconColor
   const hoverIconBg = resolveColor(config.value.hover_icon_background)
   if (hoverIconBg) styles['--hover-icon-bg'] = hoverIconBg
+  const hoverLinkColor = resolveColor(config.value.hover_link_color)
+  if (hoverLinkColor) styles['--hover-link-color'] = hoverLinkColor
+  const hoverBadgeColor = resolveColor(config.value.hover_badge_color)
+  if (hoverBadgeColor) styles['--hover-badge-color'] = hoverBadgeColor
+  const hoverBadgeBg = resolveColor(config.value.hover_badge_background)
+  if (hoverBadgeBg) styles['--hover-badge-bg'] = hoverBadgeBg
   styles['--transition-duration'] = `${config.value.transition_duration ?? 200}ms`
 
   // In multi-item mode, lift/scale/shadow hover is on the cell wrapper, not here
@@ -171,10 +190,14 @@ const iconStyles = computed(() => {
   const bg = resolveColor(config.value.icon_background)
   if (bg) styles.backgroundColor = bg
   const size = config.value.icon_size
+  const padding = config.value.icon_padding || 0
   if (size !== undefined && size !== null) {
-    styles.width = `${size}px`
-    styles.height = `${size}px`
-    styles.fontSize = `${Math.round(size * 0.5)}px`
+    styles.width = `${Number(size) + Number(padding) * 2}px`
+    styles.height = `${Number(size) + Number(padding) * 2}px`
+    styles.fontSize = `${Number(size)}px`
+  }
+  if (padding) {
+    styles.padding = `${padding}px`
   }
   return styles
 })
@@ -207,15 +230,32 @@ const badgeStyles = computed(() => {
 }
 
 .lcms-service-card.has-hover:hover {
-  color: var(--hover-color);
   transform: translateY(var(--hover-lift, 0)) scale(var(--hover-scale, 1));
   box-shadow: var(--hover-shadow, none);
-  background-color: var(--hover-bg);
 }
 
-.lcms-service-card.has-hover:hover .lcms-service-card__icon {
-  color: var(--hover-icon-color);
-  background-color: var(--hover-icon-bg);
+.lcms-service-card.has-hover.has-hover-text-color:hover {
+  color: var(--hover-color) !important;
+}
+
+.lcms-service-card.has-hover.has-hover-icon-color:hover .lcms-service-card__icon {
+  color: var(--hover-icon-color) !important;
+}
+
+.lcms-service-card.has-hover.has-hover-icon-bg:hover .lcms-service-card__icon {
+  background-color: var(--hover-icon-bg) !important;
+}
+
+.lcms-service-card.has-hover.has-hover-link-color:hover .lcms-service-card__link {
+  color: var(--hover-link-color) !important;
+}
+
+.lcms-service-card.has-hover.has-hover-badge-color:hover .lcms-service-card__badge {
+  color: var(--hover-badge-color) !important;
+}
+
+.lcms-service-card.has-hover.has-hover-badge-bg:hover .lcms-service-card__badge {
+  background-color: var(--hover-badge-bg) !important;
 }
 
 .lcms-service-card--highlighted {
@@ -235,6 +275,7 @@ const badgeStyles = computed(() => {
   border-radius: 9999px;
   letter-spacing: 0.05em;
   white-space: nowrap;
+  transition: color var(--transition-duration, 200ms) ease, background-color var(--transition-duration, 200ms) ease;
 }
 
 .lcms-service-card__icon {
@@ -294,7 +335,7 @@ const badgeStyles = computed(() => {
   font-weight: 500;
   color: inherit;
   text-decoration: none;
-  transition: gap 0.2s ease;
+  transition: gap 0.2s ease, color var(--transition-duration, 200ms) ease;
 }
 
 .lcms-service-card__link:hover {
