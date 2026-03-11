@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import type { Component } from 'vue'
 import { useLanguage } from '@/composables/useLanguage'
+import { resolveColor } from '@/utils/resolveColor'
 
 interface MultiItemData {
   widget_type: string
@@ -77,19 +78,26 @@ const getItemStyle = (item: MultiItemData): Record<string, string> => {
 
   // Background color
   if (itemSettings.backgroundColor) {
+    const resolved = resolveColor(itemSettings.backgroundColor)
     const bgOpacity = itemSettings.backgroundOpacity ?? 100
     if (bgOpacity < 100) {
-      style.backgroundColor = hexToRgba(itemSettings.backgroundColor, bgOpacity)
+      if (resolved.startsWith('#')) {
+        style.backgroundColor = hexToRgba(resolved, bgOpacity)
+      } else if (resolved.startsWith('var(')) {
+        style.backgroundColor = `color-mix(in srgb, ${resolved} ${bgOpacity}%, transparent)`
+      } else {
+        style.backgroundColor = resolved
+      }
     } else {
-      style.backgroundColor = itemSettings.backgroundColor
+      style.backgroundColor = resolved
     }
   }
 
   // Gradient
   if (itemSettings.useGradient) {
     const type = itemSettings.gradientType || 'linear'
-    const start = itemSettings.gradientColorStart || '#667eea'
-    const end = itemSettings.gradientColorEnd || '#764ba2'
+    const start = resolveColor(itemSettings.gradientColorStart) || '#667eea'
+    const end = resolveColor(itemSettings.gradientColorEnd) || '#764ba2'
     const angle = itemSettings.gradientAngle ?? 180
     if (type === 'radial') {
       style.background = `radial-gradient(circle, ${start} 0%, ${end} 100%)`
@@ -112,7 +120,7 @@ const getItemStyle = (item: MultiItemData): Record<string, string> => {
     style.borderWidth = `${itemSettings.borderWidth}px`
     style.borderStyle = itemSettings.borderStyle || 'solid'
     if (itemSettings.borderColor) {
-      style.borderColor = itemSettings.borderColor
+      style.borderColor = resolveColor(itemSettings.borderColor)
     }
   }
 
