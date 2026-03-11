@@ -153,7 +153,10 @@ const getCellHoverStyle = (item: MultiItemData): Record<string, string> => {
   const shadowVal = data.hover_shadow || 'none'
   if (shadowVal !== 'none' && shadowMap[shadowVal]) style['--hover-shadow'] = shadowMap[shadowVal]
 
-  const hasHover = lift || (scale && scale !== 1) || (shadowVal !== 'none' && shadowMap[shadowVal])
+  const hoverBg = data.hover_background_color ? resolveColor(data.hover_background_color) : null
+  if (hoverBg) style['--hover-cell-bg'] = hoverBg
+
+  const hasHover = lift || (scale && scale !== 1) || (shadowVal !== 'none' && shadowMap[shadowVal]) || hoverBg
   if (hasHover) style['--has-cell-hover'] = '1'
 
   return style
@@ -165,8 +168,10 @@ const getCellClass = (item: MultiItemData): Record<string, boolean> => {
   const lift = data.hover_lift || 0
   const scale = data.hover_scale
   const shadowVal = data.hover_shadow || 'none'
+  const hoverBg = !!data.hover_background_color
   return {
-    'lcms-multi-item-cell--has-hover': !!(lift || (scale && scale !== 1) || (shadowVal !== 'none' && shadowMap[shadowVal]))
+    'lcms-multi-item-cell--has-hover': !!(lift || (scale && scale !== 1) || (shadowVal !== 'none' && shadowMap[shadowVal]) || hoverBg),
+    'lcms-multi-item-cell--has-hover-bg': hoverBg
   }
 }
 
@@ -236,11 +241,15 @@ const gridStyle = computed(() => {
 }
 
 .lcms-multi-item-cell--has-hover {
-  transition: transform var(--transition-duration, 200ms) ease, box-shadow var(--transition-duration, 200ms) ease;
+  transition: transform var(--transition-duration, 200ms) ease, box-shadow var(--transition-duration, 200ms) ease, background-color var(--transition-duration, 200ms) ease;
 }
 
 .lcms-multi-item-cell--has-hover:hover {
   transform: translateY(var(--hover-lift, 0)) scale(var(--hover-scale, 1));
   box-shadow: var(--hover-shadow, none);
+}
+
+.lcms-multi-item-cell--has-hover.lcms-multi-item-cell--has-hover-bg:hover {
+  background-color: var(--hover-cell-bg) !important;
 }
 </style>
