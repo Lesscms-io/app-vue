@@ -127,6 +127,49 @@ const getItemStyle = (item: MultiItemData): Record<string, string> => {
   return style
 }
 
+// Extract hover CSS variables from item widget data for the cell wrapper.
+// Hover effects (lift, scale, shadow) must be on the cell (which has bg/padding/radius),
+// not on the inner component, so shadows appear on the card edge.
+const shadowMap: Record<string, string> = {
+  sm: '0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06)',
+  md: '0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05)',
+  lg: '0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)'
+}
+
+const getCellHoverStyle = (item: MultiItemData): Record<string, string> => {
+  const data = item.widget as Record<string, any> | undefined
+  if (!data) return {}
+
+  const style: Record<string, string> = {}
+  const duration = data.transition_duration ?? 200
+  style['--transition-duration'] = `${duration}ms`
+
+  const lift = data.hover_lift || 0
+  if (lift) style['--hover-lift'] = `-${lift}px`
+
+  const scale = data.hover_scale
+  if (scale && scale !== 1) style['--hover-scale'] = String(scale)
+
+  const shadowVal = data.hover_shadow || 'none'
+  if (shadowVal !== 'none' && shadowMap[shadowVal]) style['--hover-shadow'] = shadowMap[shadowVal]
+
+  const hasHover = lift || (scale && scale !== 1) || (shadowVal !== 'none' && shadowMap[shadowVal])
+  if (hasHover) style['--has-cell-hover'] = '1'
+
+  return style
+}
+
+const getCellClass = (item: MultiItemData): Record<string, boolean> => {
+  const data = item.widget as Record<string, any> | undefined
+  if (!data) return {}
+  const lift = data.hover_lift || 0
+  const scale = data.hover_scale
+  const shadowVal = data.hover_shadow || 'none'
+  return {
+    'lcms-multi-item-cell--has-hover': !!(lift || (scale && scale !== 1) || (shadowVal !== 'none' && shadowMap[shadowVal]))
+  }
+}
+
 // Compute flat data object for each item, preferring new `widget` key
 // Also resolves multilingual values to current language
 const getItemData = (item: MultiItemData) => {
@@ -173,7 +216,8 @@ const gridStyle = computed(() => {
       v-for="(item, idx) in items"
       :key="idx"
       class="lcms-multi-item-cell"
-      :style="getItemStyle(item)"
+      :class="getCellClass(item)"
+      :style="{ ...getItemStyle(item), ...getCellHoverStyle(item) }"
     >
       <component
         :is="innerComponent"
@@ -185,3 +229,18 @@ const gridStyle = computed(() => {
     </div>
   </div>
 </template>
+
+<style scoped>
+.lcms-multi-item-cell {
+  box-sizing: border-box;
+}
+
+.lcms-multi-item-cell--has-hover {
+  transition: transform var(--transition-duration, 200ms) ease, box-shadow var(--transition-duration, 200ms) ease;
+}
+
+.lcms-multi-item-cell--has-hover:hover {
+  transform: translateY(var(--hover-lift, 0)) scale(var(--hover-scale, 1));
+  box-shadow: var(--hover-shadow, none);
+}
+</style>

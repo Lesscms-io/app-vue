@@ -117,18 +117,25 @@ const isHighlighted = computed(() => {
   return config.value.item_settings?.highlight || config.value.highlighted || false
 })
 
+// In multi-item mode, hover transform/shadow is handled by the cell wrapper (LcmsMultiItemWrapper).
+// Only color-based hover effects stay on the inner component.
+const isMultiItem = computed(() => !!config.value.item_settings)
+
 const cardClasses = computed(() => ({
   'lcms-service-card--highlighted': isHighlighted.value,
-  'has-hover': !!(config.value.hover_text_color || config.value.hover_icon_color || config.value.hover_icon_background || config.value.hover_lift || (config.value.hover_scale !== undefined && config.value.hover_scale !== 1) || (config.value.hover_shadow && config.value.hover_shadow !== 'none'))
+  'has-hover': !!(config.value.hover_text_color || config.value.hover_icon_color || config.value.hover_icon_background || (!isMultiItem.value && (config.value.hover_lift || (config.value.hover_scale !== undefined && config.value.hover_scale !== 1) || (config.value.hover_shadow && config.value.hover_shadow !== 'none'))))
 }))
 
 const cardStyles = computed(() => {
   const styles: Record<string, string> = {}
 
-  const bg = resolveColor(config.value.background_color)
-  if (bg) styles.backgroundColor = bg
-  const br = config.value.border_radius
-  if (br !== undefined && br !== null) styles.borderRadius = `${br}px`
+  // In multi-item mode, background and border-radius are on the cell wrapper
+  if (!isMultiItem.value) {
+    const bg = resolveColor(config.value.background_color)
+    if (bg) styles.backgroundColor = bg
+    const br = config.value.border_radius
+    if (br !== undefined && br !== null) styles.borderRadius = `${br}px`
+  }
 
   const txt = resolveColor(config.value.text_color)
   if (txt) styles.color = txt
@@ -143,13 +150,16 @@ const cardStyles = computed(() => {
   if (hoverIconBg) styles['--hover-icon-bg'] = hoverIconBg
   styles['--transition-duration'] = `${config.value.transition_duration ?? 200}ms`
 
-  const lift = config.value.hover_lift || 0
-  if (lift) styles['--hover-lift'] = `-${lift}px`
-  const scale = config.value.hover_scale
-  if (scale && scale !== 1) styles['--hover-scale'] = String(scale)
-  const shadowMap: Record<string, string> = { sm: '0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06)', md: '0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05)', lg: '0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)' }
-  const shadowVal = config.value.hover_shadow || 'none'
-  if (shadowVal !== 'none' && shadowMap[shadowVal]) styles['--hover-shadow'] = shadowMap[shadowVal]
+  // In multi-item mode, lift/scale/shadow hover is on the cell wrapper, not here
+  if (!isMultiItem.value) {
+    const lift = config.value.hover_lift || 0
+    if (lift) styles['--hover-lift'] = `-${lift}px`
+    const scale = config.value.hover_scale
+    if (scale && scale !== 1) styles['--hover-scale'] = String(scale)
+    const shadowMap: Record<string, string> = { sm: '0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06)', md: '0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05)', lg: '0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)' }
+    const shadowVal = config.value.hover_shadow || 'none'
+    if (shadowVal !== 'none' && shadowMap[shadowVal]) styles['--hover-shadow'] = shadowMap[shadowVal]
+  }
 
   return styles
 })
