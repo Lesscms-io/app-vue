@@ -122,6 +122,7 @@ const isHighlighted = computed(() => {
 const isMultiItem = computed(() => !!config.value.item_settings)
 
 const hasHoverTextColor = computed(() => !!config.value.hover_text_color)
+const hasHoverBgColor = computed(() => !!config.value.hover_background_color)
 const hasHoverIconColor = computed(() => !!config.value.hover_icon_color)
 const hasHoverIconBg = computed(() => !!config.value.hover_icon_background)
 const hasHoverLinkColor = computed(() => !!config.value.hover_link_color)
@@ -130,8 +131,9 @@ const hasHoverBadgeBg = computed(() => !!config.value.hover_badge_background)
 
 const cardClasses = computed(() => ({
   'lcms-service-card--highlighted': isHighlighted.value,
-  'has-hover': !!(hasHoverTextColor.value || hasHoverIconColor.value || hasHoverIconBg.value || hasHoverLinkColor.value || hasHoverBadgeColor.value || hasHoverBadgeBg.value || (!isMultiItem.value && (config.value.hover_lift || (config.value.hover_scale !== undefined && config.value.hover_scale !== 1) || (config.value.hover_shadow && config.value.hover_shadow !== 'none')))),
+  'has-hover': !!(hasHoverTextColor.value || hasHoverBgColor.value || hasHoverIconColor.value || hasHoverIconBg.value || hasHoverLinkColor.value || hasHoverBadgeColor.value || hasHoverBadgeBg.value || (!isMultiItem.value && (config.value.hover_lift || (config.value.hover_scale !== undefined && config.value.hover_scale !== 1) || (config.value.hover_shadow && config.value.hover_shadow !== 'none')))),
   'has-hover-text-color': hasHoverTextColor.value,
+  'has-hover-bg': hasHoverBgColor.value,
   'has-hover-icon-color': hasHoverIconColor.value,
   'has-hover-icon-bg': hasHoverIconBg.value,
   'has-hover-link-color': hasHoverLinkColor.value,
@@ -236,6 +238,10 @@ const badgeStyles = computed(() => {
 
 .lcms-service-card.has-hover.has-hover-text-color:hover {
   color: var(--hover-color) !important;
+}
+
+.lcms-service-card.has-hover.has-hover-bg:hover {
+  background-color: var(--hover-bg) !important;
 }
 
 .lcms-service-card.has-hover.has-hover-icon-color:hover .lcms-service-card__icon {
