@@ -21,6 +21,9 @@ export interface ProjectConfig {
   collection_route_schema: string
   homepage_uuid: string | null
   color_variables: ColorVariable[]
+  google_analytics_id: string | null
+  google_tag_manager_id: string | null
+  head_scripts: string | null
 }
 
 const defaultConfig: ProjectConfig = {
@@ -35,6 +38,9 @@ const defaultConfig: ProjectConfig = {
   collection_route_schema: '/c/{collection_code}/{slug}',
   homepage_uuid: null,
   color_variables: [],
+  google_analytics_id: null,
+  google_tag_manager_id: null,
+  head_scripts: null,
 }
 
 // Global config state (singleton)
@@ -100,6 +106,63 @@ function setFontVariable(fonts: string[]) {
   }
 }
 
+/**
+ * Inject Google Analytics (gtag.js)
+ */
+function loadGoogleAnalytics(gaId: string) {
+  if (!gaId || document.querySelector(`script[src*="googletagmanager.com/gtag"]`)) return
+
+  const script = document.createElement('script')
+  script.async = true
+  script.src = `https://www.googletagmanager.com/gtag/js?id=${gaId}`
+  document.head.appendChild(script)
+
+  const inlineScript = document.createElement('script')
+  inlineScript.textContent = `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${gaId}');`
+  document.head.appendChild(inlineScript)
+}
+
+/**
+ * Inject Google Tag Manager
+ */
+function loadGoogleTagManager(gtmId: string) {
+  if (!gtmId || document.querySelector(`script[src*="googletagmanager.com/gtm.js"]`)) return
+
+  const script = document.createElement('script')
+  script.textContent = `(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer','${gtmId}');`
+  document.head.appendChild(script)
+}
+
+/**
+ * Inject custom head scripts
+ */
+function loadHeadScripts(html: string) {
+  if (!html || !html.trim()) return
+
+  const existing = document.querySelector('div[data-lesscms-head-scripts]')
+  if (existing) existing.remove()
+
+  const container = document.createElement('div')
+  container.dataset.lesscmsHeadScripts = 'true'
+  container.style.display = 'none'
+  container.innerHTML = html
+  // Move script tags to head so they execute
+  const scripts = container.querySelectorAll('script')
+  scripts.forEach(oldScript => {
+    const newScript = document.createElement('script')
+    for (const attr of oldScript.attributes) {
+      newScript.setAttribute(attr.name, attr.value)
+    }
+    newScript.textContent = oldScript.textContent
+    document.head.appendChild(newScript)
+  })
+  // Move non-script elements (e.g. noscript, meta) to head
+  const nonScripts = container.querySelectorAll(':not(script)')
+  nonScripts.forEach(el => {
+    document.head.appendChild(el)
+  })
+}
+
 export function useConfig() {
   const api = useApi()
   const error = ref<Error | null>(null)
@@ -128,6 +191,9 @@ export function useConfig() {
         collection_route_schema: data.collection_route_schema || defaultConfig.collection_route_schema,
         homepage_uuid: data.homepage_uuid || null,
         color_variables: data.color_variables || [],
+        google_analytics_id: data.google_analytics_id || null,
+        google_tag_manager_id: data.google_tag_manager_id || null,
+        head_scripts: data.head_scripts || null,
       }
 
       // Load fonts
@@ -152,6 +218,17 @@ export function useConfig() {
       // Load inline custom CSS
       if (globalConfig.value.custom_css) {
         loadCustomCssInline(globalConfig.value.custom_css)
+      }
+
+      // Load tracking scripts
+      if (globalConfig.value.google_analytics_id) {
+        loadGoogleAnalytics(globalConfig.value.google_analytics_id)
+      }
+      if (globalConfig.value.google_tag_manager_id) {
+        loadGoogleTagManager(globalConfig.value.google_tag_manager_id)
+      }
+      if (globalConfig.value.head_scripts) {
+        loadHeadScripts(globalConfig.value.head_scripts)
       }
 
       isLoaded.value = true
