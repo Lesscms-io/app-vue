@@ -127,83 +127,102 @@ const getItemStyle = (item: MultiItemData): Record<string, string> => {
   return style
 }
 
-// Extract hover CSS variables from item widget data for the cell wrapper.
-// Hover effects (lift, scale, shadow) must be on the cell (which has bg/padding/radius),
-// not on the inner component, so shadows appear on the card edge.
+// Shadow presets for hover effects
 const shadowMap: Record<string, string> = {
   sm: '0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06)',
   md: '0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05)',
   lg: '0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)'
 }
 
-const getCellHoverStyle = (item: MultiItemData): Record<string, string> => {
-  const data = item.widget as Record<string, any> | undefined
-  if (!data) return {}
+// Generate stable unique ID prefix for this wrapper instance
+const instanceId = Math.random().toString(36).substring(2, 9)
 
-  const style: Record<string, string> = {}
-  const duration = data.transition_duration ?? 200
-  style['--transition-duration'] = `${duration}ms`
+// Cell IDs are stable per instance - based on instance ID + index
+const cellIds = computed(() => props.items.map((_, idx) => `lcms-cell-${instanceId}-${idx}`))
 
-  const lift = data.hover_lift || 0
-  if (lift) style['--hover-lift'] = `-${lift}px`
+// Generate dynamic hover CSS for all cells.
+// This is global (unscoped) CSS injected via <style> tag, so it bypasses
+// scoped CSS limitations and can target child component elements directly.
+const hoverCss = computed(() => {
+  let css = ''
 
-  const scale = data.hover_scale
-  if (scale && scale !== 1) style['--hover-scale'] = String(scale)
+  props.items.forEach((item, idx) => {
+    const data = item.widget as Record<string, any> | undefined
+    if (!data) return
 
-  const shadowVal = data.hover_shadow || 'none'
-  if (shadowVal !== 'none' && shadowMap[shadowVal]) style['--hover-shadow'] = shadowMap[shadowVal]
+    const id = cellIds.value[idx]
+    const duration = data.transition_duration ?? 200
 
-  // All color-based hover effects - moved to cell so they trigger on cell hover, not inner component hover
-  const hoverBg = data.hover_background_color ? resolveColor(data.hover_background_color) : null
-  if (hoverBg) style['--hover-cell-bg'] = hoverBg
+    const lift = data.hover_lift || 0
+    const scale = data.hover_scale
+    const shadowVal = data.hover_shadow || 'none'
+    const hoverBg = data.hover_background_color ? resolveColor(data.hover_background_color) : null
+    const hoverTextColor = data.hover_text_color ? resolveColor(data.hover_text_color) : null
+    const hoverIconColor = data.hover_icon_color ? resolveColor(data.hover_icon_color) : null
+    const hoverIconBg = data.hover_icon_background ? resolveColor(data.hover_icon_background) : null
+    const hoverLinkColor = data.hover_link_color ? resolveColor(data.hover_link_color) : null
+    const hoverBadgeColor = data.hover_badge_color ? resolveColor(data.hover_badge_color) : null
+    const hoverBadgeBg = data.hover_badge_background ? resolveColor(data.hover_badge_background) : null
 
-  const hoverTextColor = data.hover_text_color ? resolveColor(data.hover_text_color) : null
-  if (hoverTextColor) style['--hover-text-color'] = hoverTextColor
+    const hasAnyHover = lift || (scale && scale !== 1) || (shadowVal !== 'none') || hoverBg || hoverTextColor || hoverIconColor || hoverIconBg || hoverLinkColor || hoverBadgeColor || hoverBadgeBg
+    if (!hasAnyHover) return
 
-  const hoverIconColor = data.hover_icon_color ? resolveColor(data.hover_icon_color) : null
-  if (hoverIconColor) style['--hover-icon-color'] = hoverIconColor
+    // Base transition on the cell
+    css += `#${id} { transition: transform ${duration}ms ease, box-shadow ${duration}ms ease, background-color ${duration}ms ease; }`
 
-  const hoverIconBg = data.hover_icon_background ? resolveColor(data.hover_icon_background) : null
-  if (hoverIconBg) style['--hover-icon-bg'] = hoverIconBg
+    // Cell hover: transform + shadow + bg
+    let cellHover = ''
+    if (lift) cellHover += `transform: translateY(-${lift}px);`
+    if (scale && scale !== 1) {
+      if (lift) {
+        cellHover = cellHover.replace('transform:', `transform: scale(${scale})`)
+        cellHover = cellHover.replace('translateY', ` translateY`)
+      } else {
+        cellHover += `transform: scale(${scale});`
+      }
+    }
+    if (lift && scale && scale !== 1) {
+      // Fix combined transform
+      cellHover = cellHover.replace(/transform:[^;]+;/g, '')
+      cellHover += `transform: translateY(-${lift}px) scale(${scale});`
+    }
+    if (shadowVal !== 'none' && shadowMap[shadowVal]) cellHover += `box-shadow: ${shadowMap[shadowVal]};`
+    if (hoverBg) cellHover += `background-color: ${hoverBg} !important;`
+    if (cellHover) css += `#${id}:hover { ${cellHover} }`
 
-  const hoverLinkColor = data.hover_link_color ? resolveColor(data.hover_link_color) : null
-  if (hoverLinkColor) style['--hover-link-color'] = hoverLinkColor
+    // Inner service-card text color
+    if (hoverTextColor) {
+      css += `#${id}:hover .lcms-service-card { color: ${hoverTextColor} !important; }`
+    }
 
-  const hoverBadgeColor = data.hover_badge_color ? resolveColor(data.hover_badge_color) : null
-  if (hoverBadgeColor) style['--hover-badge-color'] = hoverBadgeColor
+    // Icon color + bg
+    if (hoverIconColor) {
+      css += `#${id}:hover .lcms-service-card__icon { color: ${hoverIconColor} !important; }`
+    }
+    if (hoverIconBg) {
+      css += `#${id}:hover .lcms-service-card__icon { background-color: ${hoverIconBg} !important; }`
+    }
 
-  const hoverBadgeBg = data.hover_badge_background ? resolveColor(data.hover_badge_background) : null
-  if (hoverBadgeBg) style['--hover-badge-bg'] = hoverBadgeBg
+    // Link color
+    if (hoverLinkColor) {
+      css += `#${id}:hover .lcms-service-card__link { color: ${hoverLinkColor} !important; }`
+    }
 
-  const hasHover = lift || (scale && scale !== 1) || (shadowVal !== 'none' && shadowMap[shadowVal]) || hoverBg || hoverTextColor || hoverIconColor || hoverIconBg || hoverLinkColor || hoverBadgeColor || hoverBadgeBg
-  if (hasHover) style['--has-cell-hover'] = '1'
+    // Badge color + bg
+    if (hoverBadgeColor) {
+      css += `#${id}:hover .lcms-service-card__badge { color: ${hoverBadgeColor} !important; }`
+    }
+    if (hoverBadgeBg) {
+      css += `#${id}:hover .lcms-service-card__badge { background-color: ${hoverBadgeBg} !important; }`
+    }
+  })
 
-  return style
-}
+  return css
+})
 
-const getCellClass = (item: MultiItemData): Record<string, boolean> => {
-  const data = item.widget as Record<string, any> | undefined
-  if (!data) return {}
-  const lift = data.hover_lift || 0
-  const scale = data.hover_scale
-  const shadowVal = data.hover_shadow || 'none'
-  const hoverBg = !!data.hover_background_color
-  const hoverTextColor = !!data.hover_text_color
-  const hoverIconColor = !!data.hover_icon_color
-  const hoverIconBg = !!data.hover_icon_background
-  const hoverLinkColor = !!data.hover_link_color
-  const hoverBadgeColor = !!data.hover_badge_color
-  const hoverBadgeBg = !!data.hover_badge_background
-  return {
-    'lcms-multi-item-cell--has-hover': !!(lift || (scale && scale !== 1) || (shadowVal !== 'none' && shadowMap[shadowVal]) || hoverBg || hoverTextColor || hoverIconColor || hoverIconBg || hoverLinkColor || hoverBadgeColor || hoverBadgeBg),
-    'lcms-multi-item-cell--has-hover-bg': hoverBg,
-    'lcms-multi-item-cell--has-hover-text': hoverTextColor,
-    'lcms-multi-item-cell--has-hover-icon-color': hoverIconColor,
-    'lcms-multi-item-cell--has-hover-icon-bg': hoverIconBg,
-    'lcms-multi-item-cell--has-hover-link-color': hoverLinkColor,
-    'lcms-multi-item-cell--has-hover-badge-color': hoverBadgeColor,
-    'lcms-multi-item-cell--has-hover-badge-bg': hoverBadgeBg
-  }
+// Inline styles for cell (only item_settings, no hover - hover is in dynamic CSS)
+const getCellStyle = (item: MultiItemData): Record<string, string> => {
+  return getItemStyle(item)
 }
 
 // Compute flat data object for each item, preferring new `widget` key
@@ -244,6 +263,9 @@ const gridStyle = computed(() => {
 </script>
 
 <template>
+  <!-- Dynamic hover CSS (global, unscoped) - targets inner child component elements -->
+  <component :is="'style'" v-if="hoverCss">{{ hoverCss }}</component>
+
   <div
     class="lcms-multi-item-wrapper"
     :style="gridStyle"
@@ -251,9 +273,9 @@ const gridStyle = computed(() => {
     <div
       v-for="(item, idx) in items"
       :key="idx"
+      :id="cellIds[idx]"
       class="lcms-multi-item-cell"
-      :class="getCellClass(item)"
-      :style="{ ...getItemStyle(item), ...getCellHoverStyle(item) }"
+      :style="getCellStyle(item)"
     >
       <component
         :is="innerComponent"
@@ -269,43 +291,5 @@ const gridStyle = computed(() => {
 <style scoped>
 .lcms-multi-item-cell {
   box-sizing: border-box;
-}
-
-.lcms-multi-item-cell--has-hover {
-  transition: transform var(--transition-duration, 200ms) ease, box-shadow var(--transition-duration, 200ms) ease, background-color var(--transition-duration, 200ms) ease, color var(--transition-duration, 200ms) ease;
-}
-
-.lcms-multi-item-cell--has-hover:hover {
-  transform: translateY(var(--hover-lift, 0)) scale(var(--hover-scale, 1));
-  box-shadow: var(--hover-shadow, none);
-}
-
-.lcms-multi-item-cell--has-hover.lcms-multi-item-cell--has-hover-bg:hover {
-  background-color: var(--hover-cell-bg) !important;
-}
-
-/* Color-based hover effects on cell hover - targets inner service-card elements via :deep() */
-.lcms-multi-item-cell--has-hover.lcms-multi-item-cell--has-hover-text:hover :deep(.lcms-service-card) {
-  color: var(--hover-text-color) !important;
-}
-
-.lcms-multi-item-cell--has-hover.lcms-multi-item-cell--has-hover-icon-color:hover :deep(.lcms-service-card__icon) {
-  color: var(--hover-icon-color) !important;
-}
-
-.lcms-multi-item-cell--has-hover.lcms-multi-item-cell--has-hover-icon-bg:hover :deep(.lcms-service-card__icon) {
-  background-color: var(--hover-icon-bg) !important;
-}
-
-.lcms-multi-item-cell--has-hover.lcms-multi-item-cell--has-hover-link-color:hover :deep(.lcms-service-card__link) {
-  color: var(--hover-link-color) !important;
-}
-
-.lcms-multi-item-cell--has-hover.lcms-multi-item-cell--has-hover-badge-color:hover :deep(.lcms-service-card__badge) {
-  color: var(--hover-badge-color) !important;
-}
-
-.lcms-multi-item-cell--has-hover.lcms-multi-item-cell--has-hover-badge-bg:hover :deep(.lcms-service-card__badge) {
-  background-color: var(--hover-badge-bg) !important;
 }
 </style>
