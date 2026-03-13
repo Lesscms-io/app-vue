@@ -153,10 +153,29 @@ const getCellHoverStyle = (item: MultiItemData): Record<string, string> => {
   const shadowVal = data.hover_shadow || 'none'
   if (shadowVal !== 'none' && shadowMap[shadowVal]) style['--hover-shadow'] = shadowMap[shadowVal]
 
+  // All color-based hover effects - moved to cell so they trigger on cell hover, not inner component hover
   const hoverBg = data.hover_background_color ? resolveColor(data.hover_background_color) : null
   if (hoverBg) style['--hover-cell-bg'] = hoverBg
 
-  const hasHover = lift || (scale && scale !== 1) || (shadowVal !== 'none' && shadowMap[shadowVal]) || hoverBg
+  const hoverTextColor = data.hover_text_color ? resolveColor(data.hover_text_color) : null
+  if (hoverTextColor) style['--hover-text-color'] = hoverTextColor
+
+  const hoverIconColor = data.hover_icon_color ? resolveColor(data.hover_icon_color) : null
+  if (hoverIconColor) style['--hover-icon-color'] = hoverIconColor
+
+  const hoverIconBg = data.hover_icon_background ? resolveColor(data.hover_icon_background) : null
+  if (hoverIconBg) style['--hover-icon-bg'] = hoverIconBg
+
+  const hoverLinkColor = data.hover_link_color ? resolveColor(data.hover_link_color) : null
+  if (hoverLinkColor) style['--hover-link-color'] = hoverLinkColor
+
+  const hoverBadgeColor = data.hover_badge_color ? resolveColor(data.hover_badge_color) : null
+  if (hoverBadgeColor) style['--hover-badge-color'] = hoverBadgeColor
+
+  const hoverBadgeBg = data.hover_badge_background ? resolveColor(data.hover_badge_background) : null
+  if (hoverBadgeBg) style['--hover-badge-bg'] = hoverBadgeBg
+
+  const hasHover = lift || (scale && scale !== 1) || (shadowVal !== 'none' && shadowMap[shadowVal]) || hoverBg || hoverTextColor || hoverIconColor || hoverIconBg || hoverLinkColor || hoverBadgeColor || hoverBadgeBg
   if (hasHover) style['--has-cell-hover'] = '1'
 
   return style
@@ -169,9 +188,21 @@ const getCellClass = (item: MultiItemData): Record<string, boolean> => {
   const scale = data.hover_scale
   const shadowVal = data.hover_shadow || 'none'
   const hoverBg = !!data.hover_background_color
+  const hoverTextColor = !!data.hover_text_color
+  const hoverIconColor = !!data.hover_icon_color
+  const hoverIconBg = !!data.hover_icon_background
+  const hoverLinkColor = !!data.hover_link_color
+  const hoverBadgeColor = !!data.hover_badge_color
+  const hoverBadgeBg = !!data.hover_badge_background
   return {
-    'lcms-multi-item-cell--has-hover': !!(lift || (scale && scale !== 1) || (shadowVal !== 'none' && shadowMap[shadowVal]) || hoverBg),
-    'lcms-multi-item-cell--has-hover-bg': hoverBg
+    'lcms-multi-item-cell--has-hover': !!(lift || (scale && scale !== 1) || (shadowVal !== 'none' && shadowMap[shadowVal]) || hoverBg || hoverTextColor || hoverIconColor || hoverIconBg || hoverLinkColor || hoverBadgeColor || hoverBadgeBg),
+    'lcms-multi-item-cell--has-hover-bg': hoverBg,
+    'lcms-multi-item-cell--has-hover-text': hoverTextColor,
+    'lcms-multi-item-cell--has-hover-icon-color': hoverIconColor,
+    'lcms-multi-item-cell--has-hover-icon-bg': hoverIconBg,
+    'lcms-multi-item-cell--has-hover-link-color': hoverLinkColor,
+    'lcms-multi-item-cell--has-hover-badge-color': hoverBadgeColor,
+    'lcms-multi-item-cell--has-hover-badge-bg': hoverBadgeBg
   }
 }
 
@@ -241,7 +272,7 @@ const gridStyle = computed(() => {
 }
 
 .lcms-multi-item-cell--has-hover {
-  transition: transform var(--transition-duration, 200ms) ease, box-shadow var(--transition-duration, 200ms) ease, background-color var(--transition-duration, 200ms) ease;
+  transition: transform var(--transition-duration, 200ms) ease, box-shadow var(--transition-duration, 200ms) ease, background-color var(--transition-duration, 200ms) ease, color var(--transition-duration, 200ms) ease;
 }
 
 .lcms-multi-item-cell--has-hover:hover {
@@ -251,5 +282,30 @@ const gridStyle = computed(() => {
 
 .lcms-multi-item-cell--has-hover.lcms-multi-item-cell--has-hover-bg:hover {
   background-color: var(--hover-cell-bg) !important;
+}
+
+/* Color-based hover effects on cell hover - targets inner service-card elements via :deep() */
+.lcms-multi-item-cell--has-hover.lcms-multi-item-cell--has-hover-text:hover :deep(.lcms-service-card) {
+  color: var(--hover-text-color) !important;
+}
+
+.lcms-multi-item-cell--has-hover.lcms-multi-item-cell--has-hover-icon-color:hover :deep(.lcms-service-card__icon) {
+  color: var(--hover-icon-color) !important;
+}
+
+.lcms-multi-item-cell--has-hover.lcms-multi-item-cell--has-hover-icon-bg:hover :deep(.lcms-service-card__icon) {
+  background-color: var(--hover-icon-bg) !important;
+}
+
+.lcms-multi-item-cell--has-hover.lcms-multi-item-cell--has-hover-link-color:hover :deep(.lcms-service-card__link) {
+  color: var(--hover-link-color) !important;
+}
+
+.lcms-multi-item-cell--has-hover.lcms-multi-item-cell--has-hover-badge-color:hover :deep(.lcms-service-card__badge) {
+  color: var(--hover-badge-color) !important;
+}
+
+.lcms-multi-item-cell--has-hover.lcms-multi-item-cell--has-hover-badge-bg:hover :deep(.lcms-service-card__badge) {
+  background-color: var(--hover-badge-bg) !important;
 }
 </style>

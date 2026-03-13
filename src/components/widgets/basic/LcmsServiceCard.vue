@@ -117,17 +117,18 @@ const isHighlighted = computed(() => {
   return config.value.item_settings?.highlight || config.value.highlighted || false
 })
 
-// In multi-item mode, hover transform/shadow is handled by the cell wrapper (LcmsMultiItemWrapper).
-// Only color-based hover effects stay on the inner component.
+// In multi-item mode, ALL hover effects are handled by the cell wrapper (LcmsMultiItemWrapper).
+// The wrapper uses :deep() selectors to target inner elements on cell :hover.
+// This ensures hover triggers on the entire cell area, not just the inner content.
 const isMultiItem = computed(() => !!config.value.item_settings)
 
-const hasHoverTextColor = computed(() => !!config.value.hover_text_color)
-const hasHoverBgColor = computed(() => !!config.value.hover_background_color)
-const hasHoverIconColor = computed(() => !!config.value.hover_icon_color)
-const hasHoverIconBg = computed(() => !!config.value.hover_icon_background)
-const hasHoverLinkColor = computed(() => !!config.value.hover_link_color)
-const hasHoverBadgeColor = computed(() => !!config.value.hover_badge_color)
-const hasHoverBadgeBg = computed(() => !!config.value.hover_badge_background)
+const hasHoverTextColor = computed(() => !isMultiItem.value && !!config.value.hover_text_color)
+const hasHoverBgColor = computed(() => !isMultiItem.value && !!config.value.hover_background_color)
+const hasHoverIconColor = computed(() => !isMultiItem.value && !!config.value.hover_icon_color)
+const hasHoverIconBg = computed(() => !isMultiItem.value && !!config.value.hover_icon_background)
+const hasHoverLinkColor = computed(() => !isMultiItem.value && !!config.value.hover_link_color)
+const hasHoverBadgeColor = computed(() => !isMultiItem.value && !!config.value.hover_badge_color)
+const hasHoverBadgeBg = computed(() => !isMultiItem.value && !!config.value.hover_badge_background)
 
 const cardClasses = computed(() => ({
   'lcms-service-card--highlighted': isHighlighted.value,
@@ -155,21 +156,25 @@ const cardStyles = computed(() => {
   const txt = resolveColor(config.value.text_color)
   if (txt) styles.color = txt
 
-  const hoverTxt = resolveColor(config.value.hover_text_color)
-  if (hoverTxt) styles['--hover-color'] = hoverTxt
-  const hoverBg = resolveColor(config.value.hover_background_color)
-  if (hoverBg) styles['--hover-bg'] = hoverBg
-  const hoverIconColor = resolveColor(config.value.hover_icon_color)
-  if (hoverIconColor) styles['--hover-icon-color'] = hoverIconColor
-  const hoverIconBg = resolveColor(config.value.hover_icon_background)
-  if (hoverIconBg) styles['--hover-icon-bg'] = hoverIconBg
-  const hoverLinkColor = resolveColor(config.value.hover_link_color)
-  if (hoverLinkColor) styles['--hover-link-color'] = hoverLinkColor
-  const hoverBadgeColor = resolveColor(config.value.hover_badge_color)
-  if (hoverBadgeColor) styles['--hover-badge-color'] = hoverBadgeColor
-  const hoverBadgeBg = resolveColor(config.value.hover_badge_background)
-  if (hoverBadgeBg) styles['--hover-badge-bg'] = hoverBadgeBg
   styles['--transition-duration'] = `${config.value.transition_duration ?? 200}ms`
+
+  // In multi-item mode, ALL hover effects are on the cell wrapper, not here
+  if (!isMultiItem.value) {
+    const hoverTxt = resolveColor(config.value.hover_text_color)
+    if (hoverTxt) styles['--hover-color'] = hoverTxt
+    const hoverBg = resolveColor(config.value.hover_background_color)
+    if (hoverBg) styles['--hover-bg'] = hoverBg
+    const hoverIconColor = resolveColor(config.value.hover_icon_color)
+    if (hoverIconColor) styles['--hover-icon-color'] = hoverIconColor
+    const hoverIconBg = resolveColor(config.value.hover_icon_background)
+    if (hoverIconBg) styles['--hover-icon-bg'] = hoverIconBg
+    const hoverLinkColor = resolveColor(config.value.hover_link_color)
+    if (hoverLinkColor) styles['--hover-link-color'] = hoverLinkColor
+    const hoverBadgeColor = resolveColor(config.value.hover_badge_color)
+    if (hoverBadgeColor) styles['--hover-badge-color'] = hoverBadgeColor
+    const hoverBadgeBg = resolveColor(config.value.hover_badge_background)
+    if (hoverBadgeBg) styles['--hover-badge-bg'] = hoverBadgeBg
+  }
 
   // In multi-item mode, lift/scale/shadow hover is on the cell wrapper, not here
   if (!isMultiItem.value) {
