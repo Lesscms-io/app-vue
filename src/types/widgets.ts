@@ -313,6 +313,9 @@ export interface MenuWidgetData extends BaseWidgetData {
   menu_code: string
   layout?: 'horizontal' | 'vertical'
   hamburger_breakpoint?: 'never' | 'mobile' | 'tablet'
+  dropdown_bg?: string
+  dropdown_border_radius?: 'none' | 'sm' | 'md' | 'lg'
+  dropdown_shadow?: 'none' | 'sm' | 'md' | 'lg'
 }
 
 export interface SocialIconItem {
@@ -323,7 +326,11 @@ export interface SocialIconItem {
 export interface SocialIconsWidgetData extends BaseWidgetData {
   items: SocialIconItem[]
   size?: 'sm' | 'md' | 'lg'
-  style?: 'default' | 'circle' | 'square'
+  style?: 'default' | 'colored' | 'outlined' | 'circle' | 'square'
+  color_mode?: 'brand' | 'custom'
+  colorMode?: 'brand' | 'custom'
+  icon_color?: string
+  iconColor?: string
 }
 
 // ============================================

@@ -21,6 +21,7 @@ interface Props {
   innerComponent: Component
   language?: string
   settings?: Record<string, unknown>
+  containerFields?: Record<string, unknown>
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -28,7 +29,8 @@ const props = withDefaults(defineProps<Props>(), {
   gap: 16,
   layout: 'grid',
   language: 'pl',
-  settings: () => ({})
+  settings: () => ({}),
+  containerFields: () => ({})
 })
 
 const { extractValue } = useLanguage(props.language)
@@ -244,6 +246,90 @@ const getItemData = (item: MultiItemData) => {
   return resolveMultilingual(raw)
 }
 
+// Container style from container_* fields
+const containerStyle = computed(() => {
+  const d = props.containerFields
+  if (!d || Object.keys(d).length === 0) return {}
+  const style: Record<string, string> = {}
+
+  // Padding
+  if (d.container_padding_top !== undefined) style.paddingTop = `${d.container_padding_top}px`
+  if (d.container_padding_right !== undefined) style.paddingRight = `${d.container_padding_right}px`
+  if (d.container_padding_bottom !== undefined) style.paddingBottom = `${d.container_padding_bottom}px`
+  if (d.container_padding_left !== undefined) style.paddingLeft = `${d.container_padding_left}px`
+
+  // Margin
+  if (d.container_margin_top !== undefined) style.marginTop = `${d.container_margin_top}px`
+  if (d.container_margin_right !== undefined) style.marginRight = `${d.container_margin_right}px`
+  if (d.container_margin_bottom !== undefined) style.marginBottom = `${d.container_margin_bottom}px`
+  if (d.container_margin_left !== undefined) style.marginLeft = `${d.container_margin_left}px`
+
+  // Background color
+  if (d.container_background_color) {
+    style.backgroundColor = resolveColor(String(d.container_background_color))
+  }
+
+  // Border radius
+  if (d.container_border_radius) {
+    style.borderRadius = `${d.container_border_radius}px`
+  }
+
+  // Border
+  if (d.container_border_width && Number(d.container_border_width) > 0) {
+    style.borderWidth = `${d.container_border_width}px`
+    style.borderStyle = String(d.container_border_style || 'solid')
+    if (d.container_border_color) {
+      style.borderColor = resolveColor(String(d.container_border_color))
+    }
+  }
+
+  // Shadow
+  const shadow = d.container_shadow as string
+  if (shadow && shadow !== 'none' && shadowMap[shadow]) {
+    style.boxShadow = shadowMap[shadow]
+  }
+
+  return style
+})
+
+const hasContainerStyle = computed(() => Object.keys(containerStyle.value).length > 0)
+
+// Container hover CSS
+const containerHoverCss = computed(() => {
+  const d = props.containerFields
+  if (!d || Object.keys(d).length === 0) return ''
+
+  const hoverBg = d.container_hover_background_color ? resolveColor(String(d.container_hover_background_color)) : null
+  const hoverBorderColor = d.container_hover_border_color ? resolveColor(String(d.container_hover_border_color)) : null
+  const hoverShadow = d.container_hover_shadow as string
+  const hoverLift = Number(d.container_hover_lift) || 0
+  const hoverScale = Number(d.container_hover_scale) || 0
+  const duration = Number(d.container_transition_duration) || 200
+
+  const hasAny = hoverBg || hoverBorderColor || (hoverShadow && hoverShadow !== 'none') || hoverLift || (hoverScale && hoverScale !== 1)
+  if (!hasAny) return ''
+
+  const id = containerId.value
+  let css = `#${id} { transition: transform ${duration}ms ease, box-shadow ${duration}ms ease, background-color ${duration}ms ease, border-color ${duration}ms ease; }`
+
+  let hoverParts = ''
+  if (hoverBg) hoverParts += `background-color: ${hoverBg} !important;`
+  if (hoverBorderColor) hoverParts += `border-color: ${hoverBorderColor} !important;`
+  if (hoverShadow && hoverShadow !== 'none' && shadowMap[hoverShadow]) hoverParts += `box-shadow: ${shadowMap[hoverShadow]};`
+  if (hoverLift && hoverScale && hoverScale !== 1) {
+    hoverParts += `transform: translateY(-${hoverLift}px) scale(${hoverScale});`
+  } else if (hoverLift) {
+    hoverParts += `transform: translateY(-${hoverLift}px);`
+  } else if (hoverScale && hoverScale !== 1) {
+    hoverParts += `transform: scale(${hoverScale});`
+  }
+
+  if (hoverParts) css += `#${id}:hover { ${hoverParts} }`
+  return css
+})
+
+const containerId = computed(() => `lcms-container-${instanceId}`)
+
 const gridStyle = computed(() => {
   if (props.layout === 'inline') {
     return {
@@ -266,29 +352,42 @@ const gridStyle = computed(() => {
   <!-- Dynamic hover CSS (global, unscoped) - targets inner child component elements -->
   <component :is="'style'" v-if="hoverCss">{{ hoverCss }}</component>
 
+  <!-- Container hover CSS -->
+  <component :is="'style'" v-if="containerHoverCss">{{ containerHoverCss }}</component>
+
   <div
-    class="lcms-multi-item-wrapper"
-    :style="gridStyle"
+    :id="hasContainerStyle ? containerId : undefined"
+    :class="{ 'lcms-multi-item-container': hasContainerStyle }"
+    :style="containerStyle"
   >
     <div
-      v-for="(item, idx) in items"
-      :key="idx"
-      :id="cellIds[idx]"
-      class="lcms-multi-item-cell"
-      :style="getCellStyle(item)"
+      class="lcms-multi-item-wrapper"
+      :style="gridStyle"
     >
-      <component
-        :is="innerComponent"
-        :data="getItemData(item)"
-        :item-index="idx"
-        :language="language"
-        :settings="settings"
-      />
+      <div
+        v-for="(item, idx) in items"
+        :key="idx"
+        :id="cellIds[idx]"
+        class="lcms-multi-item-cell"
+        :style="getCellStyle(item)"
+      >
+        <component
+          :is="innerComponent"
+          :data="getItemData(item)"
+          :item-index="idx"
+          :language="language"
+          :settings="settings"
+        />
+      </div>
     </div>
   </div>
 </template>
 
 <style scoped>
+.lcms-multi-item-container {
+  box-sizing: border-box;
+}
+
 .lcms-multi-item-cell {
   box-sizing: border-box;
 }

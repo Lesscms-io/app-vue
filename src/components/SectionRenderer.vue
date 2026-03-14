@@ -7,7 +7,7 @@
  * Supports responsive settings for tablet/mobile breakpoints.
  */
 
-import { computed, ref } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
 import WidgetRenderer from './WidgetRenderer.vue'
 import { useResponsiveSettings } from '@/composables/useResponsiveSettings'
 import { useScrollAnimation } from '@/composables/useScrollAnimation'
@@ -38,6 +38,26 @@ const { getMergedSettings, isHidden, shouldStack, currentBreakpoint } = useRespo
 const sectionId = computed(() => props.section.uuid || props.section.id)
 const settings = computed(() => getMergedSettings(props.section.settings as SectionSettings))
 const columns = computed(() => props.section.columns || [])
+
+// Scroll state for sticky sections
+const isScrolled = ref(false)
+
+const handleScroll = () => {
+  const s = settings.value as SectionSettings
+  if (s.sticky && s.scrolledBg) {
+    const threshold = s.stickyTop || 10
+    isScrolled.value = window.scrollY > threshold
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('scroll', handleScroll, { passive: true })
+  handleScroll()
+})
+
+onUnmounted(() => {
+  window.removeEventListener('scroll', handleScroll)
+})
 
 // Generate unique ID for section (used for hover CSS selectors)
 const sectionUniqueId = computed(() => {
@@ -199,6 +219,24 @@ const sectionStyle = computed(() => {
     style.position = 'sticky'
     style.top = s.stickyTop ? `${s.stickyTop}px` : '0'
     style.zIndex = String(s.stickyZIndex ?? 100)
+
+    // Add transition for scrolled state
+    if (s.scrolledBg) {
+      style.transition = 'background-color 0.3s ease, box-shadow 0.3s ease'
+    }
+
+    // Apply scrolled styles
+    if (isScrolled.value && s.scrolledBg) {
+      style.backgroundColor = resolveColor(s.scrolledBg) || style.backgroundColor
+      if (s.scrolledShadow && s.scrolledShadow !== 'none') {
+        const shadowMap: Record<string, string> = {
+          sm: '0 1px 3px rgba(0,0,0,0.12)',
+          md: '0 4px 6px rgba(0,0,0,0.1)',
+          lg: '0 10px 25px rgba(0,0,0,0.15)'
+        }
+        style.boxShadow = shadowMap[s.scrolledShadow] || ''
+      }
+    }
   }
 
   return style

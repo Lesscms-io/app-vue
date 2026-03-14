@@ -186,6 +186,13 @@ export interface SectionSettings extends BaseSettings {
   // Stacking
   stackOnTablet?: boolean
   stackOnMobile?: boolean
+
+  // Sticky
+  sticky?: boolean
+  stickyTop?: number
+  stickyZIndex?: number
+  scrolledBg?: string
+  scrolledShadow?: 'none' | 'sm' | 'md' | 'lg'
 }
 
 export interface ColumnSettings extends BaseSettings {

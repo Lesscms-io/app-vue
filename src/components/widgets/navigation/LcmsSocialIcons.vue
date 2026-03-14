@@ -7,6 +7,7 @@
 
 import { computed } from 'vue'
 import type { SocialIconsWidgetData } from '@/types/widgets'
+import { resolveColor } from '@/utils/resolveColor'
 
 defineOptions({
   inheritAttrs: false
@@ -23,6 +24,8 @@ const props = defineProps<Props>()
 const items = computed(() => props.data.items || [])
 const size = computed(() => props.data.size || 'md')
 const iconStyle = computed(() => props.data.style || 'default')
+const colorMode = computed(() => props.data.color_mode || props.data.colorMode || 'brand')
+const customColor = computed(() => props.data.icon_color || props.data.iconColor || '')
 
 // Platform to FontAwesome icon mapping
 const platformIcons: Record<string, string> = {
@@ -67,6 +70,7 @@ function getIcon(platform: string): string {
 }
 
 function getColor(platform: string): string {
+  if (colorMode.value === 'custom' && customColor.value) return resolveColor(customColor.value)
   return platformColors[platform.toLowerCase()] || '#6c757d'
 }
 </script>

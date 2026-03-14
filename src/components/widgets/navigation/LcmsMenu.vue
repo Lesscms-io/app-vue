@@ -83,6 +83,11 @@ const ctaIconPosition = computed(() => props.data.cta_icon_position || 'left')
 const isCtaSvgIcon = computed(() => ctaIcon.value.startsWith('svg:'))
 const ctaSvgContent = computed(() => isCtaSvgIcon.value ? ctaIcon.value.slice(4) : '')
 
+// Dropdown settings
+const dropdownBg = computed(() => props.data.dropdown_bg || null)
+const dropdownBorderRadius = computed(() => props.data.dropdown_border_radius || 'md')
+const dropdownShadow = computed(() => props.data.dropdown_shadow || 'lg')
+
 const resolveCollectionUrl = inject<(collectionCode: string, slug: string) => string>(
   'lesscms-resolve-collection-url',
   () => '#'
@@ -180,6 +185,21 @@ const menuCssVars = computed(() => {
   if (lac) vars['--lcms-menu-link-hover-anim-color'] = lac
   else if (lhc) vars['--lcms-menu-link-hover-anim-color'] = lhc
   if (itemsPadding.value) vars['--lcms-menu-items-padding'] = itemsPadding.value
+
+  // Dropdown styling
+  const dbg = resolveColorValue(dropdownBg.value)
+  if (dbg) vars['--lcms-menu-dropdown-bg'] = dbg
+
+  const radiusMap: Record<string, string> = { none: '0', sm: '4px', md: '8px', lg: '12px' }
+  vars['--lcms-menu-dropdown-radius'] = radiusMap[dropdownBorderRadius.value] || '8px'
+
+  const shadowMap: Record<string, string> = {
+    none: 'none',
+    sm: '0 1px 3px rgba(0,0,0,0.12)',
+    md: '0 4px 6px rgba(0,0,0,0.1)',
+    lg: '0 10px 25px rgba(0,0,0,0.15)'
+  }
+  vars['--lcms-menu-dropdown-shadow'] = shadowMap[dropdownShadow.value] || shadowMap.lg
 
   return vars
 })
