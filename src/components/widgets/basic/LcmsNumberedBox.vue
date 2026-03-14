@@ -226,27 +226,27 @@ const numberStyles = computed(() => {
   flex: 1;
 }
 
-/* Title (separate field) */
+/* Title (separate field) - rendered via dynamic tag (h2, h3, etc.) */
 .lcms-numbered-box__title {
-  font-size: var(--title-font-size, inherit);
   font-weight: var(--title-font-weight, 700);
   color: var(--title-color, inherit);
   margin: 0 0 0.3em 0;
   transition: color var(--transition-duration, 200ms) ease;
 }
+.lcms-numbered-box__title:is(h1) { font-size: var(--title-font-size, var(--lcms-h1-font-size, 2.5rem)); font-weight: var(--title-font-weight, var(--lcms-h1-font-weight, 700)); color: var(--title-color, var(--lcms-h1-color, inherit)); }
+.lcms-numbered-box__title:is(h2) { font-size: var(--title-font-size, var(--lcms-h2-font-size, 2rem)); font-weight: var(--title-font-weight, var(--lcms-h2-font-weight, 700)); color: var(--title-color, var(--lcms-h2-color, inherit)); }
+.lcms-numbered-box__title:is(h3) { font-size: var(--title-font-size, var(--lcms-h3-font-size, 1.75rem)); font-weight: var(--title-font-weight, var(--lcms-h3-font-weight, 700)); color: var(--title-color, var(--lcms-h3-color, inherit)); }
+.lcms-numbered-box__title:is(h4) { font-size: var(--title-font-size, var(--lcms-h4-font-size, 1.5rem)); font-weight: var(--title-font-weight, var(--lcms-h4-font-weight, 700)); color: var(--title-color, var(--lcms-h4-color, inherit)); }
+.lcms-numbered-box__title:is(h5) { font-size: var(--title-font-size, var(--lcms-h5-font-size, 1.25rem)); font-weight: var(--title-font-weight, var(--lcms-h5-font-weight, 700)); color: var(--title-color, var(--lcms-h5-color, inherit)); }
+.lcms-numbered-box__title:is(h6) { font-size: var(--title-font-size, var(--lcms-h6-font-size, 1rem)); font-weight: var(--title-font-weight, var(--lcms-h6-font-weight, 700)); color: var(--title-color, var(--lcms-h6-color, inherit)); }
 
 /* Title style: apply to headings inside rich text (legacy) */
-.lcms-numbered-box__content :deep(h1),
-.lcms-numbered-box__content :deep(h2),
-.lcms-numbered-box__content :deep(h3),
-.lcms-numbered-box__content :deep(h4),
-.lcms-numbered-box__content :deep(h5),
-.lcms-numbered-box__content :deep(h6) {
-  font-size: var(--title-font-size, inherit);
-  font-weight: var(--title-font-weight, inherit);
-  color: var(--title-color, inherit);
-  transition: color var(--transition-duration, 200ms) ease;
-}
+.lcms-numbered-box__content :deep(h1) { font-size: var(--title-font-size, var(--lcms-h1-font-size, 2.5rem)); font-weight: var(--title-font-weight, var(--lcms-h1-font-weight, inherit)); color: var(--title-color, var(--lcms-h1-color, inherit)); transition: color var(--transition-duration, 200ms) ease; }
+.lcms-numbered-box__content :deep(h2) { font-size: var(--title-font-size, var(--lcms-h2-font-size, 2rem)); font-weight: var(--title-font-weight, var(--lcms-h2-font-weight, inherit)); color: var(--title-color, var(--lcms-h2-color, inherit)); transition: color var(--transition-duration, 200ms) ease; }
+.lcms-numbered-box__content :deep(h3) { font-size: var(--title-font-size, var(--lcms-h3-font-size, 1.75rem)); font-weight: var(--title-font-weight, var(--lcms-h3-font-weight, inherit)); color: var(--title-color, var(--lcms-h3-color, inherit)); transition: color var(--transition-duration, 200ms) ease; }
+.lcms-numbered-box__content :deep(h4) { font-size: var(--title-font-size, var(--lcms-h4-font-size, 1.5rem)); font-weight: var(--title-font-weight, var(--lcms-h4-font-weight, inherit)); color: var(--title-color, var(--lcms-h4-color, inherit)); transition: color var(--transition-duration, 200ms) ease; }
+.lcms-numbered-box__content :deep(h5) { font-size: var(--title-font-size, var(--lcms-h5-font-size, 1.25rem)); font-weight: var(--title-font-weight, var(--lcms-h5-font-weight, inherit)); color: var(--title-color, var(--lcms-h5-color, inherit)); transition: color var(--transition-duration, 200ms) ease; }
+.lcms-numbered-box__content :deep(h6) { font-size: var(--title-font-size, var(--lcms-h6-font-size, 1rem)); font-weight: var(--title-font-weight, var(--lcms-h6-font-weight, inherit)); color: var(--title-color, var(--lcms-h6-color, inherit)); transition: color var(--transition-duration, 200ms) ease; }
 
 /* Text style: apply to paragraphs */
 .lcms-numbered-box__content :deep(p) {
