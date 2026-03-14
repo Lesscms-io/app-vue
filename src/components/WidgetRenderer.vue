@@ -222,7 +222,14 @@ const widgetStyle = computed(() => {
       const encodedUrl = encodeURI(s.backgroundImage)
       const imgSize = s.backgroundSize || 'cover'
       const imgPos = s.backgroundPosition || 'center center'
-      if (gradientValue) {
+      const imgOpacity = s.backgroundImageOpacity ?? 100
+      if (imgOpacity < 100) {
+        // Use CSS custom properties for pseudo-element opacity approach
+        style['--bg-image'] = `url("${encodedUrl}")`
+        style['--bg-image-opacity'] = String(imgOpacity / 100)
+        style['--bg-size'] = imgSize
+        style['--bg-position'] = imgPos
+      } else if (gradientValue) {
         style.backgroundImage = `${gradientValue}, url("${encodedUrl}")`
         style.backgroundSize = `auto, ${imgSize}`
         style.backgroundPosition = `0 0, ${imgPos}`
@@ -298,6 +305,13 @@ const widgetClass = computed(() => {
   }
   if (isWidgetHidden.value) {
     classes.push('lcms-hidden')
+  }
+
+  // Background image with opacity
+  const bgImg = settings.value.backgroundImage
+  const bgImgOpacity = settings.value.backgroundImageOpacity ?? 100
+  if (bgImg && bgImgOpacity < 100) {
+    classes.push('has-bg-image-opacity')
   }
 
   // Add breakpoint class for CSS targeting

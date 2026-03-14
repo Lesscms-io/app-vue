@@ -7,7 +7,8 @@
  * Backward compat: inline fields in widget config.
  */
 
-import { computed, ref, reactive, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
+import { computed, ref, reactive, inject, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
+import type { Ref } from 'vue'
 import { useLanguage } from '@/composables/useLanguage'
 import { useApi } from '@/composables/useApi'
 
@@ -57,6 +58,8 @@ const { extractValue } = useLanguage(props.language)
 const api = useApi()
 
 const config = computed(() => props.data.widget || props.data || {})
+const projectConfig = inject<Ref<Record<string, any> | null>>('lesscms-project-config', ref(null))
+const projectInputStyles = computed(() => projectConfig?.value?.styles || {})
 
 const emailTo = computed(() => props.data.email_to || '')
 
@@ -182,17 +185,17 @@ const buttonColor = computed(() => config.value.button_color || config.value.but
 const buttonStyle = computed(() => config.value.button_style || '')
 const buttonSize = computed(() => config.value.button_size || 'md')
 
-// Input style
+// Input style (widget-level → project-level fallback)
 const inputSize = computed(() => config.value.input_size || 'md')
 const inputBorderRadius = computed(() => config.value.input_border_radius || 'md')
 const inputPadding = computed(() => config.value.input_padding || '')
-const inputBackgroundColor = computed(() => config.value.input_background_color || '')
-const inputTextColor = computed(() => config.value.input_text_color || '')
-const inputBorderColor = computed(() => config.value.input_border_color || '')
-const inputBorderWidth = computed(() => config.value.input_border_width || '')
-const inputBorderStyle = computed(() => config.value.input_border_style || '')
-const inputFocusBorderColor = computed(() => config.value.input_focus_border_color || '')
-const inputPlaceholderColor = computed(() => config.value.input_placeholder_color || '')
+const inputBackgroundColor = computed(() => config.value.input_background_color || projectInputStyles.value.input_background_color || '')
+const inputTextColor = computed(() => config.value.input_text_color || projectInputStyles.value.input_text_color || '')
+const inputBorderColor = computed(() => config.value.input_border_color || projectInputStyles.value.input_border_color || '')
+const inputBorderWidth = computed(() => config.value.input_border_width || projectInputStyles.value.input_border_width || '')
+const inputBorderStyle = computed(() => config.value.input_border_style || projectInputStyles.value.input_border_style || '')
+const inputFocusBorderColor = computed(() => config.value.input_focus_border_color || projectInputStyles.value.input_focus_border_color || '')
+const inputPlaceholderColor = computed(() => config.value.input_placeholder_color || projectInputStyles.value.input_placeholder_color || '')
 
 // Form state
 const formData = reactive<Record<string, any>>({})

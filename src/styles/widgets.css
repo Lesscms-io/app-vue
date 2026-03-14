@@ -100,6 +100,33 @@
   width: 100%;
 }
 
+/* Background image with opacity via pseudo-element */
+.lcms-widget.has-bg-image-opacity {
+  position: relative;
+  overflow: hidden;
+}
+
+.lcms-widget.has-bg-image-opacity::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: var(--bg-image);
+  background-size: var(--bg-size, cover);
+  background-position: var(--bg-position, center center);
+  background-repeat: no-repeat;
+  opacity: var(--bg-image-opacity, 1);
+  z-index: 0;
+  pointer-events: none;
+}
+
+.lcms-widget.has-bg-image-opacity > * {
+  position: relative;
+  z-index: 1;
+}
+
 /* Multi-item wrapper should fill its parent widget container */
 .lcms-multi-item-wrapper {
   flex: 1;
