@@ -191,23 +191,13 @@ const multiItemContainerFields = computed(() => {
   return fields
 })
 
-// Check if multi-item has container_* fields
-const hasContainerFields = computed(() => {
-  if (!isMultiItem.value) return false
-  return Object.keys(multiItemContainerFields.value).length > 0
-})
-
 // Calculate widget styles from settings
 const widgetStyle = computed(() => {
   const s = settings.value
   const style: Record<string, string> = {}
 
-  // Skip appearance styles when multi-item has container_* fields
-  // (they are applied by LcmsMultiItemWrapper container)
-  const skipAppearance = hasContainerFields.value
-
   // Background color with opacity
-  if (!skipAppearance && s.backgroundColor) {
+  if (s.backgroundColor) {
     const resolved = resolveColor(s.backgroundColor)
     const opacity = s.backgroundOpacity ?? 100
     if (opacity < 100 && resolved.startsWith('#')) {
@@ -220,7 +210,7 @@ const widgetStyle = computed(() => {
   }
 
   // Background image + gradient (gradient overlays image)
-  if (!skipAppearance) {
+  {
     let gradientValue = ''
     if (s.gradient && s.gradient.colorStart && s.gradient.colorEnd) {
       const type = s.gradient.type || 'linear'
@@ -268,12 +258,10 @@ const widgetStyle = computed(() => {
   }
 
   // Padding
-  if (!skipAppearance) {
-    if (s.paddingTop) style.paddingTop = `${s.paddingTop}px`
-    if (s.paddingRight) style.paddingRight = `${s.paddingRight}px`
-    if (s.paddingBottom) style.paddingBottom = `${s.paddingBottom}px`
-    if (s.paddingLeft) style.paddingLeft = `${s.paddingLeft}px`
-  }
+  if (s.paddingTop) style.paddingTop = `${s.paddingTop}px`
+  if (s.paddingRight) style.paddingRight = `${s.paddingRight}px`
+  if (s.paddingBottom) style.paddingBottom = `${s.paddingBottom}px`
+  if (s.paddingLeft) style.paddingLeft = `${s.paddingLeft}px`
 
   // Margin
   if (s.marginTop) style.marginTop = `${s.marginTop}px`
@@ -282,17 +270,15 @@ const widgetStyle = computed(() => {
   if (s.marginLeft) style.marginLeft = `${s.marginLeft}px`
 
   // Border
-  if (!skipAppearance) {
-    if (s.borderRadius) style.borderRadius = `${s.borderRadius}px`
-    if (s.borderWidth) {
-      style.borderWidth = `${s.borderWidth}px`
-      style.borderStyle = s.borderStyle || 'solid'
-      style.borderColor = resolveColor(s.borderColor) || '#000000'
-    }
-
-    // Shadow
-    if (s.boxShadow) style.boxShadow = s.boxShadow
+  if (s.borderRadius) style.borderRadius = `${s.borderRadius}px`
+  if (s.borderWidth) {
+    style.borderWidth = `${s.borderWidth}px`
+    style.borderStyle = s.borderStyle || 'solid'
+    style.borderColor = resolveColor(s.borderColor) || '#000000'
   }
+
+  // Shadow
+  if (s.boxShadow) style.boxShadow = s.boxShadow
 
   // Height
   if (s.fullHeight || s.heightMode === 'full') {
