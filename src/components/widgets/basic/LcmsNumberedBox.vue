@@ -3,7 +3,16 @@
     <div class="lcms-numbered-box__number" :style="numberStyles">
       {{ displayNumber }}
     </div>
-    <div class="lcms-numbered-box__content" :style="contentStyle" v-html="content"></div>
+    <div class="lcms-numbered-box__content" :style="contentStyle">
+      <component
+        :is="titleTag"
+        v-if="title"
+        class="lcms-numbered-box__title"
+      >
+        {{ title }}
+      </component>
+      <div v-if="content" v-html="content" />
+    </div>
   </div>
 </template>
 
@@ -36,6 +45,7 @@ const displayNumber = computed(() => {
   return String(idx + 1).padStart(2, '0')
 })
 
+const title = computed(() => config.value.title || '')
 const content = computed(() => config.value.html || config.value.content || '')
 
 const numberPosition = computed(() => config.value.number_position || 'left')
@@ -216,7 +226,16 @@ const numberStyles = computed(() => {
   flex: 1;
 }
 
-/* Title style: apply to headings */
+/* Title (separate field) */
+.lcms-numbered-box__title {
+  font-size: var(--title-font-size, inherit);
+  font-weight: var(--title-font-weight, 700);
+  color: var(--title-color, inherit);
+  margin: 0 0 0.3em 0;
+  transition: color var(--transition-duration, 200ms) ease;
+}
+
+/* Title style: apply to headings inside rich text (legacy) */
 .lcms-numbered-box__content :deep(h1),
 .lcms-numbered-box__content :deep(h2),
 .lcms-numbered-box__content :deep(h3),
@@ -238,6 +257,7 @@ const numberStyles = computed(() => {
 }
 
 /* Hover title color */
+.lcms-numbered-box.has-hover.has-hover-title-color:hover .lcms-numbered-box__title,
 .lcms-numbered-box.has-hover.has-hover-title-color:hover .lcms-numbered-box__content :deep(h1),
 .lcms-numbered-box.has-hover.has-hover-title-color:hover .lcms-numbered-box__content :deep(h2),
 .lcms-numbered-box.has-hover.has-hover-title-color:hover .lcms-numbered-box__content :deep(h3),
