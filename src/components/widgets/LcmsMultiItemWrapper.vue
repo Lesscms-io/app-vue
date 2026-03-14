@@ -294,40 +294,6 @@ const containerStyle = computed(() => {
 
 const hasContainerStyle = computed(() => Object.keys(containerStyle.value).length > 0)
 
-// Container hover CSS
-const containerHoverCss = computed(() => {
-  const d = props.containerFields
-  if (!d || Object.keys(d).length === 0) return ''
-
-  const hoverBg = d.container_hover_background_color ? resolveColor(String(d.container_hover_background_color)) : null
-  const hoverBorderColor = d.container_hover_border_color ? resolveColor(String(d.container_hover_border_color)) : null
-  const hoverShadow = d.container_hover_shadow as string
-  const hoverLift = Number(d.container_hover_lift) || 0
-  const hoverScale = Number(d.container_hover_scale) || 0
-  const duration = Number(d.container_transition_duration) || 200
-
-  const hasAny = hoverBg || hoverBorderColor || (hoverShadow && hoverShadow !== 'none') || hoverLift || (hoverScale && hoverScale !== 1)
-  if (!hasAny) return ''
-
-  const id = containerId.value
-  let css = `#${id} { transition: transform ${duration}ms ease, box-shadow ${duration}ms ease, background-color ${duration}ms ease, border-color ${duration}ms ease; }`
-
-  let hoverParts = ''
-  if (hoverBg) hoverParts += `background-color: ${hoverBg} !important;`
-  if (hoverBorderColor) hoverParts += `border-color: ${hoverBorderColor} !important;`
-  if (hoverShadow && hoverShadow !== 'none' && shadowMap[hoverShadow]) hoverParts += `box-shadow: ${shadowMap[hoverShadow]};`
-  if (hoverLift && hoverScale && hoverScale !== 1) {
-    hoverParts += `transform: translateY(-${hoverLift}px) scale(${hoverScale});`
-  } else if (hoverLift) {
-    hoverParts += `transform: translateY(-${hoverLift}px);`
-  } else if (hoverScale && hoverScale !== 1) {
-    hoverParts += `transform: scale(${hoverScale});`
-  }
-
-  if (hoverParts) css += `#${id}:hover { ${hoverParts} }`
-  return css
-})
-
 const containerId = computed(() => `lcms-container-${instanceId}`)
 
 const gridStyle = computed(() => {
@@ -351,9 +317,6 @@ const gridStyle = computed(() => {
 <template>
   <!-- Dynamic hover CSS (global, unscoped) - targets inner child component elements -->
   <component :is="'style'" v-if="hoverCss">{{ hoverCss }}</component>
-
-  <!-- Container hover CSS -->
-  <component :is="'style'" v-if="containerHoverCss">{{ containerHoverCss }}</component>
 
   <div
     :id="hasContainerStyle ? containerId : undefined"
