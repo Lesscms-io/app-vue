@@ -152,6 +152,8 @@ const hoverCss = computed(() => {
     const data = item.widget as Record<string, any> | undefined
     if (!data) return
 
+    const itemSettings = item.item_settings as Record<string, any> | undefined
+
     const id = cellIds.value[idx]
     const duration = data.transition_duration ?? 200
 
@@ -166,30 +168,32 @@ const hoverCss = computed(() => {
     const hoverBadgeColor = data.hover_badge_color ? resolveColor(data.hover_badge_color) : null
     const hoverBadgeBg = data.hover_badge_background ? resolveColor(data.hover_badge_background) : null
 
-    const hasAnyHover = lift || (scale && scale !== 1) || (shadowVal !== 'none') || hoverBg || hoverTextColor || hoverIconColor || hoverIconBg || hoverLinkColor || hoverBadgeColor || hoverBadgeBg
+    // Per-item hover from item_settings.hover (border, bg override)
+    const itemHover = itemSettings?.hover as Record<string, any> | undefined
+    const hoverBorderColor = itemHover?.borderColor ? resolveColor(itemHover.borderColor) : null
+    const hoverBorderWidth = itemHover?.borderWidth || 0
+    const itemHoverBg = itemHover?.backgroundColor ? resolveColor(itemHover.backgroundColor) : null
+
+    const hasAnyHover = lift || (scale && scale !== 1) || (shadowVal !== 'none') || hoverBg || itemHoverBg || hoverTextColor || hoverIconColor || hoverIconBg || hoverLinkColor || hoverBadgeColor || hoverBadgeBg || hoverBorderColor || hoverBorderWidth
     if (!hasAnyHover) return
 
     // Base transition on the cell
-    css += `#${id} { transition: transform ${duration}ms ease, box-shadow ${duration}ms ease, background-color ${duration}ms ease; }`
+    css += `#${id} { transition: transform ${duration}ms ease, box-shadow ${duration}ms ease, background-color ${duration}ms ease, border-color ${duration}ms ease, border-width ${duration}ms ease; }`
 
-    // Cell hover: transform + shadow + bg
+    // Cell hover: transform + shadow + bg + border
     let cellHover = ''
-    if (lift) cellHover += `transform: translateY(-${lift}px);`
-    if (scale && scale !== 1) {
-      if (lift) {
-        cellHover = cellHover.replace('transform:', `transform: scale(${scale})`)
-        cellHover = cellHover.replace('translateY', ` translateY`)
-      } else {
-        cellHover += `transform: scale(${scale});`
-      }
-    }
     if (lift && scale && scale !== 1) {
-      // Fix combined transform
-      cellHover = cellHover.replace(/transform:[^;]+;/g, '')
       cellHover += `transform: translateY(-${lift}px) scale(${scale});`
+    } else if (lift) {
+      cellHover += `transform: translateY(-${lift}px);`
+    } else if (scale && scale !== 1) {
+      cellHover += `transform: scale(${scale});`
     }
     if (shadowVal !== 'none' && shadowMap[shadowVal]) cellHover += `box-shadow: ${shadowMap[shadowVal]};`
     if (hoverBg) cellHover += `background-color: ${hoverBg} !important;`
+    if (itemHoverBg) cellHover += `background-color: ${itemHoverBg} !important;`
+    if (hoverBorderColor) cellHover += `border-color: ${hoverBorderColor} !important;`
+    if (hoverBorderWidth > 0) cellHover += `border-width: ${hoverBorderWidth}px !important; border-style: solid;`
     if (cellHover) css += `#${id}:hover { ${cellHover} }`
 
     // Inner service-card text color
