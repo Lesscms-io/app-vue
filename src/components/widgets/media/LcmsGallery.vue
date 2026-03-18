@@ -524,8 +524,8 @@ const lightboxImage = computed(() => images.value[lightboxIndex.value])
 /* Mosaic - Featured */
 .lcms-gallery__mosaic--featured {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  grid-auto-rows: 200px;
+  grid-template-columns: 2fr 1fr;
+  grid-auto-rows: 1fr;
 }
 .lcms-gallery__mosaic-item { overflow: hidden; border-radius: 8px; }
 .lcms-gallery__mosaic-item--large { grid-row: span 2; }
@@ -569,7 +569,7 @@ const lightboxImage = computed(() => images.value[lightboxIndex.value])
 /* Mosaic - Masonry */
 .lcms-gallery__mosaic--masonry { }
 .lcms-gallery__masonry-item { break-inside: avoid; overflow: hidden; border-radius: 8px; }
-.lcms-gallery__masonry-item img { width: 100%; display: block; }
+.lcms-gallery__masonry-item img { width: 100%; height: auto; display: block; }
 
 /* Carousel */
 .lcms-gallery__carousel { position: relative; overflow: hidden; }

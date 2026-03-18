@@ -33,6 +33,8 @@ const wrapperId = `lcms-wrap-${Math.random().toString(36).substring(2, 9)}`
 const hAlign = computed(() => {
   if (props.data.style?.horizontal_align) return props.data.style.horizontal_align as string
   const firstChild = (props.items || [])[0]
+  // In app/vue, widget style props (horizontal_align etc.) are in settings, not data.style
+  if (firstChild?.settings?.horizontal_align) return firstChild.settings.horizontal_align as string
   if (firstChild?.data?.style?.horizontal_align) return firstChild.data.style.horizontal_align as string
   return 'stretch'
 })
@@ -100,6 +102,8 @@ const containerStyle = computed(() => {
       style.marginLeft = 'auto'
     }
   }
+  // Note: no explicit width:100% — CSS class handles default.
+  // For inline layout wrappers, width is omitted so column align-items can center them.
 
   return style
 })
@@ -172,7 +176,7 @@ const hoverCss = computed(() => {
   <!-- Dynamic hover + responsive CSS -->
   <component :is="'style'" v-if="hoverCss || responsiveCss">{{ hoverCss }}{{ responsiveCss }}</component>
 
-  <div :id="wrapperId" class="lcms-wrapper" :style="containerStyle">
+  <div :id="wrapperId" class="lcms-wrapper" :class="{ 'lcms-wrapper--grid': layout !== 'inline' }" :style="containerStyle">
     <div class="lcms-wrapper__grid" :style="gridStyle">
       <div
         v-for="(item, idx) in items"
@@ -188,9 +192,15 @@ const hoverCss = computed(() => {
 
 <style scoped>
 .lcms-wrapper {
-  width: 100%;
   box-sizing: border-box;
 }
+
+/* Grid layout wrappers need full width for proper column layout */
+.lcms-wrapper--grid {
+  width: 100%;
+}
+
+/* Inline layout wrappers shrink to content — column align-items can center them */
 
 .lcms-wrapper__grid {
   width: 100%;

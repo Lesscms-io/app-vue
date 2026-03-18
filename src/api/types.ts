@@ -198,11 +198,20 @@ export interface SectionSettings extends BaseSettings {
 export interface ColumnSettings extends BaseSettings {
   // Size
   columnHeight?: number | null
+  column_height?: number | null
   min_height?: number | null
 
   // Alignment
   vertical_align?: 'flex-start' | 'center' | 'flex-end'
   horizontal_align?: 'flex-start' | 'center' | 'flex-end' | 'stretch'
+
+  // Sticky
+  sticky?: boolean
+  sticky_top?: number
+  sticky_z_index?: number
+
+  // Hover
+  hover?: Record<string, any>
 }
 
 export interface WidgetSettings extends BaseSettings {

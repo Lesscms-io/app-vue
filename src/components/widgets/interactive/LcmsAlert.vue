@@ -42,6 +42,7 @@ const content = computed(() => {
 const alertType = computed(() => configGroup.value.type || props.data.type || 'info')
 const dismissible = computed(() => configGroup.value.dismissible || props.data.dismissible || false)
 const customIcon = computed(() => iconGroup.value.icon || (typeof props.data.icon === 'string' ? props.data.icon : null))
+const titleColor = computed(() => resolveColor(titleGroup.value.color) || null)
 const textColor = computed(() => resolveColor(textGroup.value.color) || null)
 const textHoverColor = computed(() => resolveColor(textGroup.value['color:hover']) || null)
 
@@ -86,6 +87,7 @@ function dismiss() {
       <strong
         v-if="showTitle && title"
         class="lcms-alert__title"
+        :style="titleColor ? { color: titleColor } : {}"
       >{{ title }}</strong>
       <span class="lcms-alert__message">{{ content }}</span>
     </div>

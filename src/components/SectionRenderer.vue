@@ -366,50 +366,50 @@ function getColumnStyle(column: PageColumn) {
   }
 
   // Padding
-  if (s.paddingTop) style.paddingTop = `${s.paddingTop}px`
-  if (s.paddingRight) style.paddingRight = `${s.paddingRight}px`
-  if (s.paddingBottom) style.paddingBottom = `${s.paddingBottom}px`
-  if (s.paddingLeft) style.paddingLeft = `${s.paddingLeft}px`
+  if (s.padding_top) style.paddingTop = `${s.padding_top}px`
+  if (s.padding_right) style.paddingRight = `${s.padding_right}px`
+  if (s.padding_bottom) style.paddingBottom = `${s.padding_bottom}px`
+  if (s.padding_left) style.paddingLeft = `${s.padding_left}px`
 
   // Margin
-  if (s.marginTop) style.marginTop = `${s.marginTop}px`
-  if (s.marginRight) style.marginRight = `${s.marginRight}px`
-  if (s.marginBottom) style.marginBottom = `${s.marginBottom}px`
-  if (s.marginLeft) style.marginLeft = `${s.marginLeft}px`
+  if (s.margin_top) style.marginTop = `${s.margin_top}px`
+  if (s.margin_right) style.marginRight = `${s.margin_right}px`
+  if (s.margin_bottom) style.marginBottom = `${s.margin_bottom}px`
+  if (s.margin_left) style.marginLeft = `${s.margin_left}px`
 
   // Border
-  if (s.borderRadius) style.borderRadius = `${s.borderRadius}px`
-  if (s.borderWidth) {
-    style.borderWidth = `${s.borderWidth}px`
-    style.borderStyle = s.borderStyle || 'solid'
-    style.borderColor = resolveColor(s.borderColor) || '#000000'
+  if (s.border_radius) style.borderRadius = `${s.border_radius}px`
+  if (s.border_width) {
+    style.borderWidth = `${s.border_width}px`
+    style.borderStyle = s.border_style || 'solid'
+    style.borderColor = resolveColor(s.border_color) || '#000000'
   }
 
-  if (s.boxShadow) style.boxShadow = s.boxShadow
+  if (s.box_shadow) style.boxShadow = s.box_shadow
 
   // Alignment - column uses flex-direction: column, so:
   //   justify-content = vertical axis (main axis)
   //   align-items = horizontal axis (cross axis)
-  if (s.verticalAlign) {
-    style.justifyContent = mapFlexAlign(s.verticalAlign)
+  if (s.vertical_align) {
+    style.justifyContent = mapFlexAlign(s.vertical_align)
     // Column needs height for justify-content to work
-    if (!s.columnHeight && !s.minHeight) {
+    if (!s.column_height && !s.min_height) {
       style.height = '100%'
     }
   }
-  if (s.horizontalAlign) {
-    style.alignItems = mapFlexAlign(s.horizontalAlign)
+  if (s.horizontal_align) {
+    style.alignItems = mapFlexAlign(s.horizontal_align)
   }
 
   // Height
-  if (s.columnHeight) style.minHeight = `${s.columnHeight}px`
-  if (s.minHeight) style.minHeight = `${s.minHeight}px`
+  if (s.column_height) style.minHeight = `${s.column_height}px`
+  if (s.min_height) style.minHeight = `${s.min_height}px`
 
   // Sticky column
   if (s.sticky) {
     style.position = 'sticky'
-    style.top = s.stickyTop ? `${s.stickyTop}px` : '0px'
-    style.zIndex = String(s.stickyZIndex ?? 10)
+    style.top = s.sticky_top ? `${s.sticky_top}px` : '0px'
+    style.zIndex = String(s.sticky_z_index ?? 10)
     style.alignSelf = 'flex-start'
   }
 
@@ -419,7 +419,7 @@ function getColumnStyle(column: PageColumn) {
 // Get alignment CSS class for column (controls child widget width behavior)
 function getColumnAlignClass(column: PageColumn): string {
   const s = getMergedSettings(column.settings as ColumnSettings)
-  const align = s.horizontalAlign
+  const align = s.horizontal_align
   if (!align || align === 'stretch') return ''
   const resolved = mapFlexAlign(align)
   if (resolved === 'center') return 'lcms-section__column--align-center'
@@ -439,18 +439,21 @@ function getColumnHoverCss(column: PageColumn, index: number): string {
   const hover = (column.settings as any)?.hover as HoverSettings | undefined
   if (!hover) return ''
 
-  const hasHoverStyles = hover.backgroundColor || hover.borderColor || hover.boxShadow
+  const hasHoverStyles = hover.backgroundColor || hover.background_color ||
+    hover.borderColor || hover.border_color ||
+    hover.boxShadow || hover.box_shadow
   if (!hasHoverStyles) return ''
 
   const columnId = getColumnId(column, index)
-  const transitionDuration = hover.transitionDuration ?? 300
+  const transitionDuration = hover.transitionDuration ?? hover.transition_duration ?? 300
 
   let css = `#${columnId} { transition: all ${transitionDuration}ms ease; }`
   css += `#${columnId}:hover {`
 
-  if (hover.backgroundColor) {
-    const resolved = resolveColor(hover.backgroundColor)
-    const opacity = hover.backgroundOpacity ?? 100
+  const bgColor = hover.backgroundColor || hover.background_color
+  if (bgColor) {
+    const resolved = resolveColor(bgColor)
+    const opacity = hover.backgroundOpacity ?? hover.background_opacity ?? 100
     if (opacity < 100 && resolved.startsWith('#')) {
       css += `background-color: ${hexToRgba(resolved, opacity / 100)};`
     } else {
@@ -458,16 +461,19 @@ function getColumnHoverCss(column: PageColumn, index: number): string {
     }
   }
 
-  if (hover.borderColor) {
-    css += `border-color: ${resolveColor(hover.borderColor)};`
+  const bdrColor = hover.borderColor || hover.border_color
+  if (bdrColor) {
+    css += `border-color: ${resolveColor(bdrColor)};`
   }
 
-  if (hover.borderWidth !== undefined && hover.borderWidth !== null) {
-    css += `border-width: ${hover.borderWidth}px;`
+  const bdrWidth = hover.borderWidth ?? hover.border_width
+  if (bdrWidth !== undefined && bdrWidth !== null) {
+    css += `border-width: ${bdrWidth}px;`
   }
 
-  if (hover.boxShadow) {
-    css += `box-shadow: ${hover.boxShadow};`
+  const shadow = hover.boxShadow || hover.box_shadow
+  if (shadow) {
+    css += `box-shadow: ${shadow};`
   }
 
   css += '}'
