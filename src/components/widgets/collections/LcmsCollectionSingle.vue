@@ -26,27 +26,30 @@ const props = defineProps<Props>()
 
 const { language: currentLanguage } = useLanguage(props.language)
 
-const collectionCode = computed(() => props.data.collection_code || '')
-const entryId = computed(() => props.data.entry_id || '')
-const layout = computed(() => props.data.layout || 'standard')
+// API returns widget data in data.widget
+const config = computed(() => props.data.widget || props.data || {})
+
+const collectionCode = computed(() => config.value.collection_code || '')
+const entryId = computed(() => config.value.entry_id || '')
+const layout = computed(() => config.value.layout || 'standard')
 
 // Route and entry source settings
-const routeUuid = computed(() => props.data.route_uuid || null)
-const entrySource = computed(() => props.data.entry_source || 'static')
-const entryUrlSegment = computed(() => props.data.entry_url_segment || 1)
-const entryTemplate = computed(() => props.data.entry_template || 'default:standard')
-const useCustomLayout = computed(() => props.data.use_custom_layout || false)
-const layoutConfig = computed(() => props.data.layout_config || null)
+const routeUuid = computed(() => config.value.route_uuid || null)
+const entrySource = computed(() => config.value.entry_source || 'static')
+const entryUrlSegment = computed(() => config.value.entry_url_segment || 1)
+const entryTemplate = computed(() => config.value.entry_template || 'default:standard')
+const useCustomLayout = computed(() => config.value.use_custom_layout || false)
+const layoutConfig = computed(() => config.value.layout_config || null)
 
 // Field mappings
-const titleField = computed(() => props.data.title_field || 'title')
-const contentField = computed(() => props.data.content_field || '')
-const imageField = computed(() => props.data.image_field || '')
+const titleField = computed(() => config.value.title_field || 'title')
+const contentField = computed(() => config.value.content_field || '')
+const imageField = computed(() => config.value.image_field || '')
 
 // Display toggles
-const showTitle = computed(() => props.data.show_title !== false)
-const showContent = computed(() => props.data.show_content !== false)
-const showImage = computed(() => props.data.show_image !== false)
+const showTitle = computed(() => config.value.show_title !== false)
+const showContent = computed(() => config.value.show_content !== false)
+const showImage = computed(() => config.value.show_image !== false)
 
 // Inject route params and collection entry from DynamicPageResolver
 const resolvedRoute = inject<Ref<ResolvedRoute | null> | null>('routeParams', null)
@@ -73,7 +76,7 @@ const effectiveEntryId = computed(() => {
 })
 
 // Use enriched entry from API if available, or injected entry for 'url' mode, otherwise fetch client-side
-const hasEnrichedData = computed(() => !!props.data.entry)
+const hasEnrichedData = computed(() => !!config.value.entry)
 const hasInjectedEntry = computed(() => {
   if (entrySource.value !== 'url') return false
   const entry = unref(injectedEntry)
@@ -93,7 +96,7 @@ const entryIdForFetch = computed(() => {
 const { entry: fetchedEntry, loading: fetchLoading, error: fetchError } = useCollectionEntry(collectionCodeForFetch, entryIdForFetch)
 
 const entry = computed(() => {
-  if (hasEnrichedData.value) return props.data.entry
+  if (hasEnrichedData.value) return config.value.entry
   if (hasInjectedEntry.value) return unref(injectedEntry)
   return fetchedEntry.value
 })

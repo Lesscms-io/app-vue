@@ -3,6 +3,7 @@
  * Blockquote Widget
  *
  * Renders a quotation with author and source attribution.
+ * Element-group architecture: quote, author, source, config groups.
  */
 
 import { computed } from 'vue'
@@ -37,27 +38,28 @@ const props = defineProps<Props>()
 
 const { extractValue } = useLanguage(props.language)
 
-const quote = computed(() => extractValue(props.data.quote))
-const author = computed(() => props.data.author ? extractValue(props.data.author) : '')
-const source = computed(() => props.data.source ? extractValue(props.data.source) : '')
-const blockquoteStyle = computed(() => props.data.style || 'simple')
-const accentColor = computed(() => resolveColor(props.data.accent_color))
+// Element-group computed refs
+const quoteGroup = computed(() => props.data.quote || {})
+const authorGroup = computed(() => props.data.author || {})
+const sourceGroup = computed(() => props.data.source || {})
+const configGroup = computed(() => props.data.config || {})
+
+// Element-group reads
+const quote = computed(() => extractValue(quoteGroup.value.content))
+const author = computed(() => authorGroup.value.content ? extractValue(authorGroup.value.content) : '')
+const source = computed(() => sourceGroup.value.content ? extractValue(sourceGroup.value.content) : '')
+const blockquoteStyle = computed(() => configGroup.value.blockquote_style || 'bordered')
+const accentColor = computed(() => resolveColor(quoteGroup.value.color))
+
+const hoverAccentColor = computed(() => resolveColor(quoteGroup.value['color:hover']))
+
+const hasHover = computed(() => !!hoverAccentColor.value)
 
 const blockquoteContainerStyle = computed(() => {
   const style: Record<string, string> = {}
   if (accentColor.value) style['--accent-color'] = accentColor.value
-  const hoverAccent = resolveColor(props.data.hover_accent_color)
-  if (hoverAccent) style['--hover-accent-color'] = hoverAccent
-  style['--transition-duration'] = `${props.data.transition_duration ?? 200}ms`
 
-  // Hover transform effects
-  const lift = props.data.hover_lift || 0
-  if (lift) style['--hover-lift'] = `-${lift}px`
-  const scale = props.data.hover_scale
-  if (scale && scale !== 1) style['--hover-scale'] = String(scale)
-  const shadowMap: Record<string, string> = { sm: '0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06)', md: '0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05)', lg: '0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)' }
-  const shadowVal = props.data.hover_shadow || 'none'
-  if (shadowVal !== 'none' && shadowMap[shadowVal]) style['--hover-shadow'] = shadowMap[shadowVal]
+  if (hoverAccentColor.value) style['--hover-accent-color'] = hoverAccentColor.value
 
   return style
 })
@@ -66,7 +68,7 @@ const blockquoteContainerStyle = computed(() => {
 <template>
   <figure
     class="lcms-blockquote"
-    :class="[`lcms-blockquote--${blockquoteStyle}`, { 'has-hover': !!(data.hover_accent_color || data.hover_lift || (data.hover_scale !== undefined && data.hover_scale !== 1) || (data.hover_shadow && data.hover_shadow !== 'none')) }]"
+    :class="[`lcms-blockquote--${blockquoteStyle}`, { 'has-hover': hasHover }]"
     :style="blockquoteContainerStyle"
   >
     <blockquote class="lcms-blockquote__text">
@@ -138,6 +140,6 @@ const blockquoteContainerStyle = computed(() => {
 }
 
 .lcms-blockquote__source::before {
-  content: '— ';
+  content: '\2014  ';
 }
 </style>

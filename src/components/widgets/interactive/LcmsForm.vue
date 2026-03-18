@@ -176,6 +176,7 @@ const formUuid = computed(() => {
 
 // Layout settings (new mode)
 const buttonAlign = computed(() => config.value.button_align || 'left')
+const buttonFullWidth = computed(() => config.value.button_full_width || false)
 const labelPosition = computed(() => config.value.label_position || 'top')
 const formColumns = computed(() => config.value.columns || '1')
 const fieldGap = computed(() => config.value.field_gap || '')
@@ -188,7 +189,7 @@ const buttonSize = computed(() => config.value.button_size || 'md')
 // Input style (widget-level → project-level fallback)
 const inputSize = computed(() => config.value.input_size || 'md')
 const inputBorderRadius = computed(() => config.value.input_border_radius || 'md')
-const inputPadding = computed(() => config.value.input_padding || '')
+const inputPadding = computed(() => config.value.input_padding || projectInputStyles.value.input_padding || '')
 const inputBackgroundColor = computed(() => config.value.input_background_color || projectInputStyles.value.input_background_color || '')
 const inputTextColor = computed(() => config.value.input_text_color || projectInputStyles.value.input_text_color || '')
 const inputBorderColor = computed(() => config.value.input_border_color || projectInputStyles.value.input_border_color || '')
@@ -449,6 +450,7 @@ const buttonClasses = computed(() => {
   }
   if (buttonSize.value === 'sm') classes.push('lcms-form__submit--sm')
   if (buttonSize.value === 'lg') classes.push('lcms-form__submit--lg')
+  if (buttonFullWidth.value) classes.push('lcms-form__submit--full-width')
   return classes
 })
 </script>

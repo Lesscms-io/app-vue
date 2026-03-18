@@ -28,20 +28,23 @@ const STORAGE_KEY = 'lcms-cookie-consent'
 
 const isVisible = ref(false)
 
-const message = computed(() => extractValue(props.data.message) || '')
-const acceptText = computed(() => extractValue(props.data.accept_text) || 'OK')
-const declineText = computed(() => extractValue(props.data.decline_text) || '')
-const showDecline = computed(() => props.data.show_decline === true)
-const policyUrl = computed(() => props.data.policy_url || '')
-const policyLinkText = computed(() => extractValue(props.data.policy_link_text) || '')
-const position = computed(() => props.data.position || 'bottom')
-const style = computed(() => props.data.style || 'bar')
-const daysToExpire = computed(() => props.data.days_to_expire || 365)
+// API returns widget data in data.widget
+const config = computed(() => props.data.widget || props.data || {})
 
-const bgColor = computed(() => props.data.background_color ? resolveColor(props.data.background_color) : '')
-const textColor = computed(() => props.data.text_color ? resolveColor(props.data.text_color) : '')
-const acceptBgColor = computed(() => props.data.accept_bg_color ? resolveColor(props.data.accept_bg_color) : '')
-const acceptTextColor = computed(() => props.data.accept_text_color ? resolveColor(props.data.accept_text_color) : '')
+const message = computed(() => extractValue(config.value.message) || '')
+const acceptText = computed(() => extractValue(config.value.accept_text) || 'OK')
+const declineText = computed(() => extractValue(config.value.decline_text) || '')
+const showDecline = computed(() => config.value.show_decline === true)
+const policyUrl = computed(() => config.value.policy_url || '')
+const policyLinkText = computed(() => extractValue(config.value.policy_link_text) || '')
+const position = computed(() => config.value.position || 'bottom')
+const cookieStyle = computed(() => config.value.cookie_style || config.value.style || 'bar')
+const daysToExpire = computed(() => config.value.days_to_expire || 365)
+
+const bgColor = computed(() => config.value.background_color ? resolveColor(config.value.background_color) : '')
+const textColor = computed(() => config.value.text_color ? resolveColor(config.value.text_color) : '')
+const acceptBgColor = computed(() => config.value.accept_bg_color ? resolveColor(config.value.accept_bg_color) : '')
+const acceptTextColor = computed(() => config.value.accept_text_color ? resolveColor(config.value.accept_text_color) : '')
 
 const containerStyles = computed(() => {
   const s: Record<string, string> = {}
@@ -104,7 +107,7 @@ onMounted(() => {
         class="lcms-cookie-consent"
         :class="[
           `lcms-cookie-consent--${position}`,
-          `lcms-cookie-consent--${style}`
+          `lcms-cookie-consent--${cookieStyle}`
         ]"
         :style="containerStyles"
         role="dialog"

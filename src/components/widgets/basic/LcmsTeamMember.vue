@@ -3,6 +3,7 @@
  * Team Member Widget
  *
  * Renders a team member card with photo, name, position, bio and social links.
+ * Element-group architecture: member, image, social, config groups.
  */
 
 import { computed } from 'vue'
@@ -22,16 +23,21 @@ const props = defineProps<Props>()
 
 const { extractValue } = useLanguage(props.language)
 
-const config = computed(() => props.data?.config || props.data || {})
-const content = computed(() => props.data?.content || {})
+// Element-group computed refs
+const memberGroup = computed(() => props.data.member || {})
+const imageGroup = computed(() => props.data.image || {})
+const socialGroup = computed(() => props.data.social || {})
+const configGroup = computed(() => props.data.config || {})
 
-const image = computed(() => config.value.image || null)
-const name = computed(() => extractValue(content.value.name || config.value.name))
-const position = computed(() => extractValue(content.value.position || config.value.position))
-const bio = computed(() => extractValue(content.value.bio || config.value.bio))
-const style = computed(() => config.value.style || 'card')
-const accentColor = computed(() => config.value.accent_color || null)
-const socialLinks = computed(() => config.value.social_links || [])
+// Element-group reads
+const name = computed(() => extractValue(memberGroup.value.name))
+const position = computed(() => extractValue(memberGroup.value.position))
+const bio = computed(() => extractValue(memberGroup.value.bio))
+const photo = computed(() => imageGroup.value.image || null)
+const socialLinks = computed(() => socialGroup.value.social_links || [])
+const teamMemberStyle = computed(() => configGroup.value.team_member_style || 'card')
+const accentColor = computed(() => configGroup.value.accent_color || null)
+const accentColorHover = computed(() => configGroup.value['accent_color:hover'] || null)
 
 function resolveColor(val: string | null | undefined): string | null {
   if (!val) return null
@@ -48,6 +54,15 @@ function resolveColor(val: string | null | undefined): string | null {
 }
 
 const resolvedAccentColor = computed(() => resolveColor(accentColor.value))
+const resolvedAccentColorHover = computed(() => resolveColor(accentColorHover.value))
+const hasHover = computed(() => !!resolvedAccentColorHover.value)
+
+const containerStyle = computed(() => {
+  const style: Record<string, string> = {}
+  if (resolvedAccentColor.value) style['--accent-color'] = resolvedAccentColor.value
+  if (resolvedAccentColorHover.value) style['--hover-accent-color'] = resolvedAccentColorHover.value
+  return style
+})
 
 const socialIcons: Record<string, string> = {
   linkedin: 'fab fa-linkedin',
@@ -69,10 +84,11 @@ function getSocialUrl(link: { platform: string; url: string }) {
 <template>
   <div
     class="lcms-team-member"
-    :class="`lcms-team-member--${style}`"
+    :class="[`lcms-team-member--${teamMemberStyle}`, { 'has-hover': hasHover }]"
+    :style="containerStyle"
   >
-    <div v-if="image" class="lcms-team-member__image-wrap">
-      <img :src="image" :alt="name" class="lcms-team-member__image" />
+    <div v-if="photo" class="lcms-team-member__image-wrap">
+      <img :src="photo" :alt="name" class="lcms-team-member__image" />
     </div>
     <div class="lcms-team-member__info">
       <h3 v-if="name" class="lcms-team-member__name">{{ name }}</h3>
@@ -101,6 +117,7 @@ function getSocialUrl(link: { platform: string; url: string }) {
 
 <style scoped>
 .lcms-team-member {
+  --accent-color: #50a5f1;
   text-align: center;
 }
 
@@ -109,6 +126,10 @@ function getSocialUrl(link: { platform: string; url: string }) {
   border-radius: 1rem;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   overflow: hidden;
+}
+
+.lcms-team-member.has-hover:hover {
+  --accent-color: var(--hover-accent-color);
 }
 
 .lcms-team-member__image-wrap {
@@ -136,7 +157,7 @@ function getSocialUrl(link: { platform: string; url: string }) {
 .lcms-team-member__position {
   font-size: 0.875rem;
   font-weight: 500;
-  color: #50a5f1;
+  color: var(--accent-color, #50a5f1);
   margin: 0 0 0.75rem 0;
 }
 

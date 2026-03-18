@@ -11,13 +11,14 @@
       >
         {{ title }}
       </component>
-      <div v-if="content" v-html="content" />
+      <div v-if="bodyHtml" v-html="bodyHtml" />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useLanguage } from '@/composables/useLanguage'
 
 function resolveColor(val: string | null | undefined): string | null {
   if (!val) return null
@@ -36,20 +37,35 @@ function resolveColor(val: string | null | undefined): string | null {
 const props = defineProps<{
   data: Record<string, any>
   itemIndex?: number
+  language?: string
 }>()
 
+const { extractValue } = useLanguage(props.language)
+
 const config = computed(() => props.data.widget || props.data || {})
+
+// Element groups
+const numberGroup = computed(() => config.value.number || {})
+const headingGroup = computed(() => config.value.heading || {})
+const textGroup = computed(() => config.value.text || {})
 
 const displayNumber = computed(() => {
   const idx = props.itemIndex ?? 0
   return String(idx + 1).padStart(2, '0')
 })
 
-const title = computed(() => config.value.title || '')
-const content = computed(() => config.value.html || config.value.content || '')
+// Heading
+const title = computed(() => extractValue(headingGroup.value.content) || '')
+const titleTag = computed(() => headingGroup.value.tag || 'h3')
+const titleColor = computed(() => resolveColor(headingGroup.value.color) || '')
 
-const numberPosition = computed(() => config.value.number_position || 'left')
-const numberVerticalAlign = computed(() => config.value.number_vertical_align || 'top')
+// Content
+const bodyHtml = computed(() => extractValue(textGroup.value.content) || '')
+const textColor = computed(() => resolveColor(textGroup.value.color) || '')
+
+// Number properties
+const numberPosition = computed(() => numberGroup.value.position || 'left')
+const numberVerticalAlign = computed(() => numberGroup.value.vertical_align || 'top')
 
 const positionClass = computed(() => {
   const classes = [`lcms-numbered-box--${numberPosition.value}`]
@@ -59,67 +75,31 @@ const positionClass = computed(() => {
   return classes
 })
 
-// Title/text style
-const titleFontSize = computed(() => config.value.title_font_size || '')
-const titleFontWeight = computed(() => config.value.title_font_weight || '')
-const titleColor = computed(() => resolveColor(config.value.title_color) || '')
-const textFontSize = computed(() => config.value.text_font_size || '')
-const textFontWeight = computed(() => config.value.text_font_weight || '')
-const textColor = computed(() => resolveColor(config.value.text_color) || '')
-
 // Hover color effects
-const hoverNumberColor = computed(() => resolveColor(config.value.hover_number_color) || '')
-const hoverNumberBg = computed(() => resolveColor(config.value.hover_number_background) || '')
-const hoverTitleColor = computed(() => resolveColor(config.value.hover_title_color) || '')
-const hoverTextColor = computed(() => resolveColor(config.value.hover_text_color) || '')
+const hoverNumberColor = computed(() => resolveColor(numberGroup.value['color:hover']) || '')
+const hoverNumberBg = computed(() => resolveColor(numberGroup.value['background:hover']) || '')
+const hoverTitleColor = computed(() => resolveColor(headingGroup.value['color:hover']) || '')
+const hoverTextColor = computed(() => resolveColor(textGroup.value['color:hover']) || '')
 
-const hasHover = computed(() => !!(config.value.hover_lift || (config.value.hover_scale !== undefined && config.value.hover_scale !== 1) || (config.value.hover_shadow && config.value.hover_shadow !== 'none') || hoverNumberColor.value || hoverNumberBg.value || hoverTitleColor.value || hoverTextColor.value))
+const hasHover = computed(() => !!(hoverNumberColor.value || hoverNumberBg.value || hoverTitleColor.value || hoverTextColor.value))
 
 const contentStyle = computed(() => {
   const styles: Record<string, string> = {}
-  if (titleFontSize.value) styles['--title-font-size'] = titleFontSize.value
-  if (titleFontWeight.value) styles['--title-font-weight'] = titleFontWeight.value
   if (titleColor.value) styles['--title-color'] = titleColor.value
-  if (textFontSize.value) styles['--text-font-size'] = textFontSize.value
-  if (textFontWeight.value) styles['--text-font-weight'] = textFontWeight.value
   if (textColor.value) styles['--text-color'] = textColor.value
   return styles
 })
 
-const titleTag = computed(() => config.value.title_tag || 'h3')
-
 const cardStyle = computed(() => {
   const styles: Record<string, string> = {}
 
-  // Card styling
-  const cardBg = resolveColor(config.value.card_background)
-  if (cardBg) styles.backgroundColor = cardBg
-  if (config.value.card_padding) styles.padding = `${config.value.card_padding}px`
-  const cardBr = parseInt(String(config.value.card_border_radius))
-  if (!isNaN(cardBr) && cardBr > 0) styles.borderRadius = `${cardBr}px`
-  const cardBorderColor = resolveColor(config.value.card_border_color)
-  if (cardBorderColor) styles.border = `1px solid ${cardBorderColor}`
-
-  styles['--transition-duration'] = `${config.value.transition_duration ?? 200}ms`
+  styles['--transition-duration'] = '200ms'
 
   // Hover color CSS variables
   if (hoverNumberColor.value) styles['--hover-number-color'] = hoverNumberColor.value
   if (hoverNumberBg.value) styles['--hover-number-bg'] = hoverNumberBg.value
   if (hoverTitleColor.value) styles['--hover-title-color'] = hoverTitleColor.value
   if (hoverTextColor.value) styles['--hover-text-color'] = hoverTextColor.value
-  const hoverCardBg = resolveColor(config.value.hover_card_background)
-  if (hoverCardBg) styles['--hover-card-bg'] = hoverCardBg
-  const hoverCardBorder = resolveColor(config.value.hover_card_border_color)
-  if (hoverCardBorder) styles['--hover-card-border-color'] = hoverCardBorder
-
-  // Hover transform effects
-  const lift = config.value.hover_lift || 0
-  if (lift) styles['--hover-lift'] = `-${lift}px`
-  const scale = config.value.hover_scale
-  if (scale && scale !== 1) styles['--hover-scale'] = String(scale)
-  const shadowMap: Record<string, string> = { sm: '0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06)', md: '0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05)', lg: '0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)' }
-  const shadowVal = config.value.hover_shadow || 'none'
-  if (shadowVal !== 'none' && shadowMap[shadowVal]) styles['--hover-shadow'] = shadowMap[shadowVal]
 
   return styles
 })
@@ -127,28 +107,23 @@ const cardStyle = computed(() => {
 const numberStyles = computed(() => {
   const styles: Record<string, string> = {}
 
-  if (config.value.number_size) {
-    styles.fontSize = `${config.value.number_size}px`
-  }
-  const color = resolveColor(config.value.number_color)
-  if (color) {
-    styles.color = color
-  }
-  if (config.value.number_font_weight) {
-    styles.fontWeight = String(config.value.number_font_weight)
-  }
-  const bg = resolveColor(config.value.number_background)
-  if (bg && config.value.number_background !== 'transparent') {
-    styles.backgroundColor = bg
-  }
-  const padding = parseInt(String(config.value.number_padding))
-  if (!isNaN(padding) && padding > 0) {
-    styles.padding = `${padding}px`
-  }
-  const br = parseInt(String(config.value.number_border_radius))
-  if (!isNaN(br) && br > 0) {
-    styles.borderRadius = `${br}px`
-  }
+  const size = numberGroup.value.size
+  if (size) styles.fontSize = `${size}px`
+
+  const color = resolveColor(numberGroup.value.color)
+  if (color) styles.color = color
+
+  const fw = numberGroup.value.font_weight
+  if (fw) styles.fontWeight = String(fw)
+
+  const bg = resolveColor(numberGroup.value.background)
+  if (bg && numberGroup.value.background !== 'transparent') styles.backgroundColor = bg
+
+  const padding = parseInt(String(numberGroup.value.padding))
+  if (!isNaN(padding) && padding > 0) styles.padding = `${padding}px`
+
+  const br = parseInt(String(numberGroup.value.border_radius))
+  if (!isNaN(br) && br > 0) styles.borderRadius = `${br}px`
 
   return styles
 })
@@ -228,30 +203,30 @@ const numberStyles = computed(() => {
 
 /* Title (separate field) - rendered via dynamic tag (h2, h3, etc.) */
 .lcms-numbered-box__title {
-  font-weight: var(--title-font-weight, 700);
+  font-weight: 700;
   color: var(--title-color, inherit);
   margin: 0 0 0.3em 0;
   transition: color var(--transition-duration, 200ms) ease;
 }
-.lcms-numbered-box__title:is(h1) { font-size: var(--title-font-size, var(--lcms-h1-font-size, 2.5rem)); font-weight: var(--title-font-weight, var(--lcms-h1-font-weight, 700)); color: var(--title-color, var(--lcms-h1-color, inherit)); }
-.lcms-numbered-box__title:is(h2) { font-size: var(--title-font-size, var(--lcms-h2-font-size, 2rem)); font-weight: var(--title-font-weight, var(--lcms-h2-font-weight, 700)); color: var(--title-color, var(--lcms-h2-color, inherit)); }
-.lcms-numbered-box__title:is(h3) { font-size: var(--title-font-size, var(--lcms-h3-font-size, 1.75rem)); font-weight: var(--title-font-weight, var(--lcms-h3-font-weight, 700)); color: var(--title-color, var(--lcms-h3-color, inherit)); }
-.lcms-numbered-box__title:is(h4) { font-size: var(--title-font-size, var(--lcms-h4-font-size, 1.5rem)); font-weight: var(--title-font-weight, var(--lcms-h4-font-weight, 700)); color: var(--title-color, var(--lcms-h4-color, inherit)); }
-.lcms-numbered-box__title:is(h5) { font-size: var(--title-font-size, var(--lcms-h5-font-size, 1.25rem)); font-weight: var(--title-font-weight, var(--lcms-h5-font-weight, 700)); color: var(--title-color, var(--lcms-h5-color, inherit)); }
-.lcms-numbered-box__title:is(h6) { font-size: var(--title-font-size, var(--lcms-h6-font-size, 1rem)); font-weight: var(--title-font-weight, var(--lcms-h6-font-weight, 700)); color: var(--title-color, var(--lcms-h6-color, inherit)); }
+.lcms-numbered-box__title:is(h1) { font-size: var(--lcms-h1-font-size, 2.5rem); font-weight: var(--lcms-h1-font-weight, 700); color: var(--title-color, var(--lcms-h1-color, inherit)); }
+.lcms-numbered-box__title:is(h2) { font-size: var(--lcms-h2-font-size, 2rem); font-weight: var(--lcms-h2-font-weight, 700); color: var(--title-color, var(--lcms-h2-color, inherit)); }
+.lcms-numbered-box__title:is(h3) { font-size: var(--lcms-h3-font-size, 1.75rem); font-weight: var(--lcms-h3-font-weight, 700); color: var(--title-color, var(--lcms-h3-color, inherit)); }
+.lcms-numbered-box__title:is(h4) { font-size: var(--lcms-h4-font-size, 1.5rem); font-weight: var(--lcms-h4-font-weight, 700); color: var(--title-color, var(--lcms-h4-color, inherit)); }
+.lcms-numbered-box__title:is(h5) { font-size: var(--lcms-h5-font-size, 1.25rem); font-weight: var(--lcms-h5-font-weight, 700); color: var(--title-color, var(--lcms-h5-color, inherit)); }
+.lcms-numbered-box__title:is(h6) { font-size: var(--lcms-h6-font-size, 1rem); font-weight: var(--lcms-h6-font-weight, 700); color: var(--title-color, var(--lcms-h6-color, inherit)); }
 
 /* Title style: apply to headings inside rich text (legacy) */
-.lcms-numbered-box__content :deep(h1) { font-size: var(--title-font-size, var(--lcms-h1-font-size, 2.5rem)); font-weight: var(--title-font-weight, var(--lcms-h1-font-weight, inherit)); color: var(--title-color, var(--lcms-h1-color, inherit)); transition: color var(--transition-duration, 200ms) ease; }
-.lcms-numbered-box__content :deep(h2) { font-size: var(--title-font-size, var(--lcms-h2-font-size, 2rem)); font-weight: var(--title-font-weight, var(--lcms-h2-font-weight, inherit)); color: var(--title-color, var(--lcms-h2-color, inherit)); transition: color var(--transition-duration, 200ms) ease; }
-.lcms-numbered-box__content :deep(h3) { font-size: var(--title-font-size, var(--lcms-h3-font-size, 1.75rem)); font-weight: var(--title-font-weight, var(--lcms-h3-font-weight, inherit)); color: var(--title-color, var(--lcms-h3-color, inherit)); transition: color var(--transition-duration, 200ms) ease; }
-.lcms-numbered-box__content :deep(h4) { font-size: var(--title-font-size, var(--lcms-h4-font-size, 1.5rem)); font-weight: var(--title-font-weight, var(--lcms-h4-font-weight, inherit)); color: var(--title-color, var(--lcms-h4-color, inherit)); transition: color var(--transition-duration, 200ms) ease; }
-.lcms-numbered-box__content :deep(h5) { font-size: var(--title-font-size, var(--lcms-h5-font-size, 1.25rem)); font-weight: var(--title-font-weight, var(--lcms-h5-font-weight, inherit)); color: var(--title-color, var(--lcms-h5-color, inherit)); transition: color var(--transition-duration, 200ms) ease; }
-.lcms-numbered-box__content :deep(h6) { font-size: var(--title-font-size, var(--lcms-h6-font-size, 1rem)); font-weight: var(--title-font-weight, var(--lcms-h6-font-weight, inherit)); color: var(--title-color, var(--lcms-h6-color, inherit)); transition: color var(--transition-duration, 200ms) ease; }
+.lcms-numbered-box__content :deep(h1) { font-size: var(--lcms-h1-font-size, 2.5rem); font-weight: var(--lcms-h1-font-weight, inherit); color: var(--title-color, var(--lcms-h1-color, inherit)); transition: color var(--transition-duration, 200ms) ease; }
+.lcms-numbered-box__content :deep(h2) { font-size: var(--lcms-h2-font-size, 2rem); font-weight: var(--lcms-h2-font-weight, inherit); color: var(--title-color, var(--lcms-h2-color, inherit)); transition: color var(--transition-duration, 200ms) ease; }
+.lcms-numbered-box__content :deep(h3) { font-size: var(--lcms-h3-font-size, 1.75rem); font-weight: var(--lcms-h3-font-weight, inherit); color: var(--title-color, var(--lcms-h3-color, inherit)); transition: color var(--transition-duration, 200ms) ease; }
+.lcms-numbered-box__content :deep(h4) { font-size: var(--lcms-h4-font-size, 1.5rem); font-weight: var(--lcms-h4-font-weight, inherit); color: var(--title-color, var(--lcms-h4-color, inherit)); transition: color var(--transition-duration, 200ms) ease; }
+.lcms-numbered-box__content :deep(h5) { font-size: var(--lcms-h5-font-size, 1.25rem); font-weight: var(--lcms-h5-font-weight, inherit); color: var(--title-color, var(--lcms-h5-color, inherit)); transition: color var(--transition-duration, 200ms) ease; }
+.lcms-numbered-box__content :deep(h6) { font-size: var(--lcms-h6-font-size, 1rem); font-weight: var(--lcms-h6-font-weight, inherit); color: var(--title-color, var(--lcms-h6-color, inherit)); transition: color var(--transition-duration, 200ms) ease; }
 
 /* Text style: apply to paragraphs */
 .lcms-numbered-box__content :deep(p) {
-  font-size: var(--text-font-size, inherit);
-  font-weight: var(--text-font-weight, inherit);
+  font-size: inherit;
+  font-weight: inherit;
   color: var(--text-color, inherit);
   transition: color var(--transition-duration, 200ms) ease;
 }

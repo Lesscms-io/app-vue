@@ -3,19 +3,19 @@
  * CTA Box Widget
  *
  * Renders a call-to-action box with title, subtitle and button.
+ * Element-group structure: heading + subtitle + button + config
  */
 
 import { computed, inject } from 'vue'
 import { useLanguage } from '@/composables/useLanguage'
 import { resolveColor } from '@/utils/resolveColor'
-import type { CtaBoxWidgetData } from '@/types/widgets'
 
 defineOptions({
   inheritAttrs: false
 })
 
 interface Props {
-  data: CtaBoxWidgetData
+  data: Record<string, any>
   language?: string
   settings?: Record<string, any>
 }
@@ -24,95 +24,41 @@ const props = defineProps<Props>()
 
 const { extractValue } = useLanguage(props.language)
 
-const resolvePageUrl = inject<(code: string | null, uuid: string | null) => string>('lesscms-resolve-page-url', () => '#')
-const resolveCollectionUrl = inject<(collectionCode: string, entryId: string) => string>('lesscms-resolve-collection-url', () => '#')
-
 // Border radius mapping (matches FE useButtonStyles)
 const RADIUS_MAP: Record<string, string> = { none: '0', sm: '4px', md: '8px', lg: '12px', pill: '50px' }
 
-const title = computed(() => {
-  const v = props.data.title
-  return typeof v === 'object' ? extractValue(v) : (v || '')
-})
-const subtitle = computed(() => {
-  const v = props.data.subtitle
-  if (!v) return ''
-  return typeof v === 'object' ? extractValue(v) : v
-})
-const buttonText = computed(() => {
-  const v = props.data.button_text
-  if (!v) return ''
-  return typeof v === 'object' ? extractValue(v) : v
-})
-const buttonUrl = computed(() => props.data.button_url || '')
-const textColor = computed(() => {
-  const val = props.data.text_color || 'light'
-  if (val === 'light') return '#ffffff'
-  if (val === 'dark') return '#212529'
-  return resolveColor(val) || val
-})
-const alignment = computed(() => props.data.alignment || 'center')
-const titleFontSize = computed(() => {
-  const v = props.data.title_font_size
-  if (v == null) return '28px'
-  if (typeof v === 'number') return `${v}px`
-  return String(v).match(/[a-z]/) ? v : `${v}px`
-})
-const subtitleFontSize = computed(() => {
-  const v = props.data.subtitle_font_size
-  if (v == null) return '16px'
-  if (typeof v === 'number') return `${v}px`
-  return String(v).match(/[a-z]/) ? v : `${v}px`
-})
+const config = computed(() => props.data.widget || props.data || {})
+
+// Element groups
+const headingGroup = computed(() => config.value.heading || {})
+const subtitleGroup = computed(() => config.value.subtitle || {})
+const buttonGroup = computed(() => config.value.button || {})
+const configGroup = computed(() => config.value.config || {})
+
+// Content values
+const title = computed(() => extractValue(headingGroup.value.content) || '')
+const subtitle = computed(() => extractValue(subtitleGroup.value.content) || '')
+const buttonText = computed(() => extractValue(buttonGroup.value.content) || '')
+const alignment = computed(() => configGroup.value.alignment || 'center')
+
+// Heading color
+const headingColor = computed(() => resolveColor(headingGroup.value.color) || null)
+const headingHoverColor = computed(() => resolveColor(headingGroup.value['color:hover']) || null)
 
 // Button settings
-const buttonLinkType = computed(() => props.data.button_link_type || 'custom')
-const buttonPageId = computed(() => props.data.button_page_id || '')
-const buttonCollectionCode = computed(() => props.data.button_collection_code || '')
-const buttonEntryId = computed(() => props.data.button_entry_id || '')
-const buttonRouteUuid = computed(() => props.data.button_route_uuid || '')
-const buttonTargetBlank = computed(() => props.data.button_target_blank || false)
-const buttonStyleName = computed(() => props.data.button_style || 'primary')
-const buttonSize = computed(() => props.data.button_size || 'md')
-const buttonBorderRadius = computed(() => props.data.button_border_radius || 'md')
-const buttonPaddingRaw = computed(() => props.data.button_padding || '')
-const buttonIcon = computed(() => props.data.button_icon || '')
-const buttonIconPosition = computed(() => props.data.button_icon_position || 'left')
-const buttonColor = computed(() => props.data.button_color || null)
+const buttonStyleName = computed(() => buttonGroup.value.style || 'white')
+const buttonSize = computed(() => buttonGroup.value.size || 'md')
+const buttonBorderRadius = computed(() => buttonGroup.value.border_radius || 'md')
+const buttonPaddingRaw = computed(() => buttonGroup.value.padding || '')
+const buttonIcon = computed(() => buttonGroup.value.icon || '')
+const buttonIconPosition = computed(() => buttonGroup.value.icon_position || 'left')
+const buttonColor = computed(() => buttonGroup.value.color || null)
 
-const resolvedButtonUrl = computed(() => {
-  const lt = buttonLinkType.value
-  const serverUrl = buttonUrl.value
-
-  if (lt === 'page') {
-    if (serverUrl && serverUrl !== '#') return serverUrl
-    if (buttonPageId.value) {
-      const clientResolved = resolvePageUrl(null, buttonPageId.value)
-      if (clientResolved && clientResolved !== '#') return clientResolved
-    }
-    return serverUrl
-  }
-  if (lt === 'route' && buttonRouteUuid.value) return resolvePageUrl(null, buttonRouteUuid.value)
-  if (lt === 'entry') {
-    if (serverUrl && serverUrl !== '#') return serverUrl
-    if (buttonCollectionCode.value && buttonEntryId.value) {
-      const clientResolved = resolveCollectionUrl(buttonCollectionCode.value, buttonEntryId.value)
-      if (clientResolved && clientResolved !== '#') return clientResolved
-    }
-    return serverUrl
-  }
-  return serverUrl
-})
-
-// Show button if there's text (even without URL — e.g. phone number CTA)
+// Show button if there's text
 const showButton = computed(() => !!buttonText.value)
-
-// Button href — use resolved URL if available, otherwise null (renders as non-link)
-const buttonHref = computed(() => resolvedButtonUrl.value || null)
 
 // Determine contrast text color for solid backgrounds
 function getContrastColor(bgColor: string): string {
-  // For var() references, default to white text
   if (bgColor.startsWith('var(') || bgColor.startsWith('color-mix(')) return '#212529'
   const hex = bgColor.replace('#', '')
   if (hex.length !== 6) return '#212529'
@@ -165,33 +111,15 @@ const buttonSizeClass = computed(() => {
   return map[buttonSize.value] || ''
 })
 
+const hasHoverHeadingColor = computed(() => !!headingHoverColor.value)
+
 const boxStyle = computed(() => {
   const style: Record<string, string> = {}
-  if (textColor.value) style.color = textColor.value
 
-  // Box styling
-  const bg = resolveColor(props.data.background_color)
-  if (bg) style.backgroundColor = bg
-  const py = props.data.padding_y
-  const px = props.data.padding_x
-  if (py != null || px != null) style.padding = `${py ?? 48}px ${px ?? 32}px`
-  const br = props.data.border_radius
-  if (br != null) style.borderRadius = `${br}px`
+  if (headingColor.value) style.color = headingColor.value
 
-  const hoverTxt = resolveColor(props.data.hover_text_color)
-  if (hoverTxt) style['--hover-color'] = hoverTxt
-  const hoverBg = resolveColor(props.data.hover_background_color)
-  if (hoverBg) style['--hover-bg'] = hoverBg
-  style['--transition-duration'] = `${props.data.transition_duration ?? 200}ms`
-
-  // Hover transform effects
-  const lift = props.data.hover_lift || 0
-  if (lift) style['--hover-lift'] = `-${lift}px`
-  const scale = props.data.hover_scale
-  if (scale && scale !== 1) style['--hover-scale'] = String(scale)
-  const shadowMap: Record<string, string> = { sm: '0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06)', md: '0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05)', lg: '0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)' }
-  const shadowVal = props.data.hover_shadow || 'none'
-  if (shadowVal !== 'none' && shadowMap[shadowVal]) style['--hover-shadow'] = shadowMap[shadowVal]
+  // Hover heading color
+  if (headingHoverColor.value) style['--hover-color'] = headingHoverColor.value
 
   return style
 })
@@ -200,37 +128,27 @@ const boxStyle = computed(() => {
 <template>
   <div
     class="lcms-cta-box"
-    :class="[`lcms-cta-box--${alignment}`, { 'has-hover': !!(data.hover_text_color || data.hover_lift || (data.hover_scale !== undefined && data.hover_scale !== 1) || (data.hover_shadow && data.hover_shadow !== 'none')), 'has-hover-text-color': !!resolveColor(data.hover_text_color) }]"
+    :class="[`lcms-cta-box--${alignment}`, { 'has-hover': hasHoverHeadingColor, 'has-hover-text-color': hasHoverHeadingColor }]"
     :style="boxStyle"
   >
-    <h3 v-if="title" class="lcms-cta-box__title" :style="{ fontSize: titleFontSize }">{{ title }}</h3>
-    <p v-if="subtitle" class="lcms-cta-box__subtitle" :style="{ fontSize: subtitleFontSize }">{{ subtitle }}</p>
-    <component
-      :is="buttonHref ? 'a' : 'span'"
+    <h3 v-if="title" class="lcms-cta-box__title">{{ title }}</h3>
+    <p v-if="subtitle" class="lcms-cta-box__subtitle">{{ subtitle }}</p>
+    <span
       v-if="showButton"
-      :href="buttonHref || undefined"
       class="lcms-cta-box__button"
       :class="buttonSizeClass"
       :style="buttonInlineStyle"
-      :target="buttonTargetBlank ? '_blank' : undefined"
-      :rel="buttonTargetBlank ? 'noopener noreferrer' : undefined"
     >
       <i v-if="buttonIcon && buttonIconPosition === 'left'" :class="buttonIcon" style="margin-right: 6px;" />
       {{ buttonText }}
       <i v-if="buttonIcon && buttonIconPosition === 'right'" :class="buttonIcon" style="margin-left: 6px;" />
-    </component>
+    </span>
   </div>
 </template>
 
 <style scoped>
 .lcms-cta-box {
-  transition: color var(--transition-duration, 200ms) ease, transform var(--transition-duration, 200ms) ease, box-shadow var(--transition-duration, 200ms) ease, background-color var(--transition-duration, 200ms) ease;
-}
-
-.lcms-cta-box.has-hover:hover {
-  transform: translateY(var(--hover-lift, 0)) scale(var(--hover-scale, 1));
-  box-shadow: var(--hover-shadow, none);
-  background-color: var(--hover-bg);
+  transition: color 200ms ease;
 }
 
 .lcms-cta-box.has-hover.has-hover-text-color:hover .lcms-cta-box__title,
@@ -242,19 +160,23 @@ const boxStyle = computed(() => {
   text-align: center;
 }
 
+.lcms-cta-box--left {
+  text-align: left;
+}
+
 .lcms-cta-box--right {
   text-align: right;
 }
 
 .lcms-cta-box__title {
   margin: 0 0 8px;
-  transition: color var(--transition-duration, 200ms) ease;
+  transition: color 200ms ease;
 }
 
 .lcms-cta-box__subtitle {
   margin: 0 0 16px;
   opacity: 0.9;
-  transition: color var(--transition-duration, 200ms) ease;
+  transition: color 200ms ease;
 }
 
 .lcms-cta-box__button {

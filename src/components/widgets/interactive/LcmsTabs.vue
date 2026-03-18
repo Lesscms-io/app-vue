@@ -3,11 +3,11 @@
  * Tabs Widget
  *
  * Renders tabbed content with configurable styles.
+ * Uses element-group structure: tab, config, items.
  */
 
 import { ref, computed } from 'vue'
 import { useLanguage } from '@/composables/useLanguage'
-import type { TabsWidgetData } from '@/types/widgets'
 
 function resolveColor(val: string | null | undefined): string | null {
   if (!val) return null
@@ -28,7 +28,7 @@ defineOptions({
 })
 
 interface Props {
-  data: TabsWidgetData
+  data: Record<string, any>
   language?: string
   settings?: Record<string, any>
 }
@@ -37,7 +37,10 @@ const props = defineProps<Props>()
 
 const { extractValue } = useLanguage(props.language)
 
-const items = computed(() => {
+// Element groups
+const tabGroup = computed(() => props.data.tab || {})
+const configGroup = computed(() => props.data.config || {})
+const itemsGroup = computed(() => {
   const raw = props.data.items
   if (!Array.isArray(raw)) return []
   return raw.map(item => ({
@@ -46,10 +49,12 @@ const items = computed(() => {
   }))
 })
 
-const activeColor = computed(() => resolveColor(props.data.active_color))
-const borderColor = computed(() => resolveColor(props.data.border_color))
-const tabStyle = computed(() => props.data.style || 'underline')
-const alignment = computed(() => props.data.alignment || 'left')
+const activeColor = computed(() => resolveColor(tabGroup.value.color))
+const hoverActiveColor = computed(() => resolveColor(tabGroup.value['color:hover']))
+const borderColor = computed(() => resolveColor(tabGroup.value.border))
+const hoverBorderColor = computed(() => resolveColor(tabGroup.value['border:hover']))
+const tabStyle = computed(() => tabGroup.value.style || 'underline')
+const alignment = computed(() => configGroup.value.alignment || 'left')
 
 const activeIndex = ref(0)
 
@@ -64,34 +69,23 @@ const tabListStyle = computed(() => {
 
 const tabsContainerStyle = computed(() => {
   const styles: Record<string, string> = {}
-  const hoverActive = resolveColor(props.data.hover_active_color)
-  if (hoverActive) styles['--hover-active-color'] = hoverActive
-  const hoverBorder = resolveColor(props.data.hover_border_color)
-  if (hoverBorder) styles['--hover-border-color'] = hoverBorder
-  styles['--transition-duration'] = `${props.data.transition_duration ?? 200}ms`
-
-  // Hover transform effects
-  const lift = props.data.hover_lift || 0
-  if (lift) styles['--hover-lift'] = `-${lift}px`
-  const scale = props.data.hover_scale
-  if (scale && scale !== 1) styles['--hover-scale'] = String(scale)
-  const shadowMap: Record<string, string> = { sm: '0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06)', md: '0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05)', lg: '0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)' }
-  const shadowVal = props.data.hover_shadow || 'none'
-  if (shadowVal !== 'none' && shadowMap[shadowVal]) styles['--hover-shadow'] = shadowMap[shadowVal]
-
+  if (hoverActiveColor.value) styles['--hover-active-color'] = hoverActiveColor.value
+  if (hoverBorderColor.value) styles['--hover-border-color'] = hoverBorderColor.value
   return styles
 })
+
+const hasHover = computed(() => !!(hoverActiveColor.value || hoverBorderColor.value))
 </script>
 
 <template>
-  <div class="lcms-tabs" :class="[`lcms-tabs--${tabStyle}`, { 'has-hover': !!(data.hover_active_color || data.hover_border_color || data.hover_lift || (data.hover_scale !== undefined && data.hover_scale !== 1) || (data.hover_shadow && data.hover_shadow !== 'none')) }]" :style="tabsContainerStyle">
+  <div class="lcms-tabs" :class="[`lcms-tabs--${tabStyle}`, { 'has-hover': hasHover }]" :style="tabsContainerStyle">
     <div
       class="lcms-tabs__list"
       :style="tabListStyle"
       role="tablist"
     >
       <button
-        v-for="(item, index) in items"
+        v-for="(item, index) in itemsGroup"
         :key="index"
         class="lcms-tabs__tab"
         :class="{
@@ -106,29 +100,19 @@ const tabsContainerStyle = computed(() => {
       </button>
     </div>
     <div
-      v-if="items[activeIndex]"
+      v-if="itemsGroup[activeIndex]"
       class="lcms-tabs__content"
       role="tabpanel"
-      v-html="items[activeIndex].content"
+      v-html="itemsGroup[activeIndex].content"
     />
   </div>
 </template>
 
 <style scoped>
-.lcms-tabs {
-  transition: transform var(--transition-duration, 200ms) ease, box-shadow var(--transition-duration, 200ms) ease;
-}
-
-.lcms-tabs.has-hover:hover {
-  transform: translateY(var(--hover-lift, 0)) scale(var(--hover-scale, 1));
-  box-shadow: var(--hover-shadow, none);
-}
-
 .lcms-tabs__list {
   display: flex;
   gap: 0;
   border-bottom: 2px solid #e0e0e0;
-  transition: border-color var(--transition-duration, 200ms) ease;
 }
 
 .lcms-tabs.has-hover:hover .lcms-tabs__list {
@@ -136,7 +120,7 @@ const tabsContainerStyle = computed(() => {
 }
 
 .lcms-tabs__tab {
-  transition: color var(--transition-duration, 200ms) ease, border-color var(--transition-duration, 200ms) ease;
+  transition: color 0.2s ease, border-color 0.2s ease;
 }
 
 .lcms-tabs.has-hover:hover .lcms-tabs__tab--active {

@@ -3,12 +3,13 @@
     <div class="lcms-icon-list-item__icon" :style="iconStyles">
       <i :class="iconClass" />
     </div>
-    <span class="lcms-icon-list-item__text" :style="textStyles">{{ text }}</span>
+    <span class="lcms-icon-list-item__text" :style="textStyles">{{ textValue }}</span>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useLanguage } from '@/composables/useLanguage'
 
 function resolveColor(val: string | null | undefined): string | null {
   if (!val) return null
@@ -24,77 +25,68 @@ function resolveColor(val: string | null | undefined): string | null {
   return val
 }
 
-const props = defineProps<{
-  data: {
-    widget_type: string
-    config: {
-      icon?: string
-      icon_color?: string
-      text_size?: string
-      item_bg_color?: string
-      icon_size?: string
-      hover_icon_color?: string
-      hover_item_bg_color?: string
-      transition_duration?: number
-    }
-    content?: {
-      text?: string
-    }
-    settings?: Record<string, unknown>
-  }
-}>()
+defineOptions({
+  inheritAttrs: false
+})
 
-const config = computed(() => props.data.widget || props.data || {})
-const text = computed(() => props.data.content?.text || '')
-const iconClass = computed(() => config.value.icon || 'fa-solid fa-circle')
+interface Props {
+  data: Record<string, any>
+  language?: string
+  settings?: Record<string, any>
+}
+
+const props = defineProps<Props>()
+
+const { extractValue } = useLanguage(props.language)
+
+// Element-group computed refs
+const iconGroup = computed(() => props.data.icon || {})
+const textGroup = computed(() => props.data.text || {})
+const item_styleGroup = computed(() => props.data.item_style || {})
+
+// Icon group reads
+const iconClass = computed(() => iconGroup.value.icon || 'fa-solid fa-circle')
+const iconColor = computed(() => resolveColor(iconGroup.value.color))
+const iconHoverColor = computed(() => resolveColor(iconGroup.value['color:hover']))
+const iconSize = computed(() => iconGroup.value.size || 'md')
+
+// Text group reads
+const textValue = computed(() => extractValue(textGroup.value.content))
+const textSize = computed(() => textGroup.value.size || 'md')
+
+// Item style group reads
+const itemBgColor = computed(() => resolveColor(item_styleGroup.value.background))
+const itemHoverBgColor = computed(() => resolveColor(item_styleGroup.value['background:hover']))
 
 const iconSizeMap: Record<string, string> = { sm: '16px', md: '24px', lg: '32px' }
 const textSizeMap: Record<string, string> = { sm: '0.875rem', md: '1rem', lg: '1.125rem' }
 
-const transitionDuration = computed(() => `${config.value.transition_duration ?? 200}ms`)
+const hasItemHover = computed(() => !!(iconHoverColor.value || itemHoverBgColor.value))
 
 const iconStyles = computed(() => {
   const styles: Record<string, string> = {}
-  const color = resolveColor(config.value.icon_color)
-  if (color) styles.color = color
-  const sz = iconSizeMap[config.value.icon_size || 'md']
+  if (iconColor.value) styles.color = iconColor.value
+  const sz = iconSizeMap[iconSize.value]
   if (sz) styles.fontSize = sz
-  const hoverColor = resolveColor(config.value.hover_icon_color)
-  if (hoverColor) styles['--hover-icon-color'] = hoverColor
-  styles['--transition-duration'] = transitionDuration.value
+  if (iconHoverColor.value) styles['--hover-icon-color'] = iconHoverColor.value
   return styles
 })
 
 const textStyles = computed(() => {
   const styles: Record<string, string> = {}
-  const sz = textSizeMap[config.value.text_size || 'md']
+  const sz = textSizeMap[textSize.value]
   if (sz) styles.fontSize = sz
   return styles
 })
 
-const hasItemHover = computed(() => !!(config.value.hover_icon_color || config.value.hover_item_bg_color || config.value.hover_lift || (config.value.hover_scale !== undefined && config.value.hover_scale !== 1) || (config.value.hover_shadow && config.value.hover_shadow !== 'none')))
-
 const itemStyle = computed(() => {
   const styles: Record<string, string> = {}
-  const bg = resolveColor(config.value.item_bg_color)
-  if (bg) {
-    styles.backgroundColor = bg
+  if (itemBgColor.value) {
+    styles.backgroundColor = itemBgColor.value
     styles.padding = '10px 14px'
     styles.borderRadius = '6px'
   }
-  const hoverBg = resolveColor(config.value.hover_item_bg_color)
-  if (hoverBg) styles['--hover-item-bg'] = hoverBg
-  styles['--transition-duration'] = transitionDuration.value
-
-  // Hover transform effects
-  const lift = config.value.hover_lift || 0
-  if (lift) styles['--hover-lift'] = `-${lift}px`
-  const scale = config.value.hover_scale
-  if (scale && scale !== 1) styles['--hover-scale'] = String(scale)
-  const shadowMap: Record<string, string> = { sm: '0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06)', md: '0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05)', lg: '0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)' }
-  const shadowVal = config.value.hover_shadow || 'none'
-  if (shadowVal !== 'none' && shadowMap[shadowVal]) styles['--hover-shadow'] = shadowMap[shadowVal]
-
+  if (itemHoverBgColor.value) styles['--hover-item-bg'] = itemHoverBgColor.value
   return styles
 })
 </script>
@@ -104,13 +96,11 @@ const itemStyle = computed(() => {
   display: flex;
   align-items: center;
   gap: 12px;
-  transition: background-color var(--transition-duration, 200ms) ease, transform var(--transition-duration, 200ms) ease, box-shadow var(--transition-duration, 200ms) ease;
+  transition: background-color 200ms ease, transform 200ms ease, box-shadow 200ms ease;
 }
 
 .lcms-icon-list-item.has-hover:hover {
   background-color: var(--hover-item-bg) !important;
-  transform: translateY(var(--hover-lift, 0)) scale(var(--hover-scale, 1));
-  box-shadow: var(--hover-shadow, none);
 }
 
 .lcms-icon-list-item__icon {
@@ -118,7 +108,7 @@ const itemStyle = computed(() => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: color var(--transition-duration, 200ms) ease;
+  transition: color 200ms ease;
 }
 
 .lcms-icon-list-item.has-hover:hover .lcms-icon-list-item__icon {

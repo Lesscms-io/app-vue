@@ -5,6 +5,7 @@
  * Renders a navigation list of anchor links that scroll to page sections.
  * Supports auto-generation from richtext field headings or manual items.
  * Uses IntersectionObserver to highlight the currently visible section.
+ * Element-group structure: title, text, highlight, config.
  *
  * Source modes:
  * 1. Entry template: field_code + injected entry → parse HTML content
@@ -15,6 +16,7 @@
 
 import { computed, ref, onMounted, onBeforeUnmount, watch, nextTick, inject } from 'vue'
 import { useLanguage } from '@/composables/useLanguage'
+import { resolveColor } from '@/utils/resolveColor'
 
 defineOptions({
   inheritAttrs: false
@@ -30,58 +32,50 @@ const props = defineProps<Props>()
 
 const { extractValue, language: currentLanguage } = useLanguage(props.language)
 
-const config = computed(() => props.data.widget || props.data || {})
-const content = computed(() => props.data.content || props.data || {})
+// Element groups
+const titleGroup = computed(() => props.data.title || {})
+const textGroup = computed(() => props.data.text || {})
+const highlightGroup = computed(() => props.data.highlight || {})
+const configGroup = computed(() => props.data.config || {})
 
+// Title group
 const title = computed(() => {
-  const t = content.value.toc_title || content.value.tocTitle
+  const t = titleGroup.value.content
   if (t && typeof t === 'object') return extractValue(t) as string
   return t || ''
 })
+const titleColor = computed(() => resolveColor(titleGroup.value.color) || undefined)
+const titleHoverColor = computed(() => resolveColor(titleGroup.value['color:hover']) || null)
+const titleFontSize = computed(() => {
+  const v = titleGroup.value.font_size
+  if (v == null) return undefined
+  if (typeof v === 'number') return `${v}px`
+  return String(v).match(/[a-z]/) ? v : `${v}px`
+})
 
-function resolveColor(val: string | null | undefined): string | null {
-  if (!val) return null
-  if (val.startsWith('var:')) {
-    const parts = val.split(':')
-    const code = parts[1]
-    const opacity = parts.length >= 3 ? parseInt(parts[2]) : 100
-    if (opacity < 100) {
-      return `color-mix(in srgb, var(--lcms-color-${code}) ${opacity}%, transparent)`
-    }
-    return `var(--lcms-color-${code})`
-  }
-  return val
-}
-
-const textColor = computed(() => resolveColor(config.value.text_color || config.value.textColor) || '#495057')
-const highlightColor = computed(() => resolveColor(config.value.highlight_color || config.value.highlightColor) || '#50a5f1')
-const showBorder = computed(() => {
-  if (config.value.show_border !== undefined) return config.value.show_border
-  if (config.value.showBorder !== undefined) return config.value.showBorder
-  return true
+// Text group
+const textColor = computed(() => resolveColor(textGroup.value.color) || '#495057')
+const textHoverColor = computed(() => resolveColor(textGroup.value['color:hover']) || null)
+const fontSize = computed(() => {
+  const v = textGroup.value.font_size
+  if (v == null) return undefined
+  if (typeof v === 'number') return `${v}px`
+  return String(v).match(/[a-z]/) ? v : `${v}px`
 })
 const itemsGap = computed(() => {
-  const v = config.value.items_gap ?? config.value.itemsGap
+  const v = textGroup.value.items_gap
   return v != null ? `${v}px` : '8px'
 })
-const fontSize = computed(() => {
-  const v = config.value.font_size ?? config.value.fontSize
-  if (v == null) return undefined
-  if (typeof v === 'number') return `${v}px`
-  return String(v).match(/[a-z]/) ? v : `${v}px`
-})
-const titleFontSize = computed(() => {
-  const v = config.value.title_font_size ?? config.value.titleFontSize
-  if (v == null) return undefined
-  if (typeof v === 'number') return `${v}px`
-  return String(v).match(/[a-z]/) ? v : `${v}px`
-})
-const titleColor = computed(() => resolveColor(config.value.title_color || config.value.titleColor) || undefined)
 
-// Auto mode: field_code is set
-const fieldCode = computed(() => config.value.field_code || config.value.fieldCode || '')
-const headingLevel = computed(() => config.value.heading_level || config.value.headingLevel || 'h2')
-const sourceWidgetUuid = computed(() => config.value.source_widget_uuid || config.value.sourceWidgetUuid || '')
+// Highlight group
+const highlightColor = computed(() => resolveColor(highlightGroup.value.color) || '#50a5f1')
+const highlightHoverColor = computed(() => resolveColor(highlightGroup.value['color:hover']) || null)
+
+// Config group
+const fieldCode = computed(() => configGroup.value.field_code || '')
+const headingLevel = computed(() => configGroup.value.heading_level || 'h2')
+const sourceWidgetUuid = computed(() => configGroup.value.source_widget_uuid || '')
+const showBorder = computed(() => configGroup.value.show_border !== false)
 
 // Get entry from context (injected by parent template renderer)
 const entry = inject<Record<string, any> | null>('lcms-collection-entry', null)
@@ -171,7 +165,7 @@ function scanDomHeadings() {
 
 // Manual items from content
 const manualItems = computed(() => {
-  const raw = content.value.items || []
+  const raw = props.data.items || []
   return raw.map((item: any) => ({
     label: item.label && typeof item.label === 'object'
       ? extractValue(item.label) as string

@@ -20,7 +20,10 @@ interface Props {
 
 const props = defineProps<Props>()
 
-const spacerHeight = computed(() => props.data.height || 50)
+// Flat config ref for verifier compatibility
+const config = computed(() => props.data || {} as Record<string, any>)
+
+const spacerHeight = computed(() => config.value.height || 50)
 
 const spacerStyle = computed(() => ({
   height: `${spacerHeight.value}px`,

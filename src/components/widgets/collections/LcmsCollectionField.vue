@@ -4,6 +4,8 @@
  *
  * Renders a single field from a collection entry.
  * Used within collection templates to display entry data.
+ *
+ * Uses element-group pattern: icon, label, text, config
  */
 
 import { computed, inject, ref, unref, watch, onMounted, onUnmounted, Teleport, type Ref } from 'vue'
@@ -46,53 +48,72 @@ function resolveColor(val: string | null | undefined): string | null {
 }
 
 const config = computed(() => props.data.widget || props.data || {})
-const fieldCode = computed(() => config.value.field_code || '')
-const fieldType = computed(() => config.value.field_type || 'text')
-const displayAs = computed(() => config.value.display_as || 'p')
 
-// Label settings
-const labelPosition = computed(() => config.value.label_position || 'hidden')
+// Element-group refs with backward compatibility (fallback to flat config.value.*)
+const iconGroup = computed(() => config.value.icon || {})
+const labelGroup = computed(() => config.value.label || {})
+const textGroup = computed(() => config.value.text || {})
+const configGroup = computed(() => config.value.config || {})
+
+// Config settings (from config group, fallback to flat)
+const fieldCode = computed(() => configGroup.value.field_code || config.value.field_code || '')
+const fieldType = computed(() => configGroup.value.field_type || config.value.field_type || 'text')
+const displayAs = computed(() => configGroup.value.display_as || config.value.display_as || 'p')
+const collectionCode = computed(() => configGroup.value.collection_code || config.value.collection_code || '')
+const entrySource = computed(() => configGroup.value.entry_source || config.value.entry_source || 'context')
+const entryId = computed(() => configGroup.value.entry_id || config.value.entry_id || '')
+const entryUrlSegment = computed(() => configGroup.value.entry_url_segment || config.value.entry_url_segment || 1)
+const valueSource = computed(() => configGroup.value.value_source || config.value.value_source || 'field')
+const linkToEntry = computed(() => (configGroup.value.link_to_entry ?? config.value.link_to_entry) === true)
+const previewEntryId = computed(() => configGroup.value.preview_entry_id || config.value.preview_entry_id || '')
+const buttonStyleField = computed(() => configGroup.value.button_style || config.value.button_style || 'primary')
+const buttonSizeField = computed(() => configGroup.value.button_size || config.value.button_size || 'md')
+const customDateFormat = computed(() => configGroup.value.custom_date_format || config.value.custom_date_format || '')
+const dateFormat = computed(() => configGroup.value.date_format || config.value.date_format || 'full')
+const showTime = computed(() => configGroup.value.show_time ?? config.value.show_time ?? false)
+const imageWidth = computed(() => configGroup.value.image_width || config.value.image_width || null)
+const imageHeight = computed(() => configGroup.value.image_height || config.value.image_height || null)
+const imageObjectFit = computed(() => configGroup.value.image_object_fit || config.value.image_object_fit || 'contain')
+const imageBorderRadius = computed(() => configGroup.value.image_border_radius ?? config.value.image_border_radius ?? 0)
+
+// Label settings (from label group, fallback to flat)
+const labelPosition = computed(() => labelGroup.value.position || config.value.label_position || 'hidden')
 const label = computed(() => {
-  if (!config.value.label) return ''
-  return extractValue(config.value.label)
+  const text = labelGroup.value.content || config.value.label
+  if (!text) return ''
+  return extractValue(text)
 })
+const labelBackground = computed(() => resolveColor(labelGroup.value.background || config.value.label_background))
+const labelColor = computed(() => resolveColor(labelGroup.value.color || config.value.label_color))
+const labelPadding = computed(() => labelGroup.value.padding ?? config.value.label_padding ?? null)
+const labelFontSize = computed(() => labelGroup.value.font_size || config.value.label_font_size || null)
+const labelFontWeight = computed(() => labelGroup.value.font_weight || config.value.label_font_weight || null)
+const labelBackgroundHover = computed(() => resolveColor(labelGroup.value['background:hover']))
+const labelColorHover = computed(() => resolveColor(labelGroup.value['color:hover']))
 
-// Value styling
-const valueColor = computed(() => resolveColor(config.value.value_color))
-const valueBackground = computed(() => resolveColor(config.value.value_background))
-const valuePadding = computed(() => config.value.value_padding || 0)
+// Icon settings (from icon group, fallback to flat)
+const showIcon = computed(() => iconGroup.value.show ?? config.value.show_icon ?? false)
+const icon = computed(() => iconGroup.value.icon || config.value.icon || '')
+const iconPosition = computed(() => iconGroup.value.position || config.value.icon_position || 'left')
+const iconSize = computed(() => iconGroup.value.size || config.value.icon_size || '24')
+const iconColor = computed(() => resolveColor(iconGroup.value.color || config.value.icon_color) || '#50a5f1')
+const iconBackground = computed(() => resolveColor(iconGroup.value.background || config.value.icon_background))
+const iconPadding = computed(() => iconGroup.value.padding ?? config.value.icon_padding ?? null)
+const iconBorderRadius = computed(() => iconGroup.value.border_radius ?? config.value.icon_border_radius ?? null)
+const iconGap = computed(() => iconGroup.value.gap ?? config.value.icon_gap ?? null)
+const iconColorHover = computed(() => resolveColor(iconGroup.value['color:hover']))
+const iconBackgroundHover = computed(() => resolveColor(iconGroup.value['background:hover']))
 
-// Label styling (also used in template via config.*)
-const labelBackground = computed(() => resolveColor(config.value.label_background))
-const labelColor = computed(() => resolveColor(config.value.label_color))
-const labelPadding = computed(() => config.value.label_padding || null)
-const labelFontSize = computed(() => config.value.label_font_size || null)
-const labelFontWeight = computed(() => config.value.label_font_weight || null)
-
-// Icon settings
-const showIcon = computed(() => config.value.show_icon || false)
-const icon = computed(() => config.value.icon || '')
-const iconPosition = computed(() => config.value.icon_position || 'left')
-const iconSize = computed(() => config.value.icon_size || '24')
-const iconColor = computed(() => resolveColor(config.value.icon_color) || '#50a5f1')
-const iconBackground = computed(() => resolveColor(config.value.icon_background))
-const iconPadding = computed(() => config.value.icon_padding || null)
-const iconBorderRadius = computed(() => config.value.icon_border_radius || null)
-const iconGap = computed(() => config.value.icon_gap || null)
-
-// Link to entry
-const linkToEntry = computed(() => config.value.link_to_entry === true)
-
-// Value source and dynamic settings (for future features)
-const valueSource = computed(() => config.value.value_source || 'field')
-const staticValue = computed(() => config.value.static_value || '')
-const collectionCode = computed(() => config.value.collection_code || '')
-const entrySource = computed(() => config.value.entry_source || 'context')
-const entryId = computed(() => config.value.entry_id || '')
-const entryUrlSegment = computed(() => config.value.entry_url_segment || 1)
+// Text/value styling (from text group, fallback to flat)
+const valueColor = computed(() => resolveColor(textGroup.value.color || config.value.value_color))
+const valueBackground = computed(() => resolveColor(textGroup.value.background || config.value.value_background))
+const valuePadding = computed(() => textGroup.value.padding ?? config.value.value_padding ?? 0)
+const valueFontSize = computed(() => textGroup.value.font_size || config.value.value_font_size || null)
+const valueFontWeight = computed(() => textGroup.value.font_weight || config.value.value_font_weight || null)
+const valueColorHover = computed(() => resolveColor(textGroup.value['color:hover']))
+const valueBackgroundHover = computed(() => resolveColor(textGroup.value['background:hover']))
 
 // Display settings
-const customDateFormat = computed(() => config.value.custom_date_format || '')
 const linkText = computed(() => {
   const text = config.value.link_text
   if (!text) return ''
@@ -101,8 +122,6 @@ const linkText = computed(() => {
   }
   return text
 })
-const buttonStyleField = computed(() => config.value.button_style || 'primary')
-const buttonSizeField = computed(() => config.value.button_size || 'md')
 
 // Entry link (_link system field)
 const isEntryLink = computed(() => fieldCode.value === '_link')
@@ -206,7 +225,7 @@ const formattedValue = computed(() => {
   switch (fieldType.value) {
     case 'date':
     case 'datetime':
-      return formatDate(val)
+      return formatDateValue(val)
     case 'image':
       return typeof val === 'object' && val.url ? val.url : val
     case 'gallery':
@@ -260,6 +279,8 @@ const valueStyle = computed(() => {
   if (valueColor.value) style.color = valueColor.value
   if (valueBackground.value) style.backgroundColor = valueBackground.value
   if (valuePadding.value) style.padding = `${valuePadding.value}px`
+  if (valueFontSize.value) style.fontSize = valueFontSize.value
+  if (valueFontWeight.value) style.fontWeight = valueFontWeight.value
   return style
 })
 
@@ -275,11 +296,20 @@ const iconStyle = computed(() => {
   return style
 })
 
+// Image styles
+const imageStyle = computed(() => {
+  const style: Record<string, string> = {}
+  if (imageWidth.value) style.width = `${imageWidth.value}px`
+  if (imageHeight.value) style.height = `${imageHeight.value}px`
+  if (imageObjectFit.value) style.objectFit = imageObjectFit.value
+  if (imageBorderRadius.value) style.borderRadius = `${imageBorderRadius.value}px`
+  return style
+})
+
 // Format date helper
-function formatDate(value: string | Date): string {
+function formatDateValue(value: string | Date): string {
   const date = new Date(value)
-  const format = config.value.date_format || 'full'
-  const showTime = config.value.show_time ?? false
+  const format = dateFormat.value
 
   const options: Intl.DateTimeFormatOptions = {}
 
@@ -298,7 +328,7 @@ function formatDate(value: string | Date): string {
       options.dateStyle = 'full'
   }
 
-  if (showTime) {
+  if (showTime.value) {
     options.timeStyle = 'short'
   }
 
@@ -449,7 +479,7 @@ const lightboxImage = computed(() => galleryImages.value[lightboxIndex.value] ||
       >
         <!-- Image field -->
         <template v-if="fieldType === 'image' && formattedValue">
-          <img :src="formattedValue" :alt="label || fieldCode" class="lcms-collection-field__image" />
+          <img :src="formattedValue" :alt="label || fieldCode" class="lcms-collection-field__image" :style="imageStyle" />
         </template>
 
         <!-- Plain text -->

@@ -3,6 +3,7 @@
  * Hero Widget
  *
  * Renders a hero section with background, title, subtitle, and CTA button.
+ * Uses element-group structure: heading, button, config, text, overlay.
  */
 
 import { computed, inject } from 'vue'
@@ -26,28 +27,6 @@ const { extractValue } = useLanguage(props.language)
 const resolvePageUrl = inject<(code: string | null, uuid: string | null) => string>('lesscms-resolve-page-url', () => '#')
 const resolveCollectionUrl = inject<(collectionCode: string, entryId: string) => string>('lesscms-resolve-collection-url', () => '#')
 
-const title = computed(() => extractValue(props.data.title))
-const subtitle = computed(() => props.data.subtitle ? extractValue(props.data.subtitle) : '')
-const backgroundImage = computed(() => props.data.background || props.data.background_url || '')
-const buttonText = computed(() => props.data.button_text ? extractValue(props.data.button_text) : '')
-const buttonUrl = computed(() => props.data.button_url || '#')
-const buttonStyle = computed(() => props.data.button_style || 'primary')
-const buttonSize = computed(() => props.data.button_size || 'lg')
-const showTitle = computed(() => props.data.show_title !== false)
-const showSubtitle = computed(() => props.data.show_subtitle !== false)
-
-// Dynamic content source settings (for future dynamic mode)
-const contentSource = computed(() => props.data.content_source || 'static')
-const collectionCode = computed(() => props.data.collection_code || null)
-const entrySource = computed(() => props.data.entry_source || 'static')
-const entryId = computed(() => props.data.entry_id || null)
-const entryUrlSegment = computed(() => props.data.entry_url_segment || 1)
-
-// Field mappings for dynamic mode
-const imageField = computed(() => props.data.image_field || '')
-const titleField = computed(() => props.data.title_field || '')
-const subtitleField = computed(() => props.data.subtitle_field || '')
-
 function resolveColor(val: string | null | undefined): string | null {
   if (!val) return null
   if (val.startsWith('var:')) {
@@ -62,27 +41,61 @@ function resolveColor(val: string | null | undefined): string | null {
   return val
 }
 
-// Overlay settings
-const overlayOpacity = computed(() => props.data.overlay_opacity ?? 50)
-const overlayColor = computed(() => resolveColor(props.data.overlay_color) || '#000000')
+const config = computed(() => props.data.widget || props.data || {})
 
-// Text settings
-const textAlign = computed(() => props.data.text_align || 'center')
-const textPosition = computed(() => props.data.text_position || 'center')
-const textColor = computed(() => resolveColor(props.data.text_color) || '#ffffff')
+// Element groups
+const headingGroup = computed(() => config.value.heading || {})
+const buttonGroup = computed(() => config.value.button || {})
+const configGroup = computed(() => config.value.config || {})
+const textGroup = computed(() => config.value.text || {})
+const overlayGroup = computed(() => config.value.overlay || {})
 
-// Button link settings
-const buttonBorderRadius = computed(() => props.data.button_border_radius || null)
-const buttonPadding = computed(() => props.data.button_padding || null)
-const buttonIcon = computed(() => props.data.button_icon || '')
-const buttonIconPosition = computed(() => props.data.button_icon_position || 'left')
-const buttonLinkType = computed(() => props.data.button_link_type || 'url')
-const buttonTargetBlank = computed(() => props.data.button_target_blank || false)
-const buttonPageId = computed(() => props.data.button_page_id || null)
-const buttonRouteUuid = computed(() => props.data.button_route_uuid || null)
-const buttonEntryId = computed(() => props.data.button_entry_id || null)
-const buttonCollectionCode = computed(() => props.data.button_collection_code || null)
+// Heading
+const title = computed(() => extractValue(headingGroup.value.title) || '')
+const subtitle = computed(() => extractValue(headingGroup.value.subtitle) || '')
 
+// Button
+const buttonText = computed(() => extractValue(buttonGroup.value.content) || '')
+const buttonUrl = computed(() => buttonGroup.value.url || '#')
+const buttonStyle = computed(() => buttonGroup.value.style || 'primary')
+const buttonSize = computed(() => buttonGroup.value.size || 'md')
+const buttonBorderRadius = computed(() => buttonGroup.value.border_radius || 'md')
+const buttonPadding = computed(() => buttonGroup.value.padding || '')
+const buttonIcon = computed(() => buttonGroup.value.icon || '')
+const buttonIconPosition = computed(() => buttonGroup.value.icon_position || 'left')
+const buttonColor = computed(() => resolveColor(buttonGroup.value.color))
+const buttonLinkType = computed(() => buttonGroup.value.link_type || 'custom')
+const buttonPageId = computed(() => buttonGroup.value.page_id || null)
+const buttonEntryId = computed(() => buttonGroup.value.entry_id || null)
+const buttonCollectionCode = computed(() => buttonGroup.value.collection_code || null)
+const buttonRouteUuid = computed(() => buttonGroup.value.route_uuid || null)
+const buttonTargetBlank = computed(() => buttonGroup.value.target_blank || false)
+
+// Config
+const contentSource = computed(() => configGroup.value.content_source || 'static')
+const textAlign = computed(() => configGroup.value.text_align || 'center')
+const textPosition = computed(() => configGroup.value.text_position || 'center')
+const collectionCode = computed(() => configGroup.value.collection_code || '')
+const entrySource = computed(() => configGroup.value.entry_source || 'static')
+const entryId = computed(() => configGroup.value.entry_id || '')
+const entryUrlSegment = computed(() => configGroup.value.entry_url_segment || 1)
+const fieldCodeTitle = computed(() => configGroup.value.field_code_title || '')
+const fieldCodeSubtitle = computed(() => configGroup.value.field_code_subtitle || '')
+const fieldCodeImage = computed(() => configGroup.value.field_code_image || '')
+const showTitle = computed(() => configGroup.value.show_title !== false)
+const showSubtitle = computed(() => configGroup.value.show_subtitle !== false)
+const backgroundUrl = computed(() => configGroup.value.background || null)
+
+// Text
+const textColor = computed(() => resolveColor(textGroup.value.color) || '#ffffff')
+const hoverTextColor = computed(() => resolveColor(textGroup.value['color:hover']))
+
+// Overlay
+const overlayColor = computed(() => resolveColor(overlayGroup.value.color) || '#000000')
+const overlayOpacity = computed(() => overlayGroup.value.opacity ?? 0.4)
+const hoverOverlayColor = computed(() => resolveColor(overlayGroup.value['color:hover']))
+
+// Resolve button URL based on link type
 const resolvedButtonUrl = computed(() => {
   const lt = buttonLinkType.value
   const serverUrl = buttonUrl.value
@@ -109,47 +122,51 @@ const resolvedButtonUrl = computed(() => {
 
 const heroStyle = computed(() => {
   const style: Record<string, string> = {}
-  if (backgroundImage.value) {
-    style.backgroundImage = `url(${backgroundImage.value})`
+  if (backgroundUrl.value) {
+    style.backgroundImage = `url(${backgroundUrl.value})`
   }
-  // hover CSS custom properties
-  const hoverOverlay = resolveColor(props.data.hover_overlay_color)
-  if (hoverOverlay) style['--hover-overlay-color'] = hoverOverlay
-  const hoverTxt = resolveColor(props.data.hover_text_color)
-  if (hoverTxt) style['--hover-color'] = hoverTxt
-  style['--transition-duration'] = `${props.data.transition_duration ?? 200}ms`
-
-  // Hover transform effects
-  const lift = props.data.hover_lift || 0
-  if (lift) style['--hover-lift'] = `-${lift}px`
-  const scale = props.data.hover_scale
-  if (scale && scale !== 1) style['--hover-scale'] = String(scale)
-  const shadowMap: Record<string, string> = { sm: '0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06)', md: '0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05)', lg: '0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)' }
-  const shadowVal = props.data.hover_shadow || 'none'
-  if (shadowVal !== 'none' && shadowMap[shadowVal]) style['--hover-shadow'] = shadowMap[shadowVal]
-
+  if (hoverOverlayColor.value) style['--hover-overlay-color'] = hoverOverlayColor.value
+  if (hoverTextColor.value) style['--hover-color'] = hoverTextColor.value
   return style
 })
 
 const overlayStyle = computed(() => ({
   backgroundColor: overlayColor.value,
-  opacity: overlayOpacity.value / 100,
+  opacity: overlayOpacity.value,
 }))
 
 const contentStyle = computed(() => ({
   textAlign: textAlign.value,
   color: textColor.value,
 }))
+
+const borderRadiusMap: Record<string, string> = {
+  none: '0',
+  sm: '4px',
+  md: '8px',
+  lg: '16px',
+  full: '9999px'
+}
+
+const sizeClassMap: Record<string, string> = {
+  sm: 'lcms-hero__button--size-sm',
+  md: 'lcms-hero__button--size-md',
+  lg: 'lcms-hero__button--size-lg'
+}
 </script>
 
 <template>
   <section
     class="lcms-hero"
-    :class="{ 'lcms-hero--has-bg': backgroundImage, 'has-hover': !!(data.hover_overlay_color || data.hover_text_color || data.hover_lift || (data.hover_scale !== undefined && data.hover_scale !== 1) || (data.hover_shadow && data.hover_shadow !== 'none')) }"
+    :class="{
+      'lcms-hero--has-bg': backgroundUrl,
+      'has-hover': !!(hoverOverlayColor || hoverTextColor),
+      [`lcms-hero__content--${textPosition}`]: true
+    }"
     :style="heroStyle"
   >
     <div class="lcms-hero__overlay" :style="overlayStyle" />
-    <div class="lcms-hero__content" :class="`lcms-hero__content--${textPosition}`" :style="contentStyle">
+    <div class="lcms-hero__content" :style="contentStyle">
       <h1
         v-if="showTitle && title"
         class="lcms-hero__title"
@@ -168,13 +185,14 @@ const contentStyle = computed(() => ({
         class="lcms-hero__button"
         :class="[
           `lcms-hero__button--${buttonStyle}`,
-          `lcms-hero__button--size-${buttonSize}`
+          sizeClassMap[buttonSize] || 'lcms-hero__button--size-md'
         ]"
         :target="buttonTargetBlank ? '_blank' : undefined"
         :rel="buttonTargetBlank ? 'noopener noreferrer' : undefined"
         :style="{
-          borderRadius: buttonBorderRadius ? `${buttonBorderRadius}px` : undefined,
-          padding: buttonPadding ? `${buttonPadding}px` : undefined,
+          borderRadius: borderRadiusMap[buttonBorderRadius] || undefined,
+          padding: buttonPadding || undefined,
+          color: buttonColor || undefined,
         }"
       >
         <i v-if="buttonIcon && buttonIconPosition === 'left'" :class="buttonIcon" class="lcms-hero__button-icon lcms-hero__button-icon--left" />
@@ -187,17 +205,15 @@ const contentStyle = computed(() => ({
 
 <style scoped>
 .lcms-hero {
-  transition: color var(--transition-duration, 200ms) ease, transform var(--transition-duration, 200ms) ease, box-shadow var(--transition-duration, 200ms) ease;
+  transition: color 200ms ease, transform 200ms ease, box-shadow 200ms ease;
 }
 
 .lcms-hero__overlay {
-  transition: background-color var(--transition-duration, 200ms) ease;
+  transition: background-color 200ms ease;
 }
 
 .lcms-hero.has-hover:hover {
   color: var(--hover-color);
-  transform: translateY(var(--hover-lift, 0)) scale(var(--hover-scale, 1));
-  box-shadow: var(--hover-shadow, none);
 }
 
 .lcms-hero.has-hover:hover .lcms-hero__overlay {

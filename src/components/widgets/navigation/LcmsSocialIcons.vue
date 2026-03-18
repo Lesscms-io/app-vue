@@ -21,11 +21,13 @@ interface Props {
 
 const props = defineProps<Props>()
 
-const items = computed(() => props.data.items || [])
-const size = computed(() => props.data.size || 'md')
-const iconStyle = computed(() => props.data.style || 'default')
-const colorMode = computed(() => props.data.color_mode || props.data.colorMode || 'brand')
-const customColor = computed(() => props.data.icon_color || props.data.iconColor || '')
+const config = computed(() => props.data.widget || props.data || {})
+
+const items = computed(() => config.value.items || [])
+const size = computed(() => config.value.size || 'md')
+const iconStyle = computed(() => config.value.icon_style || config.value.style || 'default')
+const colorMode = computed(() => config.value.color_mode || 'brand')
+const customColor = computed(() => config.value.icon_color || '')
 
 // Platform to FontAwesome icon mapping
 const platformIcons: Record<string, string> = {

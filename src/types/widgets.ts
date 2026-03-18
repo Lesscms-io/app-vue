@@ -16,18 +16,33 @@ export interface BaseWidgetData {
 // Basic Widgets
 // ============================================
 
-export interface ButtonWidgetData extends BaseWidgetData {
-  text: MultilingualValue
+export interface ButtonTextGroup {
+  text?: MultilingualValue
+}
+
+export interface ButtonConfigGroup {
+  style?: string
+  size?: string
+  border_radius?: string
+  padding?: string
+  icon?: string
+  icon_position?: string
+}
+
+export interface ButtonLinkGroup {
   url?: string
-  style?: 'primary' | 'secondary' | 'outline'
-  size?: 'sm' | 'md' | 'lg'
+  link_type?: string
+  page_id?: string | null
+  collection_code?: string | null
+  entry_id?: string | null
+  route_uuid?: string | null
   target_blank?: boolean
-  hover_background_color?: string
-  hover_text_color?: string
-  hover_lift?: number
-  hover_scale?: number
-  hover_shadow?: string
-  transition_duration?: number
+}
+
+export interface ButtonWidgetData extends BaseWidgetData {
+  text?: ButtonTextGroup
+  config?: ButtonConfigGroup
+  link?: ButtonLinkGroup
 }
 
 export interface IconWidgetData extends BaseWidgetData {
@@ -36,10 +51,19 @@ export interface IconWidgetData extends BaseWidgetData {
   color?: string
 }
 
+export interface DividerLineGroup {
+  line_style?: 'solid' | 'dashed' | 'dotted'
+  color?: string
+  'color:hover'?: string | null
+  width?: string // 1, 2, 3
+}
+
 export interface DividerWidgetData extends BaseWidgetData {
+  line?: DividerLineGroup
+  // Legacy flat fields (backward compat)
   style?: 'solid' | 'dashed' | 'dotted'
   color?: string
-  width?: string // 1, 2, 3
+  width?: string
 }
 
 export interface SpacerWidgetData extends BaseWidgetData {
@@ -86,11 +110,20 @@ export interface HeadingWidgetData extends BaseWidgetData {
 }
 
 export interface BlockquoteWidgetData extends BaseWidgetData {
-  quote: MultilingualValue
-  author?: MultilingualValue
-  source?: MultilingualValue
-  style?: 'simple' | 'bordered' | 'filled'
-  accent_color?: string
+  quote: {
+    text: MultilingualValue
+    color?: string
+    'color:hover'?: string
+  }
+  author?: {
+    text: MultilingualValue
+  }
+  source?: {
+    text: MultilingualValue
+  }
+  config?: {
+    blockquote_style?: 'simple' | 'bordered' | 'filled'
+  }
 }
 
 export interface IconListItem {
@@ -173,11 +206,26 @@ export interface ToggleWidgetData extends BaseWidgetData {
 // ============================================
 
 export interface CountdownWidgetData extends BaseWidgetData {
-  target_date: string // ISO datetime
-  show_days?: boolean
-  show_hours?: boolean
-  show_minutes?: boolean
-  show_seconds?: boolean
+  config?: {
+    target_date?: string // ISO datetime
+    show_days?: boolean
+    show_hours?: boolean
+    show_minutes?: boolean
+    show_seconds?: boolean
+    separator?: string
+  }
+  value?: {
+    color?: string | null
+    'color:hover'?: string | null
+  }
+  label?: {
+    color?: string | null
+    'color:hover'?: string | null
+  }
+  item?: {
+    background?: string | null
+    'background:hover'?: string | null
+  }
 }
 
 export interface CounterWidgetData extends BaseWidgetData {

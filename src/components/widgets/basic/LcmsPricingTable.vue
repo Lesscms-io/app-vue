@@ -3,6 +3,7 @@
  * Pricing Table Widget
  *
  * Renders a pricing card with title, price, features and CTA button.
+ * Uses element-group structure: heading, badge, button, config, features.
  */
 
 import { computed, inject } from 'vue'
@@ -26,31 +27,52 @@ const resolvePageUrl = inject<(code: string | null, uuid: string | null) => stri
 const resolveCollectionUrl = inject<(collectionCode: string, entryId: string) => string>('lesscms-resolve-collection-url', () => '#')
 
 const config = computed(() => props.data?.config || props.data || {})
-const content = computed(() => props.data?.content || {})
 
-const title = computed(() => extractValue(content.value.title || config.value.title))
-const subtitle = computed(() => extractValue(content.value.subtitle || config.value.subtitle))
-const price = computed(() => extractValue(content.value.price || config.value.price))
-const period = computed(() => extractValue(content.value.period || config.value.period))
-const buttonText = computed(() => extractValue(content.value.button_text || config.value.button_text))
-const badge = computed(() => extractValue(content.value.badge || config.value.badge))
+// Element groups
+const headingGroup = computed(() => props.data?.heading || {})
+const badgeGroup = computed(() => props.data?.badge || {})
+const buttonGroup = computed(() => props.data?.button || {})
+const configGroup = computed(() => props.data?.config || {})
+
+// Heading group fields
+const title = computed(() => extractValue(headingGroup.value.title))
+const subtitle = computed(() => extractValue(headingGroup.value.subtitle))
+const price = computed(() => extractValue(headingGroup.value.price))
+const period = computed(() => extractValue(headingGroup.value.period))
+
+// Badge group fields
+const badge = computed(() => extractValue(badgeGroup.value.badge))
+
+// Button group fields
+const buttonText = computed(() => extractValue(buttonGroup.value.content))
+const btnStyle = computed(() => buttonGroup.value.style || 'primary')
+const btnSize = computed(() => buttonGroup.value.size || 'md')
+const btnBorderRadius = computed(() => buttonGroup.value.border_radius || null)
+const btnPadding = computed(() => buttonGroup.value.padding || null)
+const btnIcon = computed(() => buttonGroup.value.icon || '')
+const btnIconPosition = computed(() => buttonGroup.value.icon_position || 'left')
+const btnColor = computed(() => buttonGroup.value.color || 'var:primary')
+
+// Config group fields
+const highlighted = computed(() => configGroup.value.highlighted || false)
+const highlightColorRaw = computed(() => configGroup.value.highlight_color || 'var:primary')
+const hoverHighlightColorRaw = computed(() => configGroup.value['highlight_color:hover'] || null)
+
+// Button link settings (flat on widget level)
 const buttonUrl = computed(() => config.value.button_url || '#')
-const highlighted = computed(() => config.value.highlighted || false)
-const features = computed(() => config.value.features || [])
-
-// Button link settings
-const btnStyle = computed(() => config.value.button_style || 'primary')
-const btnSize = computed(() => config.value.button_size || 'md')
-const btnBorderRadius = computed(() => config.value.button_border_radius || null)
-const btnPadding = computed(() => config.value.button_padding || null)
-const btnIcon = computed(() => config.value.button_icon || '')
-const btnIconPosition = computed(() => config.value.button_icon_position || 'left')
 const btnLinkType = computed(() => config.value.button_link_type || 'url')
 const btnTargetBlank = computed(() => config.value.button_target_blank || false)
 const btnPageId = computed(() => config.value.button_page_id || null)
 const btnRouteUuid = computed(() => config.value.button_route_uuid || null)
 const btnEntryId = computed(() => config.value.button_entry_id || null)
 const btnCollectionCode = computed(() => config.value.button_collection_code || null)
+
+// Features items
+const features = computed(() => {
+  const raw = props.data?.features
+  if (!Array.isArray(raw)) return []
+  return raw
+})
 
 function resolveColor(val: string | null | undefined): string | null {
   if (!val) return null
@@ -66,29 +88,17 @@ function resolveColor(val: string | null | undefined): string | null {
   return val
 }
 
-const highlightColor = computed(() => resolveColor(config.value.highlight_color))
-
-const buttonColor = computed(() => resolveColor(config.value.button_color))
+const highlightColor = computed(() => resolveColor(highlightColorRaw.value))
+const hoverHighlightColor = computed(() => resolveColor(hoverHighlightColorRaw.value))
+const buttonColor = computed(() => resolveColor(btnColor.value))
 
 const cardStyle = computed(() => {
   const style: Record<string, string> = {}
   if (highlighted.value && highlightColor.value) {
     style.borderColor = highlightColor.value
   }
-  // hover CSS custom properties
-  const hoverHighlight = resolveColor(config.value.hover_highlight_color)
-  if (hoverHighlight) style['--hover-highlight-color'] = hoverHighlight
-  style['--transition-duration'] = `${config.value.transition_duration ?? 200}ms`
-
-  // Hover transform effects
-  const lift = config.value.hover_lift || 0
-  if (lift) style['--hover-lift'] = `-${lift}px`
-  const scale = config.value.hover_scale
-  if (scale && scale !== 1) style['--hover-scale'] = String(scale)
-  const shadowMap: Record<string, string> = { sm: '0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06)', md: '0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05)', lg: '0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)' }
-  const shadowVal = config.value.hover_shadow || 'none'
-  if (shadowVal !== 'none' && shadowMap[shadowVal]) style['--hover-shadow'] = shadowMap[shadowVal]
-
+  if (hoverHighlightColor.value) style['--hover-highlight-color'] = hoverHighlightColor.value
+  style['--transition-duration'] = '200ms'
   return style
 })
 
@@ -131,7 +141,7 @@ const buttonInlineStyle = computed(() => {
 <template>
   <div
     class="lcms-pricing"
-    :class="{ 'lcms-pricing--highlighted': highlighted, 'has-hover': !!(config.hover_highlight_color || config.hover_lift || (config.hover_scale !== undefined && config.hover_scale !== 1) || (config.hover_shadow && config.hover_shadow !== 'none')) }"
+    :class="{ 'lcms-pricing--highlighted': highlighted, 'has-hover': !!hoverHighlightColor }"
     :style="cardStyle"
   >
     <div v-if="badge" class="lcms-pricing__badge" :style="highlightColor ? { backgroundColor: highlightColor } : {}">
@@ -153,7 +163,7 @@ const buttonInlineStyle = computed(() => {
         :class="{ 'lcms-pricing__feature--excluded': feature.included === false }"
       >
         <i :class="feature.included !== false ? 'fas fa-check' : 'fas fa-times'" />
-        <span>{{ extractValue(feature.text) || feature.text }}</span>
+        <span>{{ extractValue(feature.content) || feature.content }}</span>
       </li>
     </ul>
     <a

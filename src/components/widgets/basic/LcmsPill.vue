@@ -3,6 +3,7 @@
  * Pill Widget
  *
  * Renders a pill/badge/label element with configurable style.
+ * Uses element-group structure: text + config groups.
  */
 
 import { computed } from 'vue'
@@ -23,14 +24,11 @@ const props = defineProps<Props>()
 
 const { extractValue } = useLanguage(props.language)
 
-const text = computed(() => props.data.text ? extractValue(props.data.text) : '')
-const variant = computed(() => props.data.variant || 'filled')
-const size = computed(() => props.data.size || 'md')
-const isUppercase = computed(() => props.data.uppercase !== false)
-const bgColorRaw = computed(() => props.data.background_color || '')
-const txtColorRaw = computed(() => props.data.text_color || '')
+// Element-group computed refs
+const textGroup = computed(() => props.data.text || {})
+const configGroup = computed(() => props.data.config || {})
 
-function resolveColorValue(val: string | null): string | null {
+function resolveColorValue(val: string | null | undefined): string | null {
   if (!val) return null
   if (val.startsWith('var:')) {
     const parts = val.split(':')
@@ -53,37 +51,31 @@ function resolveColorValue(val: string | null): string | null {
   return val
 }
 
+// Read from nested element-groups with legacy flat fallback
+const text = computed(() => {
+  const textVal = textGroup.value.content || (props.data as any).text
+  return textVal ? extractValue(textVal) : ''
+})
+const variant = computed(() => configGroup.value.variant || (props.data as any).variant || 'filled')
+const size = computed(() => configGroup.value.size || (props.data as any).size || 'md')
+const isUppercase = computed(() => {
+  const val = configGroup.value.uppercase
+  if (val !== undefined) return val
+  return (props.data as any).uppercase !== false
+})
+const txtColor = computed(() => resolveColorValue(textGroup.value.color || (props.data as any).text_color))
+const hoverTxtColor = computed(() => resolveColorValue(textGroup.value['color:hover'] || (props.data as any).hover_text_color))
+
 const pillStyle = computed(() => {
-  const bg = resolveColorValue(bgColorRaw.value)
-  const txt = resolveColorValue(txtColorRaw.value)
   const style: Record<string, string> = {}
 
   if (variant.value === 'outline') {
     style.backgroundColor = 'transparent'
-    if (bg) {
-      style.borderColor = bg
-      style.color = bg
-    }
-  } else {
-    if (bg) style.backgroundColor = bg
-    if (txt) style.color = txt
   }
+  if (txtColor.value) style.color = txtColor.value
 
   // hover CSS custom properties
-  const hoverBg = resolveColorValue(props.data.hover_background_color || '')
-  if (hoverBg) style['--hover-bg'] = hoverBg
-  const hoverTxt = resolveColorValue(props.data.hover_text_color || '')
-  if (hoverTxt) style['--hover-color'] = hoverTxt
-  style['--transition-duration'] = `${props.data.transition_duration ?? 200}ms`
-
-  // Hover transform effects
-  const lift = props.data.hover_lift || 0
-  if (lift) style['--hover-lift'] = `-${lift}px`
-  const scale = props.data.hover_scale
-  if (scale && scale !== 1) style['--hover-scale'] = String(scale)
-  const shadowMap: Record<string, string> = { sm: '0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06)', md: '0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05)', lg: '0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)' }
-  const shadowVal = props.data.hover_shadow || 'none'
-  if (shadowVal !== 'none' && shadowMap[shadowVal]) style['--hover-shadow'] = shadowMap[shadowVal]
+  if (hoverTxtColor.value) style['--hover-color'] = hoverTxtColor.value
 
   return style
 })
@@ -93,7 +85,7 @@ const pillClasses = computed(() => [
   `lcms-pill--${variant.value}`,
   `lcms-pill--${size.value}`,
   { 'lcms-pill--uppercase': isUppercase.value },
-  { 'has-hover': !!(props.data.hover_background_color || props.data.hover_text_color || props.data.hover_lift || (props.data.hover_scale !== undefined && props.data.hover_scale !== 1) || (props.data.hover_shadow && props.data.hover_shadow !== 'none')) }
+  { 'has-hover': !!hoverTxtColor.value }
 ])
 </script>
 
@@ -107,13 +99,10 @@ const pillClasses = computed(() => [
 
 <style scoped>
 .lcms-pill {
-  transition: background-color var(--transition-duration, 200ms) ease, color var(--transition-duration, 200ms) ease, transform var(--transition-duration, 200ms) ease, box-shadow var(--transition-duration, 200ms) ease;
+  transition: color 200ms ease;
 }
 
 .lcms-pill.has-hover:hover {
-  background-color: var(--hover-bg);
   color: var(--hover-color);
-  transform: translateY(var(--hover-lift, 0)) scale(var(--hover-scale, 1));
-  box-shadow: var(--hover-shadow, none);
 }
 </style>

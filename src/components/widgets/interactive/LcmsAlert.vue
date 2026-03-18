@@ -3,19 +3,19 @@
  * Alert Widget
  *
  * Renders an alert box with optional dismiss functionality.
+ * Uses element-group structure: icon, content, config.
  */
 
 import { ref, computed } from 'vue'
 import { useLanguage } from '@/composables/useLanguage'
 import { resolveColor } from '@/utils/resolveColor'
-import type { AlertWidgetData } from '@/types/widgets'
 
 defineOptions({
   inheritAttrs: false
 })
 
 interface Props {
-  data: AlertWidgetData
+  data: Record<string, any>
   language?: string
   settings?: Record<string, any>
 }
@@ -24,15 +24,26 @@ const props = defineProps<Props>()
 
 const { extractValue } = useLanguage(props.language)
 
-const showTitle = computed(() => props.data.show_title !== false)
-const title = computed(() => props.data.title ? extractValue(props.data.title) : '')
-const content = computed(() => extractValue(props.data.message) || extractValue(props.data.content))
-const alertType = computed(() => props.data.type || 'info')
-const dismissible = computed(() => props.data.dismissible || false)
-const customIcon = computed(() => props.data.icon || null)
-const customBgColor = computed(() => props.data.background_color || null)
-const customBorderColor = computed(() => props.data.border_color || null)
-const customTextColor = computed(() => props.data.text_color || null)
+// Element groups with legacy fallbacks
+const iconGroup = computed(() => props.data.icon || {})
+const titleGroup = computed(() => props.data.title || {})
+const textGroup = computed(() => props.data.text || {})
+const configGroup = computed(() => props.data.config || {})
+
+const showTitle = computed(() => configGroup.value.show_title !== undefined ? configGroup.value.show_title : (props.data.show_title !== false))
+const title = computed(() => {
+  const t = titleGroup.value.content || props.data.title
+  return t ? extractValue(t) : ''
+})
+const content = computed(() => {
+  const t = textGroup.value.content || props.data.message || props.data.content
+  return t ? extractValue(t) : ''
+})
+const alertType = computed(() => configGroup.value.type || props.data.type || 'info')
+const dismissible = computed(() => configGroup.value.dismissible || props.data.dismissible || false)
+const customIcon = computed(() => iconGroup.value.icon || (typeof props.data.icon === 'string' ? props.data.icon : null))
+const textColor = computed(() => resolveColor(textGroup.value.color) || null)
+const textHoverColor = computed(() => resolveColor(textGroup.value['color:hover']) || null)
 
 const isDismissed = ref(false)
 
@@ -47,11 +58,10 @@ const iconClass = computed(() => {
   return icons[alertType.value] || icons.info
 })
 
-const customStyles = computed(() => {
+const alertStyles = computed(() => {
   const styles: Record<string, string> = {}
-  if (customBgColor.value) styles.backgroundColor = resolveColor(customBgColor.value)
-  if (customBorderColor.value) styles.borderColor = resolveColor(customBorderColor.value)
-  if (customTextColor.value) styles.color = resolveColor(customTextColor.value)
+  if (textColor.value) styles.color = textColor.value
+  if (textHoverColor.value) styles['--hover-text-color'] = textHoverColor.value
   return styles
 })
 
@@ -65,7 +75,7 @@ function dismiss() {
     v-if="!isDismissed"
     class="lcms-alert"
     :class="`lcms-alert--${alertType}`"
-    :style="customStyles"
+    :style="alertStyles"
     role="alert"
   >
     <div class="lcms-alert__icon">

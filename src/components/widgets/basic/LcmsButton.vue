@@ -3,6 +3,7 @@
  * Button Widget
  *
  * Renders a styled button/link element.
+ * Element-group structure: text + config + link
  */
 
 import { computed, inject } from 'vue'
@@ -26,24 +27,34 @@ const { extractValue } = useLanguage(props.language)
 const resolvePageUrl = inject<(code: string | null, uuid: string | null) => string>('lesscms-resolve-page-url', () => '#')
 const resolveCollectionUrl = inject<(collectionCode: string, entryId: string) => string>('lesscms-resolve-collection-url', () => '#')
 
-const buttonText = computed(() => extractValue(props.data.text))
-const buttonUrl = computed(() => props.data.url || '#')
-const buttonStyle = computed(() => props.data.style || 'primary')
-const buttonSize = computed(() => props.data.size || 'md')
-const targetBlank = computed(() => props.data.target_blank || false)
-const linkType = computed(() => props.data.link_type || 'url')
-const borderRadius = computed(() => props.data.border_radius || '')
-const buttonPadding = computed(() => props.data.padding || '')
-const buttonIcon = computed(() => props.data.icon || '')
-const iconPosition = computed(() => props.data.icon_position || 'left')
+// Element groups
+const textGroup = computed(() => props.data.text || {})
+const configGroup = computed(() => props.data.config || {})
+const linkGroup = computed(() => props.data.link || {})
+
+// Text group
+const buttonText = computed(() => extractValue(textGroup.value.content))
+
+// Config group
+const buttonStyle = computed(() => configGroup.value.style || 'primary')
+const buttonSize = computed(() => configGroup.value.size || 'md')
+const borderRadius = computed(() => configGroup.value.border_radius || '')
+const buttonPadding = computed(() => configGroup.value.padding || '')
+const buttonIcon = computed(() => configGroup.value.icon || '')
+const iconPosition = computed(() => configGroup.value.icon_position || 'left')
 const isSvgIcon = computed(() => buttonIcon.value.startsWith('svg:'))
 const svgContent = computed(() => isSvgIcon.value ? buttonIcon.value.slice(4) : '')
-const pageUuid = computed(() => props.data.page_uuid || props.data.page_id || '')
-const pageCode = computed(() => props.data.page_code || '')
-const routeUuid = computed(() => props.data.route_uuid || '')
-const entryUuid = computed(() => props.data.entry_uuid || props.data.entry_id || '')
-const entryCode = computed(() => props.data.entry_code || '')
-const collectionCode = computed(() => props.data.collection_code || '')
+
+// Link group
+const buttonUrl = computed(() => linkGroup.value.url || '#')
+const linkType = computed(() => linkGroup.value.link_type || 'custom')
+const targetBlank = computed(() => linkGroup.value.target_blank || false)
+const pageUuid = computed(() => linkGroup.value.page_id || '')
+const pageCode = computed(() => (linkGroup.value as any).page_code || '')
+const routeUuid = computed(() => linkGroup.value.route_uuid || '')
+const entryUuid = computed(() => linkGroup.value.entry_id || '')
+const entryCode = computed(() => (linkGroup.value as any).entry_code || '')
+const collectionCode = computed(() => linkGroup.value.collection_code || '')
 
 const resolvedUrl = computed(() => {
   const lt = linkType.value
@@ -81,24 +92,6 @@ const buttonInlineStyle = computed(() => {
   if (buttonPadding.value) styles.padding = `${buttonPadding.value}px`
   return styles
 })
-
-const hasEffects = computed(() => !!(
-  props.data.hover_lift || (props.data.hover_scale && props.data.hover_scale !== 1) ||
-  (props.data.hover_shadow && props.data.hover_shadow !== 'none')
-))
-
-const hoverStyles = computed(() => {
-  const style: Record<string, string> = {}
-  style['--transition-duration'] = `${props.data.transition_duration ?? 200}ms`
-  const lift = props.data.hover_lift || 0
-  if (lift) style['--hover-lift'] = `-${lift}px`
-  const scale = props.data.hover_scale
-  if (scale && scale !== 1) style['--hover-scale'] = String(scale)
-  const shadowMap: Record<string, string> = { sm: '0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06)', md: '0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05)', lg: '0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)' }
-  const shadowVal = props.data.hover_shadow || 'none'
-  if (shadowVal !== 'none' && shadowMap[shadowVal]) style['--hover-shadow'] = shadowMap[shadowVal]
-  return style
-})
 </script>
 
 <template>
@@ -108,10 +101,9 @@ const hoverStyles = computed(() => {
       class="lcms-button__link"
       :class="[
         `lcms-button__link--${buttonStyle}`,
-        `lcms-button__link--size-${buttonSize}`,
-        { 'has-effects': hasEffects }
+        `lcms-button__link--size-${buttonSize}`
       ]"
-      :style="{ ...buttonInlineStyle, ...hoverStyles }"
+      :style="buttonInlineStyle"
       :target="targetBlank ? '_blank' : undefined"
       :rel="targetBlank ? 'noopener noreferrer' : undefined"
     >
@@ -126,16 +118,11 @@ const hoverStyles = computed(() => {
 
 <style scoped>
 .lcms-button__link {
-  transition: filter var(--transition-duration, 200ms) ease, transform var(--transition-duration, 200ms) ease, box-shadow var(--transition-duration, 200ms) ease;
+  transition: filter 200ms ease, transform 200ms ease, box-shadow 200ms ease;
 }
 
 .lcms-button__link:hover {
   filter: brightness(0.9);
-}
-
-.lcms-button__link.has-effects:hover {
-  transform: translateY(var(--hover-lift, 0)) scale(var(--hover-scale, 1));
-  box-shadow: var(--hover-shadow, none);
 }
 
 .lcms-button__svg {

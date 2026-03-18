@@ -9,21 +9,22 @@
 
 import { computed, ref, onMounted, onUnmounted } from 'vue'
 import WidgetRenderer from './WidgetRenderer.vue'
+import LcmsWrapper from './widgets/LcmsWrapper.vue'
 import { useResponsiveSettings } from '@/composables/useResponsiveSettings'
 import { useScrollAnimation } from '@/composables/useScrollAnimation'
 import { resolveColor } from '@/utils/resolveColor'
 import type { PageSection, PageColumn, WidgetContent, SectionSettings, ColumnSettings } from '@/api/types'
 
 interface HoverSettings {
-  backgroundColor?: string
-  backgroundOpacity?: number
-  borderColor?: string
-  borderWidth?: number | null
-  boxShadow?: string
-  transitionDuration?: number
-  hoverTranslateY?: number
-  hoverScale?: number
-  hoverRotate?: number
+  background_color?: string
+  background_opacity?: number
+  border_color?: string
+  border_width?: number | null
+  box_shadow?: string
+  transition_duration?: number
+  hover_translate_y?: number
+  hover_scale?: number
+  hover_rotate?: number
 }
 
 interface Props {
@@ -44,8 +45,8 @@ const isScrolled = ref(false)
 
 const handleScroll = () => {
   const s = settings.value as SectionSettings
-  if (s.sticky && s.scrolledBg) {
-    const threshold = s.stickyTop || 10
+  if (s.sticky && s.scrolled_bg) {
+    const threshold = s.sticky_top || 10
     isScrolled.value = window.scrollY > threshold
   }
 }
@@ -70,18 +71,18 @@ const sectionHoverCss = computed(() => {
   const hover = (props.section.settings as any)?.hover as HoverSettings | undefined
   if (!hover) return ''
 
-  const hasTransform = hover.hoverTranslateY || (hover.hoverScale !== undefined && hover.hoverScale !== 1) || hover.hoverRotate
-  const hasHoverStyles = hover.backgroundColor || hover.borderColor || hover.boxShadow || hasTransform
+  const hasTransform = hover.hover_translate_y || (hover.hover_scale !== undefined && hover.hover_scale !== 1) || hover.hover_rotate
+  const hasHoverStyles = hover.background_color || hover.border_color || hover.box_shadow || hasTransform
   if (!hasHoverStyles) return ''
 
-  const transitionDuration = hover.transitionDuration ?? 300
+  const transitionDuration = hover.transition_duration ?? 300
 
   let css = `#${sectionUniqueId.value} { transition: all ${transitionDuration}ms ease; }`
   css += `#${sectionUniqueId.value}:hover {`
 
-  if (hover.backgroundColor) {
-    const resolved = resolveColor(hover.backgroundColor)
-    const opacity = hover.backgroundOpacity ?? 100
+  if (hover.background_color) {
+    const resolved = resolveColor(hover.background_color)
+    const opacity = hover.background_opacity ?? 100
     if (opacity < 100 && resolved.startsWith('#')) {
       css += `background-color: ${hexToRgba(resolved, opacity / 100)};`
     } else {
@@ -89,23 +90,23 @@ const sectionHoverCss = computed(() => {
     }
   }
 
-  if (hover.borderColor) {
-    css += `border-color: ${resolveColor(hover.borderColor)};`
+  if (hover.border_color) {
+    css += `border-color: ${resolveColor(hover.border_color)};`
   }
 
-  if (hover.borderWidth !== undefined && hover.borderWidth !== null) {
-    css += `border-width: ${hover.borderWidth}px;`
+  if (hover.border_width !== undefined && hover.border_width !== null) {
+    css += `border-width: ${hover.border_width}px;`
   }
 
-  if (hover.boxShadow) {
-    css += `box-shadow: ${hover.boxShadow};`
+  if (hover.box_shadow) {
+    css += `box-shadow: ${hover.box_shadow};`
   }
 
   if (hasTransform) {
     const parts: string[] = []
-    if (hover.hoverTranslateY) parts.push(`translateY(${hover.hoverTranslateY}px)`)
-    if (hover.hoverScale !== undefined && hover.hoverScale !== 1) parts.push(`scale(${hover.hoverScale})`)
-    if (hover.hoverRotate) parts.push(`rotate(${hover.hoverRotate}deg)`)
+    if (hover.hover_translate_y) parts.push(`translateY(${hover.hover_translate_y}px)`)
+    if (hover.hover_scale !== undefined && hover.hover_scale !== 1) parts.push(`scale(${hover.hover_scale})`)
+    if (hover.hover_rotate) parts.push(`rotate(${hover.hover_rotate}deg)`)
     css += `transform: ${parts.join(' ')};`
   }
 
@@ -126,9 +127,9 @@ const sectionStyle = computed(() => {
   const style: Record<string, string> = {}
 
   // Background color with opacity
-  if (s.backgroundColor) {
-    const resolved = resolveColor(s.backgroundColor)
-    const opacity = s.backgroundOpacity ?? 100
+  if (s.background_color) {
+    const resolved = resolveColor(s.background_color)
+    const opacity = s.background_opacity ?? 100
     if (opacity < 100 && resolved.startsWith('#')) {
       style.backgroundColor = hexToRgba(resolved, opacity / 100)
     } else if (opacity < 100 && resolved.startsWith('var(')) {
@@ -141,31 +142,31 @@ const sectionStyle = computed(() => {
   // Background image + gradient (gradient overlays image)
   {
     let gradientValue = ''
-    // Gradient (API returns { gradient: { type, colorStart, colorEnd, angle } })
-    if (s.gradient && s.gradient.colorStart && s.gradient.colorEnd) {
+    // Gradient (API returns { gradient: { type, color_start, color_end, angle } })
+    if (s.gradient && s.gradient.color_start && s.gradient.color_end) {
       const type = s.gradient.type || 'linear'
       const angle = s.gradient.angle ?? 180
-      const start = resolveColor(s.gradient.colorStart)
-      const end = resolveColor(s.gradient.colorEnd)
+      const start = resolveColor(s.gradient.color_start)
+      const end = resolveColor(s.gradient.color_end)
       gradientValue = type === 'linear'
         ? `linear-gradient(${angle}deg, ${start}, ${end})`
         : `radial-gradient(circle, ${start}, ${end})`
     }
-    // Also support legacy format (useGradient)
-    else if (s.useGradient && s.gradientColorStart && s.gradientColorEnd) {
-      const type = s.gradientType || 'linear'
-      const angle = s.gradientAngle ?? 180
-      const start = resolveColor(s.gradientColorStart)
-      const end = resolveColor(s.gradientColorEnd)
+    // Also support legacy format (use_gradient)
+    else if (s.use_gradient && s.gradient_color_start && s.gradient_color_end) {
+      const type = s.gradient_type || 'linear'
+      const angle = s.gradient_angle ?? 180
+      const start = resolveColor(s.gradient_color_start)
+      const end = resolveColor(s.gradient_color_end)
       gradientValue = type === 'linear'
         ? `linear-gradient(${angle}deg, ${start}, ${end})`
         : `radial-gradient(circle, ${start}, ${end})`
     }
 
-    if (s.backgroundImage) {
-      const encodedUrl = encodeURI(s.backgroundImage)
-      const imgSize = s.backgroundSize || 'cover'
-      const imgPos = s.backgroundPosition || 'center center'
+    if (s.background_image) {
+      const encodedUrl = encodeURI(s.background_image)
+      const imgSize = s.background_size || 'cover'
+      const imgPos = s.background_position || 'center center'
       if (gradientValue) {
         // Gradient on top of image
         style.backgroundImage = `${gradientValue}, url("${encodedUrl}")`
@@ -183,58 +184,58 @@ const sectionStyle = computed(() => {
   }
 
   // Padding
-  if (s.paddingTop) style.paddingTop = `${s.paddingTop}px`
-  if (s.paddingRight) style.paddingRight = `${s.paddingRight}px`
-  if (s.paddingBottom) style.paddingBottom = `${s.paddingBottom}px`
-  if (s.paddingLeft) style.paddingLeft = `${s.paddingLeft}px`
+  if (s.padding_top) style.paddingTop = `${s.padding_top}px`
+  if (s.padding_right) style.paddingRight = `${s.padding_right}px`
+  if (s.padding_bottom) style.paddingBottom = `${s.padding_bottom}px`
+  if (s.padding_left) style.paddingLeft = `${s.padding_left}px`
 
   // Margin
-  if (s.marginTop) style.marginTop = `${s.marginTop}px`
-  if (s.marginRight) style.marginRight = `${s.marginRight}px`
-  if (s.marginBottom) style.marginBottom = `${s.marginBottom}px`
-  if (s.marginLeft) style.marginLeft = `${s.marginLeft}px`
+  if (s.margin_top) style.marginTop = `${s.margin_top}px`
+  if (s.margin_right) style.marginRight = `${s.margin_right}px`
+  if (s.margin_bottom) style.marginBottom = `${s.margin_bottom}px`
+  if (s.margin_left) style.marginLeft = `${s.margin_left}px`
 
   // Border
-  if (s.borderRadius) style.borderRadius = `${s.borderRadius}px`
-  if (s.borderWidth) {
-    style.borderWidth = `${s.borderWidth}px`
-    style.borderStyle = s.borderStyle || 'solid'
-    style.borderColor = resolveColor(s.borderColor) || '#000000'
+  if (s.border_radius) style.borderRadius = `${s.border_radius}px`
+  if (s.border_width) {
+    style.borderWidth = `${s.border_width}px`
+    style.borderStyle = s.border_style || 'solid'
+    style.borderColor = resolveColor(s.border_color) || '#000000'
   }
 
   // Shadow
-  if (s.boxShadow) style.boxShadow = s.boxShadow
+  if (s.box_shadow) style.boxShadow = s.box_shadow
 
   // Height
-  if (s.fullHeight || s.heightMode === 'full') {
+  if (s.full_height || s.height_mode === 'full') {
     style.minHeight = '100vh'
   } else if (s.sectionHeight) {
     style.minHeight = `${s.sectionHeight}px`
-  } else if (s.minHeight) {
-    style.minHeight = `${s.minHeight}px`
+  } else if (s.min_height) {
+    style.minHeight = `${s.min_height}px`
   }
 
   // Sticky
   if (s.sticky) {
     style.position = 'sticky'
-    style.top = s.stickyTop ? `${s.stickyTop}px` : '0'
-    style.zIndex = String(s.stickyZIndex ?? 100)
+    style.top = s.sticky_top ? `${s.sticky_top}px` : '0'
+    style.zIndex = String(s.sticky_z_index ?? 100)
 
     // Add transition for scrolled state
-    if (s.scrolledBg) {
+    if (s.scrolled_bg) {
       style.transition = 'background-color 0.3s ease, box-shadow 0.3s ease'
     }
 
     // Apply scrolled styles
-    if (isScrolled.value && s.scrolledBg) {
-      style.backgroundColor = resolveColor(s.scrolledBg) || style.backgroundColor
-      if (s.scrolledShadow && s.scrolledShadow !== 'none') {
+    if (isScrolled.value && s.scrolled_bg) {
+      style.backgroundColor = resolveColor(s.scrolled_bg) || style.backgroundColor
+      if (s.scrolled_shadow && s.scrolled_shadow !== 'none') {
         const shadowMap: Record<string, string> = {
           sm: '0 1px 3px rgba(0,0,0,0.12)',
           md: '0 4px 6px rgba(0,0,0,0.1)',
           lg: '0 10px 25px rgba(0,0,0,0.15)'
         }
-        style.boxShadow = shadowMap[s.scrolledShadow] || ''
+        style.boxShadow = shadowMap[s.scrolled_shadow] || ''
       }
     }
   }
@@ -247,7 +248,7 @@ const innerStyle = computed(() => {
   const s = settings.value as SectionSettings
   const style: Record<string, string> = {}
 
-  const width = s.contentWidth
+  const width = s.content_width
   if (width && width !== '100%') {
     if (width === 'custom' && s.customWidth) {
       style.maxWidth = `${s.customWidth}px`
@@ -260,8 +261,8 @@ const innerStyle = computed(() => {
   }
 
   // Column gap
-  if (s.columnGap) {
-    style.gap = `${s.columnGap}px`
+  if (s.column_gap) {
+    style.gap = `${s.column_gap}px`
   }
 
   return style
@@ -311,9 +312,9 @@ function getColumnStyle(column: PageColumn) {
   const style: Record<string, string> = {}
 
   // Background
-  if (s.backgroundColor) {
-    const resolved = resolveColor(s.backgroundColor)
-    const opacity = s.backgroundOpacity ?? 100
+  if (s.background_color) {
+    const resolved = resolveColor(s.background_color)
+    const opacity = s.background_opacity ?? 100
     if (opacity < 100 && resolved.startsWith('#')) {
       style.backgroundColor = hexToRgba(resolved, opacity / 100)
     } else if (opacity < 100 && resolved.startsWith('var(')) {
@@ -326,29 +327,29 @@ function getColumnStyle(column: PageColumn) {
   // Background image + gradient (gradient overlays image)
   {
     let gradientValue = ''
-    if (s.gradient && s.gradient.colorStart && s.gradient.colorEnd) {
+    if (s.gradient && s.gradient.color_start && s.gradient.color_end) {
       const type = s.gradient.type || 'linear'
       const angle = s.gradient.angle ?? 180
-      const start = resolveColor(s.gradient.colorStart)
-      const end = resolveColor(s.gradient.colorEnd)
+      const start = resolveColor(s.gradient.color_start)
+      const end = resolveColor(s.gradient.color_end)
       gradientValue = type === 'linear'
         ? `linear-gradient(${angle}deg, ${start}, ${end})`
         : `radial-gradient(circle, ${start}, ${end})`
     }
-    else if (s.useGradient && s.gradientColorStart && s.gradientColorEnd) {
-      const type = s.gradientType || 'linear'
-      const angle = s.gradientAngle ?? 180
-      const start = resolveColor(s.gradientColorStart)
-      const end = resolveColor(s.gradientColorEnd)
+    else if (s.use_gradient && s.gradient_color_start && s.gradient_color_end) {
+      const type = s.gradient_type || 'linear'
+      const angle = s.gradient_angle ?? 180
+      const start = resolveColor(s.gradient_color_start)
+      const end = resolveColor(s.gradient_color_end)
       gradientValue = type === 'linear'
         ? `linear-gradient(${angle}deg, ${start}, ${end})`
         : `radial-gradient(circle, ${start}, ${end})`
     }
 
-    if (s.backgroundImage) {
-      const encodedUrl = encodeURI(s.backgroundImage)
-      const imgSize = s.backgroundSize || 'cover'
-      const imgPos = s.backgroundPosition || 'center center'
+    if (s.background_image) {
+      const encodedUrl = encodeURI(s.background_image)
+      const imgSize = s.background_size || 'cover'
+      const imgPos = s.background_position || 'center center'
       if (gradientValue) {
         style.backgroundImage = `${gradientValue}, url("${encodedUrl}")`
         style.backgroundSize = `auto, ${imgSize}`
@@ -485,7 +486,25 @@ function getColumnWidgets(column: any) {
   const content = column.content || []
 
   return content.map((item: any, index: number) => {
-    // New API format: all data in item.widget (flat)
+    // Wrapper node: pass through as-is
+    if (item.type === 'wrapper') {
+      return {
+        id: item.uuid || `wrapper-${index}`,
+        type: 'wrapper',
+        data: item.data || {},
+        items: (item.items || []).map((child: any, childIdx: number) => {
+          const childData = child.widget || child.data || {}
+          return {
+            id: child.uuid || `widget-${index}-${childIdx}`,
+            type: child.widget_type || child.type || 'text',
+            data: childData,
+            settings: child.settings || {}
+          }
+        })
+      }
+    }
+
+    // Regular widget
     const widgetData = item.widget || item.data || {}
 
     const result: any = {
@@ -495,7 +514,7 @@ function getColumnWidgets(column: any) {
       settings: item.settings || {}
     }
 
-    // Pass through multi-item properties
+    // Pass through multi-item properties (legacy)
     if (item.multi_item) {
       result.multi_item = true
       result.items = item.items
@@ -640,12 +659,32 @@ function mapFlexAlign(value: string): string {
         :style="getColumnStyle(column)"
         :data-column-index="colIndex"
       >
-        <WidgetRenderer
-          v-for="widget in getColumnWidgets(column)"
-          :key="widget.id"
-          :widget="widget"
-          :language="language"
-        />
+        <template
+          v-for="node in getColumnWidgets(column)"
+          :key="node.id"
+        >
+          <!-- Wrapper node -->
+          <LcmsWrapper
+            v-if="node.type === 'wrapper'"
+            :data="node.data"
+            :items="node.items"
+            :language="language"
+          >
+            <template #item="{ item }">
+              <WidgetRenderer
+                :widget="item"
+                :language="language"
+              />
+            </template>
+          </LcmsWrapper>
+
+          <!-- Regular widget -->
+          <WidgetRenderer
+            v-else
+            :widget="node"
+            :language="language"
+          />
+        </template>
       </div>
     </div>
   </section>

@@ -175,7 +175,7 @@ const config = computed(() => props.data.widget || props.data || {})
 
 const collectionCode = computed(() => config.value.collection_code || '')
 const groupByField = computed(() => config.value.group_by_field || '')
-const displayStyle = computed(() => config.value.style || 'sections')
+const displayStyle = computed(() => config.value.group_style || config.value.style || 'sections')
 const itemLayout = computed(() => config.value.item_layout || 'list')
 const postsCount = computed(() => config.value.posts_count || 0)
 const titleField = computed(() => config.value.title_field || 'title')

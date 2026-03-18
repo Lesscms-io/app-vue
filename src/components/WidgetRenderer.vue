@@ -182,6 +182,7 @@ const multiItemItems = computed(() => {
 const multiItemContainerFields = computed(() => {
   if (!isMultiItem.value) return {}
   const w = props.widget as Record<string, unknown>
+
   const fields: Record<string, unknown> = {}
   for (const key of Object.keys(w)) {
     if (key.startsWith('container_')) {

@@ -23,11 +23,16 @@ const props = defineProps<Props>()
 
 const { extractValue } = useLanguage(props.language)
 
+// Element groups
+const includedGroup = computed(() => props.data.included || {})
+const excludedGroup = computed(() => props.data.excluded || {})
+const configGroup = computed(() => props.data.config || {})
+
 const items = computed(() => {
   const raw = props.data.items
   if (!Array.isArray(raw)) return []
   return raw.map(item => ({
-    text: extractValue(item.text),
+    text: extractValue(item.content),
     included: item.included !== undefined ? item.included : true
   }))
 })
@@ -46,15 +51,15 @@ function resolveColor(val: string | null | undefined): string | null {
   return val
 }
 
-const iconIncluded = computed(() => props.data.icon_included || 'fa-solid fa-check')
-const iconExcluded = computed(() => props.data.icon_excluded || 'fa-solid fa-xmark')
-const colorIncluded = computed(() => resolveColor(props.data.color_included) || '#28a745')
-const colorExcluded = computed(() => resolveColor(props.data.color_excluded) || '#dc3545')
-const columns = computed(() => parseInt(String(props.data.columns)) || 1)
+const iconIncluded = computed(() => includedGroup.value.icon || 'fa-solid fa-check')
+const iconExcluded = computed(() => excludedGroup.value.icon || 'fa-solid fa-times')
+const colorIncluded = computed(() => resolveColor(includedGroup.value.color) || '#28a745')
+const colorExcluded = computed(() => resolveColor(excludedGroup.value.color) || '#dc3545')
+const columns = computed(() => parseInt(String(configGroup.value.columns)) || 1)
 
 // Hover colors
-const hoverColorIncluded = computed(() => resolveColor(props.data.hover_color_included) || '')
-const hoverColorExcluded = computed(() => resolveColor(props.data.hover_color_excluded) || '')
+const hoverColorIncluded = computed(() => resolveColor(includedGroup.value['color:hover']) || '')
+const hoverColorExcluded = computed(() => resolveColor(excludedGroup.value['color:hover']) || '')
 const hasHover = computed(() => !!(hoverColorIncluded.value || hoverColorExcluded.value))
 
 const widgetStyle = computed(() => {

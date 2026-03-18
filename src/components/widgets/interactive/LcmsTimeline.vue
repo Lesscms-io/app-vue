@@ -3,32 +3,19 @@
  * Timeline Widget
  *
  * Renders a chronological timeline with date, title and content.
+ * Uses element-group structure: line, dot, config, items.
  */
 
 import { computed } from 'vue'
 import { useLanguage } from '@/composables/useLanguage'
-import type { TimelineWidgetData } from '@/types/widgets'
-
-function resolveColor(val: string | null | undefined): string | null {
-  if (!val) return null
-  if (val.startsWith('var:')) {
-    const parts = val.split(':')
-    const code = parts[1]
-    const opacity = parts.length >= 3 ? parseInt(parts[2]) : 100
-    if (opacity < 100) {
-      return `color-mix(in srgb, var(--lcms-color-${code}) ${opacity}%, transparent)`
-    }
-    return `var(--lcms-color-${code})`
-  }
-  return val
-}
+import { resolveColor } from '@/utils/resolveColor'
 
 defineOptions({
   inheritAttrs: false
 })
 
 interface Props {
-  data: TimelineWidgetData
+  data: Record<string, any>
   language?: string
   settings?: Record<string, any>
 }
@@ -37,8 +24,14 @@ const props = defineProps<Props>()
 
 const { extractValue } = useLanguage(props.language)
 
+// Element groups
+const lineGroup = computed(() => props.data.line || {})
+const dotGroup = computed(() => props.data.dot || {})
+const configGroup = computed(() => props.data.config || {})
+const itemsGroup = computed(() => props.data.items || [])
+
 const items = computed(() => {
-  const raw = props.data.items
+  const raw = itemsGroup.value
   if (!Array.isArray(raw)) return []
   return raw.map(item => ({
     date: extractValue(item.date),
@@ -47,9 +40,13 @@ const items = computed(() => {
   }))
 })
 
-const layout = computed(() => props.data.layout || 'left')
-const lineColor = computed(() => resolveColor(props.data.line_color) || '#e0e0e0')
-const dotColor = computed(() => resolveColor(props.data.dot_color) || '#50a5f1')
+const layout = computed(() => configGroup.value.layout || 'left')
+const lineColor = computed(() => resolveColor(lineGroup.value.color) || '#e0e0e0')
+const dotColor = computed(() => resolveColor(dotGroup.value.color) || '#50a5f1')
+const hoverLineColor = computed(() => resolveColor(lineGroup.value['color:hover']) || '')
+const hoverDotColor = computed(() => resolveColor(dotGroup.value['color:hover']) || '')
+
+const hasHover = computed(() => !!(hoverLineColor.value || hoverDotColor.value))
 
 function itemSide(index: number): string {
   if (layout.value === 'alternate') return index % 2 === 0 ? 'left' : 'right'
@@ -58,27 +55,18 @@ function itemSide(index: number): string {
 
 const timelineContainerStyle = computed(() => {
   const styles: Record<string, string> = {}
-  const hoverLine = resolveColor(props.data.hover_line_color)
-  if (hoverLine) styles['--hover-line-color'] = hoverLine
-  const hoverDot = resolveColor(props.data.hover_dot_color)
-  if (hoverDot) styles['--hover-dot-color'] = hoverDot
-  styles['--transition-duration'] = `${props.data.transition_duration ?? 200}ms`
-
-  // Hover transform effects
-  const lift = props.data.hover_lift || 0
-  if (lift) styles['--hover-lift'] = `-${lift}px`
-  const scale = props.data.hover_scale
-  if (scale && scale !== 1) styles['--hover-scale'] = String(scale)
-  const shadowMap: Record<string, string> = { sm: '0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06)', md: '0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05)', lg: '0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)' }
-  const shadowVal = props.data.hover_shadow || 'none'
-  if (shadowVal !== 'none' && shadowMap[shadowVal]) styles['--hover-shadow'] = shadowMap[shadowVal]
-
+  if (hoverLineColor.value) styles['--hover-line-color'] = hoverLineColor.value
+  if (hoverDotColor.value) styles['--hover-dot-color'] = hoverDotColor.value
   return styles
 })
 </script>
 
 <template>
-  <div class="lcms-timeline" :class="[`lcms-timeline--${layout}`, { 'has-hover': !!(data.hover_line_color || data.hover_dot_color || data.hover_lift || (data.hover_scale !== undefined && data.hover_scale !== 1) || (data.hover_shadow && data.hover_shadow !== 'none')) }]" :style="timelineContainerStyle">
+  <div
+    class="lcms-timeline"
+    :class="[`lcms-timeline--${layout}`, { 'has-hover': hasHover }]"
+    :style="timelineContainerStyle"
+  >
     <div
       class="lcms-timeline__line"
       :style="{ backgroundColor: lineColor }"
@@ -106,20 +94,6 @@ const timelineContainerStyle = computed(() => {
 .lcms-timeline {
   position: relative;
   padding: 16px 0;
-  transition: transform var(--transition-duration, 200ms) ease, box-shadow var(--transition-duration, 200ms) ease;
-}
-
-.lcms-timeline.has-hover:hover {
-  transform: translateY(var(--hover-lift, 0)) scale(var(--hover-scale, 1));
-  box-shadow: var(--hover-shadow, none);
-}
-
-.lcms-timeline__line {
-  transition: background-color var(--transition-duration, 200ms) ease;
-}
-
-.lcms-timeline__dot {
-  transition: background-color var(--transition-duration, 200ms) ease;
 }
 
 .lcms-timeline.has-hover:hover .lcms-timeline__line {
@@ -136,6 +110,7 @@ const timelineContainerStyle = computed(() => {
   bottom: 0;
   width: 2px;
   background-color: #e0e0e0;
+  transition: background-color 200ms ease;
 }
 
 .lcms-timeline--left .lcms-timeline__line {
@@ -187,6 +162,7 @@ const timelineContainerStyle = computed(() => {
   border-radius: 50%;
   background-color: #50a5f1;
   top: 4px;
+  transition: background-color 200ms ease;
 }
 
 .lcms-timeline--left .lcms-timeline__dot {

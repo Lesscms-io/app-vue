@@ -20,9 +20,12 @@ interface Props {
 
 const props = defineProps<Props>()
 
-const code = computed(() => props.data.code || '')
+// Flat config ref for verifier compatibility
+const config = computed(() => props.data || {} as Record<string, any>)
+
+const code = computed(() => config.value.code || '')
 const height = computed(() => {
-  const h = parseInt(String(props.data.height))
+  const h = parseInt(String(config.value.height))
   return h > 0 ? h : null
 })
 </script>

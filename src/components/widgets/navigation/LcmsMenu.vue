@@ -4,13 +4,13 @@
  *
  * Renders a navigation menu fetched from the API.
  * Supports a hamburger toggle for mobile/tablet breakpoints.
+ * Uses element-group structure: link, logo, config, cta, dropdown.
  */
 
 import { computed, ref, inject, onMounted, onUnmounted } from 'vue'
 import { useMenu } from '@/composables/useMenu'
 import { useLanguage } from '@/composables/useLanguage'
 import { useResponsiveSettings } from '@/composables/useResponsiveSettings'
-import type { MenuWidgetData } from '@/types/widgets'
 import type { MenuItem } from '@/api/types'
 
 defineOptions({
@@ -18,7 +18,7 @@ defineOptions({
 })
 
 interface Props {
-  data: MenuWidgetData
+  data: Record<string, any>
   language?: string
   settings?: Record<string, any>
 }
@@ -33,65 +33,75 @@ const resolvePageUrl = inject<(code: string | null, uuid: string | null) => stri
   () => '#'
 )
 
-const menuCode = computed(() => props.data.menu_code || '')
-const labelField = computed(() => props.data.label_field || '')
-const layout = computed(() => props.data.layout || 'horizontal')
-const hamburgerBreakpoint = computed(() => props.data.hamburger_breakpoint || 'never')
-const itemsAlignment = computed(() => props.data.items_alignment || 'left')
+const resolveCollectionUrl = inject<(collectionCode: string, slug: string) => string>(
+  'lesscms-resolve-collection-url',
+  () => '#'
+)
+
+// Element groups
+const linkGroup = computed(() => props.data.link || {})
+const logoGroup = computed(() => props.data.logo || {})
+const configGroup = computed(() => props.data.config || {})
+const ctaGroup = computed(() => props.data.cta || {})
+const dropdownGroup = computed(() => props.data.dropdown || {})
+
+// Config group
+const menuCode = computed(() => configGroup.value.menu_code || '')
+const labelField = computed(() => configGroup.value.label_field || '')
+const layout = computed(() => configGroup.value.layout || 'horizontal')
+const hamburgerBreakpoint = computed(() => configGroup.value.hamburger_breakpoint || 'never')
+const itemsAlignment = computed(() => configGroup.value.items_alignment || 'left')
 const itemsGap = computed(() => {
-  const v = props.data.items_gap
+  const v = configGroup.value.items_gap
   if (v === 'sm') return 4
   if (v === 'md' || v === undefined || v === null) return 12
   if (v === 'lg') return 24
   return Number(v) || 12
 })
-const itemsIndent = computed(() => props.data.items_indent || 0)
-const linkColor = computed(() => props.data.link_color || null)
-const linkHoverColor = computed(() => props.data.link_hover_color || null)
-const linkHoverBg = computed(() => props.data.link_hover_bg || null)
-const linkHoverAnimation = computed(() => props.data.link_hover_animation || 'none')
-const linkHoverAnimationColor = computed(() => props.data.link_hover_animation_color || null)
 const itemsPadding = computed(() => {
-  const v = props.data.items_padding
-  if (v === null || v === undefined) return null
+  const v = configGroup.value.items_padding
+  if (v === null || v === undefined || v === 0) return null
   if (typeof v === 'number') return `${v}px`
   return v
 })
-const ctaText = computed(() => props.data.cta_text || '')
-const ctaUrl = computed(() => props.data.cta_url || '#')
-const ctaStyle = computed(() => props.data.cta_style || 'primary')
-const ctaTargetBlank = computed(() => props.data.cta_target_blank || false)
+const itemsIndent = computed(() => configGroup.value.items_indent || 0)
 
-// Logo settings
-const logoLight = computed(() => props.data.logo_light || '')
-const logoDark = computed(() => props.data.logo_dark || '')
-const logoHeight = computed(() => props.data.logo_height || 40)
-const logoPosition = computed(() => props.data.logo_position || 'left')
+// Link group
+const linkColor = computed(() => linkGroup.value.color || null)
+const linkHoverColor = computed(() => linkGroup.value['color:hover'] || null)
+const linkBackground = computed(() => linkGroup.value.background || null)
+const linkBackgroundHover = computed(() => linkGroup.value['background:hover'] || null)
+const linkHoverAnimation = computed(() => linkGroup.value.hover_animation || 'none')
+const linkHoverAnimationColor = computed(() => linkGroup.value.hover_animation_color || null)
 
-// CTA link settings
-const ctaLinkType = computed(() => props.data.cta_link_type || 'url')
-const ctaPageId = computed(() => props.data.cta_page_id || null)
-const ctaCollectionCode = computed(() => props.data.cta_collection_code || null)
-const ctaEntryId = computed(() => props.data.cta_entry_id || null)
-const ctaRouteUuid = computed(() => props.data.cta_route_uuid || null)
-const ctaSize = computed(() => props.data.cta_size || 'md')
-const ctaPosition = computed(() => props.data.cta_position || 'right')
-const ctaBorderRadius = computed(() => props.data.cta_border_radius || null)
-const ctaPadding = computed(() => props.data.cta_padding || null)
-const ctaIcon = computed(() => props.data.cta_icon || '')
-const ctaIconPosition = computed(() => props.data.cta_icon_position || 'left')
+// Logo group
+const logoLight = computed(() => logoGroup.value.light || '')
+const logoDark = computed(() => logoGroup.value.dark || '')
+const logoHeight = computed(() => logoGroup.value.height || 40)
+const logoPosition = computed(() => logoGroup.value.position || 'left')
+
+// CTA group
+const ctaText = computed(() => ctaGroup.value.content || '')
+const ctaPosition = computed(() => ctaGroup.value.position || 'right')
+const ctaLinkType = computed(() => ctaGroup.value.link_type || 'custom')
+const ctaUrl = computed(() => ctaGroup.value.url || '#')
+const ctaPageId = computed(() => ctaGroup.value.page_id || null)
+const ctaCollectionCode = computed(() => ctaGroup.value.collection_code || null)
+const ctaEntryId = computed(() => ctaGroup.value.entry_id || null)
+const ctaRouteUuid = computed(() => ctaGroup.value.route_uuid || null)
+const ctaTargetBlank = computed(() => ctaGroup.value.target_blank || false)
+const ctaStyle = computed(() => ctaGroup.value.style || 'info')
+const ctaSize = computed(() => ctaGroup.value.size || 'md')
+const ctaBorderRadius = computed(() => ctaGroup.value.border_radius || 'md')
+const ctaIcon = computed(() => ctaGroup.value.icon || '')
+const ctaIconPosition = computed(() => ctaGroup.value.icon_position || 'left')
 const isCtaSvgIcon = computed(() => ctaIcon.value.startsWith('svg:'))
 const ctaSvgContent = computed(() => isCtaSvgIcon.value ? ctaIcon.value.slice(4) : '')
 
-// Dropdown settings
-const dropdownBg = computed(() => props.data.dropdown_bg || null)
-const dropdownBorderRadius = computed(() => props.data.dropdown_border_radius || 'md')
-const dropdownShadow = computed(() => props.data.dropdown_shadow || 'lg')
-
-const resolveCollectionUrl = inject<(collectionCode: string, slug: string) => string>(
-  'lesscms-resolve-collection-url',
-  () => '#'
-)
+// Dropdown group
+const dropdownBg = computed(() => dropdownGroup.value.background || null)
+const dropdownBorderRadius = computed(() => dropdownGroup.value.border_radius || 'md')
+const dropdownShadow = computed(() => dropdownGroup.value.shadow || 'lg')
 
 // Resolve CTA URL based on link type (prefer server-resolved URL)
 const resolvedCtaUrl = computed(() => {
@@ -133,9 +143,6 @@ const ctaInlineStyle = computed(() => {
   } else if (ctaBorderRadius.value === 'sm') {
     style.borderRadius = '2px'
   }
-  if (ctaPadding.value) {
-    style.padding = ctaPadding.value
-  }
   return style
 })
 
@@ -155,12 +162,10 @@ function resolveColorValue(val: string | null): string | null {
     const code = parts[1]
     const opacity = parts.length >= 3 ? parseInt(parts[2]) : 100
     if (opacity < 100) {
-      // Can't apply opacity to CSS variable directly, use color-mix
       return `color-mix(in srgb, var(--lcms-color-${code}) ${opacity}%, transparent)`
     }
     return `var(--lcms-color-${code})`
   }
-  // Handle #hex:opacity format
   if (val.startsWith('#') && val.includes(':')) {
     const parts = val.split(':')
     const hex = parts[0]
@@ -175,10 +180,12 @@ const menuCssVars = computed(() => {
   const vars: Record<string, string> = {}
   const lc = resolveColorValue(linkColor.value)
   const lhc = resolveColorValue(linkHoverColor.value)
-  const lhb = resolveColorValue(linkHoverBg.value)
+  const lhb = resolveColorValue(linkBackground.value)
+  const lhbh = resolveColorValue(linkBackgroundHover.value)
   if (lc) vars['--lcms-menu-link-color'] = lc
   if (lhc) vars['--lcms-menu-link-hover-color'] = lhc
-  if (lhb) vars['--lcms-menu-link-hover-bg'] = lhb
+  if (lhb) vars['--lcms-menu-link-bg'] = lhb
+  if (lhbh) vars['--lcms-menu-link-hover-bg'] = lhbh
   vars['--lcms-menu-items-gap'] = `${itemsGap.value}px`
   if (itemsIndent.value) vars['--lcms-menu-items-indent'] = `${itemsIndent.value}px`
   const lac = resolveColorValue(linkHoverAnimationColor.value)
@@ -208,14 +215,6 @@ const { items, loading, error } = useMenu(menuCode)
 
 const hamburgerOpen = ref(false)
 
-/**
- * Determine whether the hamburger mode is active based on
- * the configured breakpoint and the current viewport size.
- *
- * - 'never'  : hamburger is never shown
- * - 'mobile' : hamburger shows on mobile only (<=767px)
- * - 'tablet' : hamburger shows on tablet and mobile (<=1199px)
- */
 const isHamburgerMode = computed(() => {
   if (hamburgerBreakpoint.value === 'never') return false
   if (hamburgerBreakpoint.value === 'mobile') return currentBreakpoint.value === 'mobile'
@@ -252,7 +251,6 @@ onUnmounted(() => {
 })
 
 function getItemLabel(item: MenuItem): string {
-  // If a specific label field is configured, use it from item fields
   if (labelField.value && item.fields) {
     const val = item.fields[labelField.value]
     if (val) {

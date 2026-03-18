@@ -20,14 +20,16 @@ interface Props {
 
 const props = defineProps<Props>()
 
-const source = computed(() => props.data.source || 'youtube')
-const videoUrl = computed(() => props.data.url || '')
-const autoplay = computed(() => props.data.autoplay || false)
-const loop = computed(() => props.data.loop || false)
-const muted = computed(() => props.data.muted || false)
+const config = computed(() => props.data.widget || props.data || {})
+
+const source = computed(() => config.value.source || 'youtube')
+const videoUrl = computed(() => config.value.url || '')
+const autoplay = computed(() => config.value.autoplay || false)
+const loop = computed(() => config.value.loop || false)
+const muted = computed(() => config.value.muted || false)
 
 // Pre-computed embed URL from API
-const apiEmbedUrl = computed(() => props.data.embed_url || null)
+const apiEmbedUrl = computed(() => config.value.embed_url || null)
 
 // Extract video ID from URLs
 const youtubeId = computed(() => {

@@ -34,19 +34,36 @@ interface Props {
 
 const props = defineProps<Props>()
 
-const dividerStyle = computed(() => props.data.style || 'solid')
-const dividerWidth = computed(() => props.data.width || '1')
-const dividerThickness = computed(() => props.data.thickness || dividerWidth.value)
+// Element-group computed ref for "line"
+const lineGroup = computed(() => props.data.line || {})
+
+// Read from nested "line" element-group, with legacy flat fallback
+const dividerLineStyle = computed(() => lineGroup.value.line_style || props.data.style || 'solid')
+const dividerWidth = computed(() => lineGroup.value.width || props.data.width || '1')
+const dividerColor = computed(() => resolveColor(lineGroup.value.color || props.data.color) || '#e9ecef')
+const hoverColor = computed(() => resolveColor(lineGroup.value['color:hover']))
 
 const lineStyle = computed(() => ({
-  borderTopStyle: dividerStyle.value,
-  borderTopColor: resolveColor(props.data.color) || '#e9ecef',
-  borderTopWidth: `${dividerThickness.value}px`,
+  borderTopStyle: dividerLineStyle.value,
+  borderTopColor: dividerColor.value,
+  borderTopWidth: `${dividerWidth.value}px`,
 }))
+
+const wrapperStyle = computed(() => {
+  const s: Record<string, string> = {}
+  if (hoverColor.value) s['--hover-color'] = hoverColor.value
+  return s
+})
+
+const hasHover = computed(() => !!hoverColor.value)
 </script>
 
 <template>
-  <div class="lcms-divider">
+  <div
+    class="lcms-divider"
+    :class="{ 'lcms-divider--has-hover': hasHover }"
+    :style="wrapperStyle"
+  >
     <hr
       class="lcms-divider__line"
       :style="lineStyle"

@@ -31,6 +31,8 @@ interface Props {
 
 const props = defineProps<Props>()
 
+const config = computed(() => props.data.widget || props.data || {})
+
 // Generate unique ID for this instance
 const instanceId = ref(`pdf-viewer-${Math.random().toString(36).substring(2, 9)}`)
 const containerRef = ref<HTMLElement | null>(null)
@@ -40,32 +42,27 @@ const hasError = ref(false)
 
 // Computed properties
 const pdfUrl = computed(() => {
-  const file = props.data.file
+  const file = config.value.file
   if (!file) return null
   if (typeof file === 'string') return file
   return (file as any).public_link || (file as any).url || null
 })
 
-const heightMode = computed(() => props.data.height_mode || 'fixed')
-
 const height = computed(() => {
-  const h = parseInt(String(props.data.height))
+  const h = parseInt(String(config.value.height))
   return h > 0 ? h : 600
 })
 
 const containerStyle = computed(() => {
-  if (heightMode.value === 'container') {
-    return { height: '100%', minHeight: '200px' }
-  }
   return { height: `${height.value}px` }
 })
 
-const pageMode = computed(() => props.data.page_mode || 'double')
-const showControls = computed(() => props.data.show_controls !== false)
-const showThumbnails = computed(() => props.data.show_thumbnails !== false)
-const showOutline = computed(() => props.data.show_outline !== false)
-const showFullscreen = computed(() => props.data.show_fullscreen !== false)
-const showDownload = computed(() => props.data.show_download !== false)
+const pageMode = computed(() => config.value.page_mode || 'double')
+const showControls = computed(() => config.value.show_controls !== false)
+const showThumbnails = computed(() => config.value.show_thumbnails !== false)
+const showOutline = computed(() => config.value.show_outline !== false)
+const showFullscreen = computed(() => config.value.show_fullscreen !== false)
+const showDownload = computed(() => config.value.show_download !== false)
 function resolveColor(val: string | null | undefined): string | null {
   if (!val) return null
   if (val.startsWith('var:')) {
@@ -80,7 +77,7 @@ function resolveColor(val: string | null | undefined): string | null {
   return val
 }
 
-const backgroundColor = computed(() => resolveColor(props.data.background_color) || '#1a1a1a')
+const backgroundColor = computed(() => resolveColor(config.value.background_color) || '#1a1a1a')
 
 // Check if dFlip library is available
 const isDFlipAvailable = () => {

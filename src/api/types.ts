@@ -64,51 +64,51 @@ export interface ProjectConfigResponse {
 
 export interface GradientSettings {
   type?: 'linear' | 'radial'
-  colorStart?: string
-  colorEnd?: string
+  color_start?: string
+  color_end?: string
   angle?: number
 }
 
 export interface BaseSettings {
   // Background
-  backgroundColor?: string
-  backgroundOpacity?: number
-  backgroundImage?: string
-  backgroundSize?: string
-  backgroundPosition?: string
-  backgroundImageOpacity?: number
-  backgroundImageSource?: string
-  backgroundImageField?: string
+  background_color?: string
+  background_opacity?: number
+  background_image?: string
+  background_size?: string
+  background_position?: string
+  background_image_opacity?: number
+  background_image_source?: string
+  background_image_field?: string
 
   // Gradient (new API format)
   gradient?: GradientSettings
 
   // Gradient (legacy format)
-  useGradient?: boolean
-  gradientType?: 'linear' | 'radial'
-  gradientAngle?: number
-  gradientColorStart?: string
-  gradientColorEnd?: string
+  use_gradient?: boolean
+  gradient_type?: 'linear' | 'radial'
+  gradient_angle?: number
+  gradient_color_start?: string
+  gradient_color_end?: string
 
   // Height mode
-  heightMode?: 'auto' | 'fixed' | 'full'
+  height_mode?: 'auto' | 'fixed' | 'full'
 
   // Spacing (in pixels)
-  paddingTop?: number
-  paddingRight?: number
-  paddingBottom?: number
-  paddingLeft?: number
-  marginTop?: number
-  marginRight?: number
-  marginBottom?: number
-  marginLeft?: number
+  padding_top?: number
+  padding_right?: number
+  padding_bottom?: number
+  padding_left?: number
+  margin_top?: number
+  margin_right?: number
+  margin_bottom?: number
+  margin_left?: number
 
   // Border
-  borderRadius?: number
-  borderWidth?: number
-  borderColor?: string
-  borderStyle?: string
-  boxShadow?: string
+  border_radius?: number
+  border_width?: number
+  border_color?: string
+  border_style?: string
+  box_shadow?: string
 
   // Visibility
   hidden?: boolean
@@ -123,7 +123,7 @@ export interface BaseSettings {
   link?: LinkSettings
 
   // Custom CSS class
-  cssClass?: string
+  css_class?: string
 }
 
 export interface LinkSettings {
@@ -176,45 +176,45 @@ export interface WidgetContent {
 
 export interface SectionSettings extends BaseSettings {
   // Size & Layout
-  fullHeight?: boolean
+  full_height?: boolean
   sectionHeight?: number | null
-  contentWidth?: string
+  content_width?: string
   customWidth?: number
-  columnGap?: number
-  minHeight?: number
+  column_gap?: number
+  min_height?: number
 
   // Stacking
-  stackOnTablet?: boolean
-  stackOnMobile?: boolean
+  stack_on_tablet?: boolean
+  stack_on_mobile?: boolean
 
   // Sticky
   sticky?: boolean
-  stickyTop?: number
-  stickyZIndex?: number
-  scrolledBg?: string
-  scrolledShadow?: 'none' | 'sm' | 'md' | 'lg'
+  sticky_top?: number
+  sticky_z_index?: number
+  scrolled_bg?: string
+  scrolled_shadow?: 'none' | 'sm' | 'md' | 'lg'
 }
 
 export interface ColumnSettings extends BaseSettings {
   // Size
   columnHeight?: number | null
-  minHeight?: number | null
+  min_height?: number | null
 
   // Alignment
-  verticalAlign?: 'flex-start' | 'center' | 'flex-end'
-  horizontalAlign?: 'flex-start' | 'center' | 'flex-end' | 'stretch'
+  vertical_align?: 'flex-start' | 'center' | 'flex-end'
+  horizontal_align?: 'flex-start' | 'center' | 'flex-end' | 'stretch'
 }
 
 export interface WidgetSettings extends BaseSettings {
   // Size
   height?: number
-  minHeight?: number
-  autoHeight?: boolean
-  fullHeight?: boolean
+  min_height?: number
+  auto_height?: boolean
+  full_height?: boolean
 
   // Alignment
-  verticalAlign?: string
-  horizontalAlign?: string
+  vertical_align?: string
+  horizontal_align?: string
 }
 
 export interface PageMetadata {

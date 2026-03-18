@@ -155,12 +155,17 @@ const hoverCss = computed(() => {
     const itemSettings = item.item_settings as Record<string, any> | undefined
 
     const id = cellIds.value[idx]
+
     const duration = data.transition_duration ?? 200
 
     const lift = data.hover_lift || 0
     const scale = data.hover_scale
     const shadowVal = data.hover_shadow || 'none'
+
+    // Background hover
     const hoverBg = data.hover_background_color ? resolveColor(data.hover_background_color) : null
+
+    // Element hover colors
     const hoverTextColor = data.hover_text_color ? resolveColor(data.hover_text_color) : null
     const hoverIconColor = data.hover_icon_color ? resolveColor(data.hover_icon_color) : null
     const hoverIconBg = data.hover_icon_background ? resolveColor(data.hover_icon_background) : null
@@ -168,11 +173,10 @@ const hoverCss = computed(() => {
     const hoverBadgeColor = data.hover_badge_color ? resolveColor(data.hover_badge_color) : null
     const hoverBadgeBg = data.hover_badge_background ? resolveColor(data.hover_badge_background) : null
 
-    // Per-item hover from item_settings.hover (border, bg override)
-    const itemHover = itemSettings?.hover as Record<string, any> | undefined
-    const hoverBorderColor = itemHover?.borderColor ? resolveColor(itemHover.borderColor) : null
-    const hoverBorderWidth = itemHover?.borderWidth || 0
-    const itemHoverBg = itemHover?.backgroundColor ? resolveColor(itemHover.backgroundColor) : null
+    // Border hover
+    const hoverBorderColor = itemSettings?.hover?.borderColor ? resolveColor(itemSettings.hover.borderColor) : null
+    const hoverBorderWidth = (itemSettings?.hover as Record<string, any> | undefined)?.borderWidth || 0
+    const itemHoverBg = itemSettings?.hover?.backgroundColor ? resolveColor(itemSettings.hover.backgroundColor) : null
 
     const hasAnyHover = lift || (scale && scale !== 1) || (shadowVal !== 'none') || hoverBg || itemHoverBg || hoverTextColor || hoverIconColor || hoverIconBg || hoverLinkColor || hoverBadgeColor || hoverBadgeBg || hoverBorderColor || hoverBorderWidth
     if (!hasAnyHover) return

@@ -3,6 +3,7 @@
  * Counter Widget
  *
  * Renders an animated counting number with prefix/suffix inline.
+ * Element-group architecture: number, title, config groups.
  */
 
 import { ref, computed, onMounted, watch } from 'vue'
@@ -22,17 +23,6 @@ interface Props {
 const props = defineProps<Props>()
 
 const { extractValue } = useLanguage(props.language)
-
-const targetNumber = computed(() => props.data.number || 0)
-const prefix = computed(() => props.data.prefix ? extractValue(props.data.prefix) : '')
-const suffix = computed(() => props.data.suffix ? extractValue(props.data.suffix) : '')
-const title = computed(() => props.data.title ? extractValue(props.data.title) : '')
-const duration = computed(() => props.data.duration || 2000)
-const alignment = computed(() => props.data.alignment || 'center')
-const numberSize = computed(() => props.data.number_size || 'xl')
-const numberColor = computed(() => props.data.number_color || null)
-const titleColor = computed(() => props.data.title_color || null)
-const prefixColor = computed(() => props.data.prefix_color || null)
 
 function resolveColorValue(val: string | null): string | null {
   if (!val) return null
@@ -60,10 +50,34 @@ function resolveColorValue(val: string | null): string | null {
   return val
 }
 
+// Element-group computed refs
+const numberGroup = computed(() => props.data.number || {})
+const titleGroup = computed(() => props.data.title || {})
+const configGroup = computed(() => props.data.config || {})
+
+// Element-group reads
+const targetNumber = computed(() => numberGroup.value.number || 0)
+const duration = computed(() => numberGroup.value.duration || 2000)
+const numberSize = computed(() => numberGroup.value.size || 'xl')
+const prefix = computed(() => numberGroup.value.prefix ? extractValue(numberGroup.value.prefix) : '')
+const suffix = computed(() => numberGroup.value.suffix ? extractValue(numberGroup.value.suffix) : '')
+const numberColor = computed(() => numberGroup.value.color || null)
+const numberHoverColor = computed(() => numberGroup.value['color:hover'] || null)
+const prefixColor = computed(() => numberGroup.value.prefix_color || null)
+
+const titleText = computed(() => titleGroup.value.content ? extractValue(titleGroup.value.content) : '')
+const titleColor = computed(() => titleGroup.value.color || null)
+const titleHoverColor = computed(() => titleGroup.value['color:hover'] || null)
+
+const alignment = computed(() => configGroup.value.alignment || 'center')
+
+const hasHover = computed(() => !!(
+  numberHoverColor.value ||
+  titleHoverColor.value
+))
+
 const counterStyle = computed(() => {
   const style: Record<string, string> = {}
-  const bg = resolveColorValue(props.data.background_color || null)
-  if (bg) style.backgroundColor = bg
   const nc = resolveColorValue(numberColor.value)
   if (nc) style['--counter-number-color'] = nc
   const tc = resolveColorValue(titleColor.value)
@@ -72,22 +86,10 @@ const counterStyle = computed(() => {
   if (pc) style['--counter-prefix-color'] = pc
 
   // hover CSS custom properties
-  const hoverNumber = resolveColorValue(props.data.hover_number_color || null)
+  const hoverNumber = resolveColorValue(numberHoverColor.value)
   if (hoverNumber) style['--hover-number-color'] = hoverNumber
-  const hoverTitle = resolveColorValue(props.data.hover_title_color || null)
+  const hoverTitle = resolveColorValue(titleHoverColor.value)
   if (hoverTitle) style['--hover-title-color'] = hoverTitle
-  const hoverPrefix = resolveColorValue(props.data.hover_prefix_color || null)
-  if (hoverPrefix) style['--hover-prefix-color'] = hoverPrefix
-  style['--transition-duration'] = `${props.data.transition_duration ?? 200}ms`
-
-  // Hover transform effects
-  const lift = props.data.hover_lift || 0
-  if (lift) style['--hover-lift'] = `-${lift}px`
-  const scale = props.data.hover_scale
-  if (scale && scale !== 1) style['--hover-scale'] = String(scale)
-  const shadowMap: Record<string, string> = { sm: '0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06)', md: '0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05)', lg: '0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)' }
-  const shadowVal = props.data.hover_shadow || 'none'
-  if (shadowVal !== 'none' && shadowMap[shadowVal]) style['--hover-shadow'] = shadowMap[shadowVal]
 
   return style
 })
@@ -135,7 +137,7 @@ watch(targetNumber, () => {
     :class="[
       `lcms-counter--align-${alignment}`,
       `lcms-counter--size-${numberSize}`,
-      { 'has-hover': !!(data.hover_number_color || data.hover_title_color || data.hover_prefix_color || data.hover_lift || (data.hover_scale !== undefined && data.hover_scale !== 1) || (data.hover_shadow && data.hover_shadow !== 'none')) }
+      { 'has-hover': hasHover }
     ]"
     :style="counterStyle"
   >
@@ -151,32 +153,17 @@ watch(targetNumber, () => {
       >{{ suffix }}</span>
     </div>
     <div
-      v-if="title"
+      v-if="titleText"
       class="lcms-counter__title"
     >
-      {{ title }}
+      {{ titleText }}
     </div>
   </div>
 </template>
 
 <style scoped>
 .lcms-counter {
-  transition: transform var(--transition-duration, 200ms) ease, box-shadow var(--transition-duration, 200ms) ease;
-}
-
-.lcms-counter.has-hover:hover {
-  transform: translateY(var(--hover-lift, 0)) scale(var(--hover-scale, 1));
-  box-shadow: var(--hover-shadow, none);
-}
-
-.lcms-counter__value,
-.lcms-counter__prefix,
-.lcms-counter__suffix {
-  transition: color var(--transition-duration, 200ms) ease;
-}
-
-.lcms-counter__title {
-  transition: color var(--transition-duration, 200ms) ease;
+  transition: transform 200ms ease, box-shadow 200ms ease;
 }
 
 .lcms-counter.has-hover:hover .lcms-counter__value {
@@ -187,8 +174,13 @@ watch(targetNumber, () => {
   color: var(--hover-title-color);
 }
 
-.lcms-counter.has-hover:hover .lcms-counter__prefix,
-.lcms-counter.has-hover:hover .lcms-counter__suffix {
-  color: var(--hover-prefix-color);
+.lcms-counter__value,
+.lcms-counter__prefix,
+.lcms-counter__suffix {
+  transition: color 200ms ease;
+}
+
+.lcms-counter__title {
+  transition: color 200ms ease;
 }
 </style>

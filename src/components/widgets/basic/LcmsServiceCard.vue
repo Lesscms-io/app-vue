@@ -6,9 +6,9 @@
     </div>
 
     <!-- Icon -->
-    <div v-if="icon" class="lcms-service-card__icon" :style="iconStyles">
+    <div v-if="iconValue" class="lcms-service-card__icon" :style="iconStyles">
       <span v-if="isSvgIcon" class="lcms-service-card__svg" v-html="svgContent"></span>
-      <i v-else :class="icon"></i>
+      <i v-else :class="iconValue"></i>
     </div>
 
     <!-- Title -->
@@ -17,7 +17,7 @@
     </h3>
 
     <!-- Description -->
-    <p v-if="description" class="lcms-service-card__description">
+    <p v-if="description" class="lcms-service-card__description" :style="descriptionStyles">
       {{ description }}
     </p>
 
@@ -42,7 +42,7 @@ import { useLanguage } from '@/composables/useLanguage'
 const props = defineProps<{
   data: {
     widget_type: string
-    config: Record<string, any>
+    config?: Record<string, any>
     settings?: Record<string, unknown>
   }
   language?: string
@@ -69,42 +69,51 @@ const resolveCollectionUrl = inject<(collectionCode: string, entryId: string) =>
 
 const config = computed(() => props.data.widget || props.data || {})
 
-const badge = computed(() => extractValue(config.value.badge) || '')
-const icon = computed(() => {
-  const val = config.value.icon
+// Element groups
+const headingGroup = computed(() => config.value.heading || {})
+const descriptionGroup = computed(() => config.value.description || {})
+const iconGroup = computed(() => config.value.icon || {})
+const linkGroup = computed(() => config.value.link || {})
+const badgeGroup = computed(() => config.value.badge || {})
+const styleGroup = computed(() => config.value.style || {})
+
+// Content values
+const badge = computed(() => extractValue(badgeGroup.value.content) || '')
+const iconValue = computed(() => {
+  const val = iconGroup.value.icon
   if (!val) return ''
   if (typeof val === 'object') return ''
   return val
 })
-const isSvgIcon = computed(() => (icon.value || '').startsWith('svg:'))
-const svgContent = computed(() => isSvgIcon.value ? icon.value.slice(4) : '')
-const title = computed(() => extractValue(config.value.title) || '')
-const description = computed(() => extractValue(config.value.description) || '')
-const linkText = computed(() => extractValue(config.value.link_text) || '')
-const linkTargetBlank = computed(() => config.value.link_target_blank || false)
-const showBadge = computed(() => config.value.show_badge === true)
-const showLink = computed(() => config.value.show_link !== false)
+const isSvgIcon = computed(() => (iconValue.value || '').startsWith('svg:'))
+const svgContent = computed(() => isSvgIcon.value ? iconValue.value.slice(4) : '')
+const title = computed(() => extractValue(headingGroup.value.content) || '')
+const description = computed(() => extractValue(descriptionGroup.value.content) || '')
+const linkText = computed(() => extractValue(linkGroup.value.content) || '')
+const linkTargetBlank = computed(() => linkGroup.value.target_blank || false)
+const showBadge = computed(() => badgeGroup.value.show === true)
+const showLink = computed(() => linkGroup.value.show !== false)
 
-// Resolve link URL based on link_type (prefer server-resolved URL)
+// Resolve link URL based on link_type
 const resolvedLinkUrl = computed(() => {
-  const linkType = config.value.link_link_type || config.value.link_type || 'url'
-  const serverUrl = config.value.link_url
+  const linkType = linkGroup.value.link_type || 'custom'
+  const serverUrl = linkGroup.value.url
 
   if (linkType === 'page') {
     if (serverUrl && serverUrl !== '#') return serverUrl
-    if (config.value.link_page_id) {
-      const clientResolved = resolvePageUrl(null, config.value.link_page_id)
+    if (linkGroup.value.page_id) {
+      const clientResolved = resolvePageUrl(null, linkGroup.value.page_id)
       if (clientResolved && clientResolved !== '#') return clientResolved
     }
     return serverUrl || ''
   }
-  if (linkType === 'route' && config.value.link_route_uuid) {
-    return resolvePageUrl(null, config.value.link_route_uuid)
+  if (linkType === 'route' && linkGroup.value.route_uuid) {
+    return resolvePageUrl(null, linkGroup.value.route_uuid)
   }
   if (linkType === 'entry') {
     if (serverUrl && serverUrl !== '#') return serverUrl
-    if (config.value.link_collection_code && config.value.link_entry_id) {
-      const clientResolved = resolveCollectionUrl(config.value.link_collection_code, config.value.link_entry_id)
+    if (linkGroup.value.collection_code && linkGroup.value.entry_id) {
+      const clientResolved = resolveCollectionUrl(linkGroup.value.collection_code, linkGroup.value.entry_id)
       if (clientResolved && clientResolved !== '#') return clientResolved
     }
     return serverUrl || ''
@@ -112,28 +121,22 @@ const resolvedLinkUrl = computed(() => {
   return serverUrl || ''
 })
 
-// Highlighted state from item_settings or config
-const isHighlighted = computed(() => {
-  return config.value.item_settings?.highlight || config.value.highlighted || false
-})
-
-// In multi-item mode, ALL hover effects are handled by the cell wrapper (LcmsMultiItemWrapper).
-// The wrapper uses :deep() selectors to target inner elements on cell :hover.
-// This ensures hover triggers on the entire cell area, not just the inner content.
+// In multi-item mode, ALL hover effects are handled by the cell wrapper
 const isMultiItem = computed(() => !!config.value.item_settings)
 
-const hasHoverTextColor = computed(() => !isMultiItem.value && !!config.value.hover_text_color)
-const hasHoverBgColor = computed(() => !isMultiItem.value && !!config.value.hover_background_color)
-const hasHoverIconColor = computed(() => !isMultiItem.value && !!config.value.hover_icon_color)
-const hasHoverIconBg = computed(() => !isMultiItem.value && !!config.value.hover_icon_background)
-const hasHoverLinkColor = computed(() => !isMultiItem.value && !!config.value.hover_link_color)
-const hasHoverBadgeColor = computed(() => !isMultiItem.value && !!config.value.hover_badge_color)
-const hasHoverBadgeBg = computed(() => !isMultiItem.value && !!config.value.hover_badge_background)
+const hasHoverTextColor = computed(() => !isMultiItem.value && !!headingGroup.value['color:hover'])
+const hasHoverDescColor = computed(() => !isMultiItem.value && !!descriptionGroup.value['color:hover'])
+const hasHoverBgColor = computed(() => !isMultiItem.value && !!styleGroup.value['background_color:hover'])
+const hasHoverIconColor = computed(() => !isMultiItem.value && !!iconGroup.value['color:hover'])
+const hasHoverIconBg = computed(() => !isMultiItem.value && !!iconGroup.value['background:hover'])
+const hasHoverLinkColor = computed(() => !isMultiItem.value && !!linkGroup.value['color:hover'])
+const hasHoverBadgeColor = computed(() => !isMultiItem.value && !!badgeGroup.value['color:hover'])
+const hasHoverBadgeBg = computed(() => !isMultiItem.value && !!badgeGroup.value['background:hover'])
 
 const cardClasses = computed(() => ({
-  'lcms-service-card--highlighted': isHighlighted.value,
-  'has-hover': !!(hasHoverTextColor.value || hasHoverBgColor.value || hasHoverIconColor.value || hasHoverIconBg.value || hasHoverLinkColor.value || hasHoverBadgeColor.value || hasHoverBadgeBg.value || (!isMultiItem.value && (config.value.hover_lift || (config.value.hover_scale !== undefined && config.value.hover_scale !== 1) || (config.value.hover_shadow && config.value.hover_shadow !== 'none')))),
+  'has-hover': !!(hasHoverTextColor.value || hasHoverDescColor.value || hasHoverBgColor.value || hasHoverIconColor.value || hasHoverIconBg.value || hasHoverLinkColor.value || hasHoverBadgeColor.value || hasHoverBadgeBg.value || (!isMultiItem.value && (styleGroup.value['lift:hover'] || (styleGroup.value['scale:hover'] !== undefined && styleGroup.value['scale:hover'] !== 1) || (styleGroup.value['shadow_preset:hover'] && styleGroup.value['shadow_preset:hover'] !== 'none')))),
   'has-hover-text-color': hasHoverTextColor.value,
+  'has-hover-desc-color': hasHoverDescColor.value,
   'has-hover-bg': hasHoverBgColor.value,
   'has-hover-icon-color': hasHoverIconColor.value,
   'has-hover-icon-bg': hasHoverIconBg.value,
@@ -147,43 +150,59 @@ const cardStyles = computed(() => {
 
   // In multi-item mode, background and border-radius are on the cell wrapper
   if (!isMultiItem.value) {
-    const bg = resolveColor(config.value.background_color)
+    const bg = resolveColor(styleGroup.value.background_color)
     if (bg) styles.backgroundColor = bg
-    const br = config.value.border_radius
+    const br = styleGroup.value.border_radius
     if (br !== undefined && br !== null) styles.borderRadius = `${br}px`
+
+    // Padding from style
+    if (styleGroup.value.padding_top !== undefined) styles.paddingTop = `${styleGroup.value.padding_top}px`
+    if (styleGroup.value.padding_right !== undefined) styles.paddingRight = `${styleGroup.value.padding_right}px`
+    if (styleGroup.value.padding_bottom !== undefined) styles.paddingBottom = `${styleGroup.value.padding_bottom}px`
+    if (styleGroup.value.padding_left !== undefined) styles.paddingLeft = `${styleGroup.value.padding_left}px`
+
+    // Border
+    if (styleGroup.value.border_width && styleGroup.value.border_width > 0) {
+      styles.borderWidth = `${styleGroup.value.border_width}px`
+      styles.borderStyle = styleGroup.value.border_style || 'solid'
+      const bc = resolveColor(styleGroup.value.border_color)
+      if (bc) styles.borderColor = bc
+    }
+
+    if (styleGroup.value.box_shadow) styles.boxShadow = styleGroup.value.box_shadow
   }
 
-  const txt = resolveColor(config.value.text_color)
+  const txt = resolveColor(headingGroup.value.color)
   if (txt) styles.color = txt
 
-  styles['--transition-duration'] = `${config.value.transition_duration ?? 200}ms`
+  styles['--transition-duration'] = `${styleGroup.value.transition_duration ?? 200}ms`
 
-  // In multi-item mode, ALL hover effects are on the cell wrapper, not here
+  // In multi-item mode, ALL hover effects are on the cell wrapper
   if (!isMultiItem.value) {
-    const hoverTxt = resolveColor(config.value.hover_text_color)
+    const hoverTxt = resolveColor(headingGroup.value['color:hover'])
     if (hoverTxt) styles['--hover-color'] = hoverTxt
-    const hoverBg = resolveColor(config.value.hover_background_color)
+    const hoverDesc = resolveColor(descriptionGroup.value['color:hover'])
+    if (hoverDesc) styles['--hover-desc-color'] = hoverDesc
+    const hoverBg = resolveColor(styleGroup.value['background_color:hover'])
     if (hoverBg) styles['--hover-bg'] = hoverBg
-    const hoverIconColor = resolveColor(config.value.hover_icon_color)
+    const hoverIconColor = resolveColor(iconGroup.value['color:hover'])
     if (hoverIconColor) styles['--hover-icon-color'] = hoverIconColor
-    const hoverIconBg = resolveColor(config.value.hover_icon_background)
+    const hoverIconBg = resolveColor(iconGroup.value['background:hover'])
     if (hoverIconBg) styles['--hover-icon-bg'] = hoverIconBg
-    const hoverLinkColor = resolveColor(config.value.hover_link_color)
+    const hoverLinkColor = resolveColor(linkGroup.value['color:hover'])
     if (hoverLinkColor) styles['--hover-link-color'] = hoverLinkColor
-    const hoverBadgeColor = resolveColor(config.value.hover_badge_color)
+    const hoverBadgeColor = resolveColor(badgeGroup.value['color:hover'])
     if (hoverBadgeColor) styles['--hover-badge-color'] = hoverBadgeColor
-    const hoverBadgeBg = resolveColor(config.value.hover_badge_background)
+    const hoverBadgeBg = resolveColor(badgeGroup.value['background:hover'])
     if (hoverBadgeBg) styles['--hover-badge-bg'] = hoverBadgeBg
-  }
 
-  // In multi-item mode, lift/scale/shadow hover is on the cell wrapper, not here
-  if (!isMultiItem.value) {
-    const lift = config.value.hover_lift || 0
+    // Lift/scale/shadow hover
+    const lift = styleGroup.value['lift:hover'] || 0
     if (lift) styles['--hover-lift'] = `-${lift}px`
-    const scale = config.value.hover_scale
+    const scale = styleGroup.value['scale:hover']
     if (scale && scale !== 1) styles['--hover-scale'] = String(scale)
     const shadowMap: Record<string, string> = { sm: '0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06)', md: '0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05)', lg: '0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)' }
-    const shadowVal = config.value.hover_shadow || 'none'
+    const shadowVal = styleGroup.value['shadow_preset:hover'] || 'none'
     if (shadowVal !== 'none' && shadowMap[shadowVal]) styles['--hover-shadow'] = shadowMap[shadowVal]
   }
 
@@ -192,12 +211,12 @@ const cardStyles = computed(() => {
 
 const iconStyles = computed(() => {
   const styles: Record<string, string> = {}
-  const color = resolveColor(config.value.icon_color)
+  const color = resolveColor(iconGroup.value.color)
   if (color) styles.color = color
-  const bg = resolveColor(config.value.icon_background)
+  const bg = resolveColor(iconGroup.value.background)
   if (bg) styles.backgroundColor = bg
-  const size = config.value.icon_size
-  const padding = config.value.icon_padding || 0
+  const size = iconGroup.value.size
+  const padding = iconGroup.value.padding || 0
   if (size !== undefined && size !== null) {
     styles.width = `${Number(size) + Number(padding) * 2}px`
     styles.height = `${Number(size) + Number(padding) * 2}px`
@@ -209,18 +228,25 @@ const iconStyles = computed(() => {
   return styles
 })
 
+const descriptionStyles = computed(() => {
+  const styles: Record<string, string> = {}
+  const color = resolveColor(descriptionGroup.value.color)
+  if (color) styles.color = color
+  return styles
+})
+
 const linkStyles = computed(() => {
   const styles: Record<string, string> = {}
-  const color = resolveColor(config.value.link_color)
+  const color = resolveColor(linkGroup.value.color)
   if (color) styles.color = color
   return styles
 })
 
 const badgeStyles = computed(() => {
   const styles: Record<string, string> = {}
-  const color = resolveColor(config.value.badge_color)
+  const color = resolveColor(badgeGroup.value.color)
   if (color) styles.color = color
-  const bg = resolveColor(config.value.badge_background)
+  const bg = resolveColor(badgeGroup.value.background)
   if (bg) styles.backgroundColor = bg
   return styles
 })
@@ -245,6 +271,10 @@ const badgeStyles = computed(() => {
   color: var(--hover-color) !important;
 }
 
+.lcms-service-card.has-hover.has-hover-desc-color:hover .lcms-service-card__description {
+  color: var(--hover-desc-color) !important;
+}
+
 .lcms-service-card.has-hover.has-hover-bg:hover {
   background-color: var(--hover-bg) !important;
 }
@@ -267,10 +297,6 @@ const badgeStyles = computed(() => {
 
 .lcms-service-card.has-hover.has-hover-badge-bg:hover .lcms-service-card__badge {
   background-color: var(--hover-badge-bg) !important;
-}
-
-.lcms-service-card--highlighted {
-  border: 2px solid var(--lcms-color-primary, #50a5f1);
 }
 
 .lcms-service-card__badge {
