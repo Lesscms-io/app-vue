@@ -325,11 +325,56 @@ const widgetStyle = computed(() => {
     style.justifyContent = mapVerticalAlign(s.vertical_align)
   }
 
+  // Transition
+  const transitionDuration = s.transition_duration ?? 200
+  if (transitionDuration > 0) {
+    style.transition = `all ${transitionDuration}ms ease`
+  }
+
+  // Hover CSS variables (consumed by :hover rules)
+  const hoverBg = s['background_color:hover']
+  const hoverBorderColor = s['border_color:hover']
+  const hoverBorderWidth = s['border_width:hover']
+  const hoverBoxShadow = s['box_shadow:hover']
+  const hoverLift = s['lift:hover']
+  const hoverScale = s['scale:hover']
+  const hoverShadowPreset = s['shadow_preset:hover']
+
+  if (hoverBg) style['--wcsh-bg'] = resolveColor(hoverBg)
+  if (hoverBorderColor) style['--wcsh-border-color'] = resolveColor(hoverBorderColor)
+  if (hoverBorderWidth) style['--wcsh-border-width'] = `${hoverBorderWidth}px`
+  if (hoverBoxShadow) style['--wcsh-box-shadow'] = hoverBoxShadow
+  if (hoverLift) style['--wcsh-lift'] = `-${hoverLift}px`
+  if (hoverScale && hoverScale !== 1) style['--wcsh-scale'] = String(hoverScale)
+
+  const shadowMap: Record<string, string> = {
+    sm: '0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06)',
+    md: '0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05)',
+    lg: '0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)'
+  }
+  if (hoverShadowPreset && hoverShadowPreset !== 'none' && shadowMap[hoverShadowPreset]) {
+    style['--wcsh-shadow-preset'] = shadowMap[hoverShadowPreset]
+  }
+
   return style
 })
 
 // Check if widget is hidden for current breakpoint
 const isWidgetHidden = computed(() => isHidden(props.widget.settings))
+
+// Check if widget has any container-level hover
+const hasWidgetHover = computed(() => {
+  const s = settings.value
+  return !!(
+    s['background_color:hover'] ||
+    s['border_color:hover'] ||
+    s['border_width:hover'] ||
+    s['box_shadow:hover'] ||
+    s['lift:hover'] ||
+    (s['scale:hover'] && s['scale:hover'] !== 1) ||
+    (s['shadow_preset:hover'] && s['shadow_preset:hover'] !== 'none')
+  )
+})
 
 // CSS class for widget
 const widgetClass = computed(() => {
@@ -341,6 +386,9 @@ const widgetClass = computed(() => {
   }
   if (isWidgetHidden.value) {
     classes.push('lcms-hidden')
+  }
+  if (hasWidgetHover.value) {
+    classes.push('wcsh-hover')
   }
 
   // Background image with opacity
@@ -442,7 +490,7 @@ function mapHorizontalAlign(value: string): string {
   <component
     :is="linkSettings ? 'a' : 'div'"
     ref="widgetRef"
-    :id="settings.id || widgetId"
+    :id="settings.css_id || widgetId"
     :href="linkSettings?.url"
     :target="linkSettings?.targetBlank ? '_blank' : undefined"
     :rel="linkSettings?.targetBlank ? 'noopener noreferrer' : undefined"
@@ -480,3 +528,36 @@ function mapHorizontalAlign(value: string): string {
     </div>
   </component>
 </template>
+
+<style>
+/* Widget container hover — global rules consuming --wcsh-* CSS variables */
+.wcsh-hover:hover {
+  background-color: var(--wcsh-bg) !important;
+  border-color: var(--wcsh-border-color) !important;
+  border-width: var(--wcsh-border-width) !important;
+  box-shadow: var(--wcsh-shadow-preset, var(--wcsh-box-shadow)) !important;
+  transform: translateY(var(--wcsh-lift, 0)) scale(var(--wcsh-scale, 1));
+}
+
+/* Background image with opacity — pseudo-element approach */
+.has-bg-image-opacity {
+  position: relative;
+}
+.has-bg-image-opacity::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: var(--bg-image);
+  background-size: var(--bg-size, cover);
+  background-position: var(--bg-position, center center);
+  background-repeat: no-repeat;
+  opacity: var(--bg-image-opacity, 1);
+  pointer-events: none;
+  border-radius: inherit;
+  z-index: 0;
+}
+.has-bg-image-opacity > * {
+  position: relative;
+  z-index: 1;
+}
+</style>
