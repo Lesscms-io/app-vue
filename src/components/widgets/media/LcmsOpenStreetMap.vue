@@ -519,6 +519,8 @@ onBeforeUnmount(() => {
 <style scoped>
 .lcms-openstreetmap {
   width: 100%;
+  position: relative;
+  z-index: 0;
 }
 
 .lcms-openstreetmap__container {
