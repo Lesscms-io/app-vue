@@ -99,7 +99,31 @@ const pillClasses = computed(() => [
 
 <style scoped>
 .lcms-pill {
+  display: inline-block;
+  border-radius: 9999px;
+  padding: 0.35em 1em;
+  font-weight: 600;
+  line-height: 1.4;
   transition: color 200ms ease;
+}
+
+.lcms-pill--sm {
+  font-size: 0.75rem;
+  padding: 0.25em 0.75em;
+}
+
+.lcms-pill--md {
+  font-size: 0.8125rem;
+}
+
+.lcms-pill--lg {
+  font-size: 0.9375rem;
+  padding: 0.4em 1.25em;
+}
+
+.lcms-pill--uppercase {
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .lcms-pill.has-hover:hover {

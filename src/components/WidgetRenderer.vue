@@ -281,6 +281,16 @@ const widgetStyle = computed(() => {
   // Shadow
   if (s.box_shadow) style.boxShadow = s.box_shadow
 
+  // Width
+  if (s.auto_width) {
+    style.width = 'fit-content'
+  } else if (s.width && s.width > 0) {
+    style.width = `${s.width}px`
+  }
+  if (s.max_width && s.max_width > 0) {
+    style.maxWidth = `${s.max_width}px`
+  }
+
   // Height
   if (s.full_height || s.height_mode === 'full') {
     style.height = '100%'
