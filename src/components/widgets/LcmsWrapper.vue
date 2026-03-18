@@ -72,6 +72,19 @@ const containerStyle = computed(() => {
     if (s.border_color) style.borderColor = resolveColor(s.border_color)
   }
   if (s.box_shadow) style.boxShadow = s.box_shadow
+
+  // Width + alignment
+  if (s.auto_width) {
+    style.width = 'fit-content'
+    const hAlign = s.horizontal_align || 'stretch'
+    if (hAlign === 'center') {
+      style.marginLeft = 'auto'
+      style.marginRight = 'auto'
+    } else if (hAlign === 'right') {
+      style.marginLeft = 'auto'
+    }
+  }
+
   return style
 })
 
