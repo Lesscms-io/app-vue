@@ -192,13 +192,18 @@ const multiItemContainerFields = computed(() => {
   return fields
 })
 
+// Widgets that apply background on their own inner element (not the container)
+// because their visual shape differs from the rectangular container (e.g., pill has border-radius: 9999px)
+const SELF_BG_WIDGETS = new Set(['pill', 'button'])
+
 // Calculate widget styles from settings
 const widgetStyle = computed(() => {
   const s = settings.value
   const style: Record<string, string> = {}
+  const skipBg = SELF_BG_WIDGETS.has(widgetType.value)
 
   // Background color with opacity
-  if (s.background_color) {
+  if (s.background_color && !skipBg) {
     const resolved = resolveColor(s.background_color)
     const opacity = s.background_opacity ?? 100
     if (opacity < 100 && resolved.startsWith('#')) {

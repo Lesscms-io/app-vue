@@ -66,11 +66,24 @@ const isUppercase = computed(() => {
 const txtColor = computed(() => resolveColorValue(textGroup.value.color || (props.data as any).text_color))
 const hoverTxtColor = computed(() => resolveColorValue(textGroup.value['color:hover'] || (props.data as any).hover_text_color))
 
+// Background color from widget settings (applied on pill, not on WidgetRenderer container)
+const bgColor = computed(() => {
+  const color = props.settings?.background_color
+  if (!color) return null
+  const opacity = props.settings?.background_opacity ?? 100
+  if (opacity < 100) {
+    return resolveColorValue(`${color}:${opacity}`)
+  }
+  return resolveColorValue(color)
+})
+
 const pillStyle = computed(() => {
   const style: Record<string, string> = {}
 
   if (variant.value === 'outline') {
     style.backgroundColor = 'transparent'
+  } else if (bgColor.value) {
+    style.backgroundColor = bgColor.value
   }
   if (txtColor.value) style.color = txtColor.value
 
