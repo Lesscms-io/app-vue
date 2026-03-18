@@ -131,13 +131,13 @@ const hoverCss = computed(() => {
 // Scroll animation
 const animationConfig = computed(() => {
   const s = settings.value
-  const type = s.animationType || 'none'
+  const type = s.animation_type || 'none'
   if (type === 'none') return null
   return {
     type,
-    duration: s.animationDuration ?? 600,
-    delay: s.animationDelay ?? 0,
-    once: s.animationOnce ?? true
+    duration: s.animation_duration ?? 600,
+    delay: s.animation_delay ?? 0,
+    once: s.animation_once ?? true
   }
 })
 
@@ -198,9 +198,9 @@ const widgetStyle = computed(() => {
   const style: Record<string, string> = {}
 
   // Background color with opacity
-  if (s.backgroundColor) {
-    const resolved = resolveColor(s.backgroundColor)
-    const opacity = s.backgroundOpacity ?? 100
+  if (s.background_color) {
+    const resolved = resolveColor(s.background_color)
+    const opacity = s.background_opacity ?? 100
     if (opacity < 100 && resolved.startsWith('#')) {
       style.backgroundColor = hexToRgba(resolved, opacity / 100)
     } else if (opacity < 100 && resolved.startsWith('var(')) {
@@ -222,21 +222,21 @@ const widgetStyle = computed(() => {
         ? `linear-gradient(${angle}deg, ${start}, ${end})`
         : `radial-gradient(circle, ${start}, ${end})`
     }
-    else if (s.useGradient && s.gradientColorStart && s.gradientColorEnd) {
-      const type = s.gradientType || 'linear'
-      const angle = s.gradientAngle ?? 180
-      const start = resolveColor(s.gradientColorStart)
-      const end = resolveColor(s.gradientColorEnd)
+    else if (s.use_gradient && s.gradient_color_start && s.gradient_color_end) {
+      const type = s.gradient_type || 'linear'
+      const angle = s.gradient_angle ?? 180
+      const start = resolveColor(s.gradient_color_start)
+      const end = resolveColor(s.gradient_color_end)
       gradientValue = type === 'linear'
         ? `linear-gradient(${angle}deg, ${start}, ${end})`
         : `radial-gradient(circle, ${start}, ${end})`
     }
 
-    if (s.backgroundImage) {
-      const encodedUrl = encodeURI(s.backgroundImage)
-      const imgSize = s.backgroundSize || 'cover'
-      const imgPos = s.backgroundPosition || 'center center'
-      const imgOpacity = s.backgroundImageOpacity ?? 100
+    if (s.background_image) {
+      const encodedUrl = encodeURI(s.background_image)
+      const imgSize = s.background_size || 'cover'
+      const imgPos = s.background_position || 'center center'
+      const imgOpacity = s.background_image_opacity ?? 100
       if (imgOpacity < 100) {
         // Use CSS custom properties for pseudo-element opacity approach
         style['--bg-image'] = `url("${encodedUrl}")`
@@ -259,48 +259,48 @@ const widgetStyle = computed(() => {
   }
 
   // Padding
-  if (s.paddingTop) style.paddingTop = `${s.paddingTop}px`
-  if (s.paddingRight) style.paddingRight = `${s.paddingRight}px`
-  if (s.paddingBottom) style.paddingBottom = `${s.paddingBottom}px`
-  if (s.paddingLeft) style.paddingLeft = `${s.paddingLeft}px`
+  if (s.padding_top) style.paddingTop = `${s.padding_top}px`
+  if (s.padding_right) style.paddingRight = `${s.padding_right}px`
+  if (s.padding_bottom) style.paddingBottom = `${s.padding_bottom}px`
+  if (s.padding_left) style.paddingLeft = `${s.padding_left}px`
 
   // Margin
-  if (s.marginTop) style.marginTop = `${s.marginTop}px`
-  if (s.marginRight) style.marginRight = `${s.marginRight}px`
-  if (s.marginBottom) style.marginBottom = `${s.marginBottom}px`
-  if (s.marginLeft) style.marginLeft = `${s.marginLeft}px`
+  if (s.margin_top) style.marginTop = `${s.margin_top}px`
+  if (s.margin_right) style.marginRight = `${s.margin_right}px`
+  if (s.margin_bottom) style.marginBottom = `${s.margin_bottom}px`
+  if (s.margin_left) style.marginLeft = `${s.margin_left}px`
 
   // Border
-  if (s.borderRadius) style.borderRadius = `${s.borderRadius}px`
-  if (s.borderWidth) {
-    style.borderWidth = `${s.borderWidth}px`
-    style.borderStyle = s.borderStyle || 'solid'
-    style.borderColor = resolveColor(s.borderColor) || '#000000'
+  if (s.border_radius) style.borderRadius = `${s.border_radius}px`
+  if (s.border_width) {
+    style.borderWidth = `${s.border_width}px`
+    style.borderStyle = s.border_style || 'solid'
+    style.borderColor = resolveColor(s.border_color) || '#000000'
   }
 
   // Shadow
-  if (s.boxShadow) style.boxShadow = s.boxShadow
+  if (s.box_shadow) style.boxShadow = s.box_shadow
 
   // Height
-  if (s.fullHeight || s.heightMode === 'full') {
+  if (s.full_height || s.height_mode === 'full') {
     style.height = '100%'
   } else if (s.height && s.height > 0) {
     style.height = `${s.height}px`
   }
 
-  if (s.minHeight && s.minHeight > 0) {
-    style.minHeight = `${s.minHeight}px`
+  if (s.min_height && s.min_height > 0) {
+    style.minHeight = `${s.min_height}px`
   }
 
   // Alignment
-  if (s.horizontalAlign && s.horizontalAlign !== 'stretch') {
+  if (s.horizontal_align && s.horizontal_align !== 'stretch') {
     style.display = 'flex'
-    style.justifyContent = mapHorizontalAlign(s.horizontalAlign)
+    style.justifyContent = mapHorizontalAlign(s.horizontal_align)
   }
 
-  if (s.verticalAlign) {
+  if (s.vertical_align) {
     if (!style.display) style.display = 'flex'
-    style.alignItems = mapVerticalAlign(s.verticalAlign)
+    style.alignItems = mapVerticalAlign(s.vertical_align)
   }
 
   return style
@@ -314,16 +314,16 @@ const widgetClass = computed(() => {
   const classes = ['lcms-widget', `lcms-widget--${widgetType.value}`]
 
   const s = settings.value
-  if (s.cssClass) {
-    classes.push(s.cssClass)
+  if (s.css_class) {
+    classes.push(s.css_class)
   }
   if (isWidgetHidden.value) {
     classes.push('lcms-hidden')
   }
 
   // Background image with opacity
-  const bgImg = settings.value.backgroundImage
-  const bgImgOpacity = settings.value.backgroundImageOpacity ?? 100
+  const bgImg = settings.value.background_image
+  const bgImgOpacity = settings.value.background_image_opacity ?? 100
   if (bgImg && bgImgOpacity < 100) {
     classes.push('has-bg-image-opacity')
   }
