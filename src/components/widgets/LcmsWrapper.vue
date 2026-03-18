@@ -30,7 +30,12 @@ const layout = computed(() => props.data.layout || 'grid')
 
 const wrapperId = `lcms-wrap-${Math.random().toString(36).substring(2, 9)}`
 
-const hAlign = computed(() => (props.data.style?.horizontal_align as string) || 'stretch')
+const hAlign = computed(() => {
+  if (props.data.style?.horizontal_align) return props.data.style.horizontal_align as string
+  const firstChild = (props.items || [])[0]
+  if (firstChild?.data?.style?.horizontal_align) return firstChild.data.style.horizontal_align as string
+  return 'stretch'
+})
 
 const gridStyle = computed(() => {
   const alignMap: Record<string, string> = { left: 'flex-start', center: 'center', right: 'flex-end', stretch: 'flex-start' }
