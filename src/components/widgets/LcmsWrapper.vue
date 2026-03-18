@@ -146,30 +146,15 @@ const hoverCss = computed(() => {
     const hoverBadgeColor = data.badge?.['color:hover'] ? resolveColor(data.badge['color:hover']) : null
     const hoverBadgeBg = data.badge?.['background:hover'] ? resolveColor(data.badge['background:hover']) : null
 
-    const hasAny = lift || (scale && scale !== 1) || (shadowVal !== 'none') || hoverBg || hoverBorderColor || hoverBorderWidth || hoverTextColor || hoverIconColor || hoverIconBg || hoverLinkColor || hoverBadgeColor || hoverBadgeBg
-    if (!hasAny) return
-
-    css += `#${id} { transition: transform ${duration}ms ease, box-shadow ${duration}ms ease, background-color ${duration}ms ease, border-color ${duration}ms ease; }`
+    // Cell-level hover (transform, shadow, bg, border) is handled by WidgetRenderer's wcsh-hover system.
+    // LcmsWrapper only generates inner element hover (text/icon/badge color changes on card hover).
+    const hasInnerHover = hoverTextColor || hoverIconColor || hoverIconBg || hoverLinkColor || hoverBadgeColor || hoverBadgeBg
+    if (!hasInnerHover) return
 
     // Inner element transitions
     const innerSelectors = ['.lcms-service-card', '.lcms-service-card__icon', '.lcms-service-card__link', '.lcms-service-card__badge']
     const selectorList = innerSelectors.map(s => `#${id} ${s}`).join(', ')
     css += `${selectorList} { transition: color ${duration}ms ease, background-color ${duration}ms ease; }`
-
-    // Cell hover
-    let cellHover = ''
-    if (lift && scale && scale !== 1) {
-      cellHover += `transform: translateY(-${lift}px) scale(${scale});`
-    } else if (lift) {
-      cellHover += `transform: translateY(-${lift}px);`
-    } else if (scale && scale !== 1) {
-      cellHover += `transform: scale(${scale});`
-    }
-    if (shadowVal !== 'none' && shadowMap[shadowVal]) cellHover += `box-shadow: ${shadowMap[shadowVal]};`
-    if (hoverBg) cellHover += `background-color: ${hoverBg} !important;`
-    if (hoverBorderColor) cellHover += `border-color: ${hoverBorderColor} !important;`
-    if (hoverBorderWidth > 0) cellHover += `border-width: ${hoverBorderWidth}px !important; border-style: solid;`
-    if (cellHover) css += `#${id}:hover { ${cellHover} }`
 
     // Inner elements hover
     if (hoverTextColor) css += `#${id}:hover .lcms-service-card { color: ${hoverTextColor} !important; }`
