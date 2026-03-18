@@ -281,11 +281,27 @@ const widgetStyle = computed(() => {
   // Shadow
   if (s.box_shadow) style.boxShadow = s.box_shadow
 
-  // Width
-  if (s.auto_width) {
+  // Width + horizontal alignment
+  // auto_width = widget shrinks to fit content, alignment positions it within parent
+  const hAlign = s.horizontal_align || 'stretch'
+  if (s.auto_width || (hAlign !== 'stretch' && !s.width)) {
     style.width = 'fit-content'
+    // Use auto margins for alignment since fit-content + justify-content is conflicting
+    if (hAlign === 'center') {
+      style.marginLeft = style.marginLeft || 'auto'
+      style.marginRight = style.marginRight || 'auto'
+    } else if (hAlign === 'right') {
+      style.marginLeft = style.marginLeft || 'auto'
+    }
+    // left = default block flow, no extra margin needed
   } else if (s.width && s.width > 0) {
     style.width = `${s.width}px`
+    if (hAlign === 'center') {
+      style.marginLeft = style.marginLeft || 'auto'
+      style.marginRight = style.marginRight || 'auto'
+    } else if (hAlign === 'right') {
+      style.marginLeft = style.marginLeft || 'auto'
+    }
   }
   if (s.max_width && s.max_width > 0) {
     style.maxWidth = `${s.max_width}px`
@@ -302,15 +318,11 @@ const widgetStyle = computed(() => {
     style.minHeight = `${s.min_height}px`
   }
 
-  // Alignment
-  if (s.horizontal_align && s.horizontal_align !== 'stretch') {
+  // Vertical alignment (flex column)
+  if (s.vertical_align && s.vertical_align !== 'top') {
     style.display = 'flex'
-    style.justifyContent = mapHorizontalAlign(s.horizontal_align)
-  }
-
-  if (s.vertical_align) {
-    if (!style.display) style.display = 'flex'
-    style.alignItems = mapVerticalAlign(s.vertical_align)
+    style.flexDirection = 'column'
+    style.justifyContent = mapVerticalAlign(s.vertical_align)
   }
 
   return style
