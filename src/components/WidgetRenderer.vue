@@ -289,6 +289,10 @@ const widgetStyle = computed(() => {
   // Width + horizontal alignment
   // auto_width = widget shrinks to fit content, alignment positions it within parent
   const hAlign = s.horizontal_align || 'stretch'
+  // Text alignment follows horizontal alignment
+  if (hAlign === 'center') style.textAlign = 'center'
+  else if (hAlign === 'right') style.textAlign = 'right'
+  else if (hAlign === 'left') style.textAlign = 'left'
   if (s.auto_width || (hAlign !== 'stretch' && !s.width)) {
     style.width = 'fit-content'
     // Use auto margins for alignment since fit-content + justify-content is conflicting
