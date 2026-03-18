@@ -88,25 +88,8 @@ const containerStyle = computed(() => {
   return style
 })
 
-// Per-cell style from widget's style group
-const getCellStyle = (item: WrapperItem): Record<string, string> => {
-  const s = item.data?.style
-  if (!s) return {}
-  const style: Record<string, string> = {}
-  if (s.background_color) style.backgroundColor = resolveColor(s.background_color)
-  if (s.padding_top !== undefined) style.paddingTop = `${s.padding_top}px`
-  if (s.padding_right !== undefined) style.paddingRight = `${s.padding_right}px`
-  if (s.padding_bottom !== undefined) style.paddingBottom = `${s.padding_bottom}px`
-  if (s.padding_left !== undefined) style.paddingLeft = `${s.padding_left}px`
-  if (s.border_radius) style.borderRadius = `${s.border_radius}px`
-  if (s.border_width && s.border_width > 0) {
-    style.borderWidth = `${s.border_width}px`
-    style.borderStyle = s.border_style || 'solid'
-    if (s.border_color) style.borderColor = resolveColor(s.border_color)
-  }
-  if (s.box_shadow) style.boxShadow = s.box_shadow
-  return style
-}
+// Per-cell style: EMPTY per governance — cell is a pure grid slot.
+// Widget styles (bg, padding, border, shadow) are applied by WidgetRenderer on the widget itself.
 
 // Shadow presets
 const shadowMap: Record<string, string> = {
@@ -180,7 +163,6 @@ const hoverCss = computed(() => {
         :id="cellIds[idx]"
         :key="item.id"
         class="lcms-wrapper__cell"
-        :style="getCellStyle(item)"
       >
         <slot name="item" :item="item" :index="idx" />
       </div>
