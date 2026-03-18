@@ -146,31 +146,9 @@ const cardClasses = computed(() => ({
 }))
 
 const cardStyles = computed(() => {
+  // Container-level styles (bg, padding, border, shadow, hover) are handled by WidgetRenderer.
+  // LcmsServiceCard only sets element-level colors (text, icon, link, badge).
   const styles: Record<string, string> = {}
-
-  // In multi-item mode, background and border-radius are on the cell wrapper
-  if (!isMultiItem.value) {
-    const bg = resolveColor(styleGroup.value.background_color)
-    if (bg) styles.backgroundColor = bg
-    const br = styleGroup.value.border_radius
-    if (br !== undefined && br !== null) styles.borderRadius = `${br}px`
-
-    // Padding from style
-    if (styleGroup.value.padding_top !== undefined) styles.paddingTop = `${styleGroup.value.padding_top}px`
-    if (styleGroup.value.padding_right !== undefined) styles.paddingRight = `${styleGroup.value.padding_right}px`
-    if (styleGroup.value.padding_bottom !== undefined) styles.paddingBottom = `${styleGroup.value.padding_bottom}px`
-    if (styleGroup.value.padding_left !== undefined) styles.paddingLeft = `${styleGroup.value.padding_left}px`
-
-    // Border
-    if (styleGroup.value.border_width && styleGroup.value.border_width > 0) {
-      styles.borderWidth = `${styleGroup.value.border_width}px`
-      styles.borderStyle = styleGroup.value.border_style || 'solid'
-      const bc = resolveColor(styleGroup.value.border_color)
-      if (bc) styles.borderColor = bc
-    }
-
-    if (styleGroup.value.box_shadow) styles.boxShadow = styleGroup.value.box_shadow
-  }
 
   const txt = resolveColor(headingGroup.value.color)
   if (txt) styles.color = txt
