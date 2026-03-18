@@ -30,11 +30,22 @@ const layout = computed(() => props.data.layout || 'grid')
 
 const wrapperId = `lcms-wrap-${Math.random().toString(36).substring(2, 9)}`
 
+const hAlign = computed(() => (props.data.style?.horizontal_align as string) || 'stretch')
+
 const gridStyle = computed(() => {
+  const alignMap: Record<string, string> = { left: 'flex-start', center: 'center', right: 'flex-end', stretch: 'flex-start' }
+  const justifyMap: Record<string, string> = { left: 'start', center: 'center', right: 'end', stretch: 'stretch' }
+
   if (layout.value === 'inline') {
-    return { display: 'flex', flexWrap: 'wrap' as const, gap: `${gap.value}px`, width: '100%' }
+    const style: Record<string, string> = { display: 'flex', flexWrap: 'wrap', gap: `${gap.value}px`, width: '100%' }
+    style.justifyContent = alignMap[hAlign.value] || 'flex-start'
+    return style
   }
-  return { display: 'grid', gridTemplateColumns: `repeat(${columns.value}, 1fr)`, gap: `${gap.value}px`, width: '100%' }
+  const style: Record<string, string> = { display: 'grid', gridTemplateColumns: `repeat(${columns.value}, 1fr)`, gap: `${gap.value}px`, width: '100%' }
+  if (hAlign.value !== 'stretch') {
+    style.justifyItems = justifyMap[hAlign.value] || 'start'
+  }
+  return style
 })
 
 // Responsive CSS for tablet/mobile column overrides
