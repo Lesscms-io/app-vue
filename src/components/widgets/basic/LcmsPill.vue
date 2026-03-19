@@ -53,7 +53,7 @@ function resolveColorValue(val: string | null | undefined): string | null {
 
 // Read from nested element-groups with legacy flat fallback
 const text = computed(() => {
-  const textVal = textGroup.value.content || (props.data as any).text
+  const textVal = textGroup.value.html || textGroup.value.content || (props.data as any).text
   return textVal ? extractValue(textVal) : ''
 })
 const variant = computed(() => configGroup.value.variant || (props.data as any).variant || 'filled')

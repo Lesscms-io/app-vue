@@ -81,7 +81,7 @@ const logoHeight = computed(() => logoGroup.value.height || 40)
 const logoPosition = computed(() => logoGroup.value.position || 'left')
 
 // CTA group
-const ctaText = computed(() => ctaGroup.value.content || '')
+const ctaText = computed(() => ctaGroup.value.html || ctaGroup.value.content || '')
 const ctaPosition = computed(() => ctaGroup.value.position || 'right')
 const ctaLinkType = computed(() => ctaGroup.value.link_type || 'custom')
 const ctaUrl = computed(() => ctaGroup.value.url || '#')

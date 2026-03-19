@@ -129,8 +129,8 @@ const consents = computed<FormConsent[]>(() => {
 })
 
 const submitText = computed(() => {
-  // Widget-level override
-  const widgetText = config.value.submit_text
+  // Widget-level override (element-group → flat fallback)
+  const widgetText = config.value.submit?.html || config.value.submit_text
   if (widgetText) {
     if (typeof widgetText === 'object') return extractValue(widgetText) as string
     return widgetText

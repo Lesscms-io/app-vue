@@ -79,7 +79,7 @@ const imageBorderRadius = computed(() => configGroup.value.image_border_radius ?
 // Label settings (from label group, fallback to flat)
 const labelPosition = computed(() => labelGroup.value.position || config.value.label_position || 'hidden')
 const label = computed(() => {
-  const text = labelGroup.value.content || config.value.label
+  const text = labelGroup.value.html || labelGroup.value.content || config.value.label
   if (!text) return ''
   return extractValue(text)
 })

@@ -55,12 +55,12 @@ const displayNumber = computed(() => {
 })
 
 // Heading
-const title = computed(() => extractValue(headingGroup.value.content) || '')
+const title = computed(() => extractValue(headingGroup.value.html || headingGroup.value.content) || '')
 const titleTag = computed(() => headingGroup.value.tag || 'h3')
 const titleColor = computed(() => resolveColor(headingGroup.value.color) || '')
 
 // Content
-const bodyHtml = computed(() => extractValue(textGroup.value.content) || '')
+const bodyHtml = computed(() => extractValue(textGroup.value.html || textGroup.value.content) || '')
 const textColor = computed(() => resolveColor(textGroup.value.color) || '')
 
 // Number properties

@@ -51,11 +51,11 @@ const textGroup = computed(() => config.value.text || {})
 const overlayGroup = computed(() => config.value.overlay || {})
 
 // Heading
-const title = computed(() => extractValue(headingGroup.value.title) || '')
-const subtitle = computed(() => extractValue(headingGroup.value.subtitle) || '')
+const title = computed(() => extractValue(headingGroup.value.title_html || headingGroup.value.title) || '')
+const subtitle = computed(() => extractValue(headingGroup.value.subtitle_html || headingGroup.value.subtitle) || '')
 
 // Button
-const buttonText = computed(() => extractValue(buttonGroup.value.content) || '')
+const buttonText = computed(() => extractValue(buttonGroup.value.html || buttonGroup.value.content) || '')
 const buttonUrl = computed(() => buttonGroup.value.url || '#')
 const buttonStyle = computed(() => buttonGroup.value.style || 'primary')
 const buttonSize = computed(() => buttonGroup.value.size || 'md')

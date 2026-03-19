@@ -42,7 +42,7 @@ const { extractValue } = useLanguage(props.language)
 const barGroup = computed(() => props.data.bar || {})
 const titleGroup = computed(() => props.data.title || {})
 
-const title = computed(() => titleGroup.value.content ? extractValue(titleGroup.value.content) : '')
+const title = computed(() => (titleGroup.value.html || titleGroup.value.content) ? extractValue(titleGroup.value.html || titleGroup.value.content) : '')
 const percentage = computed(() => Math.min(Math.max(barGroup.value.percentage || 0, 0), 100))
 const barColor = computed(() => resolveColor(barGroup.value.color) || '#50a5f1')
 const showPercentage = computed(() => barGroup.value.show_percentage !== false)

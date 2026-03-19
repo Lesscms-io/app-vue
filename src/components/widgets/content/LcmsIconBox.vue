@@ -62,7 +62,7 @@ const iconClass = computed(() => isSvgIcon.value ? '' : (iconValue.value || 'fas
 
 // Content values
 const contentText = computed(() => {
-  const text = contentGroup.value.content
+  const text = contentGroup.value.html || contentGroup.value.content
   if (!text) return ''
   return extractValue(text) || ''
 })

@@ -34,9 +34,9 @@ const items = computed(() => {
   const raw = itemsGroup.value
   if (!Array.isArray(raw)) return []
   return raw.map(item => ({
-    date: extractValue(item.date),
-    title: extractValue(item.title),
-    content: extractValue(item.content)
+    date: extractValue(item.date_html || item.date),
+    title: extractValue(item.title_html || item.title),
+    content: extractValue(item.html || item.content)
   }))
 })
 

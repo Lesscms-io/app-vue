@@ -35,16 +35,16 @@ const buttonGroup = computed(() => props.data?.button || {})
 const configGroup = computed(() => props.data?.config || {})
 
 // Heading group fields
-const title = computed(() => extractValue(headingGroup.value.title))
-const subtitle = computed(() => extractValue(headingGroup.value.subtitle))
-const price = computed(() => extractValue(headingGroup.value.price))
-const period = computed(() => extractValue(headingGroup.value.period))
+const title = computed(() => extractValue(headingGroup.value.title_html || headingGroup.value.title))
+const subtitle = computed(() => extractValue(headingGroup.value.subtitle_html || headingGroup.value.subtitle))
+const price = computed(() => extractValue(headingGroup.value.price_html || headingGroup.value.price))
+const period = computed(() => extractValue(headingGroup.value.period_html || headingGroup.value.period))
 
 // Badge group fields
-const badge = computed(() => extractValue(badgeGroup.value.badge))
+const badge = computed(() => extractValue(badgeGroup.value.html || badgeGroup.value.badge))
 
 // Button group fields
-const buttonText = computed(() => extractValue(buttonGroup.value.content))
+const buttonText = computed(() => extractValue(buttonGroup.value.html || buttonGroup.value.content))
 const btnStyle = computed(() => buttonGroup.value.style || 'primary')
 const btnSize = computed(() => buttonGroup.value.size || 'md')
 const btnBorderRadius = computed(() => buttonGroup.value.border_radius || null)
@@ -163,7 +163,7 @@ const buttonInlineStyle = computed(() => {
         :class="{ 'lcms-pricing__feature--excluded': feature.included === false }"
       >
         <i :class="feature.included !== false ? 'fas fa-check' : 'fas fa-times'" />
-        <span>{{ extractValue(feature.content) || feature.content }}</span>
+        <span>{{ extractValue(feature.html || feature.content) || feature.content }}</span>
       </li>
     </ul>
     <a

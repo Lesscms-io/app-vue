@@ -116,7 +116,10 @@ const fieldOrder = computed(() => {
 // Limits (for default template)
 const titleLimit = computed(() => config.value.title_limit || 100)
 const excerptLimit = computed(() => config.value.excerpt_limit || 200)
-const readMoreText = computed(() => config.value.read_more_text ? extractValue(config.value.read_more_text) : 'Read more')
+const readMoreText = computed(() => {
+  const val = config.value.read_more?.html || config.value.read_more_text
+  return val ? extractValue(val) : 'Read more'
+})
 
 // Custom entry template - format: "custom:uuid" or just uuid
 const entryTemplateConfig = computed(() => config.value.entry_template || '')

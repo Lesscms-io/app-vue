@@ -32,7 +32,7 @@ const items = computed(() => {
   const raw = props.data.items
   if (!Array.isArray(raw)) return []
   return raw.map(item => ({
-    text: extractValue(item.content),
+    text: extractValue(item.html || item.content),
     included: item.included !== undefined ? item.included : true
   }))
 })

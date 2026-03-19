@@ -33,7 +33,7 @@ const configGroup = computed(() => props.data.config || {})
 const linkGroup = computed(() => props.data.link || {})
 
 // Text group
-const buttonText = computed(() => extractValue(textGroup.value.content))
+const buttonText = computed(() => extractValue(textGroup.value.html || textGroup.value.content))
 
 // Config group
 const buttonStyle = computed(() => configGroup.value.style || 'primary')

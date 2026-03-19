@@ -78,7 +78,7 @@ const badgeGroup = computed(() => config.value.badge || {})
 const styleGroup = computed(() => config.value.style || {})
 
 // Content values
-const badge = computed(() => extractValue(badgeGroup.value.content) || '')
+const badge = computed(() => extractValue(badgeGroup.value.html || badgeGroup.value.content) || '')
 const iconValue = computed(() => {
   const val = iconGroup.value.icon
   if (!val) return ''
@@ -87,9 +87,9 @@ const iconValue = computed(() => {
 })
 const isSvgIcon = computed(() => (iconValue.value || '').startsWith('svg:'))
 const svgContent = computed(() => isSvgIcon.value ? iconValue.value.slice(4) : '')
-const title = computed(() => extractValue(headingGroup.value.content) || '')
-const description = computed(() => extractValue(descriptionGroup.value.content) || '')
-const linkText = computed(() => extractValue(linkGroup.value.content) || '')
+const title = computed(() => extractValue(headingGroup.value.html || headingGroup.value.content) || '')
+const description = computed(() => extractValue(descriptionGroup.value.html || descriptionGroup.value.content) || '')
+const linkText = computed(() => extractValue(linkGroup.value.html || linkGroup.value.content) || '')
 const linkTargetBlank = computed(() => linkGroup.value.target_blank || false)
 const showBadge = computed(() => badgeGroup.value.show === true)
 const showLink = computed(() => linkGroup.value.show !== false)

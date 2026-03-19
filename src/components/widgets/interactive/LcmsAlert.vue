@@ -32,11 +32,11 @@ const configGroup = computed(() => props.data.config || {})
 
 const showTitle = computed(() => configGroup.value.show_title !== undefined ? configGroup.value.show_title : (props.data.show_title !== false))
 const title = computed(() => {
-  const t = titleGroup.value.content || props.data.title
+  const t = titleGroup.value.html || titleGroup.value.content || props.data.title
   return t ? extractValue(t) : ''
 })
 const content = computed(() => {
-  const t = textGroup.value.content || props.data.message || props.data.content
+  const t = textGroup.value.html || textGroup.value.content || props.data.message || props.data.content
   return t ? extractValue(t) : ''
 })
 const alertType = computed(() => configGroup.value.type || props.data.type || 'info')

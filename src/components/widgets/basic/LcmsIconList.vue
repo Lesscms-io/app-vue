@@ -51,7 +51,7 @@ const iconHoverColor = computed(() => resolveColor(iconGroup.value['color:hover'
 const iconSize = computed(() => iconGroup.value.size || 'md')
 
 // Text group reads
-const textValue = computed(() => extractValue(textGroup.value.content))
+const textValue = computed(() => extractValue(textGroup.value.html || textGroup.value.content))
 const textSize = computed(() => textGroup.value.size || 'md')
 
 // Item style group reads

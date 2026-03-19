@@ -57,9 +57,34 @@ function replacePlaceholders(text: string): string {
   })
 }
 
-// API returns { html: { pl: "..." } } or { text: { pl: "..." } }
+// Heading element-group color support
+function resolveColor(val: string | null | undefined): string | null {
+  if (!val) return null
+  if (val.startsWith('var:')) {
+    const parts = val.split(':')
+    const code = parts[1]
+    const opacity = parts.length >= 3 ? parseInt(parts[2]) : 100
+    if (opacity < 100) {
+      return `color-mix(in srgb, var(--lcms-color-${code}) ${opacity}%, transparent)`
+    }
+    return `var(--lcms-color-${code})`
+  }
+  return val
+}
+
+const headingColor = computed(() => resolveColor(props.data.heading?.color))
+const headingHoverColor = computed(() => resolveColor(props.data.heading?.['color:hover']))
+
+const headingStyle = computed(() => {
+  const style: Record<string, string> = {}
+  if (headingColor.value) style['color'] = headingColor.value
+  if (headingHoverColor.value) style['--hover-heading-color'] = headingHoverColor.value
+  return style
+})
+
+// API returns { heading: { html: { pl: "..." } } } or { html: { pl: "..." } } or { text: { pl: "..." } }
 const headingContent = computed(() => {
-  const raw = extractValue(props.data.html) || extractValue(props.data.text) || ''
+  const raw = extractValue(props.data.heading?.html) || extractValue(props.data.html) || extractValue(props.data.text) || ''
   return replacePlaceholders(raw)
 })
 
@@ -70,14 +95,14 @@ const isHtml = computed(() => {
 
 // Get level from config or data
 const headingLevel = computed(() => {
-  const level = props.data.widget?.level || props.data.level || 2
+  const level = props.data.config?.level || props.data.widget?.level || props.data.level || 2
   return `h${level}`
 })
 
 const textAlign = computed(() => props.data.align || props.settings?.textAlign || 'left')
 
 // Dynamic content source settings (for future dynamic mode)
-const contentSource = computed(() => props.data.content_source || 'static')
+const contentSource = computed(() => props.data.config?.content_source || props.data.content_source || 'static')
 const collectionCode = computed(() => props.data.collection_code || null)
 const fieldCode = computed(() => props.data.field_code || null)
 const entryId = computed(() => props.data.entry_id || null)
@@ -86,7 +111,8 @@ const entryId = computed(() => props.data.entry_id || null)
 <template>
   <div
     class="lcms-heading"
-    :class="`lcms-heading--${textAlign}`"
+    :class="[`lcms-heading--${textAlign}`, { 'has-hover': !!headingHoverColor }]"
+    :style="headingStyle"
   >
     <!-- If content is HTML, render it directly -->
     <div

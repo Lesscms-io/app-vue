@@ -65,7 +65,7 @@ const numberColor = computed(() => numberGroup.value.color || null)
 const numberHoverColor = computed(() => numberGroup.value['color:hover'] || null)
 const prefixColor = computed(() => numberGroup.value.prefix_color || null)
 
-const titleText = computed(() => titleGroup.value.content ? extractValue(titleGroup.value.content) : '')
+const titleText = computed(() => (titleGroup.value.html || titleGroup.value.content) ? extractValue(titleGroup.value.html || titleGroup.value.content) : '')
 const titleColor = computed(() => titleGroup.value.color || null)
 const titleHoverColor = computed(() => titleGroup.value['color:hover'] || null)
 

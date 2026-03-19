@@ -56,9 +56,47 @@ function replacePlaceholders(text: string): string {
   })
 }
 
+// Text element-group color support
+const textColor = computed(() => {
+  const val = props.data.text?.color
+  if (!val) return null
+  if (val.startsWith('var:')) {
+    const parts = val.split(':')
+    const code = parts[1]
+    const opacity = parts.length >= 3 ? parseInt(parts[2]) : 100
+    if (opacity < 100) {
+      return `color-mix(in srgb, var(--lcms-color-${code}) ${opacity}%, transparent)`
+    }
+    return `var(--lcms-color-${code})`
+  }
+  return val
+})
+
+const textHoverColor = computed(() => {
+  const val = props.data.text?.['color:hover']
+  if (!val) return null
+  if (val.startsWith('var:')) {
+    const parts = val.split(':')
+    const code = parts[1]
+    const opacity = parts.length >= 3 ? parseInt(parts[2]) : 100
+    if (opacity < 100) {
+      return `color-mix(in srgb, var(--lcms-color-${code}) ${opacity}%, transparent)`
+    }
+    return `var(--lcms-color-${code})`
+  }
+  return val
+})
+
+const rootStyle = computed(() => {
+  const style: Record<string, string> = {}
+  if (textColor.value) style['color'] = textColor.value
+  if (textHoverColor.value) style['--hover-text-color'] = textHoverColor.value
+  return style
+})
+
 const htmlContent = computed(() => {
-  // API returns { html: { pl: "..." } } or { content: { pl: "..." } }
-  const raw = extractValue(props.data.html) || extractValue(props.data.content) || ''
+  // API returns { text: { html: { pl: "..." } } } or { html: { pl: "..." } } or { content: { pl: "..." } }
+  const raw = extractValue(props.data.text?.html) || extractValue(props.data.html) || extractValue(props.data.content) || ''
   return replacePlaceholders(raw)
 })
 </script>
@@ -66,6 +104,8 @@ const htmlContent = computed(() => {
 <template>
   <div
     class="lcms-text"
+    :class="{ 'has-hover': !!textHoverColor }"
+    :style="rootStyle"
     v-html="htmlContent"
   />
 </template>

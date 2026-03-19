@@ -40,7 +40,7 @@ const configGroup = computed(() => props.data.config || {})
 
 // Title group
 const title = computed(() => {
-  const t = titleGroup.value.content
+  const t = titleGroup.value.html || titleGroup.value.content
   if (t && typeof t === 'object') return extractValue(t) as string
   return t || ''
 })

@@ -49,9 +49,9 @@ const ratingGroup = computed(() => config.value.rating || {})
 const configGroup = computed(() => config.value.config || {})
 
 // Content values
-const quoteText = computed(() => extractValue(quoteGroup.value.content) || '')
-const authorText = computed(() => extractValue(authorGroup.value.content) || '')
-const positionText = computed(() => extractValue(positionGroup.value.content) || '')
+const quoteText = computed(() => extractValue(quoteGroup.value.html || quoteGroup.value.content) || '')
+const authorText = computed(() => extractValue(authorGroup.value.html || authorGroup.value.content) || '')
+const positionText = computed(() => extractValue(positionGroup.value.html || positionGroup.value.content) || '')
 const avatarImage = computed(() => avatarGroup.value.image || '')
 const ratingValue = computed(() => ratingGroup.value.value || 0)
 const alignment = computed(() => configGroup.value.alignment || 'center')

@@ -62,8 +62,8 @@ const firstOpen = computed(() => configGroup.value.first_open ?? true)
 // Items with extracted multilang values
 const renderedItems = computed(() => {
   return itemsGroup.value.map((item: any) => ({
-    title: extractValue(item.title),
-    content: extractValue(item.content)
+    title: extractValue(item.title_html || item.title),
+    content: extractValue(item.html || item.content)
   }))
 })
 

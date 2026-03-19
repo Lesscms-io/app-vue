@@ -36,9 +36,9 @@ const buttonGroup = computed(() => config.value.button || {})
 const configGroup = computed(() => config.value.config || {})
 
 // Content values
-const title = computed(() => extractValue(headingGroup.value.content) || '')
-const subtitle = computed(() => extractValue(subtitleGroup.value.content) || '')
-const buttonText = computed(() => extractValue(buttonGroup.value.content) || '')
+const title = computed(() => extractValue(headingGroup.value.html || headingGroup.value.content) || '')
+const subtitle = computed(() => extractValue(subtitleGroup.value.html || subtitleGroup.value.content) || '')
+const buttonText = computed(() => extractValue(buttonGroup.value.html || buttonGroup.value.content) || '')
 const alignment = computed(() => configGroup.value.alignment || 'center')
 
 // Heading color

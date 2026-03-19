@@ -40,7 +40,7 @@ function resolveColor(val: string | null | undefined): string | null {
 const resolvePageUrl = inject<(code: string | null, uuid: string | null) => string>('lesscms-resolve-page-url', () => '#')
 const resolveCollectionUrl = inject<(collectionCode: string, entryId: string) => string>('lesscms-resolve-collection-url', () => '#')
 
-const linkText = computed(() => extractValue(props.data.text?.content))
+const linkText = computed(() => extractValue(props.data.text?.html || props.data.text?.content))
 const linkUrl = computed(() => props.data.url || '#')
 const icon = computed(() => props.data.icon || 'fa-solid fa-arrow-right')
 const iconPosition = computed(() => props.data.icon_position || 'right')

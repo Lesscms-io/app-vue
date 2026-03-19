@@ -28,7 +28,7 @@ const config = computed(() => props.data.widget || props.data || {})
 const headers = computed(() => {
   const raw = config.value.headers
   if (!Array.isArray(raw)) return []
-  return raw.map((h: any) => extractValue(h.content))
+  return raw.map((h: any) => extractValue(h.html || h.content))
 })
 
 const rows = computed(() => {

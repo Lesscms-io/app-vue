@@ -30,9 +30,9 @@ const socialGroup = computed(() => props.data.social || {})
 const configGroup = computed(() => props.data.config || {})
 
 // Element-group reads
-const name = computed(() => extractValue(memberGroup.value.name))
-const position = computed(() => extractValue(memberGroup.value.position))
-const bio = computed(() => extractValue(memberGroup.value.bio))
+const name = computed(() => extractValue(memberGroup.value.name_html || memberGroup.value.name))
+const position = computed(() => extractValue(memberGroup.value.position_html || memberGroup.value.position))
+const bio = computed(() => extractValue(memberGroup.value.bio_html || memberGroup.value.bio))
 const photo = computed(() => imageGroup.value.image || null)
 const socialLinks = computed(() => socialGroup.value.social_links || [])
 const teamMemberStyle = computed(() => configGroup.value.team_member_style || 'card')

@@ -44,8 +44,8 @@ const itemsGroup = computed(() => {
   const raw = props.data.items
   if (!Array.isArray(raw)) return []
   return raw.map(item => ({
-    title: extractValue(item.title),
-    content: extractValue(item.content)
+    title: extractValue(item.title_html || item.title),
+    content: extractValue(item.html || item.content)
   }))
 })
 

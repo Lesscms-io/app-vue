@@ -45,9 +45,15 @@ const sourceGroup = computed(() => props.data.source || {})
 const configGroup = computed(() => props.data.config || {})
 
 // Element-group reads
-const quote = computed(() => extractValue(quoteGroup.value.content))
-const author = computed(() => authorGroup.value.content ? extractValue(authorGroup.value.content) : '')
-const source = computed(() => sourceGroup.value.content ? extractValue(sourceGroup.value.content) : '')
+const quote = computed(() => extractValue(quoteGroup.value.html || quoteGroup.value.content))
+const author = computed(() => {
+  const val = authorGroup.value.html || authorGroup.value.content
+  return val ? extractValue(val) : ''
+})
+const source = computed(() => {
+  const val = sourceGroup.value.html || sourceGroup.value.content
+  return val ? extractValue(val) : ''
+})
 const blockquoteStyle = computed(() => configGroup.value.blockquote_style || 'bordered')
 const accentColor = computed(() => resolveColor(quoteGroup.value.color))
 
