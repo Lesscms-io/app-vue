@@ -676,10 +676,11 @@ function mapFlexAlign(value: string): string {
             :items="node.items"
             :language="language"
           >
-            <template #item="{ item }">
+            <template #item="{ item, index }">
               <WidgetRenderer
                 :widget="item"
                 :language="language"
+                :item-index="index"
               />
             </template>
           </LcmsWrapper>

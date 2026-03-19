@@ -32,6 +32,7 @@ interface HoverSettings {
 interface Props {
   widget: Widget
   language?: string
+  itemIndex?: number
 }
 
 const props = defineProps<Props>()
@@ -527,6 +528,7 @@ function mapHorizontalAlign(value: string): string {
       :data="widgetData"
       :language="language"
       :settings="settings"
+      :item-index="itemIndex"
     />
 
     <div
