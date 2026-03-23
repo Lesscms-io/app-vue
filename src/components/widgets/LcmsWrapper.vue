@@ -183,7 +183,7 @@ const hoverCss = computed(() => {
   <!-- Dynamic hover + responsive CSS -->
   <component :is="'style'" v-if="hoverCss || responsiveCss">{{ hoverCss }}{{ responsiveCss }}</component>
 
-  <div :id="wrapperId" class="lcms-wrapper" :class="{ 'lcms-wrapper--grid': layout !== 'inline' }" :style="containerStyle">
+  <div :id="wrapperId" class="lcms-wrapper" :class="{ 'lcms-wrapper--grid': layout !== 'inline', 'lcms-wrapper--equal-height': equalHeight }" :style="containerStyle">
     <div class="lcms-wrapper__grid" :style="gridStyle">
       <div
         v-for="(item, idx) in items"
@@ -218,5 +218,9 @@ const hoverCss = computed(() => {
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
+}
+
+.lcms-wrapper--equal-height .lcms-wrapper__cell > :deep(*) {
+  flex: 1;
 }
 </style>
