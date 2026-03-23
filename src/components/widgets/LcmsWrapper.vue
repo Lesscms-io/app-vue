@@ -27,6 +27,7 @@ const columnsTablet = computed(() => props.data.columns_tablet)
 const columnsMobile = computed(() => props.data.columns_mobile)
 const gap = computed(() => props.data.gap || 16)
 const layout = computed(() => props.data.layout || 'grid')
+const equalHeight = computed(() => !!props.data.equal_height)
 
 const wrapperId = `lcms-wrap-${Math.random().toString(36).substring(2, 9)}`
 
@@ -45,10 +46,16 @@ const gridStyle = computed(() => {
 
   if (layout.value === 'inline') {
     const style: Record<string, string> = { display: 'flex', flexWrap: 'wrap', gap: `${gap.value}px`, width: '100%' }
+    if (equalHeight.value) style.alignItems = 'stretch'
     style.justifyContent = alignMap[hAlign.value] || 'flex-start'
     return style
   }
   const style: Record<string, string> = { display: 'grid', gridTemplateColumns: `repeat(${columns.value}, 1fr)`, gap: `${gap.value}px`, width: '100%' }
+  if (equalHeight.value) {
+    style.gridAutoRows = '1fr'
+  } else {
+    style.alignItems = 'start'
+  }
   if (hAlign.value !== 'stretch') {
     style.justifyItems = justifyMap[hAlign.value] || 'start'
   }
