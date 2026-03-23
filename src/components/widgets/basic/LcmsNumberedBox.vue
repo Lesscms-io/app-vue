@@ -8,9 +8,8 @@
         :is="titleTag"
         v-if="title"
         class="lcms-numbered-box__title"
-      >
-        {{ title }}
-      </component>
+        v-html="title"
+      />
       <div v-if="bodyHtml" v-html="bodyHtml" />
     </div>
   </div>
