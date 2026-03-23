@@ -74,9 +74,7 @@ const iconVerticalAlign = computed(() => iconGroup.value.vertical_align || 'top'
 
 const positionClass = computed(() => {
   const classes = [`lcms-icon-box--${iconPosition.value}`]
-  if (iconPosition.value === 'left' || iconPosition.value === 'right') {
-    classes.push(`lcms-icon-box--align-${iconVerticalAlign.value}`)
-  }
+  classes.push(`lcms-icon-box--align-${iconVerticalAlign.value}`)
   return classes
 })
 
@@ -160,14 +158,10 @@ const contentStyles = computed(() => {
 
 .lcms-icon-box--top {
   flex-direction: column;
-  align-items: center;
-  text-align: center;
 }
 
 .lcms-icon-box--bottom {
   flex-direction: column-reverse;
-  align-items: center;
-  text-align: center;
 }
 
 .lcms-icon-box--left {
@@ -184,10 +178,12 @@ const contentStyles = computed(() => {
 
 .lcms-icon-box--align-center {
   align-items: center;
+  text-align: center;
 }
 
 .lcms-icon-box--align-bottom {
   align-items: flex-end;
+  text-align: right;
 }
 
 .lcms-icon-box__icon {

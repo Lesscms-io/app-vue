@@ -68,9 +68,7 @@ const numberVerticalAlign = computed(() => numberGroup.value.vertical_align || '
 
 const positionClass = computed(() => {
   const classes = [`lcms-numbered-box--${numberPosition.value}`]
-  if (numberPosition.value === 'left' || numberPosition.value === 'right') {
-    classes.push(`lcms-numbered-box--align-${numberVerticalAlign.value}`)
-  }
+  classes.push(`lcms-numbered-box--align-${numberVerticalAlign.value}`)
   return classes
 })
 
@@ -145,14 +143,10 @@ const numberStyles = computed(() => {
 
 .lcms-numbered-box--top {
   flex-direction: column;
-  align-items: center;
-  text-align: center;
 }
 
 .lcms-numbered-box--bottom {
   flex-direction: column-reverse;
-  align-items: center;
-  text-align: center;
 }
 
 .lcms-numbered-box--left {
@@ -169,10 +163,12 @@ const numberStyles = computed(() => {
 
 .lcms-numbered-box--align-center {
   align-items: center;
+  text-align: center;
 }
 
 .lcms-numbered-box--align-bottom {
   align-items: flex-end;
+  text-align: right;
 }
 
 .lcms-numbered-box__number {
