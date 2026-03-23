@@ -264,11 +264,11 @@ const widgetStyle = computed(() => {
     }
   }
 
-  // Padding
-  if (s.padding_top) style.paddingTop = `${s.padding_top}px`
-  if (s.padding_right) style.paddingRight = `${s.padding_right}px`
-  if (s.padding_bottom) style.paddingBottom = `${s.padding_bottom}px`
-  if (s.padding_left) style.paddingLeft = `${s.padding_left}px`
+  // Padding (also expose as CSS variables so child widgets can expand into it for hover)
+  if (s.padding_top) { style.paddingTop = `${s.padding_top}px`; style['--wr-pt'] = `${s.padding_top}px` }
+  if (s.padding_right) { style.paddingRight = `${s.padding_right}px`; style['--wr-pr'] = `${s.padding_right}px` }
+  if (s.padding_bottom) { style.paddingBottom = `${s.padding_bottom}px`; style['--wr-pb'] = `${s.padding_bottom}px` }
+  if (s.padding_left) { style.paddingLeft = `${s.padding_left}px`; style['--wr-pl'] = `${s.padding_left}px` }
 
   // Margin
   if (s.margin_top) style.marginTop = `${s.margin_top}px`

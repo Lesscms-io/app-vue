@@ -238,6 +238,9 @@ const badgeStyles = computed(() => {
   height: 100%;
   box-sizing: border-box;
   transition: color var(--transition-duration, 200ms) ease, box-shadow var(--transition-duration, 200ms) ease, transform var(--transition-duration, 200ms) ease, background-color var(--transition-duration, 200ms) ease;
+  /* Expand into parent's padding so hover triggers from the very edge */
+  margin: calc(-1 * var(--wr-pt, 0px)) calc(-1 * var(--wr-pr, 0px)) calc(-1 * var(--wr-pb, 0px)) calc(-1 * var(--wr-pl, 0px));
+  padding: var(--wr-pt, 0px) var(--wr-pr, 0px) var(--wr-pb, 0px) var(--wr-pl, 0px);
 }
 
 .lcms-service-card.has-hover:hover {

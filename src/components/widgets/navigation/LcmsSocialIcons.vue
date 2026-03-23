@@ -100,3 +100,81 @@ function getColor(platform: string): string {
     </a>
   </div>
 </template>
+
+<style scoped>
+.lcms-social-icons {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.lcms-social-icons__link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--platform-color);
+  text-decoration: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.lcms-social-icons__link:hover {
+  opacity: 0.8;
+  transform: scale(1.1);
+}
+
+/* Sizes */
+.lcms-social-icons--sm .lcms-social-icons__link {
+  font-size: 16px;
+}
+
+.lcms-social-icons--md .lcms-social-icons__link {
+  font-size: 20px;
+}
+
+.lcms-social-icons--lg .lcms-social-icons__link {
+  font-size: 28px;
+}
+
+/* Colored / Circle / Square — filled background */
+.lcms-social-icons--colored .lcms-social-icons__link,
+.lcms-social-icons--circle .lcms-social-icons__link,
+.lcms-social-icons--square .lcms-social-icons__link {
+  background: var(--platform-color);
+  color: white;
+  padding: 10px;
+}
+
+.lcms-social-icons--colored .lcms-social-icons__link,
+.lcms-social-icons--circle .lcms-social-icons__link {
+  border-radius: 50%;
+}
+
+.lcms-social-icons--square .lcms-social-icons__link {
+  border-radius: 4px;
+}
+
+/* Outlined */
+.lcms-social-icons--outlined .lcms-social-icons__link {
+  border: 2px solid var(--platform-color);
+  color: var(--platform-color);
+  padding: 10px;
+  border-radius: 50%;
+  background: transparent;
+}
+
+/* Size adjustments for padded styles */
+.lcms-social-icons--circle.lcms-social-icons--sm .lcms-social-icons__link,
+.lcms-social-icons--square.lcms-social-icons--sm .lcms-social-icons__link,
+.lcms-social-icons--outlined.lcms-social-icons--sm .lcms-social-icons__link,
+.lcms-social-icons--colored.lcms-social-icons--sm .lcms-social-icons__link {
+  padding: 8px;
+}
+
+.lcms-social-icons--circle.lcms-social-icons--lg .lcms-social-icons__link,
+.lcms-social-icons--square.lcms-social-icons--lg .lcms-social-icons__link,
+.lcms-social-icons--outlined.lcms-social-icons--lg .lcms-social-icons__link,
+.lcms-social-icons--colored.lcms-social-icons--lg .lcms-social-icons__link {
+  padding: 14px;
+}
+</style>
