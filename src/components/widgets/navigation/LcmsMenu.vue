@@ -79,6 +79,17 @@ const logoLight = computed(() => logoGroup.value.light || '')
 const logoDark = computed(() => logoGroup.value.dark || '')
 const logoHeight = computed(() => logoGroup.value.height || 40)
 const logoPosition = computed(() => logoGroup.value.position || 'left')
+const logoType = computed(() => logoGroup.value.type || 'image')
+const logoText = computed(() => logoGroup.value.text || '')
+const logoFontFamily = computed(() => logoGroup.value.font_family || '')
+const logoFontSize = computed(() => logoGroup.value.font_size || 20)
+const logoFontWeight = computed(() => logoGroup.value.font_weight || '700')
+const logoColor = computed(() => {
+  const val = logoGroup.value.color as string | null
+  if (!val) return null
+  if (val.startsWith('var:')) return `var(--lcms-color-${val.split(':')[1]})`
+  return val
+})
 
 // CTA group
 const ctaText = computed(() => ctaGroup.value.html || ctaGroup.value.content || '')
@@ -146,7 +157,7 @@ const ctaInlineStyle = computed(() => {
   return style
 })
 
-const hasLogo = computed(() => !!(logoLight.value || logoDark.value))
+const hasLogo = computed(() => logoType.value === 'text' ? !!logoText.value : !!(logoLight.value || logoDark.value))
 
 function hexToRgba(hex: string, opacity: number): string {
   const r = parseInt(hex.slice(1, 3), 16)
@@ -303,11 +314,17 @@ function getItemTarget(item: MenuItem): string | undefined {
         class="lcms-menu__logo lcms-menu__logo--left"
       >
         <img
+          v-if="logoType === 'image'"
           :src="logoLight || logoDark"
           :style="{ height: `${logoHeight}px` }"
           alt="Logo"
           class="lcms-menu__logo-img"
         >
+        <span
+          v-else
+          class="lcms-menu__logo-text"
+          :style="{ fontFamily: logoFontFamily || undefined, fontSize: `${logoFontSize}px`, fontWeight: logoFontWeight, color: logoColor || undefined }"
+        >{{ logoText }}</span>
       </a>
 
       <!-- Hamburger toggle button -->
@@ -337,11 +354,17 @@ function getItemTarget(item: MenuItem): string | undefined {
           class="lcms-menu__logo lcms-menu__logo--center"
         >
           <img
+            v-if="logoType === 'image'"
             :src="logoLight || logoDark"
             :style="{ height: `${logoHeight}px` }"
             alt="Logo"
             class="lcms-menu__logo-img"
           >
+          <span
+            v-else
+            class="lcms-menu__logo-text"
+            :style="{ fontFamily: logoFontFamily || undefined, fontSize: `${logoFontSize}px`, fontWeight: logoFontWeight, color: logoColor || undefined }"
+          >{{ logoText }}</span>
         </a>
 
         <!-- CTA Button (left position) -->
@@ -434,11 +457,17 @@ function getItemTarget(item: MenuItem): string | undefined {
         class="lcms-menu__logo lcms-menu__logo--right"
       >
         <img
+          v-if="logoType === 'image'"
           :src="logoLight || logoDark"
           :style="{ height: `${logoHeight}px` }"
           alt="Logo"
           class="lcms-menu__logo-img"
         >
+        <span
+          v-else
+          class="lcms-menu__logo-text"
+          :style="{ fontFamily: logoFontFamily || undefined, fontSize: `${logoFontSize}px`, fontWeight: logoFontWeight, color: logoColor || undefined }"
+        >{{ logoText }}</span>
       </a>
     </template>
   </nav>
@@ -479,6 +508,13 @@ function getItemTarget(item: MenuItem): string | undefined {
   display: block;
   width: auto;
   object-fit: contain;
+}
+
+.lcms-menu__logo-text {
+  display: block;
+  white-space: nowrap;
+  line-height: 1.2;
+  text-decoration: none;
 }
 
 /* ===========================
