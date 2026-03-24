@@ -7,7 +7,7 @@
  * Supports responsive settings for tablet/mobile breakpoints.
  */
 
-import { computed, ref, onMounted, onUnmounted } from 'vue'
+import { computed, ref, onMounted, onUnmounted, provide } from 'vue'
 import WidgetRenderer from './WidgetRenderer.vue'
 import LcmsWrapper from './widgets/LcmsWrapper.vue'
 import { useResponsiveSettings } from '@/composables/useResponsiveSettings'
@@ -40,12 +40,13 @@ const sectionId = computed(() => props.section.uuid || props.section.id)
 const settings = computed(() => getMergedSettings(props.section.settings as SectionSettings))
 const columns = computed(() => props.section.columns || [])
 
-// Scroll state for sticky sections
+// Scroll state for sticky sections — provided to child widgets
 const isScrolled = ref(false)
+provide('sectionIsScrolled', isScrolled)
 
 const handleScroll = () => {
   const s = settings.value as SectionSettings
-  if (s.sticky && s.scrolled_bg) {
+  if (s.sticky) {
     const threshold = s.sticky_top || 10
     isScrolled.value = window.scrollY > threshold
   }

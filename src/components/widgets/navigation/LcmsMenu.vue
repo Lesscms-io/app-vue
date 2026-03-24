@@ -38,6 +38,9 @@ const resolveCollectionUrl = inject<(collectionCode: string, slug: string) => st
   () => '#'
 )
 
+// Scrolled state from parent section (sticky section provides this)
+const sectionIsScrolled = inject('sectionIsScrolled', ref(false))
+
 // Element groups
 const linkGroup = computed(() => props.data.link || {})
 const logoGroup = computed(() => props.data.logo || {})
@@ -204,6 +207,16 @@ const menuCssVars = computed(() => {
   else if (lhc) vars['--lcms-menu-link-hover-anim-color'] = lhc
   if (itemsPadding.value) vars['--lcms-menu-items-padding'] = itemsPadding.value
 
+  // Scrolled state colors
+  const slc = resolveColorValue(linkGroup.value['color:scrolled'] as string || null)
+  const slogo = resolveColorValue(logoGroup.value['color:scrolled'] as string || null)
+  const sctaC = resolveColorValue(ctaGroup.value['color:scrolled'] as string || null)
+  const sctaBg = resolveColorValue(ctaGroup.value['background:scrolled'] as string || null)
+  if (slc) vars['--lcms-menu-scrolled-link-color'] = slc
+  if (slogo) vars['--lcms-menu-scrolled-logo-color'] = slogo
+  if (sctaC) vars['--lcms-menu-scrolled-cta-color'] = sctaC
+  if (sctaBg) vars['--lcms-menu-scrolled-cta-bg'] = sctaBg
+
   // Dropdown styling
   const dbg = resolveColorValue(dropdownBg.value)
   if (dbg) vars['--lcms-menu-dropdown-bg'] = dbg
@@ -288,7 +301,7 @@ function getItemTarget(item: MenuItem): string | undefined {
       `lcms-menu--${layout}`,
       `lcms-menu--align-${itemsAlignment}`,
       linkHoverAnimation !== 'none' ? `lcms-menu--anim-${linkHoverAnimation}` : '',
-      { 'lcms-menu--hamburger': isHamburgerMode, 'lcms-menu--open': hamburgerOpen && isHamburgerMode }
+      { 'lcms-menu--hamburger': isHamburgerMode, 'lcms-menu--open': hamburgerOpen && isHamburgerMode, 'is-scrolled': sectionIsScrolled.value }
     ]"
     :style="menuCssVars"
   >
@@ -904,5 +917,30 @@ function getItemTarget(item: MenuItem): string | undefined {
   border-right-width: 2px;
   border-top-width: 2px;
   border-bottom-width: 2px;
+}
+
+/* ===========================
+   Scrolled state (from sticky section)
+   =========================== */
+.lcms-menu.is-scrolled {
+  transition: color 0.3s ease;
+}
+
+.lcms-menu.is-scrolled .lcms-menu__link {
+  color: var(--lcms-menu-scrolled-link-color, var(--lcms-menu-link-color, inherit));
+}
+
+.lcms-menu.is-scrolled .lcms-menu__logo-text {
+  color: var(--lcms-menu-scrolled-logo-color, inherit) !important;
+}
+
+.lcms-menu.is-scrolled .lcms-menu__hamburger-bar {
+  background-color: var(--lcms-menu-scrolled-link-color, currentColor);
+}
+
+.lcms-menu.is-scrolled .lcms-menu__cta {
+  color: var(--lcms-menu-scrolled-cta-color, inherit) !important;
+  background-color: var(--lcms-menu-scrolled-cta-bg, inherit) !important;
+  border-color: var(--lcms-menu-scrolled-cta-bg, inherit) !important;
 }
 </style>
