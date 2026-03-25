@@ -50,6 +50,19 @@ function onPageLoaded() {
   fadeOut.value = false
 }
 
+function onPageError(err: any) {
+  // If page API returned 404, show not-found page
+  const status = err?.response?.status || err?.status
+  if (status === 404) {
+    resolvedRoute.value = null
+    collectionEntry.value = null
+    entrySeo.value = null
+    notFound.value = true
+    waitingForPage.value = false
+    fadeOut.value = false
+  }
+}
+
 // Collection entry state
 const collectionEntry = ref<CollectionEntry | null>(null)
 const entrySeo = ref<SeoData | null>(null)
@@ -221,6 +234,7 @@ watch(() => route.path, resolvePage)
       :language="language"
       :route-params="resolvedRoute.params"
       @loaded="onPageLoaded"
+      @error="onPageError"
     />
   </div>
 </template>
