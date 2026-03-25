@@ -252,6 +252,14 @@ const badgeStyles = computed(() => {
   color: var(--hover-color) !important;
 }
 
+.lcms-service-card.has-hover.has-hover-text-color:hover .lcms-service-card__title {
+  color: var(--hover-color) !important;
+}
+
+.lcms-service-card.has-hover.has-hover-text-color:hover .lcms-service-card__description {
+  color: var(--hover-color) !important;
+}
+
 .lcms-service-card.has-hover.has-hover-desc-color:hover .lcms-service-card__description {
   color: var(--hover-desc-color) !important;
 }
@@ -312,8 +320,9 @@ const badgeStyles = computed(() => {
 
 .lcms-service-card__svg {
   display: inline-flex;
-  width: 60%;
-  height: 60%;
+  align-items: center;
+  width: 100%;
+  height: 100%;
 }
 
 .lcms-service-card__svg :deep(svg) {
