@@ -218,8 +218,17 @@ const sectionStyle = computed(() => {
 
   // Sticky
   if (s.sticky) {
-    style.position = 'sticky'
-    style.top = s.sticky_top ? `${s.sticky_top}px` : '0'
+    if (s.overlay) {
+      // Overlay: fixed to top, doesn't take space in document flow
+      style.position = 'fixed'
+      style.top = s.sticky_top ? `${s.sticky_top}px` : '0'
+      style.left = '0'
+      style.right = '0'
+      style.width = '100%'
+    } else {
+      style.position = 'sticky'
+      style.top = s.sticky_top ? `${s.sticky_top}px` : '0'
+    }
     style.zIndex = String(s.sticky_z_index ?? 100)
 
     // Add transition for scrolled state

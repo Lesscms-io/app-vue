@@ -189,6 +189,7 @@ export interface SectionSettings extends BaseSettings {
 
   // Sticky
   sticky?: boolean
+  overlay?: boolean
   sticky_top?: number
   sticky_z_index?: number
   scrolled_bg?: string
