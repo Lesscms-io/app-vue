@@ -315,6 +315,7 @@ function applyStyleVariables(styles: Record<string, any>) {
   // Typography variables
   if (styles.font_heading) root.style.setProperty('--lcms-font-heading', `"${styles.font_heading}", sans-serif`)
   if (styles.font_body) root.style.setProperty('--lcms-font-body', `"${styles.font_body}", sans-serif`)
+  if (styles.font_button) root.style.setProperty('--lcms-font-button', `"${styles.font_button}", sans-serif`)
   if (styles.font_size_base) root.style.setProperty('--lcms-font-size-base', `${styles.font_size_base}px`)
   if (styles.line_height) root.style.setProperty('--lcms-line-height', String(styles.line_height))
 

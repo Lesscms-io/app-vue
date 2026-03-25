@@ -209,7 +209,7 @@
   padding: var(--lcms-spacing-2) var(--lcms-spacing-4);
   border: 2px solid transparent;
   border-radius: var(--lcms-radius-md);
-  font-family: var(--lcms-font-family);
+  font-family: var(--lcms-font-button);
   font-size: var(--lcms-font-size-md);
   font-weight: var(--lcms-font-weight-medium);
   text-decoration: none;
