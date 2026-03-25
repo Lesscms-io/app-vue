@@ -114,6 +114,8 @@ const ctaSvgContent = computed(() => isCtaSvgIcon.value ? ctaIcon.value.slice(4)
 
 // Dropdown group
 const dropdownBg = computed(() => dropdownGroup.value.background || null)
+const dropdownLinkColor = computed(() => dropdownGroup.value.link_color || null)
+const dropdownLinkHoverColor = computed(() => dropdownGroup.value.link_hover_color || null)
 const dropdownBorderRadius = computed(() => dropdownGroup.value.border_radius || 'md')
 const dropdownShadow = computed(() => dropdownGroup.value.shadow || 'lg')
 
@@ -218,6 +220,10 @@ const menuCssVars = computed(() => {
   if (sctaBg) vars['--lcms-menu-scrolled-cta-bg'] = sctaBg
 
   // Dropdown styling
+  const dlc = resolveColorValue(dropdownLinkColor.value)
+  const dlhc = resolveColorValue(dropdownLinkHoverColor.value)
+  if (dlc) vars['--lcms-menu-dropdown-link-color'] = dlc
+  if (dlhc) vars['--lcms-menu-dropdown-link-hover-color'] = dlhc
   const dbg = resolveColorValue(dropdownBg.value)
   if (dbg) vars['--lcms-menu-dropdown-bg'] = dbg
 
@@ -917,6 +923,44 @@ function getItemTarget(item: MenuItem): string | undefined {
   border-right-width: 2px;
   border-top-width: 2px;
   border-bottom-width: 2px;
+}
+
+/* ===========================
+   Submenu / Dropdown
+   =========================== */
+.lcms-menu__submenu {
+  list-style: none;
+  margin: 0;
+  padding: 4px;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background: var(--lcms-menu-dropdown-bg, #fff);
+  border-radius: var(--lcms-menu-dropdown-radius, 8px);
+  box-shadow: var(--lcms-menu-dropdown-shadow, 0 10px 25px rgba(0,0,0,0.15));
+  min-width: 180px;
+  display: none;
+  z-index: 10;
+}
+
+.lcms-menu__item:hover > .lcms-menu__submenu {
+  display: block;
+}
+
+.lcms-menu__sublink {
+  display: block;
+  padding: 8px 14px;
+  color: var(--lcms-menu-dropdown-link-color, #495057);
+  text-decoration: none;
+  font-size: 0.9em;
+  border-radius: 4px;
+  transition: background-color 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+
+.lcms-menu__sublink:hover {
+  color: var(--lcms-menu-dropdown-link-hover-color, var(--lcms-menu-link-hover-color, #50a5f1));
+  background-color: rgba(0, 0, 0, 0.04);
 }
 
 /* ===========================
