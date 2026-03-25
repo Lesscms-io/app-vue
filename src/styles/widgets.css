@@ -1584,26 +1584,35 @@
 .lcms-menu__sublink {
   display: block;
   padding: var(--lcms-spacing-2) var(--lcms-spacing-4);
-  color: var(--lcms-color-gray-700);
+  color: var(--lcms-menu-dropdown-link-color, var(--lcms-color-gray-700));
   text-decoration: none;
 }
 
 .lcms-menu__sublink:hover {
   background-color: var(--lcms-color-gray-100);
-  color: var(--lcms-color-primary);
+  color: var(--lcms-menu-dropdown-link-hover-color, var(--lcms-color-primary));
 }
 
 /* Menu link custom colors (via CSS variables set on .lcms-menu) */
-.lcms-menu .lcms-menu__link,
-.lcms-menu .lcms-menu__sublink {
+.lcms-menu .lcms-menu__link {
   color: var(--lcms-menu-link-color, var(--lcms-color-gray-800));
   transition: color 150ms ease-in-out, background-color 150ms ease-in-out;
 }
 
-.lcms-menu .lcms-menu__link:hover,
-.lcms-menu .lcms-menu__sublink:hover {
+.lcms-menu .lcms-menu__link:hover {
   color: var(--lcms-menu-link-hover-color, var(--lcms-color-primary));
   background-color: var(--lcms-menu-link-hover-bg, transparent);
+}
+
+/* Dropdown sublinks use dropdown-specific colors, fallback to main link colors */
+.lcms-menu .lcms-menu__sublink {
+  color: var(--lcms-menu-dropdown-link-color, var(--lcms-color-gray-800));
+  transition: color 150ms ease-in-out, background-color 150ms ease-in-out;
+}
+
+.lcms-menu .lcms-menu__sublink:hover {
+  color: var(--lcms-menu-dropdown-link-hover-color, var(--lcms-menu-link-hover-color, var(--lcms-color-primary)));
+  background-color: rgba(0, 0, 0, 0.04);
 }
 
 /* Menu items alignment */
