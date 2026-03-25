@@ -950,7 +950,7 @@ function getItemTarget(item: MenuItem): string | undefined {
 .lcms-menu__sublink {
   display: block;
   padding: 8px 14px;
-  color: var(--lcms-menu-dropdown-link-color, #495057);
+  color: var(--lcms-menu-dropdown-link-color, #495057) !important;
   text-decoration: none;
   font-size: 0.9em;
   border-radius: 4px;
@@ -959,8 +959,17 @@ function getItemTarget(item: MenuItem): string | undefined {
 }
 
 .lcms-menu__sublink:hover {
-  color: var(--lcms-menu-dropdown-link-hover-color, var(--lcms-menu-link-hover-color, #50a5f1));
+  color: var(--lcms-menu-dropdown-link-hover-color, var(--lcms-menu-link-hover-color, #50a5f1)) !important;
   background-color: rgba(0, 0, 0, 0.04);
+}
+
+/* Scrolled state should NOT affect dropdown links — dropdown has its own colors */
+.lcms-menu.is-scrolled .lcms-menu__sublink {
+  color: var(--lcms-menu-dropdown-link-color, #495057) !important;
+}
+
+.lcms-menu.is-scrolled .lcms-menu__sublink:hover {
+  color: var(--lcms-menu-dropdown-link-hover-color, var(--lcms-menu-link-hover-color, #50a5f1)) !important;
 }
 
 /* ===========================
