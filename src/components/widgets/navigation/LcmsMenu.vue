@@ -116,6 +116,7 @@ const ctaSvgContent = computed(() => isCtaSvgIcon.value ? ctaIcon.value.slice(4)
 const dropdownBg = computed(() => dropdownGroup.value.background || null)
 const dropdownLinkColor = computed(() => dropdownGroup.value.link_color || null)
 const dropdownLinkHoverColor = computed(() => dropdownGroup.value.link_hover_color || null)
+const dropdownFontSize = computed(() => dropdownGroup.value.font_size || 14)
 const dropdownBorderRadius = computed(() => dropdownGroup.value.border_radius || 'md')
 const dropdownShadow = computed(() => dropdownGroup.value.shadow || 'lg')
 
@@ -226,6 +227,7 @@ const menuCssVars = computed(() => {
   if (dlhc) vars['--lcms-menu-dropdown-link-hover-color'] = dlhc
   const dbg = resolveColorValue(dropdownBg.value)
   if (dbg) vars['--lcms-menu-dropdown-bg'] = dbg
+  vars['--lcms-menu-dropdown-font-size'] = `${dropdownFontSize.value}px`
 
   const radiusMap: Record<string, string> = { none: '0', sm: '4px', md: '8px', lg: '12px' }
   vars['--lcms-menu-dropdown-radius'] = radiusMap[dropdownBorderRadius.value] || '8px'
@@ -952,7 +954,7 @@ function getItemTarget(item: MenuItem): string | undefined {
   padding: 8px 14px;
   color: var(--lcms-menu-dropdown-link-color, #495057) !important;
   text-decoration: none;
-  font-size: 0.9em;
+  font-size: var(--lcms-menu-dropdown-font-size, 0.9em);
   border-radius: 4px;
   transition: background-color 0.15s, color 0.15s;
   white-space: nowrap;
