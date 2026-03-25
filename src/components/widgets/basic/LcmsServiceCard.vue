@@ -241,6 +241,8 @@ const badgeStyles = computed(() => {
   /* Expand into parent's padding so hover triggers from the very edge */
   margin: calc(-1 * var(--wr-pt, 0px)) calc(-1 * var(--wr-pr, 0px)) calc(-1 * var(--wr-pb, 0px)) calc(-1 * var(--wr-pl, 0px));
   padding: var(--wr-pt, 0px) var(--wr-pr, 0px) var(--wr-pb, 0px) var(--wr-pl, 0px);
+  /* Compensate height for negative margins so hover area covers full card */
+  min-height: calc(100% + var(--wr-pt, 0px) + var(--wr-pb, 0px));
 }
 
 .lcms-service-card.has-hover:hover {
