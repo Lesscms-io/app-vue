@@ -131,6 +131,7 @@ const domItems = ref<Array<{ label: string; anchor: string }>>([])
 let domObserver: MutationObserver | null = null
 
 function getSourceElement(): Element | null {
+  if (typeof document === 'undefined') return null
   if (sourceWidgetUuid.value) {
     // Try to find the source widget by its ID (lcms-widget-{uuid})
     return document.getElementById(`lcms-widget-${sourceWidgetUuid.value}`) ||
@@ -140,6 +141,7 @@ function getSourceElement(): Element | null {
 }
 
 function scanDomHeadings() {
+  if (typeof document === 'undefined') return
   const tag = headingLevel.value || 'h2'
   const sourceEl = getSourceElement()
   const searchRoot = sourceEl || document.body
@@ -188,6 +190,7 @@ const activeAnchor = ref<string>('')
 let observer: IntersectionObserver | null = null
 
 function scrollTo(anchor: string) {
+  if (typeof document === 'undefined') return
   const el = document.getElementById(anchor)
   if (el) {
     el.scrollIntoView({ behavior: 'smooth' })
@@ -196,6 +199,7 @@ function scrollTo(anchor: string) {
 
 // Add IDs to headings in the page that match our TOC items
 function addHeadingIds() {
+  if (typeof document === 'undefined') return
   if (items.value.length === 0) return
 
   const tag = headingLevel.value || 'h2'
@@ -214,6 +218,7 @@ function addHeadingIds() {
 }
 
 function setupObserver() {
+  if (typeof document === 'undefined') return
   if (observer) {
     observer.disconnect()
   }

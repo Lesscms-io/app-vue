@@ -217,6 +217,10 @@ let turnstileWidgetId: string | null = null
 
 function loadTurnstileSDK(): Promise<void> {
   return new Promise((resolve, reject) => {
+    if (typeof window === 'undefined') {
+      resolve()
+      return
+    }
     if ((window as any).turnstile) {
       resolve()
       return
@@ -270,7 +274,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
-  if (turnstileWidgetId !== null && (window as any).turnstile) {
+  if (typeof window !== 'undefined' && turnstileWidgetId !== null && (window as any).turnstile) {
     (window as any).turnstile.remove(turnstileWidgetId)
     turnstileWidgetId = null
   }
@@ -361,7 +365,7 @@ async function handleSubmit() {
   } finally {
     isSubmitting.value = false
     // Reset Turnstile for fresh token
-    if (turnstileWidgetId !== null && (window as any).turnstile) {
+    if (typeof window !== 'undefined' && turnstileWidgetId !== null && (window as any).turnstile) {
       (window as any).turnstile.reset(turnstileWidgetId)
       captchaToken.value = ''
     }

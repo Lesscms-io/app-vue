@@ -76,6 +76,7 @@ watch(
     if (entrySource === 'static') {
       entryId = config.value.dynamic_last_entry_id || ''
     } else if (entrySource === 'url') {
+      if (typeof window === 'undefined') return
       const segment = config.value.dynamic_last_url_segment || 1
       const pathParts = window.location.pathname.split('/').filter(Boolean)
       entryId = pathParts[segment - 1] || ''
@@ -120,7 +121,7 @@ const breadcrumbItems = computed(() => {
     // Mark the previous last item as a link (if it wasn't already)
     if (items.length > 0) {
       const lastItem = items[items.length - 1]
-      if (!lastItem.url) {
+      if (!lastItem.url && typeof window !== 'undefined') {
         lastItem.url = window.location.pathname.split('?')[0]
           .split('/')
           .slice(0, -(config.value.dynamic_last_url_segment || 1))

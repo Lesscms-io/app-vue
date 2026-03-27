@@ -199,6 +199,7 @@ function onBackdropClick(e: MouseEvent) {
 
 // Lock body scroll when lightbox is open
 watch(lightboxOpen, (open) => {
+  if (typeof document === 'undefined') return
   if (open) {
     document.body.style.overflow = 'hidden'
   } else {
@@ -208,14 +209,18 @@ watch(lightboxOpen, (open) => {
 
 onMounted(() => {
   startAutoplay()
-  document.addEventListener('keydown', onLightboxKeydown)
+  if (typeof document !== 'undefined') {
+    document.addEventListener('keydown', onLightboxKeydown)
+  }
 })
 
 onUnmounted(() => {
   stopAutoplay()
-  document.removeEventListener('keydown', onLightboxKeydown)
-  // Ensure body scroll is restored
-  document.body.style.overflow = ''
+  if (typeof document !== 'undefined') {
+    document.removeEventListener('keydown', onLightboxKeydown)
+    // Ensure body scroll is restored
+    document.body.style.overflow = ''
+  }
 })
 
 const lightboxImage = computed(() => images.value[lightboxIndex.value])

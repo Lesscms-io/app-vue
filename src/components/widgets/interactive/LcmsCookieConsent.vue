@@ -61,6 +61,7 @@ const acceptBtnStyles = computed(() => {
 })
 
 function getStoredConsent(): string | null {
+  if (typeof window === 'undefined') return null
   try {
     const stored = localStorage.getItem(STORAGE_KEY)
     if (!stored) return null
@@ -76,6 +77,7 @@ function getStoredConsent(): string | null {
 }
 
 function storeConsent(value: string) {
+  if (typeof window === 'undefined') return
   const expires = new Date()
   expires.setDate(expires.getDate() + daysToExpire.value)
   localStorage.setItem(STORAGE_KEY, JSON.stringify({ value, expires: expires.toISOString() }))

@@ -191,6 +191,7 @@ const filterValue = computed(() => {
       if (val) return val
     }
     // Fallback to URL segment parsing
+    if (typeof window === 'undefined') return ''
     const path = window.location.pathname
     const segments = path.split('/').filter((s: string) => s)
     return segments[filterUrlSegment.value - 1] || ''
@@ -213,7 +214,7 @@ const filterValue = computed(() => {
     }
     // Handle multilingual object
     if (typeof fieldVal === 'object' && !Array.isArray(fieldVal)) {
-      const lang = document.documentElement.lang || 'pl'
+      const lang = typeof document !== 'undefined' ? document.documentElement.lang || 'pl' : 'pl'
       return fieldVal[lang] || fieldVal.pl || Object.values(fieldVal)[0] || ''
     }
     return String(fieldVal)
@@ -230,7 +231,7 @@ const showMoreText = computed(() => {
   if (!t) return ''
   if (typeof t === 'string') return t
   // Try current lang from html tag, fallback to first
-  const lang = document.documentElement.lang || 'pl'
+  const lang = typeof document !== 'undefined' ? document.documentElement.lang || 'pl' : 'pl'
   return t[lang] || Object.values(t)[0] || ''
 })
 
@@ -301,7 +302,7 @@ function getLink(item: ValueItem): string {
 function resolveMultilingual(val: any): string | null {
   if (typeof val === 'string') return val
   if (val && typeof val === 'object' && !Array.isArray(val) && !val.code) {
-    const lang = document.documentElement.lang || 'pl'
+    const lang = typeof document !== 'undefined' ? document.documentElement.lang || 'pl' : 'pl'
     return val[lang] || val.pl || (Object.values(val).find(v => v != null && v !== '') as string) || null
   }
   return null
@@ -385,7 +386,7 @@ function extractLabel(item: any): string {
   if (typeof item === 'string') return item
   // Enriched select option: { code, value, value_translation }
   if (item?.value_translation) {
-    const lang = document.documentElement.lang || 'pl'
+    const lang = typeof document !== 'undefined' ? document.documentElement.lang || 'pl' : 'pl'
     if (typeof item.value_translation === 'string') return item.value_translation
     if (item.value_translation[lang]) return item.value_translation[lang]
     const vals = Object.values(item.value_translation) as string[]
@@ -396,7 +397,7 @@ function extractLabel(item: any): string {
   }
   // Multilingual object: { pl: "...", en: "..." }
   if (typeof item === 'object' && item !== null) {
-    const lang = document.documentElement.lang || 'pl'
+    const lang = typeof document !== 'undefined' ? document.documentElement.lang || 'pl' : 'pl'
     if (item[lang]) return item[lang]
     if (item.pl) return item.pl
     const vals = Object.values(item).filter(v => v != null && v !== '') as string[]
