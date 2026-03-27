@@ -59,8 +59,8 @@ function resolveMultilingual(data: any): any {
       if (isLangMap) {
         result[key] = extractValue(value as Record<string, string>)
       } else {
-        // Recurse into nested objects (but not too deep)
-        result[key] = value
+        // Recurse into nested objects
+        result[key] = resolveMultilingual(value)
       }
     } else {
       result[key] = value

@@ -5,7 +5,7 @@
       <i v-else :class="iconClass"></i>
     </div>
     <div class="lcms-icon-box__content" :style="contentStyles">
-      <component :is="contentTag" v-if="contentText" v-html="contentText"></component>
+      <component :is="contentTag" v-if="contentText" v-html="stripBlockWrappers(contentText)"></component>
     </div>
   </div>
 </template>
@@ -60,13 +60,19 @@ const isSvgIcon = computed(() => (iconValue.value || '').startsWith('svg:'))
 const svgContent = computed(() => isSvgIcon.value ? iconValue.value.slice(4) : '')
 const iconClass = computed(() => isSvgIcon.value ? '' : (iconValue.value || 'fas fa-star'))
 
+// Strip block-level wrappers (p, div) from HTML to avoid invalid nesting in SSR
+function stripBlockWrappers(html: string): string {
+  if (!html) return ''
+  return html.replace(/^<(p|div)[^>]*>(.*)<\/\1>$/s, '$2').trim()
+}
+
 // Content values
 const contentText = computed(() => {
   const text = contentGroup.value.html || contentGroup.value.content
   if (!text) return ''
   return extractValue(text) || ''
 })
-const contentTag = computed(() => contentGroup.value.tag || 'p')
+const contentTag = computed(() => contentGroup.value.tag || 'div')
 
 // Icon position & vertical align
 const iconPosition = computed(() => iconGroup.value.position || 'top')

@@ -75,7 +75,7 @@ const headerHoverColor = computed(() => resolveColor(headerGroup.value['color:ho
 const headerHoverBg = computed(() => resolveColor(headerGroup.value['background:hover']))
 
 // Content styles
-const contentTag = computed(() => contentGroup.value.tag || 'p')
+const contentTag = computed(() => contentGroup.value.tag || 'div')
 const contentColor = computed(() => resolveColor(contentGroup.value.color))
 const contentHoverColor = computed(() => resolveColor(contentGroup.value['color:hover']))
 const contentBorderColor = computed(() => resolveColor(contentGroup.value.border_color))

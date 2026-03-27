@@ -8,7 +8,7 @@
         :is="titleTag"
         v-if="title"
         class="lcms-numbered-box__title"
-        v-html="title"
+        v-html="stripBlockWrappers(title)"
       />
       <div v-if="bodyHtml" v-html="bodyHtml" />
     </div>
@@ -52,6 +52,12 @@ const displayNumber = computed(() => {
   const idx = props.itemIndex ?? 0
   return String(idx + 1).padStart(2, '0')
 })
+
+// Strip block-level wrappers (p, div) from heading HTML to avoid invalid nesting in SSR
+function stripBlockWrappers(html: string): string {
+  if (!html) return ''
+  return html.replace(/^<(p|div)[^>]*>(.*)<\/\1>$/s, '$2').trim()
+}
 
 // Heading
 const title = computed(() => extractValue(headingGroup.value.html || headingGroup.value.content) || '')
