@@ -209,11 +209,12 @@ const sectionStyle = computed(() => {
 
   // Height
   if (s.full_height || s.height_mode === 'full') {
-    style.minHeight = '100vh'
-  } else if (s.sectionHeight) {
-    style.minHeight = `${s.sectionHeight}px`
-  } else if (s.min_height) {
-    style.minHeight = `${s.min_height}px`
+    const minH = s.min_height || s.minHeight
+    style.minHeight = minH ? `max(100vh, ${minH}px)` : '100vh'
+  } else if (s.sectionHeight || s.section_height) {
+    style.minHeight = `${s.sectionHeight || s.section_height}px`
+  } else if (s.min_height || s.minHeight) {
+    style.minHeight = `${s.min_height || s.minHeight}px`
   }
 
   // Sticky
