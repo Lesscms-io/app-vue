@@ -379,6 +379,18 @@ const buttonIconPosition = computed(() => config.value.button_icon_position || '
 
 const RADIUS_MAP: Record<string, string> = { none: '0', sm: '4px', md: '8px', lg: '12px', pill: '50px' }
 
+// Fallback colors for button variants (used when CSS variables are not available)
+const BUTTON_FALLBACK: Record<string, { bg: string; text: string }> = {
+  primary: { bg: '#556ee6', text: '#ffffff' },
+  secondary: { bg: '#74788d', text: '#ffffff' },
+  success: { bg: '#34c38f', text: '#ffffff' },
+  info: { bg: '#50a5f1', text: '#ffffff' },
+  warning: { bg: '#f1b44c', text: '#212529' },
+  danger: { bg: '#f46a6a', text: '#ffffff' },
+  dark: { bg: '#343a40', text: '#ffffff' },
+  light: { bg: '#f8f9fa', text: '#212529' },
+}
+
 const computedButtonStyle = computed(() => {
   const styles: Record<string, string> = {}
 
@@ -392,8 +404,26 @@ const computedButtonStyle = computed(() => {
     styles.padding = `${buttonPadding.value}px`
   }
 
-  // New mode: button_style is a bootstrap variant name
-  if (buttonStyle.value) return styles
+  // New mode: button_style is a variant name (info, success, etc.)
+  if (buttonStyle.value) {
+    const isOutline = buttonStyle.value.startsWith('outline-')
+    const baseCode = isOutline ? buttonStyle.value.replace('outline-', '') : buttonStyle.value
+    const fallback = BUTTON_FALLBACK[baseCode]
+    // Use CSS variable with hardcoded fallback for environments without project color variables
+    const bg = `var(--lcms-color-${baseCode}, ${fallback?.bg || '#50a5f1'})`
+
+    if (isOutline) {
+      styles.backgroundColor = 'transparent'
+      styles.border = `2px solid ${bg}`
+      styles.color = bg
+    } else {
+      styles.backgroundColor = bg
+      styles.borderColor = bg
+      styles.color = fallback?.text || '#ffffff'
+    }
+    return styles
+  }
+
   // Legacy: direct color
   if (!buttonColor.value) return styles
   const bg = resolveColor(buttonColor.value)
