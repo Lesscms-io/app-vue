@@ -73,7 +73,7 @@ const contentText = computed(() => {
   if (!text) return ''
   return extractValue(text) || ''
 })
-const contentTag = computed(() => contentGroup.value.tag || 'div')
+const contentTag = computed(() => 'div')
 
 // Icon position & vertical align
 const iconPosition = computed(() => iconGroup.value.position || 'top')
