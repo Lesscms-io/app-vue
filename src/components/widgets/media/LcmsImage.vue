@@ -7,7 +7,7 @@
 
 import { computed } from 'vue'
 import { useLanguage } from '@/composables/useLanguage'
-import { useImageOptimization } from '@/composables/useImageOptimization'
+import { contentImage } from '@/composables/useImageOptimization'
 import type { ImageWidgetData } from '@/types/widgets'
 
 defineOptions({
@@ -27,10 +27,10 @@ const { extractValue } = useLanguage(props.language)
 const config = computed(() => props.data.widget || props.data || {})
 
 const imageSource = computed(() => config.value.image_source || 'static')
-const rawImage = computed(() => config.value.image || props.data.url || '')
+const imageUrl = computed(() => config.value.image || props.data.url || '')
 const altText = computed(() => props.data.alt ? extractValue(props.data.alt) : '')
 
-const { src: imageUrl, srcset: imageSrcset, sizes: imageSizes } = useImageOptimization(rawImage)
+const optimized = computed(() => contentImage(imageUrl.value))
 
 const imageStylePresets: Record<string, Record<string, string>> = {
   'none': {},
@@ -54,9 +54,9 @@ const imageStyle = computed(() => {
   <figure class="lcms-image">
     <img
       v-if="imageUrl"
-      :src="imageUrl"
-      :srcset="imageSrcset"
-      :sizes="imageSizes"
+      :src="optimized.src"
+      :srcset="optimized.srcset"
+      :sizes="optimized.sizes"
       :alt="altText"
       loading="lazy"
       decoding="async"

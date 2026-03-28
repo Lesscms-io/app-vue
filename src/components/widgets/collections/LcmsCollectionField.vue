@@ -10,6 +10,7 @@
 
 import { computed, inject, ref, unref, watch, onMounted, onUnmounted, Teleport, type Ref } from 'vue'
 import { useLanguage } from '@/composables/useLanguage'
+import { contentImage } from '@/composables/useImageOptimization'
 import type { CollectionFieldConfig, CollectionEntry } from '@/api/types'
 
 defineOptions({
@@ -462,7 +463,9 @@ const lightboxImage = computed(() => galleryImages.value[lightboxIndex.value] ||
         <img
           v-for="(img, idx) in galleryImages"
           :key="idx"
-          :src="img"
+          :src="contentImage(img).src"
+          :srcset="contentImage(img).srcset"
+          :sizes="contentImage(img).sizes"
           :alt="`${label || fieldCode} ${idx + 1}`"
           loading="lazy"
           decoding="async"
@@ -481,7 +484,7 @@ const lightboxImage = computed(() => galleryImages.value[lightboxIndex.value] ||
       >
         <!-- Image field -->
         <template v-if="fieldType === 'image' && formattedValue">
-          <img :src="formattedValue" :alt="label || fieldCode" loading="lazy" decoding="async" class="lcms-collection-field__image" :style="imageStyle" />
+          <img :src="contentImage(formattedValue).src" :srcset="contentImage(formattedValue).srcset" :sizes="contentImage(formattedValue).sizes" :alt="label || fieldCode" loading="lazy" decoding="async" class="lcms-collection-field__image" :style="imageStyle" />
         </template>
 
         <!-- Plain text -->

@@ -16,7 +16,9 @@
             >
               <img
                 v-if="showImage && getImage(entry)"
-                :src="getImage(entry)"
+                :src="contentImage(getImage(entry)).src"
+                :srcset="contentImage(getImage(entry)).srcset"
+                :sizes="contentImage(getImage(entry)).sizes"
                 :alt="getTitle(entry)"
                 loading="lazy"
                 decoding="async"
@@ -140,6 +142,7 @@
 <script setup lang="ts">
 import { computed, ref, inject, onMounted, watch, type Ref } from 'vue'
 import { useApi } from '../../../composables/useApi'
+import { contentImage } from '@/composables/useImageOptimization'
 import type { ResolvedRoute } from '@/composables/useRoutes'
 
 interface Entry {

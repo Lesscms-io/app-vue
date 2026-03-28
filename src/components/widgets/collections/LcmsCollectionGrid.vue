@@ -10,6 +10,7 @@ import { computed, watch, ref, inject, onMounted, onBeforeUnmount, type Ref } fr
 import { useCollection } from '@/composables/useCollection'
 import { useLanguage } from '@/composables/useLanguage'
 import { useApi } from '@/composables/useApi'
+import { contentImage } from '@/composables/useImageOptimization'
 import LcmsEntryTemplateRenderer from './LcmsEntryTemplateRenderer.vue'
 import type { CollectionGridWidgetData } from '@/types/widgets'
 import type { CollectionEntry, CollectionTemplate, TemplateSection } from '@/api/types'
@@ -473,7 +474,7 @@ function updateResponsiveStyle() {
         class="lcms-collection-grid__item"
         :style="{
           ...cardStyle,
-          backgroundImage: showImage && imageField && getImage(entry) ? `url('${getImage(entry)}')` : undefined,
+          backgroundImage: showImage && imageField && getImage(entry) ? `url('${contentImage(getImage(entry)).src}')` : undefined,
         }"
       >
         <div class="lcms-collection-grid__overlay-gradient" />
@@ -542,7 +543,9 @@ function updateResponsiveStyle() {
           class="lcms-collection-grid__image-link"
         >
           <img
-            :src="getImage(entry)"
+            :src="contentImage(getImage(entry)).src"
+            :srcset="contentImage(getImage(entry)).srcset"
+            :sizes="contentImage(getImage(entry)).sizes"
             :alt="getTitle(entry)"
             loading="lazy"
             decoding="async"

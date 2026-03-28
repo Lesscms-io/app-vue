@@ -18,10 +18,9 @@ export {
   type Breakpoint
 } from './useResponsiveSettings'
 export {
-  useImageOptimization,
-  getImageSrc,
-  getImageSrcset,
-  getImageOriginal,
-  type OptimizedImage,
-  type ImageData
+  buildSrcset,
+  buildSrc,
+  contentImage,
+  smallImage,
+  heroImage
 } from './useImageOptimization'

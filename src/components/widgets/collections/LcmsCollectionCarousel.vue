@@ -9,6 +9,7 @@
 import { computed, ref, inject, onMounted, onUnmounted, type Ref } from 'vue'
 import { useCollection } from '@/composables/useCollection'
 import { useLanguage } from '@/composables/useLanguage'
+import { contentImage } from '@/composables/useImageOptimization'
 import type { CollectionCarouselWidgetData } from '@/types/widgets'
 import type { CollectionEntry } from '@/api/types'
 import type { ResolvedRoute } from '@/composables/useRoutes'
@@ -188,7 +189,9 @@ onUnmounted(() => {
           >
             <img
               v-if="imageField && getImage(entry)"
-              :src="getImage(entry)"
+              :src="contentImage(getImage(entry)).src"
+              :srcset="contentImage(getImage(entry)).srcset"
+              :sizes="contentImage(getImage(entry)).sizes"
               :alt="entry.metadata?.code || ''"
               loading="lazy"
               decoding="async"

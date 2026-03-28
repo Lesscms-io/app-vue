@@ -8,7 +8,7 @@
 
 import { computed } from 'vue'
 import { useLanguage } from '@/composables/useLanguage'
-import { getImageSrc, getImageSrcset } from '@/composables/useImageOptimization'
+import { smallImage } from '@/composables/useImageOptimization'
 
 defineOptions({
   inheritAttrs: false
@@ -53,9 +53,8 @@ const configGroup = computed(() => config.value.config || {})
 const quoteText = computed(() => extractValue(quoteGroup.value.html || quoteGroup.value.content) || '')
 const authorText = computed(() => extractValue(authorGroup.value.html || authorGroup.value.content) || '')
 const positionText = computed(() => extractValue(positionGroup.value.html || positionGroup.value.content) || '')
-const rawAvatar = computed(() => avatarGroup.value.image || '')
-const avatarImage = computed(() => getImageSrc(rawAvatar.value))
-const avatarSrcset = computed(() => getImageSrcset(rawAvatar.value))
+const avatarImage = computed(() => avatarGroup.value.image || '')
+const avatarOptimized = computed(() => smallImage(avatarImage.value))
 const ratingValue = computed(() => ratingGroup.value.value || 0)
 const alignment = computed(() => configGroup.value.alignment || 'center')
 
@@ -134,9 +133,9 @@ const testimonialStyle = computed(() => {
     >
       <img
         v-if="avatarImage"
-        :src="avatarImage"
-        :srcset="avatarSrcset"
-        sizes="100px"
+        :src="avatarOptimized.src"
+        :srcset="avatarOptimized.srcset"
+        :sizes="avatarOptimized.sizes"
         :alt="authorText"
         loading="lazy"
         decoding="async"

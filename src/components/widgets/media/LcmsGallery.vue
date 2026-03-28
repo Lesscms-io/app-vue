@@ -8,7 +8,7 @@
  */
 
 import { computed, ref, onMounted, onUnmounted, Teleport, watch } from 'vue'
-import { getImageSrc, getImageSrcset, getImageOriginal } from '@/composables/useImageOptimization'
+import { contentImage } from '@/composables/useImageOptimization'
 import type { GalleryWidgetData, GalleryImage } from '@/types/widgets'
 
 defineOptions({
@@ -30,13 +30,10 @@ const images = computed(() => {
   const imgs = config.value.images || props.data.images || []
   return imgs.map((img: any) => {
     if (typeof img === 'string') {
-      return { url: img, alt: '', srcset: undefined, full: img }
+      return { url: img, alt: '', ...contentImage(img) }
     }
-    // Handle optimized image format: url can be { src, srcset, original } or plain string
-    const url = getImageSrc(img.url) || img.url || img.src || ''
-    const srcset = getImageSrcset(img.url)
-    const full = img.full || getImageOriginal(img.url) || url
-    return { url, srcset, full, alt: img.alt || '' }
+    const url = img.url || img.src || ''
+    return { url, alt: img.alt || '', ...contentImage(url) }
   })
 })
 
@@ -255,9 +252,9 @@ const lightboxImage = computed(() => images.value[lightboxIndex.value])
         @click="openLightbox(index)"
       >
         <img
-          :src="image.url"
+          :src="image.src"
           :srcset="image.srcset"
-          sizes="(max-width: 768px) 100vw, 33vw"
+          :sizes="image.sizes"
           :alt="image.alt || ''"
           loading="lazy"
           decoding="async"
@@ -280,7 +277,7 @@ const lightboxImage = computed(() => images.value[lightboxIndex.value])
         :style="enableLightbox ? { cursor: 'pointer' } : undefined"
         @click="openLightbox(index)"
       >
-        <img :src="image.url" :srcset="image.srcset" sizes="(max-width: 768px) 100vw, 33vw" :alt="image.alt || ''" loading="lazy" decoding="async" class="lcms-gallery__img">
+        <img :src="image.src" :srcset="image.srcset" :sizes="image.sizes" :alt="image.alt || ''" loading="lazy" decoding="async" class="lcms-gallery__img">
       </div>
     </div>
 
@@ -298,7 +295,7 @@ const lightboxImage = computed(() => images.value[lightboxIndex.value])
         :style="enableLightbox ? { cursor: 'pointer' } : undefined"
         @click="openLightbox(index)"
       >
-        <img :src="image.url" :srcset="image.srcset" sizes="(max-width: 768px) 100vw, 33vw" :alt="image.alt || ''" loading="lazy" decoding="async" class="lcms-gallery__img">
+        <img :src="image.src" :srcset="image.srcset" :sizes="image.sizes" :alt="image.alt || ''" loading="lazy" decoding="async" class="lcms-gallery__img">
       </div>
     </div>
 
@@ -315,7 +312,7 @@ const lightboxImage = computed(() => images.value[lightboxIndex.value])
         :style="{ marginBottom: `${gap}px`, cursor: enableLightbox ? 'pointer' : undefined }"
         @click="openLightbox(index)"
       >
-        <img :src="image.url" :srcset="image.srcset" sizes="(max-width: 768px) 100vw, 33vw" :alt="image.alt || ''" loading="lazy" decoding="async" class="lcms-gallery__img">
+        <img :src="image.src" :srcset="image.srcset" :sizes="image.sizes" :alt="image.alt || ''" loading="lazy" decoding="async" class="lcms-gallery__img">
       </div>
     </div>
 
@@ -330,7 +327,7 @@ const lightboxImage = computed(() => images.value[lightboxIndex.value])
         :style="enableLightbox ? { cursor: 'pointer' } : undefined"
         @click="openLightbox(0)"
       >
-        <img :src="images[0].url" :srcset="images[0].srcset" sizes="(max-width: 768px) 100vw, 50vw" :alt="images[0].alt || ''" loading="lazy" decoding="async" class="lcms-gallery__img">
+        <img :src="images[0].src" :srcset="images[0].srcset" :sizes="images[0].sizes" :alt="images[0].alt || ''" loading="lazy" decoding="async" class="lcms-gallery__img">
       </div>
       <div
         v-for="(image, index) in images.slice(1, 5)"
@@ -340,7 +337,7 @@ const lightboxImage = computed(() => images.value[lightboxIndex.value])
         :style="enableLightbox ? { cursor: 'pointer' } : undefined"
         @click="openLightbox(index + 1)"
       >
-        <img :src="image.url" :srcset="image.srcset" sizes="(max-width: 768px) 100vw, 33vw" :alt="image.alt || ''" loading="lazy" decoding="async" class="lcms-gallery__img">
+        <img :src="image.src" :srcset="image.srcset" :sizes="image.sizes" :alt="image.alt || ''" loading="lazy" decoding="async" class="lcms-gallery__img">
       </div>
     </div>
 
@@ -512,7 +509,7 @@ const lightboxImage = computed(() => images.value[lightboxIndex.value])
           <!-- Current image -->
           <div class="lcms-lightbox__image-wrapper">
             <img
-              :src="lightboxImage.full || lightboxImage.url"
+              :src="lightboxImage.url"
               :alt="lightboxImage.alt || ''"
               class="lcms-lightbox__image"
               decoding="async"

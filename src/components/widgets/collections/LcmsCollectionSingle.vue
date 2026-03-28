@@ -8,6 +8,7 @@
 import { computed, inject, unref, type Ref } from 'vue'
 import { useCollectionEntry } from '@/composables/useCollection'
 import { useLanguage } from '@/composables/useLanguage'
+import { contentImage } from '@/composables/useImageOptimization'
 import type { CollectionSingleWidgetData } from '@/types/widgets'
 import type { CollectionEntry } from '@/api/types'
 import type { ResolvedRoute } from '@/composables/useRoutes'
@@ -161,7 +162,9 @@ const image = computed(() => {
     <template v-else>
       <img
         v-if="showImage && image"
-        :src="image"
+        :src="contentImage(image).src"
+        :srcset="contentImage(image).srcset"
+        :sizes="contentImage(image).sizes"
         :alt="title"
         loading="lazy"
         decoding="async"
