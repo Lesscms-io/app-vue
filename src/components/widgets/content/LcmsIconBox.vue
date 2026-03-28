@@ -185,12 +185,10 @@ const contentStyles = computed(() => {
 
 .lcms-icon-box--align-center {
   align-items: center;
-  text-align: center;
 }
 
 .lcms-icon-box--align-bottom {
   align-items: flex-end;
-  text-align: right;
 }
 
 .lcms-icon-box__icon {
