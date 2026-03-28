@@ -310,12 +310,25 @@ function getTitle(entry: CollectionEntry): string {
 
 function getExcerpt(entry: CollectionEntry): string {
   const text = getFieldValue(entry, excerptField.value) || ''
-  // Strip HTML tags
+  // Strip HTML tags for plain text excerpt
   const stripped = text.replace(/<[^>]*>/g, '')
   if (excerptLimit.value && stripped.length > excerptLimit.value) {
     return stripped.substring(0, excerptLimit.value) + '...'
   }
   return stripped
+}
+
+function getExcerptHtml(entry: CollectionEntry): string {
+  const text = getFieldValue(entry, excerptField.value) || ''
+  if (!text) return ''
+  if (excerptLimit.value) {
+    // Strip HTML to count chars, but return HTML if within limit
+    const stripped = text.replace(/<[^>]*>/g, '')
+    if (stripped.length > excerptLimit.value) {
+      return stripped.substring(0, excerptLimit.value) + '...'
+    }
+  }
+  return text
 }
 
 function getImage(entry: CollectionEntry): string {
@@ -494,12 +507,11 @@ function updateResponsiveStyle() {
               {{ getDate(entry) }}
             </time>
 
-            <p
+            <div
               v-else-if="field === 'excerpt' && showExcerpt && excerptField && getExcerpt(entry)"
               class="lcms-collection-grid__excerpt"
-            >
-              {{ getExcerpt(entry) }}
-            </p>
+              v-html="getExcerptHtml(entry)"
+            />
 
             <div
               v-else-if="field === 'tags' && showTags && getTags(entry).length > 0"
@@ -569,12 +581,11 @@ function updateResponsiveStyle() {
               {{ getDate(entry) }}
             </time>
 
-            <p
+            <div
               v-else-if="field === 'excerpt' && showExcerpt && excerptField && getExcerpt(entry)"
               class="lcms-collection-grid__excerpt"
-            >
-              {{ getExcerpt(entry) }}
-            </p>
+              v-html="getExcerptHtml(entry)"
+            />
 
             <div
               v-else-if="field === 'tags' && showTags && getTags(entry).length > 0"

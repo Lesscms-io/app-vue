@@ -6,7 +6,7 @@
  * Uses element-group pattern with header, content, icon, border, separator, config groups.
  */
 
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useLanguage } from '@/composables/useLanguage'
 
 function resolveColor(val: string | null | undefined): string | null {
@@ -102,8 +102,19 @@ const hasHover = computed(() => !!(
   iconHoverColor.value || borderHoverColor.value || separatorHoverColor.value
 ))
 
-// State
-const openItems = ref<Set<number>>(new Set(firstOpen.value && renderedItems.value.length > 0 ? [0] : []))
+// State — initialize empty, then watch for data + config
+const openItems = ref<Set<number>>(new Set())
+
+// Watch items and first_open to set initial open state
+watch(
+  [renderedItems, firstOpen],
+  ([items, fo]) => {
+    if (fo && items.length > 0 && openItems.value.size === 0) {
+      openItems.value = new Set([0])
+    }
+  },
+  { immediate: true }
+)
 
 function toggle(index: number) {
   const newSet = new Set(openItems.value)
@@ -178,7 +189,7 @@ function contentStyle() {
         />
       </button>
       <div
-        v-if="isOpen(index)"
+        v-show="isOpen(index)"
         class="lcms-accordion__content"
         :style="contentStyle()"
       >
