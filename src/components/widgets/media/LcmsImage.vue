@@ -7,6 +7,7 @@
 
 import { computed } from 'vue'
 import { useLanguage } from '@/composables/useLanguage'
+import { useImageOptimization } from '@/composables/useImageOptimization'
 import type { ImageWidgetData } from '@/types/widgets'
 
 defineOptions({

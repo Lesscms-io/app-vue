@@ -465,7 +465,7 @@
   margin-bottom: 0;
 }
 
-/* Headings inside text widget from editor - reset to allow inline styles */
+/* Headings inside text widget - use project CSS variables, inline styles override when present */
 .lcms-text h1,
 .lcms-text h2,
 .lcms-text h3,
@@ -473,9 +473,14 @@
 .lcms-text h5,
 .lcms-text h6 {
   margin: 0 0 var(--lcms-spacing-4);
-  font-size: 1em; /* Reset to allow inner span to control size */
-  font-weight: inherit;
 }
+
+.lcms-text h1 { font-size: var(--lcms-h1-font-size); font-weight: var(--lcms-h1-font-weight); color: var(--lcms-h1-color); }
+.lcms-text h2 { font-size: var(--lcms-h2-font-size); font-weight: var(--lcms-h2-font-weight); color: var(--lcms-h2-color); }
+.lcms-text h3 { font-size: var(--lcms-h3-font-size); font-weight: var(--lcms-h3-font-weight); color: var(--lcms-h3-color); }
+.lcms-text h4 { font-size: var(--lcms-h4-font-size); font-weight: var(--lcms-h4-font-weight); color: var(--lcms-h4-color); }
+.lcms-text h5 { font-size: var(--lcms-h5-font-size); font-weight: var(--lcms-h5-font-weight); color: var(--lcms-h5-color); }
+.lcms-text h6 { font-size: var(--lcms-h6-font-size); font-weight: var(--lcms-h6-font-weight); color: var(--lcms-h6-color); }
 
 .lcms-text h1:last-child,
 .lcms-text h2:last-child,

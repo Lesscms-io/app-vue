@@ -17,3 +17,11 @@ export {
   breakpointCssVars,
   type Breakpoint
 } from './useResponsiveSettings'
+export {
+  useImageOptimization,
+  getImageSrc,
+  getImageSrcset,
+  getImageOriginal,
+  type OptimizedImage,
+  type ImageData
+} from './useImageOptimization'
