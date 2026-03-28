@@ -11,6 +11,7 @@ import { computed, ref, inject, onMounted, onUnmounted } from 'vue'
 import { useMenu } from '@/composables/useMenu'
 import { useLanguage } from '@/composables/useLanguage'
 import { useResponsiveSettings } from '@/composables/useResponsiveSettings'
+import { smallImage } from '@/composables/useImageOptimization'
 import type { MenuItem } from '@/api/types'
 
 defineOptions({
@@ -92,6 +93,12 @@ const logoColor = computed(() => {
   if (!val) return null
   if (val.startsWith('var:')) return `var(--lcms-color-${val.split(':')[1]})`
   return val
+})
+
+// Optimized logo with srcset for responsive sizing
+const logoOptimized = computed(() => {
+  const url = logoLight.value || logoDark.value
+  return url ? smallImage(url) : null
 })
 
 // CTA group
@@ -336,10 +343,11 @@ function getItemTarget(item: MenuItem): string | undefined {
       >
         <img
           v-if="logoType === 'image'"
-          :src="logoLight || logoDark"
+          :src="logoOptimized?.src || logoLight || logoDark"
+          :srcset="logoOptimized?.srcset || undefined"
+          :sizes="logoOptimized?.sizes || undefined"
           :style="{ height: `${logoHeight}px` }"
           alt="Logo"
-          loading="lazy"
           decoding="async"
           class="lcms-menu__logo-img"
         >
@@ -378,9 +386,12 @@ function getItemTarget(item: MenuItem): string | undefined {
         >
           <img
             v-if="logoType === 'image'"
-            :src="logoLight || logoDark"
+            :src="logoOptimized?.src || logoLight || logoDark"
+            :srcset="logoOptimized?.srcset || undefined"
+            :sizes="logoOptimized?.sizes || undefined"
             :style="{ height: `${logoHeight}px` }"
             alt="Logo"
+            decoding="async"
             class="lcms-menu__logo-img"
           >
           <span
@@ -481,10 +492,11 @@ function getItemTarget(item: MenuItem): string | undefined {
       >
         <img
           v-if="logoType === 'image'"
-          :src="logoLight || logoDark"
+          :src="logoOptimized?.src || logoLight || logoDark"
+          :srcset="logoOptimized?.srcset || undefined"
+          :sizes="logoOptimized?.sizes || undefined"
           :style="{ height: `${logoHeight}px` }"
           alt="Logo"
-          loading="lazy"
           decoding="async"
           class="lcms-menu__logo-img"
         >
