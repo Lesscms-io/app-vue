@@ -427,12 +427,12 @@
 .lcms-heading__text {
   /* Apply default sizes only to plain text headings */
 }
-.lcms-heading__text[data-level="1"] { font-size: var(--lcms-h1-font-size); font-weight: var(--lcms-h1-font-weight); color: var(--lcms-h1-color); }
-.lcms-heading__text[data-level="2"] { font-size: var(--lcms-h2-font-size); font-weight: var(--lcms-h2-font-weight); color: var(--lcms-h2-color); }
-.lcms-heading__text[data-level="3"] { font-size: var(--lcms-h3-font-size); font-weight: var(--lcms-h3-font-weight); color: var(--lcms-h3-color); }
-.lcms-heading__text[data-level="4"] { font-size: var(--lcms-h4-font-size); font-weight: var(--lcms-h4-font-weight); color: var(--lcms-h4-color); }
-.lcms-heading__text[data-level="5"] { font-size: var(--lcms-h5-font-size); font-weight: var(--lcms-h5-font-weight); color: var(--lcms-h5-color); }
-.lcms-heading__text[data-level="6"] { font-size: var(--lcms-h6-font-size); font-weight: var(--lcms-h6-font-weight); color: var(--lcms-h6-color); }
+.lcms-heading__text[data-level="1"] { font-size: var(--lcms-h1-font-size); font-weight: var(--lcms-h1-font-weight); color: var(--lcms-h1-color); line-height: var(--lcms-h1-line-height); }
+.lcms-heading__text[data-level="2"] { font-size: var(--lcms-h2-font-size); font-weight: var(--lcms-h2-font-weight); color: var(--lcms-h2-color); line-height: var(--lcms-h2-line-height); }
+.lcms-heading__text[data-level="3"] { font-size: var(--lcms-h3-font-size); font-weight: var(--lcms-h3-font-weight); color: var(--lcms-h3-color); line-height: var(--lcms-h3-line-height); }
+.lcms-heading__text[data-level="4"] { font-size: var(--lcms-h4-font-size); font-weight: var(--lcms-h4-font-weight); color: var(--lcms-h4-color); line-height: var(--lcms-h4-line-height); }
+.lcms-heading__text[data-level="5"] { font-size: var(--lcms-h5-font-size); font-weight: var(--lcms-h5-font-weight); color: var(--lcms-h5-color); line-height: var(--lcms-h5-line-height); }
+.lcms-heading__text[data-level="6"] { font-size: var(--lcms-h6-font-size); font-weight: var(--lcms-h6-font-weight); color: var(--lcms-h6-color); line-height: var(--lcms-h6-line-height); }
 
 /* HTML content from editor - reset h1-h6 to not have default browser/css sizes */
 .lcms-heading__html h1,
@@ -451,14 +451,15 @@
    ========================================================================== */
 
 .lcms-text {
-  font-family: var(--lcms-font-family);
-  font-size: var(--lcms-font-size-md);
-  line-height: var(--lcms-line-height-normal);
-  color: var(--lcms-color-gray-800);
+  font-family: var(--lcms-font-body);
+  font-size: var(--lcms-p-font-size);
+  font-weight: var(--lcms-p-font-weight);
+  line-height: var(--lcms-p-line-height);
+  color: var(--lcms-p-color);
 }
 
 .lcms-text p {
-  margin: 0 0 var(--lcms-spacing-4);
+  margin: 0 0 var(--lcms-p-margin-bottom);
 }
 
 .lcms-text p:last-child {
@@ -466,21 +467,12 @@
 }
 
 /* Headings inside text widget - use project CSS variables, inline styles override when present */
-.lcms-text h1,
-.lcms-text h2,
-.lcms-text h3,
-.lcms-text h4,
-.lcms-text h5,
-.lcms-text h6 {
-  margin: 0 0 var(--lcms-spacing-4);
-}
-
-.lcms-text h1 { font-size: var(--lcms-h1-font-size); font-weight: var(--lcms-h1-font-weight); color: var(--lcms-h1-color); }
-.lcms-text h2 { font-size: var(--lcms-h2-font-size); font-weight: var(--lcms-h2-font-weight); color: var(--lcms-h2-color); }
-.lcms-text h3 { font-size: var(--lcms-h3-font-size); font-weight: var(--lcms-h3-font-weight); color: var(--lcms-h3-color); }
-.lcms-text h4 { font-size: var(--lcms-h4-font-size); font-weight: var(--lcms-h4-font-weight); color: var(--lcms-h4-color); }
-.lcms-text h5 { font-size: var(--lcms-h5-font-size); font-weight: var(--lcms-h5-font-weight); color: var(--lcms-h5-color); }
-.lcms-text h6 { font-size: var(--lcms-h6-font-size); font-weight: var(--lcms-h6-font-weight); color: var(--lcms-h6-color); }
+.lcms-text h1 { font-size: var(--lcms-h1-font-size); font-weight: var(--lcms-h1-font-weight); color: var(--lcms-h1-color); line-height: var(--lcms-h1-line-height); margin: 0 0 var(--lcms-h1-margin-bottom); }
+.lcms-text h2 { font-size: var(--lcms-h2-font-size); font-weight: var(--lcms-h2-font-weight); color: var(--lcms-h2-color); line-height: var(--lcms-h2-line-height); margin: 0 0 var(--lcms-h2-margin-bottom); }
+.lcms-text h3 { font-size: var(--lcms-h3-font-size); font-weight: var(--lcms-h3-font-weight); color: var(--lcms-h3-color); line-height: var(--lcms-h3-line-height); margin: 0 0 var(--lcms-h3-margin-bottom); }
+.lcms-text h4 { font-size: var(--lcms-h4-font-size); font-weight: var(--lcms-h4-font-weight); color: var(--lcms-h4-color); line-height: var(--lcms-h4-line-height); margin: 0 0 var(--lcms-h4-margin-bottom); }
+.lcms-text h5 { font-size: var(--lcms-h5-font-size); font-weight: var(--lcms-h5-font-weight); color: var(--lcms-h5-color); line-height: var(--lcms-h5-line-height); margin: 0 0 var(--lcms-h5-margin-bottom); }
+.lcms-text h6 { font-size: var(--lcms-h6-font-size); font-weight: var(--lcms-h6-font-weight); color: var(--lcms-h6-color); line-height: var(--lcms-h6-line-height); margin: 0 0 var(--lcms-h6-margin-bottom); }
 
 .lcms-text h1:last-child,
 .lcms-text h2:last-child,

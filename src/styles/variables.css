@@ -133,27 +133,40 @@
   --lcms-h1-font-size: 4.5rem;
   --lcms-h1-font-weight: var(--lcms-font-weight-bold);
   --lcms-h1-color: inherit;
+  --lcms-h1-line-height: var(--lcms-line-height-tight);
+  --lcms-h1-margin-bottom: var(--lcms-spacing-4);
   --lcms-h2-font-size: 3.75rem;
   --lcms-h2-font-weight: var(--lcms-font-weight-bold);
   --lcms-h2-color: inherit;
+  --lcms-h2-line-height: var(--lcms-line-height-tight);
+  --lcms-h2-margin-bottom: var(--lcms-spacing-4);
   --lcms-h3-font-size: 3rem;
   --lcms-h3-font-weight: var(--lcms-font-weight-semibold);
   --lcms-h3-color: inherit;
+  --lcms-h3-line-height: var(--lcms-line-height-tight);
+  --lcms-h3-margin-bottom: var(--lcms-spacing-3);
   --lcms-h4-font-size: 2.25rem;
   --lcms-h4-font-weight: var(--lcms-font-weight-semibold);
   --lcms-h4-color: inherit;
+  --lcms-h4-line-height: var(--lcms-line-height-tight);
+  --lcms-h4-margin-bottom: var(--lcms-spacing-3);
   --lcms-h5-font-size: 1.875rem;
   --lcms-h5-font-weight: var(--lcms-font-weight-medium);
   --lcms-h5-color: inherit;
+  --lcms-h5-line-height: var(--lcms-line-height-normal);
+  --lcms-h5-margin-bottom: var(--lcms-spacing-2);
   --lcms-h6-font-size: 1.5rem;
   --lcms-h6-font-weight: var(--lcms-font-weight-medium);
   --lcms-h6-color: inherit;
+  --lcms-h6-line-height: var(--lcms-line-height-normal);
+  --lcms-h6-margin-bottom: var(--lcms-spacing-2);
 
   /* Paragraph Typography */
   --lcms-p-font-size: var(--lcms-font-size-base);
   --lcms-p-font-weight: var(--lcms-font-weight-normal);
   --lcms-p-color: inherit;
   --lcms-p-line-height: var(--lcms-line-height-normal);
+  --lcms-p-margin-bottom: var(--lcms-spacing-4);
 }
 
 /* Headings */
@@ -170,48 +183,48 @@ h1, .h1 {
   font-size: var(--lcms-h1-font-size);
   font-weight: var(--lcms-h1-font-weight);
   color: var(--lcms-h1-color);
-  line-height: var(--lcms-line-height-tight);
-  margin: 0 0 var(--lcms-spacing-4);
+  line-height: var(--lcms-h1-line-height);
+  margin: 0 0 var(--lcms-h1-margin-bottom);
 }
 
 h2, .h2 {
   font-size: var(--lcms-h2-font-size);
   font-weight: var(--lcms-h2-font-weight);
   color: var(--lcms-h2-color);
-  line-height: var(--lcms-line-height-tight);
-  margin: 0 0 var(--lcms-spacing-4);
+  line-height: var(--lcms-h2-line-height);
+  margin: 0 0 var(--lcms-h2-margin-bottom);
 }
 
 h3, .h3 {
   font-size: var(--lcms-h3-font-size);
   font-weight: var(--lcms-h3-font-weight);
   color: var(--lcms-h3-color);
-  line-height: var(--lcms-line-height-tight);
-  margin: 0 0 var(--lcms-spacing-3);
+  line-height: var(--lcms-h3-line-height);
+  margin: 0 0 var(--lcms-h3-margin-bottom);
 }
 
 h4, .h4 {
   font-size: var(--lcms-h4-font-size);
   font-weight: var(--lcms-h4-font-weight);
   color: var(--lcms-h4-color);
-  line-height: var(--lcms-line-height-tight);
-  margin: 0 0 var(--lcms-spacing-3);
+  line-height: var(--lcms-h4-line-height);
+  margin: 0 0 var(--lcms-h4-margin-bottom);
 }
 
 h5, .h5 {
   font-size: var(--lcms-h5-font-size);
   font-weight: var(--lcms-h5-font-weight);
   color: var(--lcms-h5-color);
-  line-height: var(--lcms-line-height-normal);
-  margin: 0 0 var(--lcms-spacing-2);
+  line-height: var(--lcms-h5-line-height);
+  margin: 0 0 var(--lcms-h5-margin-bottom);
 }
 
 h6, .h6 {
   font-size: var(--lcms-h6-font-size);
   font-weight: var(--lcms-h6-font-weight);
   color: var(--lcms-h6-color);
-  line-height: var(--lcms-line-height-normal);
-  margin: 0 0 var(--lcms-spacing-2);
+  line-height: var(--lcms-h6-line-height);
+  margin: 0 0 var(--lcms-h6-margin-bottom);
 }
 
 /* Body / Paragraphs */
@@ -225,6 +238,7 @@ p {
   font-weight: var(--lcms-p-font-weight);
   color: var(--lcms-p-color);
   line-height: var(--lcms-p-line-height);
+  margin: 0 0 var(--lcms-p-margin-bottom);
 }
 
 /* Responsive headings - tablet */

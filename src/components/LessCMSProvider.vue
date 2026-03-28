@@ -327,6 +327,10 @@ function applyStyleVariables(styles: Record<string, any>) {
       root.style.setProperty(`--lcms-h${level}-font-weight`, String(styles[`h${level}_font_weight`]))
     if (styles[`h${level}_color`])
       root.style.setProperty(`--lcms-h${level}-color`, styles[`h${level}_color`])
+    if (styles[`h${level}_line_height`])
+      root.style.setProperty(`--lcms-h${level}-line-height`, styles[`h${level}_line_height`])
+    if (styles[`h${level}_margin_bottom`])
+      root.style.setProperty(`--lcms-h${level}-margin-bottom`, styles[`h${level}_margin_bottom`])
   }
 
   // Paragraph typography variables
@@ -334,6 +338,7 @@ function applyStyleVariables(styles: Record<string, any>) {
   if (styles.p_font_weight) root.style.setProperty('--lcms-p-font-weight', String(styles.p_font_weight))
   if (styles.p_color) root.style.setProperty('--lcms-p-color', styles.p_color)
   if (styles.p_line_height) root.style.setProperty('--lcms-p-line-height', styles.p_line_height)
+  if (styles.p_margin_bottom) root.style.setProperty('--lcms-p-margin-bottom', styles.p_margin_bottom)
 
   // Layout variables
   if (styles.border_radius !== undefined) root.style.setProperty('--lcms-border-radius', `${styles.border_radius}px`)
