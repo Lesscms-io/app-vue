@@ -27,8 +27,10 @@ const { extractValue } = useLanguage(props.language)
 const config = computed(() => props.data.widget || props.data || {})
 
 const imageSource = computed(() => config.value.image_source || 'static')
-const imageUrl = computed(() => config.value.image || props.data.url || '')
+const rawImage = computed(() => config.value.image || props.data.url || '')
 const altText = computed(() => props.data.alt ? extractValue(props.data.alt) : '')
+
+const { src: imageUrl, srcset: imageSrcset, sizes: imageSizes } = useImageOptimization(rawImage)
 
 const imageStylePresets: Record<string, Record<string, string>> = {
   'none': {},
@@ -53,7 +55,11 @@ const imageStyle = computed(() => {
     <img
       v-if="imageUrl"
       :src="imageUrl"
+      :srcset="imageSrcset"
+      :sizes="imageSizes"
       :alt="altText"
+      loading="lazy"
+      decoding="async"
       class="lcms-image__img"
       :style="imageStyle"
     >

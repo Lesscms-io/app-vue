@@ -190,6 +190,8 @@ onUnmounted(() => {
               v-if="imageField && getImage(entry)"
               :src="getImage(entry)"
               :alt="entry.metadata?.code || ''"
+              loading="lazy"
+              decoding="async"
               class="lcms-collection-carousel__image"
             >
           </a>

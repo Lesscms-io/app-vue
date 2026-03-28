@@ -464,6 +464,8 @@ const lightboxImage = computed(() => galleryImages.value[lightboxIndex.value] ||
           :key="idx"
           :src="img"
           :alt="`${label || fieldCode} ${idx + 1}`"
+          loading="lazy"
+          decoding="async"
           class="lcms-collection-field__gallery-image"
           style="cursor: pointer"
           @click="openLightbox(idx)"
@@ -479,7 +481,7 @@ const lightboxImage = computed(() => galleryImages.value[lightboxIndex.value] ||
       >
         <!-- Image field -->
         <template v-if="fieldType === 'image' && formattedValue">
-          <img :src="formattedValue" :alt="label || fieldCode" class="lcms-collection-field__image" :style="imageStyle" />
+          <img :src="formattedValue" :alt="label || fieldCode" loading="lazy" decoding="async" class="lcms-collection-field__image" :style="imageStyle" />
         </template>
 
         <!-- Plain text -->

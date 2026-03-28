@@ -165,7 +165,7 @@ const sectionStyle = computed(() => {
     }
 
     if (s.background_image) {
-      const encodedUrl = encodeURI(s.background_image)
+      const encodedUrl = encodeURI(s.background_image_optimized || s.background_image)
       const imgSize = s.background_size || 'cover'
       const imgPos = s.background_position || 'center center'
       if (gradientValue) {
@@ -358,7 +358,7 @@ function getColumnStyle(column: PageColumn) {
     }
 
     if (s.background_image) {
-      const encodedUrl = encodeURI(s.background_image)
+      const encodedUrl = encodeURI(s.background_image_optimized || s.background_image)
       const imgSize = s.background_size || 'cover'
       const imgPos = s.background_position || 'center center'
       if (gradientValue) {

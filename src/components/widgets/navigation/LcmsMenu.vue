@@ -339,6 +339,8 @@ function getItemTarget(item: MenuItem): string | undefined {
           :src="logoLight || logoDark"
           :style="{ height: `${logoHeight}px` }"
           alt="Logo"
+          loading="lazy"
+          decoding="async"
           class="lcms-menu__logo-img"
         >
         <span
@@ -482,6 +484,8 @@ function getItemTarget(item: MenuItem): string | undefined {
           :src="logoLight || logoDark"
           :style="{ height: `${logoHeight}px` }"
           alt="Logo"
+          loading="lazy"
+          decoding="async"
           class="lcms-menu__logo-img"
         >
         <span

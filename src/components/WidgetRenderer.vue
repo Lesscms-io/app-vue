@@ -239,7 +239,7 @@ const widgetStyle = computed(() => {
     }
 
     if (s.background_image) {
-      const encodedUrl = encodeURI(s.background_image)
+      const encodedUrl = encodeURI(s.background_image_optimized || s.background_image)
       const imgSize = s.background_size || 'cover'
       const imgPos = s.background_position || 'center center'
       const imgOpacity = s.background_image_opacity ?? 100

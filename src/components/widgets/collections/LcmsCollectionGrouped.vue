@@ -18,6 +18,8 @@
                 v-if="showImage && getImage(entry)"
                 :src="getImage(entry)"
                 :alt="getTitle(entry)"
+                loading="lazy"
+                decoding="async"
                 class="lcms-collection-grouped__image"
               />
               <div class="lcms-collection-grouped__item-content">
@@ -60,6 +62,8 @@
                   v-if="showImage && getImage(entry)"
                   :src="getImage(entry)"
                   :alt="getTitle(entry)"
+                  loading="lazy"
+                  decoding="async"
                   class="lcms-collection-grouped__image"
                 />
                 <div class="lcms-collection-grouped__item-content">
@@ -105,6 +109,8 @@
                     v-if="showImage && getImage(entry)"
                     :src="getImage(entry)"
                     :alt="getTitle(entry)"
+                    loading="lazy"
+                    decoding="async"
                     class="lcms-collection-grouped__image"
                   />
                   <div class="lcms-collection-grouped__item-content">

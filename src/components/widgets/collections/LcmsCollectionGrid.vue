@@ -544,6 +544,8 @@ function updateResponsiveStyle() {
           <img
             :src="getImage(entry)"
             :alt="getTitle(entry)"
+            loading="lazy"
+            decoding="async"
             class="lcms-collection-grid__image"
           >
         </a>

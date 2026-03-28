@@ -84,7 +84,7 @@ const fieldCodeSubtitle = computed(() => configGroup.value.field_code_subtitle |
 const fieldCodeImage = computed(() => configGroup.value.field_code_image || '')
 const showTitle = computed(() => configGroup.value.show_title !== false)
 const showSubtitle = computed(() => configGroup.value.show_subtitle !== false)
-const backgroundUrl = computed(() => configGroup.value.background || null)
+const backgroundUrl = computed(() => configGroup.value.background_optimized || configGroup.value.background || null)
 
 // Text
 const textColor = computed(() => resolveColor(textGroup.value.color) || '#ffffff')

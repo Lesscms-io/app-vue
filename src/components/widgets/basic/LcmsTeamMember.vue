@@ -8,6 +8,7 @@
 
 import { computed } from 'vue'
 import { useLanguage } from '@/composables/useLanguage'
+import { getImageSrc, getImageSrcset } from '@/composables/useImageOptimization'
 
 defineOptions({
   inheritAttrs: false
@@ -33,7 +34,9 @@ const configGroup = computed(() => props.data.config || {})
 const name = computed(() => extractValue(memberGroup.value.name_html || memberGroup.value.name))
 const position = computed(() => extractValue(memberGroup.value.position_html || memberGroup.value.position))
 const bio = computed(() => extractValue(memberGroup.value.bio_html || memberGroup.value.bio))
-const photo = computed(() => imageGroup.value.image || null)
+const rawPhoto = computed(() => imageGroup.value.image || null)
+const photo = computed(() => getImageSrc(rawPhoto.value))
+const photoSrcset = computed(() => getImageSrcset(rawPhoto.value))
 const socialLinks = computed(() => socialGroup.value.social_links || [])
 const teamMemberStyle = computed(() => configGroup.value.team_member_style || 'card')
 const accentColor = computed(() => configGroup.value.accent_color || null)
@@ -88,7 +91,7 @@ function getSocialUrl(link: { platform: string; url: string }) {
     :style="containerStyle"
   >
     <div v-if="photo" class="lcms-team-member__image-wrap">
-      <img :src="photo" :alt="name" class="lcms-team-member__image" />
+      <img :src="photo" :srcset="photoSrcset" sizes="(max-width: 768px) 100vw, 300px" :alt="name" loading="lazy" decoding="async" class="lcms-team-member__image" />
     </div>
     <div class="lcms-team-member__info">
       <h3 v-if="name" class="lcms-team-member__name">{{ name }}</h3>

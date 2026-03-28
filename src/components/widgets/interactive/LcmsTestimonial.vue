@@ -8,6 +8,7 @@
 
 import { computed } from 'vue'
 import { useLanguage } from '@/composables/useLanguage'
+import { getImageSrc, getImageSrcset } from '@/composables/useImageOptimization'
 
 defineOptions({
   inheritAttrs: false
@@ -52,7 +53,9 @@ const configGroup = computed(() => config.value.config || {})
 const quoteText = computed(() => extractValue(quoteGroup.value.html || quoteGroup.value.content) || '')
 const authorText = computed(() => extractValue(authorGroup.value.html || authorGroup.value.content) || '')
 const positionText = computed(() => extractValue(positionGroup.value.html || positionGroup.value.content) || '')
-const avatarImage = computed(() => avatarGroup.value.image || '')
+const rawAvatar = computed(() => avatarGroup.value.image || '')
+const avatarImage = computed(() => getImageSrc(rawAvatar.value))
+const avatarSrcset = computed(() => getImageSrcset(rawAvatar.value))
 const ratingValue = computed(() => ratingGroup.value.value || 0)
 const alignment = computed(() => configGroup.value.alignment || 'center')
 
@@ -132,7 +135,11 @@ const testimonialStyle = computed(() => {
       <img
         v-if="avatarImage"
         :src="avatarImage"
+        :srcset="avatarSrcset"
+        sizes="100px"
         :alt="authorText"
+        loading="lazy"
+        decoding="async"
         class="lcms-testimonial__avatar"
       >
       <div class="lcms-testimonial__info">

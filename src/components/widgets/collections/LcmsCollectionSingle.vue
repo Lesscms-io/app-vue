@@ -163,6 +163,8 @@ const image = computed(() => {
         v-if="showImage && image"
         :src="image"
         :alt="title"
+        loading="lazy"
+        decoding="async"
         class="lcms-collection-single__image"
       >
 
