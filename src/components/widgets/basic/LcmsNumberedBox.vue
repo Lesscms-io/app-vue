@@ -4,11 +4,11 @@
       {{ displayNumber }}
     </div>
     <div class="lcms-numbered-box__content" :style="contentStyle">
-      <component
-        :is="titleTag"
+      <DynamicHtml
         v-if="title"
+        :tag="titleTag"
+        :html="stripBlockWrappers(title)"
         class="lcms-numbered-box__title"
-        v-html="stripBlockWrappers(title)"
       />
       <div v-if="bodyHtml" v-html="bodyHtml" />
     </div>
@@ -17,6 +17,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import DynamicHtml from '../DynamicHtml.vue'
 import { useLanguage } from '@/composables/useLanguage'
 
 function resolveColor(val: string | null | undefined): string | null {

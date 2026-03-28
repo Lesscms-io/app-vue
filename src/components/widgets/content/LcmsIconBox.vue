@@ -5,13 +5,14 @@
       <i v-else :class="iconClass"></i>
     </div>
     <div class="lcms-icon-box__content" :style="contentStyles">
-      <component :is="contentTag" v-if="contentText" v-html="stripBlockWrappers(contentText)"></component>
+      <DynamicHtml v-if="contentText" :tag="contentTag" :html="stripBlockWrappers(contentText)" />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import DynamicHtml from '../DynamicHtml.vue'
 import { useLanguage } from '@/composables/useLanguage'
 
 const props = defineProps<{
