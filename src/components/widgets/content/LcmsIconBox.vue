@@ -191,6 +191,23 @@ const contentStyles = computed(() => {
   align-items: flex-end;
 }
 
+/* text-align only for vertical layouts (top/bottom) */
+.lcms-icon-box--top.lcms-icon-box--align-center,
+.lcms-icon-box--bottom.lcms-icon-box--align-center {
+  text-align: center;
+}
+
+.lcms-icon-box--top.lcms-icon-box--align-bottom,
+.lcms-icon-box--bottom.lcms-icon-box--align-bottom {
+  text-align: right;
+}
+
+/* horizontal layouts always left-align text */
+.lcms-icon-box--left,
+.lcms-icon-box--right {
+  text-align: left;
+}
+
 .lcms-icon-box__icon {
   flex-shrink: 0;
   display: inline-flex;
