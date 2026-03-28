@@ -193,7 +193,7 @@ function contentStyle() {
         class="lcms-accordion__content"
         :style="contentStyle()"
       >
-        <component :is="contentTag" v-html="item.content"></component>
+        <div v-html="item.content"></div>
       </div>
     </div>
   </div>
