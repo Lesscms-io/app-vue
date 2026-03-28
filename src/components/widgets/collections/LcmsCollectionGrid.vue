@@ -124,7 +124,7 @@ const readMoreText = computed(() => {
 
 // Custom entry template - format: "custom:uuid" or just uuid
 const entryTemplateConfig = computed(() => config.value.entry_template || '')
-const hasCustomTemplate = computed(() => !!entryTemplateConfig.value)
+const hasCustomTemplate = computed(() => !!entryTemplateConfig.value && entryTemplateConfig.value.startsWith('custom:'))
 const templateId = computed(() => {
   const val = entryTemplateConfig.value
   if (val.startsWith('custom:')) {
