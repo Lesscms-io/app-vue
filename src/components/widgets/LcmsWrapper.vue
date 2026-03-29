@@ -50,7 +50,7 @@ const gridStyle = computed(() => {
     style.justifyContent = alignMap[hAlign.value] || 'flex-start'
     return style
   }
-  const style: Record<string, string> = { display: 'grid', gap: `${gap.value}px`, width: '100%' }
+  const style: Record<string, string> = { display: 'grid', gap: `${gap.value}px`, width: '100%', gridTemplateColumns: `repeat(${columns.value}, 1fr)` }
   if (equalHeight.value) {
     style.gridAutoRows = '1fr'
   } else {
@@ -66,17 +66,16 @@ const gridStyle = computed(() => {
 const responsiveCss = computed(() => {
   if (layout.value === 'inline') return ''
   const sel = `#${wrapperId} .lcms-wrapper__grid`
-  // Desktop (default)
-  let css = `${sel} { --lcms-grid-cols: repeat(${columns.value}, 1fr); }`
+  let css = ''
   // Tablet
   const tabletCols = columnsTablet.value || (columns.value > 2 ? Math.max(1, Math.ceil(columns.value / 2)) : null)
   if (tabletCols) {
-    css += `@media (max-width: 1199px) { ${sel} { --lcms-grid-cols: repeat(${tabletCols}, 1fr); } }`
+    css += `@media (max-width: 1199px) { ${sel} { grid-template-columns: repeat(${tabletCols}, 1fr) !important; } }`
   }
   // Mobile
   const mobileCols = columnsMobile.value || (columns.value > 1 ? 1 : null)
   if (mobileCols) {
-    css += `@media (max-width: 767px) { ${sel} { --lcms-grid-cols: ${mobileCols === 1 ? '1fr' : `repeat(${mobileCols}, 1fr)`}; } }`
+    css += `@media (max-width: 767px) { ${sel} { grid-template-columns: ${mobileCols === 1 ? '1fr' : `repeat(${mobileCols}, 1fr)`} !important; } }`
   }
   return css
 })
