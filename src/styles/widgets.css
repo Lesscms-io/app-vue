@@ -2655,10 +2655,6 @@
     padding: var(--lcms-spacing-5);
   }
 
-  /* Dynamic page */
-  .lcms-dynamic-page {
-    padding: var(--lcms-spacing-8);
-  }
 }
 
 /* Mobile (<= 767px) */
@@ -2827,11 +2823,6 @@
   .lcms-tabs__tab {
     flex: 1 1 auto;
     text-align: center;
-  }
-
-  /* Dynamic page */
-  .lcms-dynamic-page {
-    padding: var(--lcms-spacing-4);
   }
 
   /* Video */
