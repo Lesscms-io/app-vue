@@ -397,16 +397,21 @@ function updateResponsiveStyle() {
     responsiveStyleEl.value.remove()
     responsiveStyleEl.value = null
   }
-  if (!columnsTablet.value && !columnsMobile.value) return
   if (layout.value === 'list') return
 
   const cls = responsiveStyleId.value
+  const cols = columns.value
   let css = ''
   if (columnsTablet.value) {
     css += `@media (max-width: 1199px) { .${cls} { grid-template-columns: repeat(${columnsTablet.value}, 1fr) !important; } }\n`
+  } else if (cols > 2) {
+    const tabletCols = Math.max(1, Math.ceil(cols / 2))
+    css += `@media (max-width: 1199px) { .${cls} { grid-template-columns: repeat(${tabletCols}, 1fr) !important; } }\n`
   }
   if (columnsMobile.value) {
     css += `@media (max-width: 767px) { .${cls} { grid-template-columns: repeat(${columnsMobile.value}, 1fr) !important; } }\n`
+  } else if (cols > 1) {
+    css += `@media (max-width: 767px) { .${cls} { grid-template-columns: 1fr !important; } }\n`
   }
   if (css) {
     const style = document.createElement('style')
