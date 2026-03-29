@@ -771,12 +771,11 @@ function getItemTarget(item: MenuItem): string | undefined {
 
 /* Drawer list — flush top, scrollable area */
 .lcms-menu--hamburger .lcms-menu__list {
-  flex: 1;
+  flex: none;
   width: 100%;
   padding: 8px 0;
   margin: 0;
   gap: 0;
-  overflow-y: auto;
 }
 
 .lcms-menu--hamburger .lcms-menu__item {
