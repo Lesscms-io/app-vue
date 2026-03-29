@@ -263,10 +263,12 @@ const isHamburgerMode = computed(() => {
 
 function toggleHamburger() {
   hamburgerOpen.value = !hamburgerOpen.value
+  document.body.style.overflow = hamburgerOpen.value ? 'hidden' : ''
 }
 
 function closeHamburger() {
   hamburgerOpen.value = false
+  document.body.style.overflow = ''
 }
 
 function handleLinkClick() {
@@ -372,6 +374,13 @@ function getItemTarget(item: MenuItem): string | undefined {
         <span class="lcms-menu__hamburger-bar" />
         <span class="lcms-menu__hamburger-bar" />
       </button>
+
+      <!-- Backdrop overlay (hamburger mode) -->
+      <div
+        v-if="isHamburgerMode && hamburgerOpen"
+        class="lcms-menu__backdrop"
+        @click="closeHamburger"
+      />
 
       <!-- Menu list -->
       <div
@@ -627,18 +636,40 @@ function getItemTarget(item: MenuItem): string | undefined {
 }
 
 /* ===========================
-   Slide-down panel
+   Backdrop overlay
    =========================== */
-.lcms-menu__panel {
-  overflow: hidden;
-  max-height: 0;
-  opacity: 0;
-  transition: max-height 0.35s ease, opacity 0.25s ease;
+.lcms-menu__backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 9998;
 }
 
-.lcms-menu__panel--open {
-  max-height: 2000px;
-  opacity: 1;
+/* ===========================
+   Slide-from-right drawer panel
+   =========================== */
+.lcms-menu--hamburger .lcms-menu__panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(320px, 80vw);
+  background: var(--lcms-color-white, #fff);
+  z-index: 9999;
+  transform: translateX(100%);
+  transition: transform 0.3s ease;
+  overflow-y: auto;
+  padding: 60px 24px 24px;
+  box-shadow: -4px 0 20px rgba(0, 0, 0, 0.15);
+}
+
+.lcms-menu--hamburger .lcms-menu__panel--open {
+  transform: translateX(0);
+}
+
+/* Non-hamburger panel: hidden by default, no drawer */
+.lcms-menu__panel {
+  /* Base: hidden for hamburger, overridden below for non-hamburger */
 }
 
 /* When NOT in hamburger mode, panel is always visible without transition */
@@ -692,6 +723,26 @@ function getItemTarget(item: MenuItem): string | undefined {
 /* In hamburger mode, force vertical layout for the list */
 .lcms-menu--hamburger .lcms-menu__list {
   flex-direction: column;
+  gap: 0;
+}
+
+/* Drawer link styling — override inherited colors from parent section */
+.lcms-menu--hamburger .lcms-menu__panel .lcms-menu__link {
+  color: var(--lcms-color-dark, #333);
+  padding: 12px 0;
+  font-size: 1rem;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  display: block;
+}
+
+.lcms-menu--hamburger .lcms-menu__panel .lcms-menu__link:hover {
+  color: var(--lcms-color-primary, #50a5f1);
+}
+
+/* Hamburger button z-index above backdrop */
+.lcms-menu--hamburger .lcms-menu__hamburger {
+  z-index: 10000;
+  position: relative;
 }
 
 /* ===========================
