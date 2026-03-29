@@ -736,9 +736,11 @@ function getItemTarget(item: MenuItem): string | undefined {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  width: 100%;
   padding: 20px 24px;
   border-bottom: 1px solid rgba(0, 0, 0, 0.06);
   flex-shrink: 0;
+  box-sizing: border-box;
 }
 
 .lcms-menu__drawer-logo {
