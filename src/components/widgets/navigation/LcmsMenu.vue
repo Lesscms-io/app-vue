@@ -253,6 +253,15 @@ const menuCssVars = computed(() => {
 const { items, loading, error } = useMenu(menuCode)
 
 const hamburgerOpen = ref(false)
+const openSubmenus = ref<Set<string>>(new Set())
+
+function toggleSubmenu(itemId: string) {
+  if (openSubmenus.value.has(itemId)) {
+    openSubmenus.value.delete(itemId)
+  } else {
+    openSubmenus.value.add(itemId)
+  }
+}
 
 const isHamburgerMode = computed(() => {
   if (hamburgerBreakpoint.value === 'never') return false
@@ -464,10 +473,25 @@ function getItemTarget(item: MenuItem): string | undefined {
             class="lcms-menu__item"
             :class="{ 'lcms-menu__item--has-children': item.children && item.children.length > 0 }"
           >
+            <div v-if="isHamburgerMode && item.children && item.children.length > 0" class="lcms-menu__link-row">
+              <a
+                :href="getItemUrl(item)"
+                class="lcms-menu__link"
+                :style="itemsPadding && !isHamburgerMode ? { padding: itemsPadding } : undefined"
+                :target="getItemTarget(item)"
+                @click="handleLinkClick"
+              >
+                {{ getItemLabel(item) }}
+              </a>
+              <button class="lcms-menu__chevron" :class="{ 'lcms-menu__chevron--open': openSubmenus.has(item.id) }" @click.stop="toggleSubmenu(item.id)">
+                <i class="fa-solid fa-chevron-down" />
+              </button>
+            </div>
             <a
+              v-else
               :href="getItemUrl(item)"
               class="lcms-menu__link"
-              :style="itemsPadding ? { padding: itemsPadding } : undefined"
+              :style="itemsPadding && !isHamburgerMode ? { padding: itemsPadding } : undefined"
               :target="getItemTarget(item)"
               @click="handleLinkClick"
             >
@@ -478,6 +502,7 @@ function getItemTarget(item: MenuItem): string | undefined {
             <ul
               v-if="item.children && item.children.length > 0"
               class="lcms-menu__submenu"
+              :class="{ 'lcms-menu__submenu--open': !isHamburgerMode || openSubmenus.has(item.id) }"
             >
               <li
                 v-for="child in item.children"
@@ -671,23 +696,29 @@ function getItemTarget(item: MenuItem): string | undefined {
   width: 100%;
   background: var(--lcms-color-white, #fff);
   z-index: 9999;
-  transform: translateY(-100%);
-  transition: transform 0.35s ease;
+  transform: translateX(100%);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   overflow-y: auto;
-  padding: 0 24px 24px;
+  padding: 0 24px 40px;
+  display: flex;
+  flex-direction: column;
 }
 
 .lcms-menu--hamburger .lcms-menu__panel--open {
-  transform: translateY(0);
+  transform: translateX(0);
 }
 
-/* Drawer header: logo left, X right */
+/* Drawer header: logo left, X right — sticky top */
 .lcms-menu__drawer-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 16px 0;
-  margin-bottom: 24px;
+  margin-bottom: 16px;
+  position: sticky;
+  top: 0;
+  background: var(--lcms-color-white, #fff);
+  z-index: 1;
 }
 
 .lcms-menu__drawer-logo {
@@ -702,7 +733,32 @@ function getItemTarget(item: MenuItem): string | undefined {
   font-size: 1.5rem;
   color: var(--lcms-color-dark, #333);
   padding: 8px;
+  margin-left: auto;
   line-height: 1;
+}
+
+/* Link row with chevron for items with children */
+.lcms-menu__link-row {
+  display: flex;
+  align-items: center;
+}
+
+.lcms-menu__link-row .lcms-menu__link {
+  flex: 1;
+}
+
+.lcms-menu__chevron {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 12px;
+  color: var(--lcms-color-text-muted, #999);
+  font-size: 0.75rem;
+  transition: transform 0.25s ease;
+}
+
+.lcms-menu__chevron--open {
+  transform: rotate(180deg);
 }
 
 /* Non-hamburger panel: hidden by default, no drawer */
@@ -779,25 +835,37 @@ function getItemTarget(item: MenuItem): string | undefined {
   color: var(--lcms-color-primary, #50a5f1);
 }
 
-/* Submenu inside drawer: inline nested list */
-.lcms-menu--hamburger .lcms-menu__panel .lcms-menu__submenu {
+/* Submenu inside drawer: hidden by default, togglable */
+.lcms-menu--hamburger .lcms-menu__submenu {
   position: static;
   box-shadow: none;
   background: transparent;
   border: none;
   padding: 0 0 0 20px;
   margin: 0;
-  display: block;
-  opacity: 1;
-  visibility: visible;
-  pointer-events: auto;
-  max-height: none;
+  list-style: none;
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: max-height 0.3s ease, opacity 0.2s ease;
 }
 
-.lcms-menu--hamburger .lcms-menu__panel .lcms-menu__submenu .lcms-menu__link {
+.lcms-menu--hamburger .lcms-menu__submenu--open {
+  max-height: 500px;
+  opacity: 1;
+}
+
+.lcms-menu--hamburger .lcms-menu__submenu .lcms-menu__sublink {
+  display: block;
+  padding: 10px 0;
   font-size: 1rem;
-  padding: 12px 0;
   color: var(--lcms-color-text-muted, #666);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+.lcms-menu--hamburger .lcms-menu__submenu .lcms-menu__sublink:hover {
+  color: var(--lcms-color-primary, #50a5f1);
 }
 
 /* ===========================
