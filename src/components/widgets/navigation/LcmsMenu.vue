@@ -659,7 +659,7 @@ function getItemTarget(item: MenuItem): string | undefined {
   transform: translateX(100%);
   transition: transform 0.3s ease;
   overflow-y: auto;
-  padding: 60px 24px 24px;
+  padding: 24px 24px 24px;
   box-shadow: -4px 0 20px rgba(0, 0, 0, 0.15);
 }
 
@@ -739,10 +739,37 @@ function getItemTarget(item: MenuItem): string | undefined {
   color: var(--lcms-color-primary, #50a5f1);
 }
 
-/* Hamburger button z-index above backdrop */
+/* Hamburger button z-index above backdrop + inherit text color from section */
 .lcms-menu--hamburger .lcms-menu__hamburger {
   z-index: 10000;
   position: relative;
+  color: inherit;
+}
+
+/* Submenu inside drawer: inline list, not floating dropdown */
+.lcms-menu--hamburger .lcms-menu__panel .lcms-menu__submenu {
+  position: static;
+  box-shadow: none;
+  background: transparent;
+  border: none;
+  padding: 0 0 0 16px;
+  margin: 0;
+  display: block;
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  max-height: none;
+}
+
+.lcms-menu--hamburger .lcms-menu__panel .lcms-menu__submenu .lcms-menu__link {
+  font-size: 0.9rem;
+  padding: 8px 0;
+  color: var(--lcms-color-text-muted, #666);
+}
+
+/* Close button (X) color in drawer */
+.lcms-menu--hamburger.lcms-menu--open .lcms-menu__hamburger {
+  color: var(--lcms-color-dark, #333);
 }
 
 /* ===========================
