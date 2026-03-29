@@ -50,7 +50,7 @@ const gridStyle = computed(() => {
     style.justifyContent = alignMap[hAlign.value] || 'flex-start'
     return style
   }
-  const style: Record<string, string> = { display: 'grid', gridTemplateColumns: `repeat(${columns.value}, 1fr)`, gap: `${gap.value}px`, width: '100%' }
+  const style: Record<string, string> = { display: 'grid', gap: `${gap.value}px`, width: '100%', '--lcms-grid-cols': `repeat(${columns.value}, 1fr)` }
   if (equalHeight.value) {
     style.gridAutoRows = '1fr'
   } else {
@@ -67,17 +67,17 @@ const responsiveCss = computed(() => {
   if (layout.value === 'inline') return ''
   let css = ''
   if (columnsTablet.value) {
-    css += `@media (max-width: 1199px) { #${wrapperId} .lcms-wrapper__grid { grid-template-columns: repeat(${columnsTablet.value}, 1fr) !important; } }`
+    css += `@media (max-width: 1199px) { #${wrapperId} .lcms-wrapper__grid { --lcms-grid-cols: repeat(${columnsTablet.value}, 1fr) !important; } }`
   } else if (!columnsTablet.value && columns.value > 2) {
     // Default: halve columns on tablet
     const tabletCols = Math.max(1, Math.ceil(columns.value / 2))
-    css += `@media (max-width: 1199px) { #${wrapperId} .lcms-wrapper__grid { grid-template-columns: repeat(${tabletCols}, 1fr) !important; } }`
+    css += `@media (max-width: 1199px) { #${wrapperId} .lcms-wrapper__grid { --lcms-grid-cols: repeat(${tabletCols}, 1fr) !important; } }`
   }
   if (columnsMobile.value) {
-    css += `@media (max-width: 767px) { #${wrapperId} .lcms-wrapper__grid { grid-template-columns: repeat(${columnsMobile.value}, 1fr) !important; } }`
+    css += `@media (max-width: 767px) { #${wrapperId} .lcms-wrapper__grid { --lcms-grid-cols: repeat(${columnsMobile.value}, 1fr) !important; } }`
   } else if (!columnsMobile.value && columns.value > 1) {
     // Default: stack on mobile
-    css += `@media (max-width: 767px) { #${wrapperId} .lcms-wrapper__grid { grid-template-columns: 1fr !important; } }`
+    css += `@media (max-width: 767px) { #${wrapperId} .lcms-wrapper__grid { --lcms-grid-cols: 1fr; } }`
   }
   return css
 })
@@ -215,6 +215,7 @@ const hoverCss = computed(() => {
 
 .lcms-wrapper__grid {
   width: 100%;
+  grid-template-columns: var(--lcms-grid-cols, 1fr);
 }
 
 .lcms-wrapper__cell {

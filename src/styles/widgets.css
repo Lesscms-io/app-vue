@@ -1736,6 +1736,7 @@
 
 .lcms-collection-grid__items {
   display: grid;
+  grid-template-columns: var(--lcms-grid-cols, repeat(3, 1fr));
   gap: var(--lcms-spacing-6);
 }
 

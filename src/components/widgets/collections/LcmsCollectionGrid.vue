@@ -372,7 +372,7 @@ const gridClass = computed(() => {
 const gridStyle = computed(() => {
   if (layout.value === 'list') return { gap: gapPx.value }
   return {
-    gridTemplateColumns: `repeat(${columns.value}, 1fr)`,
+    '--lcms-grid-cols': `repeat(${columns.value}, 1fr)`,
     gap: gapPx.value,
   }
 })
@@ -384,15 +384,15 @@ const responsiveCss = computed(() => {
   const cols = columns.value
   let css = ''
   if (columnsTablet.value) {
-    css += `@media (max-width: 1199px) { .${cls} { grid-template-columns: repeat(${columnsTablet.value}, 1fr) !important; } }`
+    css += `@media (max-width: 1199px) { .${cls} { --lcms-grid-cols: repeat(${columnsTablet.value}, 1fr); } }`
   } else if (cols > 2) {
     const tabletCols = Math.max(1, Math.ceil(cols / 2))
-    css += `@media (max-width: 1199px) { .${cls} { grid-template-columns: repeat(${tabletCols}, 1fr) !important; } }`
+    css += `@media (max-width: 1199px) { .${cls} { --lcms-grid-cols: repeat(${tabletCols}, 1fr); } }`
   }
   if (columnsMobile.value) {
-    css += `@media (max-width: 767px) { .${cls} { grid-template-columns: repeat(${columnsMobile.value}, 1fr) !important; } }`
+    css += `@media (max-width: 767px) { .${cls} { --lcms-grid-cols: repeat(${columnsMobile.value}, 1fr); } }`
   } else if (cols > 1) {
-    css += `@media (max-width: 767px) { .${cls} { grid-template-columns: 1fr !important; } }`
+    css += `@media (max-width: 767px) { .${cls} { --lcms-grid-cols: 1fr; } }`
   }
   return css
 })
