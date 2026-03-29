@@ -67,11 +67,11 @@ const responsiveCss = computed(() => {
   if (layout.value === 'inline') return ''
   let css = ''
   if (columnsTablet.value) {
-    css += `@media (max-width: 991px) { #${wrapperId} .lcms-wrapper__grid { grid-template-columns: repeat(${columnsTablet.value}, 1fr) !important; } }`
+    css += `@media (max-width: 1199px) { #${wrapperId} .lcms-wrapper__grid { grid-template-columns: repeat(${columnsTablet.value}, 1fr) !important; } }`
   } else if (!columnsTablet.value && columns.value > 2) {
     // Default: halve columns on tablet
     const tabletCols = Math.max(1, Math.ceil(columns.value / 2))
-    css += `@media (max-width: 991px) { #${wrapperId} .lcms-wrapper__grid { grid-template-columns: repeat(${tabletCols}, 1fr) !important; } }`
+    css += `@media (max-width: 1199px) { #${wrapperId} .lcms-wrapper__grid { grid-template-columns: repeat(${tabletCols}, 1fr) !important; } }`
   }
   if (columnsMobile.value) {
     css += `@media (max-width: 767px) { #${wrapperId} .lcms-wrapper__grid { grid-template-columns: repeat(${columnsMobile.value}, 1fr) !important; } }`
