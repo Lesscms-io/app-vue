@@ -253,14 +253,10 @@ const menuCssVars = computed(() => {
 const { items, loading, error } = useMenu(menuCode)
 
 const hamburgerOpen = ref(false)
-const openSubmenus = ref<Set<string>>(new Set())
+const openSubmenus = ref<Record<string, boolean>>({})
 
 function toggleSubmenu(itemId: string) {
-  if (openSubmenus.value.has(itemId)) {
-    openSubmenus.value.delete(itemId)
-  } else {
-    openSubmenus.value.add(itemId)
-  }
+  openSubmenus.value[itemId] = !openSubmenus.value[itemId]
 }
 
 const isHamburgerMode = computed(() => {
@@ -419,7 +415,7 @@ function getItemTarget(item: MenuItem): string | undefined {
             aria-label="Close menu"
             @click="closeHamburger"
           >
-            <i class="fa-solid fa-xmark" />
+            &#10005;
           </button>
         </div>
         <!-- Logo (center position) -->
@@ -483,8 +479,8 @@ function getItemTarget(item: MenuItem): string | undefined {
               >
                 {{ getItemLabel(item) }}
               </a>
-              <button class="lcms-menu__chevron" :class="{ 'lcms-menu__chevron--open': openSubmenus.has(item.id) }" @click.stop="toggleSubmenu(item.id)">
-                <i class="fa-solid fa-chevron-down" />
+              <button class="lcms-menu__chevron" :class="{ 'lcms-menu__chevron--open': openSubmenus[item.id] }" @click.stop="toggleSubmenu(item.id)">
+                &#9662;
               </button>
             </div>
             <a
@@ -502,7 +498,7 @@ function getItemTarget(item: MenuItem): string | undefined {
             <ul
               v-if="item.children && item.children.length > 0"
               class="lcms-menu__submenu"
-              :class="{ 'lcms-menu__submenu--open': !isHamburgerMode || openSubmenus.has(item.id) }"
+              :class="{ 'lcms-menu__submenu--open': !isHamburgerMode || openSubmenus[item.id] }"
             >
               <li
                 v-for="child in item.children"
@@ -691,9 +687,9 @@ function getItemTarget(item: MenuItem): string | undefined {
   position: fixed;
   top: 0;
   left: 0;
-  right: 0;
-  bottom: 0;
-  width: 100%;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
   background: var(--lcms-color-white, #fff);
   z-index: 9999;
   transform: translateX(100%);
@@ -702,6 +698,7 @@ function getItemTarget(item: MenuItem): string | undefined {
   padding: 0 24px 40px;
   display: flex;
   flex-direction: column;
+  box-sizing: border-box;
 }
 
 .lcms-menu--hamburger .lcms-menu__panel--open {
