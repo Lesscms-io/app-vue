@@ -475,6 +475,19 @@ const lightboxImage = computed(() => galleryImages.value[lightboxIndex.value] ||
         />
       </div>
 
+      <!-- Image display (displayAs=image or fieldType=image) -->
+      <img
+        v-else-if="(displayAs === 'image' || fieldType === 'image') && formattedValue"
+        :src="contentImage(formattedValue).src"
+        :srcset="contentImage(formattedValue).srcset"
+        :sizes="contentImage(formattedValue).sizes"
+        :alt="label || fieldCode"
+        loading="lazy"
+        decoding="async"
+        class="lcms-collection-field__value lcms-collection-field__image"
+        :style="imageStyle"
+      />
+
       <!-- Value: non-HTML content uses dynamic tag -->
       <component
         v-else
@@ -482,15 +495,7 @@ const lightboxImage = computed(() => galleryImages.value[lightboxIndex.value] ||
         class="lcms-collection-field__value"
         :style="valueStyle"
       >
-        <!-- Image field -->
-        <template v-if="fieldType === 'image' && formattedValue">
-          <img :src="contentImage(formattedValue).src" :srcset="contentImage(formattedValue).srcset" :sizes="contentImage(formattedValue).sizes" :alt="label || fieldCode" loading="lazy" decoding="async" class="lcms-collection-field__image" :style="imageStyle" />
-        </template>
-
-        <!-- Plain text -->
-        <template v-else>
-          {{ formattedValue }}
-        </template>
+        {{ formattedValue }}
       </component>
 
       <!-- Icon (right) -->
