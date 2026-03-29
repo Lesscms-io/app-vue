@@ -434,17 +434,13 @@
 .lcms-heading__text[data-level="5"] { font-size: var(--lcms-h5-font-size); font-weight: var(--lcms-h5-font-weight); color: var(--lcms-h5-color); line-height: var(--lcms-h5-line-height); }
 .lcms-heading__text[data-level="6"] { font-size: var(--lcms-h6-font-size); font-weight: var(--lcms-h6-font-weight); color: var(--lcms-h6-color); line-height: var(--lcms-h6-line-height); }
 
-/* HTML content from editor - reset h1-h6 to not have default browser/css sizes */
-.lcms-heading__html h1,
-.lcms-heading__html h2,
-.lcms-heading__html h3,
-.lcms-heading__html h4,
-.lcms-heading__html h5,
-.lcms-heading__html h6 {
-  margin: 0;
-  font-size: 1em; /* Reset to allow inner span to control size */
-  font-weight: inherit;
-}
+/* HTML content from editor - use project typography as defaults, inline styles override */
+.lcms-heading__html h1 { margin: 0; font-size: var(--lcms-h1-font-size); font-weight: var(--lcms-h1-font-weight); line-height: var(--lcms-h1-line-height); }
+.lcms-heading__html h2 { margin: 0; font-size: var(--lcms-h2-font-size); font-weight: var(--lcms-h2-font-weight); line-height: var(--lcms-h2-line-height); }
+.lcms-heading__html h3 { margin: 0; font-size: var(--lcms-h3-font-size); font-weight: var(--lcms-h3-font-weight); line-height: var(--lcms-h3-line-height); }
+.lcms-heading__html h4 { margin: 0; font-size: var(--lcms-h4-font-size); font-weight: var(--lcms-h4-font-weight); line-height: var(--lcms-h4-line-height); }
+.lcms-heading__html h5 { margin: 0; font-size: var(--lcms-h5-font-size); font-weight: var(--lcms-h5-font-weight); line-height: var(--lcms-h5-line-height); }
+.lcms-heading__html h6 { margin: 0; font-size: var(--lcms-h6-font-size); font-weight: var(--lcms-h6-font-weight); line-height: var(--lcms-h6-line-height); }
 
 /* ==========================================================================
    Text Widget
