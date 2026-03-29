@@ -586,6 +586,15 @@ const lightboxImage = computed(() => galleryImages.value[lightboxIndex.value] ||
   margin: 0;
 }
 
+/* Apply global typography styles for heading tags */
+h1.lcms-collection-field__value { font-size: var(--lcms-h1-font-size); font-weight: var(--lcms-h1-font-weight); line-height: var(--lcms-h1-line-height); color: var(--lcms-h1-color, inherit); }
+h2.lcms-collection-field__value { font-size: var(--lcms-h2-font-size); font-weight: var(--lcms-h2-font-weight); line-height: var(--lcms-h2-line-height); color: var(--lcms-h2-color, inherit); }
+h3.lcms-collection-field__value { font-size: var(--lcms-h3-font-size); font-weight: var(--lcms-h3-font-weight); line-height: var(--lcms-h3-line-height); color: var(--lcms-h3-color, inherit); }
+h4.lcms-collection-field__value { font-size: var(--lcms-h4-font-size); font-weight: var(--lcms-h4-font-weight); line-height: var(--lcms-h4-line-height); color: var(--lcms-h4-color, inherit); }
+h5.lcms-collection-field__value { font-size: var(--lcms-h5-font-size); font-weight: var(--lcms-h5-font-weight); line-height: var(--lcms-h5-line-height); color: var(--lcms-h5-color, inherit); }
+h6.lcms-collection-field__value { font-size: var(--lcms-h6-font-size); font-weight: var(--lcms-h6-font-weight); line-height: var(--lcms-h6-line-height); color: var(--lcms-h6-color, inherit); }
+p.lcms-collection-field__value { font-size: var(--lcms-p-font-size); font-weight: var(--lcms-p-font-weight); line-height: var(--lcms-p-line-height); color: var(--lcms-p-color, inherit); }
+
 .lcms-collection-field__icon {
   flex-shrink: 0;
 }
