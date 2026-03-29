@@ -6,7 +6,7 @@
  * Supports custom entry templates from the collection configuration.
  */
 
-import { computed, watch, ref, inject, onMounted, onBeforeUnmount, type Ref } from 'vue'
+import { computed, watch, ref, inject, onMounted, type Ref } from 'vue'
 import { useCollection } from '@/composables/useCollection'
 import { useLanguage } from '@/composables/useLanguage'
 import { useApi } from '@/composables/useApi'
@@ -164,24 +164,12 @@ onMounted(() => {
   if (hasCustomTemplate.value) {
     fetchTemplate()
   }
-  updateResponsiveStyle()
 })
 
 // Re-fetch if template config changes
 watch([collectionCode, templateId], () => {
   if (hasCustomTemplate.value) {
     fetchTemplate()
-  }
-})
-
-// Update responsive styles when columns change
-watch([columns, columnsTablet, columnsMobile], () => {
-  updateResponsiveStyle()
-})
-
-onBeforeUnmount(() => {
-  if (responsiveStyleEl.value) {
-    responsiveStyleEl.value.remove()
   }
 })
 
@@ -389,40 +377,29 @@ const gridStyle = computed(() => {
   }
 })
 
-// Inject responsive CSS for tablet/mobile columns
-const responsiveStyleEl = ref<HTMLStyleElement | null>(null)
-
-function updateResponsiveStyle() {
-  if (responsiveStyleEl.value) {
-    responsiveStyleEl.value.remove()
-    responsiveStyleEl.value = null
-  }
-  if (layout.value === 'list') return
-
+// SSR-safe responsive CSS (rendered as <style> tag in template)
+const responsiveCss = computed(() => {
+  if (layout.value === 'list') return ''
   const cls = responsiveStyleId.value
   const cols = columns.value
   let css = ''
   if (columnsTablet.value) {
-    css += `@media (max-width: 1199px) { .${cls} { grid-template-columns: repeat(${columnsTablet.value}, 1fr) !important; } }\n`
+    css += `@media (max-width: 1199px) { .${cls} { grid-template-columns: repeat(${columnsTablet.value}, 1fr) !important; } }`
   } else if (cols > 2) {
     const tabletCols = Math.max(1, Math.ceil(cols / 2))
-    css += `@media (max-width: 1199px) { .${cls} { grid-template-columns: repeat(${tabletCols}, 1fr) !important; } }\n`
+    css += `@media (max-width: 1199px) { .${cls} { grid-template-columns: repeat(${tabletCols}, 1fr) !important; } }`
   }
   if (columnsMobile.value) {
-    css += `@media (max-width: 767px) { .${cls} { grid-template-columns: repeat(${columnsMobile.value}, 1fr) !important; } }\n`
+    css += `@media (max-width: 767px) { .${cls} { grid-template-columns: repeat(${columnsMobile.value}, 1fr) !important; } }`
   } else if (cols > 1) {
-    css += `@media (max-width: 767px) { .${cls} { grid-template-columns: 1fr !important; } }\n`
+    css += `@media (max-width: 767px) { .${cls} { grid-template-columns: 1fr !important; } }`
   }
-  if (css) {
-    const style = document.createElement('style')
-    style.textContent = css
-    document.head.appendChild(style)
-    responsiveStyleEl.value = style
-  }
-}
+  return css
+})
 </script>
 
 <template>
+  <component :is="'style'" v-if="responsiveCss">{{ responsiveCss }}</component>
   <div
     class="lcms-collection-grid"
     :class="`lcms-collection-grid--${layout}`"
