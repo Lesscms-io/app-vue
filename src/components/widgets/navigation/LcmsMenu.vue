@@ -686,8 +686,8 @@ function getItemTarget(item: MenuItem): string | undefined {
 .lcms-menu--hamburger .lcms-menu__panel {
   position: fixed;
   top: 0;
-  left: 0;
-  width: 100vw;
+  right: 0;
+  width: min(380px, 85vw);
   height: 100vh;
   height: 100dvh;
   background: var(--lcms-color-white, #fff);
@@ -695,71 +695,72 @@ function getItemTarget(item: MenuItem): string | undefined {
   transform: translateX(100%);
   transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   overflow-y: auto;
-  padding: 0 24px 40px;
-  display: flex;
-  flex-direction: column;
+  padding: 0;
   box-sizing: border-box;
+  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.1);
 }
 
 .lcms-menu--hamburger .lcms-menu__panel--open {
   transform: translateX(0);
 }
 
-/* Drawer header: logo left, X far right — sticky top */
+/* Drawer header */
 .lcms-menu__drawer-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 0;
-  margin-bottom: 8px;
+  padding: 16px 24px;
   border-bottom: 1px solid rgba(0, 0, 0, 0.08);
-  position: sticky;
-  top: 0;
-  background: var(--lcms-color-white, #fff);
-  z-index: 1;
-  width: 100%;
 }
 
 .lcms-menu__drawer-logo {
   text-decoration: none;
   color: var(--lcms-color-dark, #333);
-  flex: 1;
 }
 
 .lcms-menu__drawer-close {
   background: none;
   border: none;
   cursor: pointer;
-  font-size: 1.5rem;
+  font-size: 1.25rem;
   color: var(--lcms-color-dark, #333);
   padding: 8px;
   line-height: 1;
-  flex-shrink: 0;
+  margin-left: auto;
 }
 
-/* Link row with chevron for items with children */
+/* Drawer list — flush top, no flex grow */
+.lcms-menu--hamburger .lcms-menu__list {
+  flex: none;
+  width: 100%;
+  padding: 0;
+  margin: 0;
+  gap: 0;
+}
+
+.lcms-menu--hamburger .lcms-menu__item {
+  width: 100%;
+}
+
+/* Link row with chevron */
 .lcms-menu__link-row {
   display: flex;
   align-items: center;
   width: 100%;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
-}
-
-.lcms-menu__link-row .lcms-menu__link {
-  border-bottom: none;
 }
 
 .lcms-menu__link-row .lcms-menu__link {
   flex: 1;
+  border-bottom: none;
 }
 
 .lcms-menu__chevron {
   background: none;
   border: none;
   cursor: pointer;
-  padding: 12px;
+  padding: 18px 24px 18px 12px;
   color: var(--lcms-color-text-muted, #999);
-  font-size: 0.75rem;
+  font-size: 0.6rem;
   transition: transform 0.25s ease;
 }
 
@@ -767,7 +768,7 @@ function getItemTarget(item: MenuItem): string | undefined {
   transform: rotate(180deg);
 }
 
-/* Non-hamburger panel: hidden by default, no drawer */
+/* Non-hamburger panel */
 .lcms-menu__panel {
   /* Base: hidden for hamburger, overridden below for non-hamburger */
 }
@@ -826,70 +827,54 @@ function getItemTarget(item: MenuItem): string | undefined {
   gap: 0;
 }
 
-/* Drawer: full-width list */
-.lcms-menu--hamburger .lcms-menu__list {
-  width: 100%;
-  padding: 0;
-  gap: 0;
-}
-
-.lcms-menu--hamburger .lcms-menu__item {
-  width: 100%;
-}
-
-/* Drawer link styling — large, full-width, mobile-friendly */
+/* Drawer link styling */
 .lcms-menu--hamburger .lcms-menu__panel .lcms-menu__link {
   color: var(--lcms-color-dark, #333);
-  padding: 18px 0;
-  font-size: 1.15rem;
+  padding: 16px 24px;
+  font-size: 1.05rem;
   font-weight: 400;
   display: block;
   width: 100%;
   text-decoration: none;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  box-sizing: border-box;
 }
 
 .lcms-menu--hamburger .lcms-menu__panel .lcms-menu__link:hover {
-  color: var(--lcms-color-primary, #50a5f1);
+  background: rgba(0, 0, 0, 0.02);
 }
 
-/* Submenu inside drawer: hidden by default, togglable */
+/* Submenu: hidden by default, slides open */
 .lcms-menu--hamburger .lcms-menu__submenu {
   position: static;
   box-shadow: none;
-  background: transparent;
+  background: rgba(0, 0, 0, 0.02);
   border: none;
   border-radius: 0;
-  padding: 0 0 0 16px;
+  padding: 0;
   margin: 0;
   list-style: none;
   max-height: 0;
   overflow: hidden;
-  opacity: 0;
-  transition: max-height 0.3s ease, opacity 0.2s ease;
+  transition: max-height 0.3s ease;
   width: 100%;
 }
 
 .lcms-menu--hamburger .lcms-menu__submenu--open {
   max-height: 500px;
-  opacity: 1;
-}
-
-.lcms-menu--hamburger .lcms-menu__subitem {
-  width: 100%;
 }
 
 .lcms-menu--hamburger .lcms-menu__submenu .lcms-menu__sublink {
   display: block;
-  padding: 14px 0;
-  font-size: 1rem;
-  color: var(--lcms-color-text-muted, #666);
+  padding: 14px 24px 14px 40px;
+  font-size: 0.95rem;
+  color: var(--lcms-color-text-muted, #555);
   text-decoration: none;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
 }
 
 .lcms-menu--hamburger .lcms-menu__submenu .lcms-menu__sublink:hover {
-  color: var(--lcms-color-primary, #50a5f1);
+  background: rgba(0, 0, 0, 0.02);
 }
 
 /* ===========================
