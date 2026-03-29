@@ -708,22 +708,25 @@ function getItemTarget(item: MenuItem): string | undefined {
   transform: translateX(0);
 }
 
-/* Drawer header: logo left, X right — sticky top */
+/* Drawer header: logo left, X far right — sticky top */
 .lcms-menu__drawer-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 16px 0;
-  margin-bottom: 16px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
   position: sticky;
   top: 0;
   background: var(--lcms-color-white, #fff);
   z-index: 1;
+  width: 100%;
 }
 
 .lcms-menu__drawer-logo {
   text-decoration: none;
   color: var(--lcms-color-dark, #333);
+  flex: 1;
 }
 
 .lcms-menu__drawer-close {
@@ -733,14 +736,20 @@ function getItemTarget(item: MenuItem): string | undefined {
   font-size: 1.5rem;
   color: var(--lcms-color-dark, #333);
   padding: 8px;
-  margin-left: auto;
   line-height: 1;
+  flex-shrink: 0;
 }
 
 /* Link row with chevron for items with children */
 .lcms-menu__link-row {
   display: flex;
   align-items: center;
+  width: 100%;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.lcms-menu__link-row .lcms-menu__link {
+  border-bottom: none;
 }
 
 .lcms-menu__link-row .lcms-menu__link {
@@ -820,15 +829,27 @@ function getItemTarget(item: MenuItem): string | undefined {
   gap: 0;
 }
 
-/* Drawer link styling — large, mobile-friendly */
+/* Drawer: full-width list */
+.lcms-menu--hamburger .lcms-menu__list {
+  width: 100%;
+  padding: 0;
+  gap: 0;
+}
+
+.lcms-menu--hamburger .lcms-menu__item {
+  width: 100%;
+}
+
+/* Drawer link styling — large, full-width, mobile-friendly */
 .lcms-menu--hamburger .lcms-menu__panel .lcms-menu__link {
   color: var(--lcms-color-dark, #333);
-  padding: 20px 0;
-  font-size: 1.25rem;
+  padding: 18px 0;
+  font-size: 1.15rem;
   font-weight: 400;
   display: block;
+  width: 100%;
   text-decoration: none;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
 }
 
 .lcms-menu--hamburger .lcms-menu__panel .lcms-menu__link:hover {
@@ -841,13 +862,15 @@ function getItemTarget(item: MenuItem): string | undefined {
   box-shadow: none;
   background: transparent;
   border: none;
-  padding: 0 0 0 20px;
+  border-radius: 0;
+  padding: 0 0 0 16px;
   margin: 0;
   list-style: none;
   max-height: 0;
   overflow: hidden;
   opacity: 0;
   transition: max-height 0.3s ease, opacity 0.2s ease;
+  width: 100%;
 }
 
 .lcms-menu--hamburger .lcms-menu__submenu--open {
@@ -855,13 +878,17 @@ function getItemTarget(item: MenuItem): string | undefined {
   opacity: 1;
 }
 
+.lcms-menu--hamburger .lcms-menu__subitem {
+  width: 100%;
+}
+
 .lcms-menu--hamburger .lcms-menu__submenu .lcms-menu__sublink {
   display: block;
-  padding: 10px 0;
+  padding: 14px 0;
   font-size: 1rem;
   color: var(--lcms-color-text-muted, #666);
   text-decoration: none;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
 }
 
 .lcms-menu--hamburger .lcms-menu__submenu .lcms-menu__sublink:hover {
