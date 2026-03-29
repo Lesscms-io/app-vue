@@ -360,14 +360,13 @@ function getItemTarget(item: MenuItem): string | undefined {
         >{{ logoText }}</span>
       </a>
 
-      <!-- Hamburger toggle button -->
+      <!-- Hamburger toggle button (right-aligned) -->
       <button
-        v-if="isHamburgerMode"
+        v-if="isHamburgerMode && !hamburgerOpen"
         class="lcms-menu__hamburger"
-        :class="{ 'lcms-menu__hamburger--active': hamburgerOpen }"
         type="button"
         aria-label="Toggle menu"
-        :aria-expanded="hamburgerOpen"
+        aria-expanded="false"
         @click="toggleHamburger"
       >
         <span class="lcms-menu__hamburger-bar" />
@@ -382,11 +381,38 @@ function getItemTarget(item: MenuItem): string | undefined {
         @click="closeHamburger"
       />
 
-      <!-- Menu list -->
+      <!-- Menu drawer panel -->
       <div
         class="lcms-menu__panel"
         :class="{ 'lcms-menu__panel--open': hamburgerOpen || !isHamburgerMode }"
       >
+        <!-- Drawer header: logo + close button -->
+        <div v-if="isHamburgerMode" class="lcms-menu__drawer-header">
+          <a v-if="hasLogo" href="/" class="lcms-menu__drawer-logo">
+            <img
+              v-if="logoType === 'image'"
+              :src="logoOptimized?.src || logoLight || logoDark"
+              :srcset="logoOptimized?.srcset || undefined"
+              :sizes="logoOptimized?.sizes || undefined"
+              :style="{ height: `${logoHeight}px` }"
+              alt="Logo"
+              decoding="async"
+            >
+            <span
+              v-else
+              class="lcms-menu__logo-text"
+              :style="{ fontFamily: logoFontFamily || undefined, fontSize: `${logoFontSize}px`, fontWeight: logoFontWeight }"
+            >{{ logoText }}</span>
+          </a>
+          <button
+            class="lcms-menu__drawer-close"
+            type="button"
+            aria-label="Close menu"
+            @click="closeHamburger"
+          >
+            <i class="fa-solid fa-xmark" />
+          </button>
+        </div>
         <!-- Logo (center position) -->
         <a
           v-if="hasLogo && logoPosition === 'center'"
@@ -597,7 +623,7 @@ function getItemTarget(item: MenuItem): string | undefined {
 }
 
 /* ===========================
-   Hamburger button
+   Hamburger button — right-aligned, link color
    =========================== */
 .lcms-menu__hamburger {
   display: flex;
@@ -611,6 +637,8 @@ function getItemTarget(item: MenuItem): string | undefined {
   background: none;
   border: none;
   cursor: pointer;
+  margin-left: auto;
+  color: var(--lcms-menu-link-color, inherit);
 }
 
 .lcms-menu__hamburger-bar {
@@ -619,20 +647,6 @@ function getItemTarget(item: MenuItem): string | undefined {
   height: 2px;
   background-color: currentColor;
   border-radius: 1px;
-  transition: transform 0.3s ease, opacity 0.3s ease;
-}
-
-/* Animate bars into an X when active */
-.lcms-menu__hamburger--active .lcms-menu__hamburger-bar:nth-child(1) {
-  transform: translateY(7px) rotate(45deg);
-}
-
-.lcms-menu__hamburger--active .lcms-menu__hamburger-bar:nth-child(2) {
-  opacity: 0;
-}
-
-.lcms-menu__hamburger--active .lcms-menu__hamburger-bar:nth-child(3) {
-  transform: translateY(-7px) rotate(-45deg);
 }
 
 /* ===========================
@@ -641,30 +655,54 @@ function getItemTarget(item: MenuItem): string | undefined {
 .lcms-menu__backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.3);
   z-index: 9998;
 }
 
 /* ===========================
-   Slide-from-right drawer panel
+   Full-screen drawer panel
    =========================== */
 .lcms-menu--hamburger .lcms-menu__panel {
   position: fixed;
   top: 0;
+  left: 0;
   right: 0;
   bottom: 0;
-  width: min(320px, 80vw);
+  width: 100%;
   background: var(--lcms-color-white, #fff);
   z-index: 9999;
-  transform: translateX(100%);
-  transition: transform 0.3s ease;
+  transform: translateY(-100%);
+  transition: transform 0.35s ease;
   overflow-y: auto;
-  padding: 24px 24px 24px;
-  box-shadow: -4px 0 20px rgba(0, 0, 0, 0.15);
+  padding: 0 24px 24px;
 }
 
 .lcms-menu--hamburger .lcms-menu__panel--open {
-  transform: translateX(0);
+  transform: translateY(0);
+}
+
+/* Drawer header: logo left, X right */
+.lcms-menu__drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 0;
+  margin-bottom: 24px;
+}
+
+.lcms-menu__drawer-logo {
+  text-decoration: none;
+  color: var(--lcms-color-dark, #333);
+}
+
+.lcms-menu__drawer-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.5rem;
+  color: var(--lcms-color-dark, #333);
+  padding: 8px;
+  line-height: 1;
 }
 
 /* Non-hamburger panel: hidden by default, no drawer */
@@ -726,33 +764,28 @@ function getItemTarget(item: MenuItem): string | undefined {
   gap: 0;
 }
 
-/* Drawer link styling — override inherited colors from parent section */
+/* Drawer link styling — large, mobile-friendly */
 .lcms-menu--hamburger .lcms-menu__panel .lcms-menu__link {
   color: var(--lcms-color-dark, #333);
-  padding: 12px 0;
-  font-size: 1rem;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  padding: 20px 0;
+  font-size: 1.25rem;
+  font-weight: 400;
   display: block;
+  text-decoration: none;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
 }
 
 .lcms-menu--hamburger .lcms-menu__panel .lcms-menu__link:hover {
   color: var(--lcms-color-primary, #50a5f1);
 }
 
-/* Hamburger button z-index above backdrop + inherit text color from section */
-.lcms-menu--hamburger .lcms-menu__hamburger {
-  z-index: 10000;
-  position: relative;
-  color: inherit;
-}
-
-/* Submenu inside drawer: inline list, not floating dropdown */
+/* Submenu inside drawer: inline nested list */
 .lcms-menu--hamburger .lcms-menu__panel .lcms-menu__submenu {
   position: static;
   box-shadow: none;
   background: transparent;
   border: none;
-  padding: 0 0 0 16px;
+  padding: 0 0 0 20px;
   margin: 0;
   display: block;
   opacity: 1;
@@ -762,14 +795,9 @@ function getItemTarget(item: MenuItem): string | undefined {
 }
 
 .lcms-menu--hamburger .lcms-menu__panel .lcms-menu__submenu .lcms-menu__link {
-  font-size: 0.9rem;
-  padding: 8px 0;
+  font-size: 1rem;
+  padding: 12px 0;
   color: var(--lcms-color-text-muted, #666);
-}
-
-/* Close button (X) color in drawer */
-.lcms-menu--hamburger.lcms-menu--open .lcms-menu__hamburger {
-  color: var(--lcms-color-dark, #333);
 }
 
 /* ===========================
