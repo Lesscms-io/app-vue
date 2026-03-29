@@ -7,7 +7,7 @@
  * Uses element-group structure: link, logo, config, cta, dropdown.
  */
 
-import { computed, ref, inject, onMounted, onUnmounted } from 'vue'
+import { computed, ref, inject, watch, onMounted, onUnmounted } from 'vue'
 import { useMenu } from '@/composables/useMenu'
 import { useLanguage } from '@/composables/useLanguage'
 import { useResponsiveSettings } from '@/composables/useResponsiveSettings'
@@ -282,6 +282,13 @@ function handleLinkClick() {
   }
 }
 
+// Reset submenus when drawer closes
+watch(hamburgerOpen, (open) => {
+  if (!open) {
+    openSubmenus.value = {}
+  }
+})
+
 function handleKeydown(e: KeyboardEvent) {
   if (e.key === 'Escape' && hamburgerOpen.value) {
     closeHamburger()
@@ -380,11 +387,13 @@ function getItemTarget(item: MenuItem): string | undefined {
       </button>
 
       <!-- Backdrop overlay (hamburger mode) -->
-      <div
-        v-if="isHamburgerMode && hamburgerOpen"
-        class="lcms-menu__backdrop"
-        @click="closeHamburger"
-      />
+      <Transition name="lcms-backdrop">
+        <div
+          v-if="isHamburgerMode && hamburgerOpen"
+          class="lcms-menu__backdrop"
+          @click="closeHamburger"
+        />
+      </Transition>
 
       <!-- Menu drawer panel -->
       <div
@@ -393,7 +402,7 @@ function getItemTarget(item: MenuItem): string | undefined {
       >
         <!-- Drawer header: logo + close button -->
         <div v-if="isHamburgerMode" class="lcms-menu__drawer-header">
-          <a v-if="hasLogo" href="/" class="lcms-menu__drawer-logo">
+          <a v-if="hasLogo" href="/" class="lcms-menu__drawer-logo" @click="closeHamburger">
             <img
               v-if="logoType === 'image'"
               :src="logoOptimized?.src || logoLight || logoDark"
@@ -415,7 +424,9 @@ function getItemTarget(item: MenuItem): string | undefined {
             aria-label="Close menu"
             @click="closeHamburger"
           >
-            &#10005;
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M15 5L5 15M5 5l10 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
           </button>
         </div>
         <!-- Logo (center position) -->
@@ -469,19 +480,15 @@ function getItemTarget(item: MenuItem): string | undefined {
             class="lcms-menu__item"
             :class="{ 'lcms-menu__item--has-children': item.children && item.children.length > 0 }"
           >
-            <div v-if="isHamburgerMode && item.children && item.children.length > 0" class="lcms-menu__link-row">
-              <a
-                :href="getItemUrl(item)"
-                class="lcms-menu__link"
-                :style="itemsPadding && !isHamburgerMode ? { padding: itemsPadding } : undefined"
-                :target="getItemTarget(item)"
-                @click="handleLinkClick"
-              >
+            <div v-if="isHamburgerMode && item.children && item.children.length > 0" class="lcms-menu__link-row" @click="toggleSubmenu(item.id)">
+              <span class="lcms-menu__link">
                 {{ getItemLabel(item) }}
-              </a>
-              <button class="lcms-menu__chevron" :class="{ 'lcms-menu__chevron--open': openSubmenus[item.id] }" @click.stop="toggleSubmenu(item.id)">
-                &#9662;
-              </button>
+              </span>
+              <span class="lcms-menu__chevron" :class="{ 'lcms-menu__chevron--open': openSubmenus[item.id] }">
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M2.5 4.5L6 8L9.5 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </span>
             </div>
             <a
               v-else
@@ -497,8 +504,10 @@ function getItemTarget(item: MenuItem): string | undefined {
             <!-- Nested menu -->
             <ul
               v-if="item.children && item.children.length > 0"
+              ref="submenuRefs"
               class="lcms-menu__submenu"
               :class="{ 'lcms-menu__submenu--open': !isHamburgerMode || openSubmenus[item.id] }"
+              :style="isHamburgerMode && openSubmenus[item.id] ? { maxHeight: `${item.children.length * 52}px` } : undefined"
             >
               <li
                 v-for="child in item.children"
@@ -652,22 +661,24 @@ function getItemTarget(item: MenuItem): string | undefined {
   justify-content: center;
   align-items: center;
   gap: 5px;
-  width: 40px;
-  height: 40px;
-  padding: 6px;
+  width: 44px;
+  height: 44px;
+  padding: 8px;
   background: none;
   border: none;
   cursor: pointer;
   margin-left: auto;
   color: var(--lcms-menu-link-color, inherit);
+  -webkit-tap-highlight-color: transparent;
 }
 
 .lcms-menu__hamburger-bar {
   display: block;
-  width: 24px;
+  width: 22px;
   height: 2px;
   background-color: currentColor;
   border-radius: 1px;
+  transition: transform 0.3s ease, opacity 0.3s ease;
 }
 
 /* ===========================
@@ -676,8 +687,20 @@ function getItemTarget(item: MenuItem): string | undefined {
 .lcms-menu__backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.3);
+  background: rgba(0, 0, 0, 0.5);
   z-index: 9998;
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+}
+
+.lcms-backdrop-enter-active,
+.lcms-backdrop-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.lcms-backdrop-enter-from,
+.lcms-backdrop-leave-to {
+  opacity: 0;
 }
 
 /* ===========================
@@ -693,11 +716,15 @@ function getItemTarget(item: MenuItem): string | undefined {
   background: var(--lcms-color-white, #fff);
   z-index: 9999;
   transform: translateX(100%);
-  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 0.35s cubic-bezier(0.32, 0.72, 0, 1);
   overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
   padding: 0;
   box-sizing: border-box;
-  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.1);
+  box-shadow: -8px 0 30px rgba(0, 0, 0, 0.12);
+  display: flex;
+  flex-direction: column;
 }
 
 .lcms-menu--hamburger .lcms-menu__panel--open {
@@ -709,8 +736,9 @@ function getItemTarget(item: MenuItem): string | undefined {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 24px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  padding: 20px 24px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  flex-shrink: 0;
 }
 
 .lcms-menu__drawer-logo {
@@ -719,34 +747,68 @@ function getItemTarget(item: MenuItem): string | undefined {
 }
 
 .lcms-menu__drawer-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
   background: none;
   border: none;
   cursor: pointer;
-  font-size: 1.25rem;
-  color: var(--lcms-color-dark, #333);
-  padding: 8px;
+  color: var(--lcms-color-text-muted, #999);
+  padding: 0;
   line-height: 1;
   margin-left: auto;
+  border-radius: 50%;
+  transition: background-color 0.2s ease, color 0.2s ease;
+  -webkit-tap-highlight-color: transparent;
 }
 
-/* Drawer list — flush top, no flex grow */
+.lcms-menu__drawer-close:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+  color: var(--lcms-color-dark, #333);
+}
+
+/* Drawer list — flush top, scrollable area */
 .lcms-menu--hamburger .lcms-menu__list {
-  flex: none;
+  flex: 1;
   width: 100%;
-  padding: 0;
+  padding: 8px 0;
   margin: 0;
   gap: 0;
+  overflow-y: auto;
 }
 
 .lcms-menu--hamburger .lcms-menu__item {
   width: 100%;
+  opacity: 0;
+  transform: translateX(20px);
+  transition: opacity 0.3s ease, transform 0.3s ease;
 }
+
+.lcms-menu--hamburger .lcms-menu__panel--open .lcms-menu__item {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.lcms-menu--hamburger .lcms-menu__panel--open .lcms-menu__item:nth-child(1) { transition-delay: 0.08s; }
+.lcms-menu--hamburger .lcms-menu__panel--open .lcms-menu__item:nth-child(2) { transition-delay: 0.12s; }
+.lcms-menu--hamburger .lcms-menu__panel--open .lcms-menu__item:nth-child(3) { transition-delay: 0.16s; }
+.lcms-menu--hamburger .lcms-menu__panel--open .lcms-menu__item:nth-child(4) { transition-delay: 0.20s; }
+.lcms-menu--hamburger .lcms-menu__panel--open .lcms-menu__item:nth-child(5) { transition-delay: 0.24s; }
+.lcms-menu--hamburger .lcms-menu__panel--open .lcms-menu__item:nth-child(6) { transition-delay: 0.28s; }
+.lcms-menu--hamburger .lcms-menu__panel--open .lcms-menu__item:nth-child(7) { transition-delay: 0.32s; }
+.lcms-menu--hamburger .lcms-menu__panel--open .lcms-menu__item:nth-child(8) { transition-delay: 0.36s; }
+.lcms-menu--hamburger .lcms-menu__panel--open .lcms-menu__item:nth-child(9) { transition-delay: 0.40s; }
+.lcms-menu--hamburger .lcms-menu__panel--open .lcms-menu__item:nth-child(n+10) { transition-delay: 0.44s; }
 
 /* Link row with chevron */
 .lcms-menu__link-row {
   display: flex;
   align-items: center;
   width: 100%;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .lcms-menu__link-row .lcms-menu__link {
@@ -755,17 +817,21 @@ function getItemTarget(item: MenuItem): string | undefined {
 }
 
 .lcms-menu__chevron {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background: none;
   border: none;
   cursor: pointer;
   padding: 18px 24px 18px 12px;
   color: var(--lcms-color-text-muted, #999);
-  font-size: 0.6rem;
-  transition: transform 0.25s ease;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), color 0.2s ease;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .lcms-menu__chevron--open {
   transform: rotate(180deg);
+  color: var(--lcms-menu-link-color, var(--lcms-color-dark, #333));
 }
 
 /* Non-hamburger panel */
@@ -833,18 +899,21 @@ function getItemTarget(item: MenuItem): string | undefined {
   padding: 16px 24px;
   font-size: 1.05rem;
   font-weight: 400;
+  letter-spacing: -0.01em;
   display: block;
   width: 100%;
   text-decoration: none;
   border-bottom: 1px solid rgba(0, 0, 0, 0.06);
   box-sizing: border-box;
+  transition: background-color 0.15s ease, color 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.lcms-menu--hamburger .lcms-menu__panel .lcms-menu__link:hover {
-  background: rgba(0, 0, 0, 0.02);
+.lcms-menu--hamburger .lcms-menu__panel .lcms-menu__link:active {
+  background: rgba(0, 0, 0, 0.04);
 }
 
-/* Submenu: hidden by default, slides open */
+/* Submenu: hidden by default, smooth accordion expand */
 .lcms-menu--hamburger .lcms-menu__submenu {
   position: static;
   box-shadow: none;
@@ -856,7 +925,7 @@ function getItemTarget(item: MenuItem): string | undefined {
   list-style: none;
   max-height: 0;
   overflow: hidden;
-  transition: max-height 0.3s ease;
+  transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1);
   width: 100%;
 }
 
@@ -864,17 +933,51 @@ function getItemTarget(item: MenuItem): string | undefined {
   max-height: 500px;
 }
 
-.lcms-menu--hamburger .lcms-menu__submenu .lcms-menu__sublink {
-  display: block;
-  padding: 14px 24px 14px 40px;
-  font-size: 0.95rem;
-  color: var(--lcms-color-text-muted, #555);
-  text-decoration: none;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+.lcms-menu--hamburger .lcms-menu__subitem {
+  opacity: 0;
+  transform: translateY(-8px);
+  transition: opacity 0.25s ease, transform 0.25s ease;
 }
 
-.lcms-menu--hamburger .lcms-menu__submenu .lcms-menu__sublink:hover {
-  background: rgba(0, 0, 0, 0.02);
+.lcms-menu--hamburger .lcms-menu__submenu--open .lcms-menu__subitem {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.lcms-menu--hamburger .lcms-menu__submenu--open .lcms-menu__subitem:nth-child(1) { transition-delay: 0.05s; }
+.lcms-menu--hamburger .lcms-menu__submenu--open .lcms-menu__subitem:nth-child(2) { transition-delay: 0.1s; }
+.lcms-menu--hamburger .lcms-menu__submenu--open .lcms-menu__subitem:nth-child(3) { transition-delay: 0.1s; }
+.lcms-menu--hamburger .lcms-menu__submenu--open .lcms-menu__subitem:nth-child(4) { transition-delay: 0.15s; }
+.lcms-menu--hamburger .lcms-menu__submenu--open .lcms-menu__subitem:nth-child(5) { transition-delay: 0.15s; }
+.lcms-menu--hamburger .lcms-menu__submenu--open .lcms-menu__subitem:nth-child(n+6) { transition-delay: 0.2s; }
+
+.lcms-menu--hamburger .lcms-menu__submenu .lcms-menu__sublink {
+  display: block;
+  padding: 14px 24px 14px 44px;
+  font-size: 0.95rem;
+  color: var(--lcms-color-text-muted, #666);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+  transition: background-color 0.15s ease, color 0.15s ease;
+  position: relative;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.lcms-menu--hamburger .lcms-menu__submenu .lcms-menu__sublink::before {
+  content: '';
+  position: absolute;
+  left: 28px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background-color: currentColor;
+  opacity: 0.35;
+}
+
+.lcms-menu--hamburger .lcms-menu__submenu .lcms-menu__sublink:active {
+  background: rgba(0, 0, 0, 0.04);
 }
 
 /* ===========================
@@ -1018,8 +1121,18 @@ function getItemTarget(item: MenuItem): string | undefined {
 }
 
 .lcms-menu--hamburger .lcms-menu__cta {
-  margin-left: 0;
-  margin-top: 8px;
+  margin: 16px 24px 24px;
+  width: calc(100% - 48px);
+  justify-content: center;
+  flex-shrink: 0;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.3s ease 0.3s, transform 0.3s ease 0.3s, filter 0.15s;
+}
+
+.lcms-menu--hamburger .lcms-menu__panel--open .lcms-menu__cta {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 /* ===========================
