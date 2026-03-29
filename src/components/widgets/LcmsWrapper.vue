@@ -50,7 +50,18 @@ const gridStyle = computed(() => {
     style.justifyContent = alignMap[hAlign.value] || 'flex-start'
     return style
   }
-  const style: Record<string, string> = { display: 'grid', gap: `${gap.value}px`, width: '100%', gridTemplateColumns: `repeat(${columns.value}, 1fr)` }
+  // Compute responsive column values
+  const tabletCols = columnsTablet.value || (columns.value > 2 ? Math.max(1, Math.ceil(columns.value / 2)) : columns.value)
+  const mobileCols = columnsMobile.value || (columns.value > 1 ? 1 : columns.value)
+
+  const style: Record<string, string> = {
+    display: 'grid',
+    gap: `${gap.value}px`,
+    width: '100%',
+    gridTemplateColumns: `repeat(${columns.value}, 1fr)`,
+    '--lcms-grid-cols-tablet': `repeat(${tabletCols}, 1fr)`,
+    '--lcms-grid-cols-mobile': mobileCols === 1 ? '1fr' : `repeat(${mobileCols}, 1fr)`,
+  }
   if (equalHeight.value) {
     style.gridAutoRows = '1fr'
   } else {
@@ -60,24 +71,6 @@ const gridStyle = computed(() => {
     style.justifyItems = justifyMap[hAlign.value] || 'start'
   }
   return style
-})
-
-// Responsive CSS — desktop + tablet + mobile column rules (all in stylesheet, no inline)
-const responsiveCss = computed(() => {
-  if (layout.value === 'inline') return ''
-  const sel = `#${wrapperId} .lcms-wrapper__grid`
-  let css = ''
-  // Tablet
-  const tabletCols = columnsTablet.value || (columns.value > 2 ? Math.max(1, Math.ceil(columns.value / 2)) : null)
-  if (tabletCols) {
-    css += `@media (max-width: 1199px) { ${sel} { grid-template-columns: repeat(${tabletCols}, 1fr) !important; } }`
-  }
-  // Mobile
-  const mobileCols = columnsMobile.value || (columns.value > 1 ? 1 : null)
-  if (mobileCols) {
-    css += `@media (max-width: 767px) { ${sel} { grid-template-columns: ${mobileCols === 1 ? '1fr' : `repeat(${mobileCols}, 1fr)`} !important; } }`
-  }
-  return css
 })
 
 const containerStyle = computed(() => {
@@ -182,8 +175,8 @@ const hoverCss = computed(() => {
 </script>
 
 <template>
-  <!-- Dynamic hover + responsive CSS -->
-  <component :is="'style'" v-if="hoverCss || responsiveCss">{{ hoverCss }}{{ responsiveCss }}</component>
+  <!-- Dynamic hover CSS -->
+  <component :is="'style'" v-if="hoverCss">{{ hoverCss }}</component>
 
   <div :id="wrapperId" class="lcms-wrapper" :class="{ 'lcms-wrapper--grid': layout !== 'inline', 'lcms-wrapper--equal-height': equalHeight }" :style="containerStyle">
     <div class="lcms-wrapper__grid" :style="gridStyle">
@@ -221,6 +214,19 @@ const hoverCss = computed(() => {
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
+}
+
+/* Responsive grid overrides via CSS variables set inline */
+@media (max-width: 1199px) {
+  .lcms-wrapper__grid {
+    grid-template-columns: var(--lcms-grid-cols-tablet) !important;
+  }
+}
+
+@media (max-width: 767px) {
+  .lcms-wrapper__grid {
+    grid-template-columns: var(--lcms-grid-cols-mobile) !important;
+  }
 }
 
 .lcms-wrapper--equal-height .lcms-wrapper__cell > :deep(*) {
