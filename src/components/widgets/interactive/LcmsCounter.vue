@@ -56,7 +56,12 @@ const titleGroup = computed(() => props.data.title || {})
 const configGroup = computed(() => props.data.config || {})
 
 // Element-group reads
-const targetNumber = computed(() => numberGroup.value.number || 0)
+const targetNumber = computed(() => parseFloat(numberGroup.value.number) || 0)
+const decimals = computed(() => {
+  const str = String(numberGroup.value.number || '')
+  const dot = str.indexOf('.')
+  return dot >= 0 ? str.length - dot - 1 : 0
+})
 const duration = computed(() => numberGroup.value.duration || 2000)
 const numberSize = computed(() => numberGroup.value.size || 'xl')
 const prefix = computed(() => numberGroup.value.prefix ? extractValue(numberGroup.value.prefix) : '')
@@ -109,7 +114,8 @@ function animateCounter() {
 
     // Easing function (ease-out)
     const easeOut = 1 - Math.pow(1 - progress, 3)
-    displayNumber.value = Math.round(start + (end - start) * easeOut)
+    const raw = start + (end - start) * easeOut
+    displayNumber.value = decimals.value > 0 ? parseFloat(raw.toFixed(decimals.value)) : Math.round(raw)
 
     if (progress < 1) {
       animationFrame = requestAnimationFrame(update)
