@@ -74,7 +74,13 @@ const titleText = computed(() => (titleGroup.value.html || titleGroup.value.cont
 const titleColor = computed(() => titleGroup.value.color || null)
 const titleHoverColor = computed(() => titleGroup.value['color:hover'] || null)
 
+const numberTag = computed(() => numberGroup.value.tag || 'p')
+const titleTag = computed(() => titleGroup.value.tag || 'p')
 const alignment = computed(() => configGroup.value.alignment || 'center')
+const gap = computed(() => {
+  const val = configGroup.value.gap
+  return val !== undefined && val !== null ? `${val}px` : '10px'
+})
 
 const hasHover = computed(() => !!(
   numberHoverColor.value ||
@@ -147,7 +153,7 @@ watch(targetNumber, () => {
     ]"
     :style="counterStyle"
   >
-    <div class="lcms-counter__number">
+    <component :is="numberTag" class="lcms-counter__number">
       <span
         v-if="prefix"
         class="lcms-counter__prefix"
@@ -157,13 +163,15 @@ watch(targetNumber, () => {
         v-if="suffix"
         class="lcms-counter__suffix"
       >{{ suffix }}</span>
-    </div>
-    <div
+    </component>
+    <component
+      :is="titleTag"
       v-if="titleText"
       class="lcms-counter__title"
+      :style="{ marginTop: gap }"
     >
       {{ titleText }}
-    </div>
+    </component>
   </div>
 </template>
 
