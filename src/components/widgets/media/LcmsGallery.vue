@@ -628,7 +628,7 @@ const lightboxImage = computed(() => images.value[lightboxIndex.value])
 .lcms-gallery__coverflow-slide {
   position: absolute; left: 50%; top: 50%; width: 280px; margin-left: -140px;
   transform: translateY(-50%); transition: all 500ms ease-out; cursor: pointer;
-  border-radius: 12px; overflow: hidden;
+  border-radius: 0; overflow: visible; background: none;
   display: flex; align-items: center; justify-content: center;
 }
 .lcms-gallery__coverflow-slide img.lcms-gallery__img { width: 100%; height: auto; object-fit: contain; display: block; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.3); }
