@@ -71,6 +71,16 @@ import LcmsCollectionField from './collections/LcmsCollectionField.vue'
 import LcmsValueList from './collections/LcmsValueList.vue'
 import LcmsCollectionGrouped from './collections/LcmsCollectionGrouped.vue'
 
+// E-commerce widgets
+import LcmsMiniCart from './ecommerce/LcmsMiniCart.vue'
+import LcmsAccountIcon from './ecommerce/LcmsAccountIcon.vue'
+import LcmsProductGrid from './ecommerce/LcmsProductGrid.vue'
+import LcmsCategoryGrid from './ecommerce/LcmsCategoryGrid.vue'
+import LcmsSearchBar from './ecommerce/LcmsSearchBar.vue'
+import LcmsProductCarousel from './ecommerce/LcmsProductCarousel.vue'
+import LcmsLoginForm from './ecommerce/LcmsLoginForm.vue'
+import LcmsRegisterForm from './ecommerce/LcmsRegisterForm.vue'
+
 /**
  * Widget type to component mapping
  */
@@ -139,6 +149,16 @@ export const widgetComponents: Record<string, Component> = {
   'data-field': LcmsCollectionField,
   'value-list': LcmsValueList,
   'collection-grouped': LcmsCollectionGrouped,
+
+  // E-commerce
+  'mini-cart': LcmsMiniCart,
+  'account-icon': LcmsAccountIcon,
+  'product-grid': LcmsProductGrid,
+  'category-grid': LcmsCategoryGrid,
+  'search-bar': LcmsSearchBar,
+  'product-carousel': LcmsProductCarousel,
+  'login-form': LcmsLoginForm,
+  'register-form': LcmsRegisterForm,
 }
 
 /**
@@ -220,4 +240,13 @@ export {
   LcmsCollectionField,
   LcmsValueList,
   LcmsCollectionGrouped,
+  // E-commerce
+  LcmsMiniCart,
+  LcmsAccountIcon,
+  LcmsProductGrid,
+  LcmsCategoryGrid,
+  LcmsSearchBar,
+  LcmsProductCarousel,
+  LcmsLoginForm,
+  LcmsRegisterForm,
 }
