@@ -82,9 +82,9 @@ const timelineContainerStyle = computed(() => {
         :style="{ backgroundColor: dotColor }"
       />
       <div class="lcms-timeline__card">
-        <span v-if="item.date" class="lcms-timeline__date">{{ item.date }}</span>
-        <h4 v-if="item.title" class="lcms-timeline__title">{{ item.title }}</h4>
-        <p v-if="item.content" class="lcms-timeline__content">{{ item.content }}</p>
+        <div v-if="item.date" class="lcms-timeline__date" v-html="item.date" />
+        <h4 v-if="item.title" class="lcms-timeline__title" v-html="item.title" />
+        <div v-if="item.content" class="lcms-timeline__content" v-html="item.content" />
       </div>
     </div>
   </div>
