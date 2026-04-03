@@ -50,6 +50,7 @@ import LcmsTabs from './interactive/LcmsTabs.vue'
 import LcmsEmbed from './interactive/LcmsEmbed.vue'
 import LcmsTimeline from './interactive/LcmsTimeline.vue'
 import LcmsCookieConsent from './interactive/LcmsCookieConsent.vue'
+import LcmsGoogleReviews from './interactive/LcmsGoogleReviews.vue'
 
 // Navigation widgets
 import LcmsMenu from './navigation/LcmsMenu.vue'
@@ -129,6 +130,7 @@ export const widgetComponents: Record<string, Component> = {
   embed: LcmsEmbed,
   timeline: LcmsTimeline,
   'cookie-consent': LcmsCookieConsent,
+  'google-reviews': LcmsGoogleReviews,
 
   // Navigation
   menu: LcmsMenu,
@@ -224,6 +226,7 @@ export {
   LcmsEmbed,
   LcmsTimeline,
   LcmsCookieConsent,
+  LcmsGoogleReviews,
   // Navigation
   LcmsMenu,
   LcmsSocialIcons,
