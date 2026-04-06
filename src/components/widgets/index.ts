@@ -81,6 +81,11 @@ import LcmsSearchBar from './ecommerce/LcmsSearchBar.vue'
 import LcmsProductCarousel from './ecommerce/LcmsProductCarousel.vue'
 import LcmsLoginForm from './ecommerce/LcmsLoginForm.vue'
 import LcmsRegisterForm from './ecommerce/LcmsRegisterForm.vue'
+import LcmsCart from './ecommerce/LcmsCart.vue'
+import LcmsCheckout from './ecommerce/LcmsCheckout.vue'
+import LcmsCustomerAccount from './ecommerce/LcmsCustomerAccount.vue'
+import LcmsProductDetail from './ecommerce/LcmsProductDetail.vue'
+import LcmsCategoryHeader from './ecommerce/LcmsCategoryHeader.vue'
 
 /**
  * Widget type to component mapping
@@ -161,6 +166,11 @@ export const widgetComponents: Record<string, Component> = {
   'product-carousel': LcmsProductCarousel,
   'login-form': LcmsLoginForm,
   'register-form': LcmsRegisterForm,
+  cart: LcmsCart,
+  checkout: LcmsCheckout,
+  'customer-account': LcmsCustomerAccount,
+  'product-detail': LcmsProductDetail,
+  'category-header': LcmsCategoryHeader,
 }
 
 /**
@@ -252,4 +262,9 @@ export {
   LcmsProductCarousel,
   LcmsLoginForm,
   LcmsRegisterForm,
+  LcmsCart,
+  LcmsCheckout,
+  LcmsCustomerAccount,
+  LcmsProductDetail,
+  LcmsCategoryHeader,
 }
