@@ -1,6 +1,6 @@
 {
   "name": "@lesscms/vue-widgets",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Vue 3 widget renderer library for LessCMS",
   "type": "module",
   "main": "./dist/lesscms-vue.umd.cjs",

@@ -39,8 +39,32 @@ export { useSeo, type UseSeoOptions, type UseSeoReturn } from './composables/use
 export { useRedirects } from './composables/useRedirects'
 export { usePageTransition } from './composables/usePageTransition'
 
+// Ecommerce composables
+export { useStorefront, type CommerceContext, type UseStorefrontResult } from './composables/useStorefront'
+export { useCart, type CartStore } from './composables/useCart'
+export { useCustomer, type CustomerStore } from './composables/useCustomer'
+export { useToast, type ToastApi, type Toast } from './composables/useToast'
+
+// Storefront API
+export {
+  createStorefrontClient,
+  StorefrontApiError,
+  type StorefrontClient,
+  type StorefrontProduct,
+  type StorefrontCategory,
+  type StorefrontCart,
+  type StorefrontCartItem,
+  type StorefrontCustomer,
+  type StorefrontAddress,
+  type StorefrontOrder,
+  type StorefrontShippingMethod,
+  type CheckoutRequest,
+  type RegisterRequest,
+} from './api/storefront'
+
 // Utilities
 export { resolveColor, hexToRgba } from './utils/resolveColor'
+export { formatPrice, calculateDiscount } from './utils/currency'
 
 // API
 export { createApiClient } from './api/client'

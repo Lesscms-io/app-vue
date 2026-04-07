@@ -88,6 +88,24 @@ interface Props {
     fromEmail: string
     fromName?: string
   }
+
+  /**
+   * LessCommerce Storefront API URL.
+   * If provided, ecommerce widgets will use this to fetch products/cart/etc.
+   * @example "https://api.lesscommerce.io"
+   */
+  storefrontApiUrl?: string
+
+  /**
+   * LessCommerce Storefront API key (read scope).
+   * Auto-generated when a Shop is linked to a CMS Project via SSO.
+   */
+  storefrontApiKey?: string
+
+  /**
+   * LessCommerce Shop UUID this CMS Project is linked to.
+   */
+  shopUuid?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -160,6 +178,19 @@ provide('lesscms-config', config)
 provide('lesscms-api', apiClient)
 provide('lesscms-project-config', projectConfig)
 provide('lesscms-email-config', props.emailConfig || null)
+
+// Provide commerce context (storefront API URL + key + shop UUID)
+const commerceContext = computed(() => {
+  if (!props.storefrontApiUrl || !props.storefrontApiKey || !props.shopUuid) {
+    return null
+  }
+  return {
+    apiUrl: props.storefrontApiUrl,
+    apiKey: props.storefrontApiKey,
+    shopUuid: props.shopUuid,
+  }
+})
+provide('lesscms-commerce-context', commerceContext)
 
 // Route pages cache (populated after routes are loaded by DynamicPageResolver)
 const routePages = ref<Array<{ code: string; url: string; page_uuid: string }>>([])

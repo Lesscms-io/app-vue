@@ -24,3 +24,9 @@ export {
   smallImage,
   heroImage
 } from './useImageOptimization'
+
+// Ecommerce composables
+export { useStorefront, type CommerceContext, type UseStorefrontResult } from './useStorefront'
+export { useCart, type CartStore } from './useCart'
+export { useCustomer, type CustomerStore } from './useCustomer'
+export { useToast, type ToastApi, type Toast } from './useToast'
