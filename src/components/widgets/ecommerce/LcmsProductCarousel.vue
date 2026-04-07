@@ -29,7 +29,23 @@ const config = computed(() => props.data?.config || props.data || {})
 const headingText = computed(() => extractValue(props.data?.heading?.text) || '')
 
 const source = computed(() => config.value.source || 'latest')
-const categorySlug = computed(() => config.value.category_slug || '')
+const categorySourceMode = computed(() => config.value.category_source || 'static')
+const categoryUrlSegment = computed(() => Number(config.value.category_url_segment ?? 1))
+const resolvedCategorySlug = computed(() => {
+  if (categorySourceMode.value === 'url') {
+    if (typeof window === 'undefined') return ''
+    const segments = window.location.pathname.split('/').filter(Boolean)
+    return segments[categoryUrlSegment.value] || ''
+  }
+  return config.value.category_slug || ''
+})
+const productSlugs = computed(() => {
+  const raw = config.value.product_slugs || ''
+  return String(raw)
+    .split(/[\n,]+/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+})
 const limit = computed(() => Number(config.value.limit) || 12)
 const visibleItems = computed(() => Number(config.value.visible_items) || 4)
 const autoplay = computed(() => config.value.autoplay === true)
@@ -106,13 +122,25 @@ async function fetchProducts() {
 
   isLoading.value = true
   try {
-    let response
-    if (source.value === 'category' && categorySlug.value) {
-      response = await client.value.getCategoryProducts(categorySlug.value, { per_page: limit.value })
+    if (source.value === 'manual') {
+      const slugs = productSlugs.value
+      if (slugs.length === 0) {
+        products.value = []
+      } else {
+        const results = await Promise.all(
+          slugs.map((slug) =>
+            client.value!.getProduct(slug).then((r) => r.data).catch(() => null)
+          )
+        )
+        products.value = results.filter((p): p is StorefrontProduct => p !== null)
+      }
+    } else if (source.value === 'category' && resolvedCategorySlug.value) {
+      const response = await client.value.getCategoryProducts(resolvedCategorySlug.value, { per_page: limit.value })
+      products.value = response.data || []
     } else {
-      response = await client.value.getProducts({ per_page: limit.value, sort_by: 'newest' })
+      const response = await client.value.getProducts({ per_page: limit.value, sort_by: 'newest' })
+      products.value = response.data || []
     }
-    products.value = response.data || []
   } catch {
     products.value = []
   } finally {
@@ -136,7 +164,7 @@ onUnmounted(() => {
   stopAutoplay()
 })
 
-watch([source, categorySlug, isAvailable], () => {
+watch([source, resolvedCategorySlug, productSlugs, isAvailable], () => {
   if (isAvailable.value) fetchProducts()
 })
 </script>

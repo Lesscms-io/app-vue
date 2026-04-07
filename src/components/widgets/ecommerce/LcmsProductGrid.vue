@@ -30,7 +30,23 @@ const config = computed(() => props.data?.config || props.data || {})
 const headingText = computed(() => extractValue(props.data?.heading?.text) || '')
 
 const source = computed(() => config.value.source || 'latest')
-const categorySlug = computed(() => config.value.category_slug || '')
+const categorySourceMode = computed(() => config.value.category_source || 'static')
+const categoryUrlSegment = computed(() => Number(config.value.category_url_segment ?? 1))
+const resolvedCategorySlug = computed(() => {
+  if (categorySourceMode.value === 'url') {
+    if (typeof window === 'undefined') return ''
+    const segments = window.location.pathname.split('/').filter(Boolean)
+    return segments[categoryUrlSegment.value] || ''
+  }
+  return config.value.category_slug || ''
+})
+const productSlugs = computed(() => {
+  const raw = config.value.product_slugs || ''
+  return String(raw)
+    .split(/[\n,]+/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+})
 const limit = computed(() => Number(config.value.limit) || 8)
 const columns = computed(() => Number(config.value.columns) || 4)
 const columnsTablet = computed(() => Number(config.value.columns_tablet) || 2)
@@ -72,14 +88,27 @@ async function fetchProducts() {
   error.value = null
 
   try {
-    let response
-    if (source.value === 'category' && categorySlug.value) {
-      response = await client.value.getCategoryProducts(categorySlug.value, { per_page: limit.value })
+    if (source.value === 'manual') {
+      // Manual curation: fetch each product by slug, preserve order, drop missing
+      const slugs = productSlugs.value
+      if (slugs.length === 0) {
+        products.value = []
+      } else {
+        const results = await Promise.all(
+          slugs.map((slug) =>
+            client.value!.getProduct(slug).then((r) => r.data).catch(() => null)
+          )
+        )
+        products.value = results.filter((p): p is StorefrontProduct => p !== null)
+      }
+    } else if (source.value === 'category' && resolvedCategorySlug.value) {
+      const response = await client.value.getCategoryProducts(resolvedCategorySlug.value, { per_page: limit.value })
+      products.value = response.data || []
     } else {
       const sortBy = source.value === 'featured' ? 'newest' : 'newest'
-      response = await client.value.getProducts({ per_page: limit.value, sort_by: sortBy })
+      const response = await client.value.getProducts({ per_page: limit.value, sort_by: sortBy })
+      products.value = response.data || []
     }
-    products.value = response.data || []
   } catch (err: any) {
     error.value = err.message || (props.language === 'en' ? 'Failed to load products' : 'Nie udało się załadować produktów')
     products.value = []
@@ -94,7 +123,7 @@ onMounted(() => {
   }
 })
 
-watch([source, categorySlug, limit, isAvailable], () => {
+watch([source, resolvedCategorySlug, productSlugs, limit, isAvailable], () => {
   if (isAvailable.value) {
     fetchProducts()
   }
