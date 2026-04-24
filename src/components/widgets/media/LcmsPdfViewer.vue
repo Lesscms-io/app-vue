@@ -237,7 +237,7 @@ watch(() => pdfUrl.value, () => {
   width: 100%;
   height: 100%;
   gap: 12px;
-  color: #6c757d;
+  color: var(--lcms-color-muted, #6c757d);
 }
 
 .lcms-pdf-viewer__placeholder i,
@@ -247,14 +247,14 @@ watch(() => pdfUrl.value, () => {
 }
 
 .lcms-pdf-viewer__placeholder i {
-  color: #dc3545;
+  color: var(--lcms-color-danger, #dc3545);
 }
 
 .lcms-pdf-viewer__error {
-  color: #dc3545;
+  color: var(--lcms-color-danger, #dc3545);
 }
 
 .lcms-pdf-viewer__error i {
-  color: #dc3545;
+  color: var(--lcms-color-danger, #dc3545);
 }
 </style>

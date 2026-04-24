@@ -124,6 +124,7 @@ const dropdownBg = computed(() => dropdownGroup.value.background || null)
 const dropdownLinkColor = computed(() => dropdownGroup.value.link_color || null)
 const dropdownLinkHoverColor = computed(() => dropdownGroup.value.link_hover_color || null)
 const dropdownFontSize = computed(() => dropdownGroup.value.font_size || 14)
+const linkFontSize = computed(() => linkGroup.value.font_size || 14)
 const dropdownBorderRadius = computed(() => dropdownGroup.value.border_radius || 'md')
 const dropdownShadow = computed(() => dropdownGroup.value.shadow || 'lg')
 
@@ -210,6 +211,7 @@ const menuCssVars = computed(() => {
   if (lhc) vars['--lcms-menu-link-hover-color'] = lhc
   if (lhb) vars['--lcms-menu-link-bg'] = lhb
   if (lhbh) vars['--lcms-menu-link-hover-bg'] = lhbh
+  vars['--lcms-menu-link-font-size'] = `${linkFontSize.value}px`
   vars['--lcms-menu-items-gap'] = `${itemsGap.value}px`
   if (itemsIndent.value) vars['--lcms-menu-items-indent'] = `${itemsIndent.value}px`
   const lac = resolveColorValue(linkHoverAnimationColor.value)
@@ -869,6 +871,23 @@ function getItemTarget(item: MenuItem): string | undefined {
   justify-content: flex-start;
 }
 
+/* Base link styling — picks up project `link.color`, `link.color:hover`,
+ * `link.background`, `link.background:hover` through --lcms-menu-link-* vars
+ * set on the root. Without these rules, user-configured hover color + bg are
+ * silently ignored (the only hover styles living elsewhere are animation
+ * modifiers like `--anim-highlight` which fire only when an animation is picked). */
+.lcms-menu__link {
+  color: var(--lcms-menu-link-color, inherit);
+  background-color: var(--lcms-menu-link-bg, transparent);
+  font-size: var(--lcms-menu-link-font-size, inherit);
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.lcms-menu__link:hover {
+  color: var(--lcms-menu-link-hover-color, var(--lcms-menu-link-color, inherit));
+  background-color: var(--lcms-menu-link-hover-bg, var(--lcms-menu-link-bg, transparent));
+}
+
 .lcms-menu.lcms-menu--align-center .lcms-menu__list {
   justify-content: center;
 }
@@ -1032,7 +1051,7 @@ function getItemTarget(item: MenuItem): string | undefined {
 
 .lcms-menu__cta--warning {
   background-color: var(--lcms-color-warning, #ffc107);
-  color: #212529;
+  color: var(--lcms-color-text, #212529);
   border: 1px solid var(--lcms-color-warning, #ffc107);
 }
 
@@ -1044,7 +1063,7 @@ function getItemTarget(item: MenuItem): string | undefined {
 
 .lcms-menu__cta--light {
   background-color: var(--lcms-color-light, #f8f9fa);
-  color: #212529;
+  color: var(--lcms-color-text, #212529);
   border: 1px solid var(--lcms-color-light, #f8f9fa);
 }
 
@@ -1185,7 +1204,14 @@ function getItemTarget(item: MenuItem): string | undefined {
 }
 
 .lcms-menu--anim-highlight .lcms-menu__link:hover {
-  background-color: var(--lcms-menu-link-hover-anim-color, var(--lcms-color-primary, rgba(0, 0, 0, 0.05)));
+  /* User-configured `link.background:hover` wins over the animation's
+   * default anim-color. Without this the highlight animation always
+   * painted its own default primary/muted bg regardless of what user
+   * set in Kolor tła linku po najechaniu. */
+  background-color: var(
+    --lcms-menu-link-hover-bg,
+    var(--lcms-menu-link-hover-anim-color, var(--lcms-color-primary, rgba(0, 0, 0, 0.05)))
+  );
   opacity: 0.85;
 }
 
@@ -1265,7 +1291,7 @@ function getItemTarget(item: MenuItem): string | undefined {
 .lcms-menu__sublink {
   display: block;
   padding: 8px 14px;
-  color: var(--lcms-menu-dropdown-link-color, #495057) !important;
+  color: var(--lcms-menu-dropdown-link-color, var(--lcms-color-text, #495057)) !important;
   text-decoration: none;
   font-size: var(--lcms-menu-dropdown-font-size, 0.9em);
   border-radius: 4px;
@@ -1274,17 +1300,17 @@ function getItemTarget(item: MenuItem): string | undefined {
 }
 
 .lcms-menu__sublink:hover {
-  color: var(--lcms-menu-dropdown-link-hover-color, var(--lcms-menu-link-hover-color, #50a5f1)) !important;
+  color: var(--lcms-menu-dropdown-link-hover-color, var(--lcms-menu-link-hover-color, var(--lcms-color-primary, #50a5f1))) !important;
   background-color: rgba(0, 0, 0, 0.04);
 }
 
 /* Scrolled state should NOT affect dropdown links — dropdown has its own colors */
 .lcms-menu.is-scrolled .lcms-menu__sublink {
-  color: var(--lcms-menu-dropdown-link-color, #495057) !important;
+  color: var(--lcms-menu-dropdown-link-color, var(--lcms-color-text, #495057)) !important;
 }
 
 .lcms-menu.is-scrolled .lcms-menu__sublink:hover {
-  color: var(--lcms-menu-dropdown-link-hover-color, var(--lcms-menu-link-hover-color, #50a5f1)) !important;
+  color: var(--lcms-menu-dropdown-link-hover-color, var(--lcms-menu-link-hover-color, var(--lcms-color-primary, #50a5f1))) !important;
 }
 
 /* ===========================

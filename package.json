@@ -14,6 +14,7 @@
     },
     "./styles/variables.css": "./src/styles/variables.css",
     "./styles/widgets.css": "./src/styles/widgets.css",
+    "./styles/boxicons.css": "./node_modules/boxicons/css/boxicons.min.css",
     "./styles": "./dist/style.css"
   },
   "files": [
@@ -32,6 +33,7 @@
   "dependencies": {
     "@lesscms/vue-widgets": "github:Lesscms-io/app-vue",
     "@unhead/vue": "^1.9.0",
+    "boxicons": "^2.1.4",
     "vue": "^3.4.0",
     "vue-router": "^4.2.0"
   },

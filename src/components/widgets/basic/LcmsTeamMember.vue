@@ -119,7 +119,7 @@ function getSocialUrl(link: { platform: string; url: string }) {
 
 <style scoped>
 .lcms-team-member {
-  --accent-color: #50a5f1;
+  --accent-color: var(--lcms-color-primary, #50a5f1);
   text-align: center;
 }
 
@@ -159,14 +159,14 @@ function getSocialUrl(link: { platform: string; url: string }) {
 .lcms-team-member__position {
   font-size: 0.875rem;
   font-weight: 500;
-  color: var(--accent-color, #50a5f1);
+  color: var(--accent-color, var(--lcms-color-primary, #50a5f1));
   margin: 0 0 0.75rem 0;
 }
 
 .lcms-team-member__bio {
   font-size: 0.875rem;
   line-height: 1.6;
-  color: #6c757d;
+  color: var(--lcms-color-muted, #6c757d);
   margin: 0 0 1rem 0;
 }
 
@@ -182,7 +182,7 @@ function getSocialUrl(link: { platform: string; url: string }) {
   justify-content: center;
   width: 2rem;
   height: 2rem;
-  color: #6c757d;
+  color: var(--lcms-color-muted, #6c757d);
   font-size: 1rem;
   text-decoration: none;
   transition: color 0.2s ease;

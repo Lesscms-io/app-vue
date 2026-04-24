@@ -5,7 +5,7 @@
  * Customer login form with optional forgot-password and register links.
  */
 
-import { computed, ref, reactive, inject, type Ref } from 'vue'
+import { computed, ref, reactive, inject, onMounted, onUnmounted, type Ref } from 'vue'
 import { useLanguage } from '../../../composables/useLanguage'
 import { useCustomer } from '../../../composables/useCustomer'
 import { useToast } from '../../../composables/useToast'
@@ -77,6 +77,26 @@ const errors = reactive<Record<string, string>>({})
 const showForgot = ref(false)
 const forgotEmail = ref('')
 
+// Hash-based visibility: when URL hash is #register, this form hides
+// so the RegisterForm widget (if present on the page) takes over.
+const currentHash = ref('')
+function updateHash() {
+  if (typeof window !== 'undefined') currentHash.value = window.location.hash
+}
+const isVisible = computed(() => currentHash.value !== '#register')
+
+onMounted(() => {
+  updateHash()
+  if (typeof window !== 'undefined') {
+    window.addEventListener('hashchange', updateHash)
+  }
+})
+onUnmounted(() => {
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('hashchange', updateHash)
+  }
+})
+
 async function handleLogin() {
   Object.keys(errors).forEach(k => delete errors[k])
 
@@ -87,9 +107,23 @@ async function handleLogin() {
   try {
     await customer.login(form.email, form.password)
     toast.success(t('email') === 'Email' ? 'Zalogowano' : 'Logged in')
-    setTimeout(() => {
-      window.location.href = redirectAfterLogin.value
-    }, 500)
+    // Only navigate away if we're not already on the target page.
+    // A same-page reload causes a flicker: SSR (no localStorage) renders
+    // LoginForm until the client init() fetches getMe() and flips state.
+    if (typeof window !== 'undefined') {
+      // Prefer ?return_to=<path> (set by AuthGate when gating a protected page)
+      // over the widget's default redirect. Only accept same-origin paths.
+      const params = new URLSearchParams(window.location.search)
+      const rawReturnTo = params.get('return_to')
+      const returnTo = rawReturnTo && rawReturnTo.startsWith('/') && !rawReturnTo.startsWith('//')
+        ? rawReturnTo
+        : null
+      const destination = returnTo || redirectAfterLogin.value
+      const target = new URL(destination, window.location.origin)
+      if (window.location.pathname !== target.pathname || window.location.search !== target.search) {
+        setTimeout(() => { window.location.href = destination }, 500)
+      }
+    }
   } catch (err: any) {
     toast.error(err.message || t('loginError'))
   }
@@ -109,7 +143,7 @@ async function handleForgot() {
 </script>
 
 <template>
-  <div class="lcms-login-form">
+  <div v-if="isVisible" class="lcms-login-form">
     <h3 v-if="headingText" class="lcms-login-form__heading">{{ headingText }}</h3>
 
     <form v-if="!showForgot" class="lcms-login-form__form" @submit.prevent="handleLogin">
@@ -214,7 +248,7 @@ async function handleForgot() {
   padding: 0.625rem 0.875rem;
   background: var(--lcms-input-bg-color, var(--lcms-color-background, #fff));
   color: var(--lcms-input-text-color, var(--lcms-color-text));
-  border: var(--lcms-input-border-width, 1px) var(--lcms-input-border-style, solid) var(--lcms-input-border-color, #d1d5db);
+  border: var(--lcms-input-border-width, 1px) var(--lcms-input-border-style, solid) var(--lcms-input-border-color, var(--lcms-color-border, #d1d5db));
   border-radius: var(--lcms-border-radius, 0.375rem);
   font-size: 0.9375rem;
   font-family: inherit;

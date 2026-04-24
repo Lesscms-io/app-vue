@@ -617,7 +617,7 @@ const lightboxImage = computed(() => images.value[lightboxIndex.value])
   width: 10px; height: 10px; border-radius: 50%; border: none;
   background: #ccc; cursor: pointer; transition: background 200ms;
 }
-.lcms-gallery__dot--active { background: #333; }
+.lcms-gallery__dot--active { background: var(--lcms-color-text, #333); }
 
 /* Coverflow */
 .lcms-gallery__coverflow { position: relative; overflow: visible; padding: 40px 0; }

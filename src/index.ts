@@ -45,6 +45,17 @@ export { useCart, type CartStore } from './composables/useCart'
 export { useCustomer, type CustomerStore } from './composables/useCustomer'
 export { useToast, type ToastApi, type Toast } from './composables/useToast'
 
+// Plugin extensions (host app provides registry via app.provide(PLUGIN_EXTENSIONS_KEY, ...))
+export {
+  PLUGIN_EXTENSIONS_KEY,
+  usePluginExtensions,
+  useSlotEntries,
+  type PluginExtensions,
+  type PluginPageEntry,
+  type PluginSlotEntry,
+} from './composables/usePluginExtensions'
+export { default as PluginSlot } from './components/PluginSlot.vue'
+
 // Storefront API
 export {
   createStorefrontClient,

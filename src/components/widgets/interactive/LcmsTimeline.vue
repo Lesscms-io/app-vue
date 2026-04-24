@@ -160,7 +160,7 @@ const timelineContainerStyle = computed(() => {
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  background-color: #50a5f1;
+  background-color: var(--lcms-color-primary, #50a5f1);
   top: 4px;
   transition: background-color 200ms ease;
 }
@@ -190,7 +190,7 @@ const timelineContainerStyle = computed(() => {
 
 .lcms-timeline__date {
   font-size: 0.85em;
-  color: #6c757d;
+  color: var(--lcms-color-muted, #6c757d);
 }
 
 .lcms-timeline__title {
@@ -201,6 +201,6 @@ const timelineContainerStyle = computed(() => {
 .lcms-timeline__content {
   margin: 4px 0 0;
   font-size: 0.95em;
-  color: #495057;
+  color: var(--lcms-color-text, #495057);
 }
 </style>

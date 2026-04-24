@@ -6,7 +6,7 @@
  * Sources: latest, category, featured.
  */
 
-import { computed, ref, onMounted, watch, inject, type Ref } from 'vue'
+import { computed, ref, onMounted, onServerPrefetch, watch, inject, type Ref } from 'vue'
 import { useLanguage } from '../../../composables/useLanguage'
 import { useStorefront } from '../../../composables/useStorefront'
 import { formatPrice, calculateDiscount } from '../../../utils/currency'
@@ -28,6 +28,11 @@ const projectConfig = inject<Ref<any> | null>('lesscms-project-config', null)
 
 const config = computed(() => props.data?.config || props.data || {})
 const headingText = computed(() => extractValue(props.data?.heading?.text) || '')
+const subtitleText = computed(() => extractValue(props.data?.subtitle?.text) || '')
+const seeAllText = computed(() => extractValue(props.data?.see_all?.text) || '')
+const seeAllUrl = computed(() => props.data?.see_all?.url || '')
+const showSeeAll = computed(() => !!(seeAllUrl.value && seeAllText.value))
+const showDiscountFallback = computed(() => config.value.show_discount_badge !== false)
 
 const source = computed(() => config.value.source || 'latest')
 const categorySourceMode = computed(() => config.value.category_source || 'static')
@@ -54,6 +59,38 @@ const columnsMobile = computed(() => Number(config.value.columns_mobile) || 1)
 const showPrice = computed(() => config.value.show_price !== false)
 const showCategory = computed(() => config.value.show_category !== false)
 
+// Field mapping — image auto-detects from template's main_image_attribute_code
+const fieldImage = computed(() => {
+  if (config.value.field_image && config.value.field_image !== 'image') return config.value.field_image
+  // Auto-detect from first product's template
+  const firstProduct = products.value[0] as any
+  const imgCode = firstProduct?.template?.main_image_attribute_code
+  if (imgCode) return `attributes.${imgCode}`
+  return config.value.field_image || 'image'
+})
+const fieldName = computed(() => config.value.field_name || 'name')
+const fieldPrice = computed(() => config.value.field_price || 'price')
+const fieldCategory = computed(() => config.value.field_category || 'category.name')
+const fieldDescription = computed(() => config.value.field_description || '')
+
+function getField(product: any, path: string): any {
+  if (!path) return null
+  const val = path.split('.').reduce((obj: any, key: string) => obj?.[key], product)
+  return Array.isArray(val) ? val[0] ?? null : val
+}
+
+function labelText(label: any): string {
+  const lang = props.language || 'pl'
+  return label?.text_translation?.[lang] || label?.text || ''
+}
+
+function labelStyle(label: any): Record<string, string> {
+  const style: Record<string, string> = {}
+  if (label?.background_color) style.background = label.background_color
+  if (label?.text_color) style.color = label.text_color
+  return style
+}
+
 const products = ref<StorefrontProduct[]>([])
 const isLoading = ref(false)
 const error = ref<string | null>(null)
@@ -62,9 +99,9 @@ const currency = computed(() => projectConfig?.value?.commerce?.currency || 'PLN
 
 // Resolve product detail URL using project's commerce route schema
 const productUrl = (product: StorefrontProduct) => {
-  // Default Polish convention: /produkt/:slug
   const route = projectConfig?.value?.commerce?.routes?.product || '/produkt/:slug'
-  return route.replace(':slug', product.slug)
+  const identifier = product.slug || product.sku || product.uuid
+  return route.replace(':slug', identifier)
 }
 
 const categoryUrl = (slug: string) => {
@@ -117,8 +154,16 @@ async function fetchProducts() {
   }
 }
 
-onMounted(() => {
+// SSR: fetch products before render so they appear in the initial HTML
+onServerPrefetch(async () => {
   if (isAvailable.value) {
+    await fetchProducts()
+  }
+})
+
+// Client: fetch on mount only if SSR didn't already load products
+onMounted(() => {
+  if (isAvailable.value && products.value.length === 0 && !error.value) {
     fetchProducts()
   }
 })
@@ -151,7 +196,22 @@ const t = (key: string) => {
 
 <template>
   <div class="lcms-product-grid">
-    <h3 v-if="headingText" class="lcms-product-grid__heading">{{ headingText }}</h3>
+    <div
+      v-if="headingText || subtitleText || showSeeAll"
+      class="lcms-product-grid__header"
+    >
+      <div class="lcms-product-grid__header-text">
+        <h3 v-if="headingText" class="lcms-product-grid__heading">{{ headingText }}</h3>
+        <p v-if="subtitleText" class="lcms-product-grid__subtitle">{{ subtitleText }}</p>
+      </div>
+      <a
+        v-if="showSeeAll"
+        :href="seeAllUrl"
+        class="lcms-product-grid__see-all"
+      >
+        {{ seeAllText }}
+      </a>
+    </div>
 
     <div v-if="isLoading" class="lcms-product-grid__loading">
       <div v-for="i in limit" :key="i" class="lcms-product-card lcms-product-card--skeleton">
@@ -178,9 +238,9 @@ const t = (key: string) => {
       >
         <div class="lcms-product-card__image-wrap">
           <img
-            v-if="product.image"
-            :src="product.image"
-            :alt="product.name"
+            v-if="getField(product, fieldImage)"
+            :src="getField(product, fieldImage)"
+            :alt="getField(product, fieldName) || product.name"
             class="lcms-product-card__image"
             loading="lazy"
           />
@@ -191,31 +251,47 @@ const t = (key: string) => {
               <path d="M21 15l-5-5L5 21" />
             </svg>
           </div>
-          <span
-            v-if="product.compare_at_price && product.compare_at_price > product.price"
-            class="lcms-product-card__discount-badge"
+          <div
+            v-if="(product.marketing_labels && product.marketing_labels.length) || (showDiscountFallback && product.compare_at_price && product.compare_at_price > product.price)"
+            class="lcms-product-card__labels"
           >
-            -{{ calculateDiscount(product.compare_at_price, product.price) }}%
-          </span>
+            <span
+              v-for="label in (product.marketing_labels || [])"
+              :key="label.uuid"
+              class="lcms-product-card__label"
+              :style="labelStyle(label)"
+            >
+              {{ labelText(label) }}
+            </span>
+            <span
+              v-if="(!product.marketing_labels || product.marketing_labels.length === 0) && showDiscountFallback && product.compare_at_price && product.compare_at_price > product.price"
+              class="lcms-product-card__label lcms-product-card__label--discount"
+            >
+              -{{ calculateDiscount(product.compare_at_price, product.price) }}%
+            </span>
+          </div>
         </div>
 
         <div class="lcms-product-card__body">
           <span
-            v-if="showCategory && product.category"
+            v-if="showCategory && getField(product, fieldCategory)"
             class="lcms-product-card__category"
-            @click.prevent.stop="$event.target instanceof HTMLElement && (window.location.href = categoryUrl(product.category!.slug))"
+            @click.prevent.stop="product.category && $event.target instanceof HTMLElement && (window.location.href = categoryUrl(product.category!.slug))"
           >
-            {{ product.category.name }}
+            {{ getField(product, fieldCategory) }}
           </span>
-          <h4 class="lcms-product-card__name">{{ product.name }}</h4>
-          <div v-if="showPrice" class="lcms-product-card__price-wrap">
+          <h4 class="lcms-product-card__name">{{ getField(product, fieldName) || product.name }}</h4>
+          <p v-if="fieldDescription && getField(product, fieldDescription)" class="lcms-product-card__description">
+            {{ getField(product, fieldDescription) }}
+          </p>
+          <div v-if="showPrice && getField(product, fieldPrice) != null" class="lcms-product-card__price-wrap">
             <span
               v-if="product.compare_at_price && product.compare_at_price > product.price"
               class="lcms-product-card__price-original"
             >
               {{ formatPrice(product.compare_at_price, currency) }}
             </span>
-            <span class="lcms-product-card__price">{{ formatPrice(product.price, currency) }}</span>
+            <span class="lcms-product-card__price">{{ formatPrice(getField(product, fieldPrice), currency) }}</span>
           </div>
         </div>
       </a>
@@ -229,19 +305,69 @@ const t = (key: string) => {
   color: var(--lcms-color-text, #1f2937);
 }
 
+.lcms-product-grid__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: var(--lcms-section-gap, 1.5rem);
+}
+
+.lcms-product-grid__header-text {
+  flex: 1;
+  min-width: 0;
+}
+
 .lcms-product-grid__heading {
   font-family: var(--lcms-font-heading, var(--lcms-font-body));
   font-size: var(--lcms-h2-font-size, 1.875rem);
   font-weight: var(--lcms-h2-font-weight, 700);
   color: var(--lcms-h2-color, var(--lcms-color-text));
-  margin: 0 0 var(--lcms-section-gap, 1.5rem);
+  margin: 0;
   line-height: var(--lcms-h2-line-height, 1.2);
+}
+
+.lcms-product-grid__subtitle {
+  margin: 0.375rem 0 0;
+  color: var(--lcms-color-muted, #6b7280);
+  font-size: 0.9375rem;
+  line-height: 1.5;
+}
+
+.lcms-product-grid__see-all {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--lcms-color-border, #e5e7eb);
+  border-radius: var(--lcms-btn-border-radius, var(--lcms-border-radius, 0.375rem));
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--lcms-color-text, #1f2937);
+  text-decoration: none;
+  background: transparent;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.lcms-product-grid__see-all:hover {
+  background: var(--lcms-color-background-alt, #f9fafb);
+  border-color: var(--lcms-color-text, #1f2937);
+}
+
+@media (max-width: 640px) {
+  .lcms-product-grid__header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .lcms-product-grid__see-all {
+    align-self: flex-start;
+  }
 }
 
 .lcms-product-grid__grid {
   display: grid;
   grid-template-columns: repeat(var(--lcms-grid-cols-desktop, 4), 1fr);
-  gap: var(--lcms-section-gap, 1.5rem);
+  gap: 0.75rem;
 }
 
 @media (max-width: 1024px) {
@@ -259,7 +385,7 @@ const t = (key: string) => {
 .lcms-product-grid__loading {
   display: grid;
   grid-template-columns: repeat(var(--lcms-grid-cols-desktop, 4), 1fr);
-  gap: var(--lcms-section-gap, 1.5rem);
+  gap: 0.75rem;
 }
 
 .lcms-product-grid__empty,
@@ -278,17 +404,18 @@ const t = (key: string) => {
 .lcms-product-card {
   display: flex;
   flex-direction: column;
-  background: var(--lcms-color-background, #ffffff);
-  border-radius: var(--lcms-border-radius, 0.5rem);
+  background: #ffffff;
   border: 1px solid var(--lcms-color-border, #e5e7eb);
+  border-radius: 12px;
   overflow: hidden;
   text-decoration: none;
   color: inherit;
-  transition: box-shadow 0.2s ease, transform 0.2s ease;
+  transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
 }
 
 .lcms-product-card:hover {
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  border-color: var(--lcms-color-border-strong, #d1d5db);
   transform: translateY(-2px);
 }
 
@@ -320,20 +447,38 @@ const t = (key: string) => {
   height: 48px;
 }
 
-.lcms-product-card__discount-badge {
+.lcms-product-card__labels {
   position: absolute;
-  top: 0.5rem;
-  right: 0.5rem;
+  top: 0.625rem;
+  left: 0.625rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.375rem;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.lcms-product-card__label {
+  display: inline-block;
+  padding: 0.25rem 0.625rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  border-radius: 4px;
+  background: var(--lcms-color-primary, #3b82f6);
+  color: var(--lcms-color-white, #fff);
+  line-height: 1.2;
+}
+
+.lcms-product-card__label--discount {
   background: var(--lcms-color-danger, #ef4444);
-  color: #fff;
-  font-size: 0.75rem;
-  font-weight: 600;
-  padding: 0.25rem 0.5rem;
-  border-radius: 0.25rem;
 }
 
 .lcms-product-card__body {
-  padding: 1rem;
+  padding: 1.25rem;
+  background: #ffffff;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
@@ -355,10 +500,20 @@ const t = (key: string) => {
 .lcms-product-card__name {
   font-family: var(--lcms-font-heading, var(--lcms-font-body));
   font-size: 1rem;
-  font-weight: 600;
+  font-weight: 700;
   margin: 0;
-  line-height: 1.4;
+  line-height: 1.35;
   color: var(--lcms-color-text, #1f2937);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.lcms-product-card__description {
+  font-size: 0.875rem;
+  color: var(--lcms-color-muted, #6b7280);
+  margin: 0;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -374,14 +529,15 @@ const t = (key: string) => {
 
 .lcms-product-card__price {
   color: var(--lcms-color-primary, #3b82f6);
-  font-size: 1.125rem;
-  font-weight: 700;
+  font-size: 1.25rem;
+  font-weight: 800;
 }
 
 .lcms-product-card__price-original {
   color: var(--lcms-color-muted, #9ca3af);
   font-size: 0.875rem;
   text-decoration: line-through;
+  font-weight: 500;
 }
 
 /* Skeleton loading */
@@ -391,7 +547,7 @@ const t = (key: string) => {
 
 .lcms-product-card__skeleton-image,
 .lcms-product-card__skeleton-text {
-  background: linear-gradient(90deg, #f3f4f6 0%, #e5e7eb 50%, #f3f4f6 100%);
+  background: linear-gradient(90deg, var(--lcms-color-background-alt, #f3f4f6) 0%, var(--lcms-color-border, #e5e7eb) 50%, var(--lcms-color-background-alt, #f3f4f6) 100%);
   background-size: 200% 100%;
   animation: lcms-skeleton-pulse 1.5s ease-in-out infinite;
 }

@@ -350,7 +350,7 @@ watch([collectionCode, groupByField], () => {
 .lcms-collection-grouped__group-title {
   margin: 0 0 1rem;
   font-size: 1.5rem;
-  border-bottom: 2px solid #333;
+  border-bottom: 2px solid var(--lcms-color-text, #333);
   padding-bottom: 0.5rem;
 }
 
@@ -417,7 +417,7 @@ watch([collectionCode, groupByField], () => {
 
 .lcms-collection-grouped__item-price {
   font-weight: bold;
-  color: #28a745;
+  color: var(--lcms-color-success, #28a745);
 }
 
 /* Accordion styles */
@@ -472,8 +472,8 @@ watch([collectionCode, groupByField], () => {
 }
 
 .lcms-collection-grouped__tab-header.is-active {
-  border-bottom-color: #007bff;
-  color: #007bff;
+  border-bottom-color: var(--lcms-color-primary, #007bff);
+  color: var(--lcms-color-primary, #007bff);
 }
 
 .lcms-collection-grouped__loading,

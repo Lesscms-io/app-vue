@@ -5,6 +5,8 @@
  * These are minimal, "naked" styles meant to be customized.
  */
 
+@import 'boxicons/css/boxicons.min.css';
+
 /* ==========================================================================
    Base Styles
    ========================================================================== */
@@ -711,7 +713,7 @@
   border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
-  border: 3px solid #fff;
+  border: 3px solid var(--lcms-color-white, #fff);
 }
 
 .lcms-gallery__collage-overlay .lcms-gallery__img {
@@ -815,7 +817,7 @@
   top: 50%;
   transform: translateY(-50%);
   background: rgba(255, 255, 255, 0.9);
-  color: #333;
+  color: var(--lcms-color-text, #333);
   border: none;
   width: 40px;
   height: 40px;
@@ -856,18 +858,18 @@
   height: 10px;
   border-radius: 50%;
   border: none;
-  background: #dee2e6;
+  background: var(--lcms-color-border, #dee2e6);
   cursor: pointer;
   padding: 0;
   transition: all 0.2s;
 }
 
 .lcms-gallery__dot:hover {
-  background: #adb5bd;
+  background: var(--lcms-color-muted, #adb5bd);
 }
 
 .lcms-gallery__dot--active {
-  background: #50a5f1;
+  background: var(--lcms-color-primary, #50a5f1);
   transform: scale(1.2);
 }
 
@@ -1758,9 +1760,9 @@
   padding: 2px 10px;
   font-size: 0.75rem;
   line-height: 1.5;
-  border: 1px solid var(--lcms-color-gray-300, #dee2e6);
+  border: 1px solid var(--lcms-color-gray-300, var(--lcms-color-border, #dee2e6));
   border-radius: 20px;
-  color: var(--lcms-color-gray-700, #495057);
+  color: var(--lcms-color-gray-700, var(--lcms-color-text, #495057));
   background: transparent;
   white-space: nowrap;
 }
@@ -1795,7 +1797,7 @@
 }
 
 .lcms-collection-grid--style-bordered .lcms-collection-grid__item {
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--lcms-color-border, #e2e8f0);
   border-radius: 12px;
   overflow: hidden;
 }
@@ -1812,7 +1814,7 @@
   border-radius: 12px;
   background-size: cover;
   background-position: center;
-  background-color: #1a1a1a;
+  background-color: var(--lcms-color-dark, #1a1a1a);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -1843,7 +1845,7 @@
 }
 
 .lcms-collection-grid--style-minimal .lcms-collection-grid__item {
-  background: #f8f9fa;
+  background: var(--lcms-color-background-alt, #f8f9fa);
   border-radius: 8px;
   overflow: hidden;
 }
@@ -2331,14 +2333,14 @@
 }
 
 .lcms-form__required {
-  color: #ef4444;
+  color: var(--lcms-color-danger, #ef4444);
 }
 
 .lcms-form__input,
 .lcms-form__textarea,
 .lcms-form__select {
   padding: 0.5rem 0.75rem;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--lcms-color-border, #d1d5db);
   border-radius: 0.375rem;
   font-size: 1rem;
   line-height: 1.5;
@@ -2349,13 +2351,13 @@
 .lcms-form__textarea:focus,
 .lcms-form__select:focus {
   outline: none;
-  border-color: var(--input-focus-color, #3b82f6);
+  border-color: var(--input-focus-color, var(--lcms-color-primary, #3b82f6));
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
 }
 
 .lcms-form__input::placeholder,
 .lcms-form__textarea::placeholder {
-  color: var(--input-placeholder-color, #9ca3af);
+  color: var(--input-placeholder-color, var(--lcms-color-muted, #9ca3af));
 }
 
 .lcms-form__checkbox-label {
@@ -2409,12 +2411,12 @@
 .lcms-form__field--error .lcms-form__input,
 .lcms-form__field--error .lcms-form__textarea,
 .lcms-form__field--error .lcms-form__select {
-  border-color: #ef4444;
+  border-color: var(--lcms-color-danger, #ef4444);
 }
 
 .lcms-form__validation-error {
   font-size: 0.75rem;
-  color: #ef4444;
+  color: var(--lcms-color-danger, #ef4444);
 }
 
 .lcms-form__submit {
@@ -2424,8 +2426,8 @@
   font-size: 1rem;
   font-weight: 500;
   cursor: pointer;
-  background-color: #3b82f6;
-  color: #ffffff;
+  background-color: var(--lcms-color-primary, #3b82f6);
+  color: var(--lcms-color-white, #ffffff);
   transition: opacity 0.2s;
   display: inline-flex;
   align-items: center;
@@ -2447,7 +2449,7 @@
   width: 1rem;
   height: 1rem;
   border: 2px solid rgba(255, 255, 255, 0.3);
-  border-top-color: #ffffff;
+  border-top-color: var(--lcms-color-white, #ffffff);
   border-radius: 50%;
   animation: lcms-form-spin 0.6s linear infinite;
 }
@@ -2459,17 +2461,17 @@
 .lcms-form__success {
   padding: 1rem;
   background-color: rgba(52, 195, 143, 0.1);
-  border: 1px solid #34c38f;
+  border: 1px solid var(--lcms-color-success, #34c38f);
   border-radius: 0.375rem;
-  color: #34c38f;
+  color: var(--lcms-color-success, #34c38f);
 }
 
 .lcms-form__error {
   padding: 1rem;
   background-color: rgba(244, 106, 106, 0.1);
-  border: 1px solid #f46a6a;
+  border: 1px solid var(--lcms-color-danger, #f46a6a);
   border-radius: 0.375rem;
-  color: #f46a6a;
+  color: var(--lcms-color-danger, #f46a6a);
   margin-bottom: 1rem;
 }
 

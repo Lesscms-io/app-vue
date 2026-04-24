@@ -234,6 +234,7 @@ export interface PageMetadata {
   schema_code?: string
   schema_name_translation?: Record<string, string>
   is_public: boolean
+  requires_auth?: boolean
   entry_id?: string
   in_sitemap?: boolean
   custom_route?: string
@@ -506,6 +507,11 @@ export interface PageListItem {
 export interface RoutesResponse {
   data: {
     homepage: {
+      code: string
+      url: string
+      page_uuid: string
+    } | null
+    login_page: {
       code: string
       url: string
       page_uuid: string

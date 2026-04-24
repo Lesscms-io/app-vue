@@ -10,6 +10,73 @@
 // Types — mirror Storefront API response shapes
 // ============================================================================
 
+export type StorefrontOptionDisplayType = 'select' | 'radio' | 'image_swatches' | 'color_swatches' | 'numeric' | 'text'
+export type StorefrontOptionPriceModifierType = 'fixed_price' | 'percentage'
+
+export interface StorefrontProductOption {
+  uuid: string
+  name: string
+  code: string
+  price_modifier_type: StorefrontOptionPriceModifierType | null
+  price_modifier_value: number | null
+  color_hex: string | null
+  thumbnail: string | null
+  is_default: boolean
+  sort_order: number
+}
+
+export interface StorefrontProductOptionGroup {
+  uuid: string
+  name: string
+  code: string
+  display_type: StorefrontOptionDisplayType
+  is_required: boolean
+  sort_order: number
+  visible_when_option_uuids: string[]
+  numeric_min: number | null
+  numeric_max: number | null
+  numeric_step: number | null
+  price_per_unit: number | null
+  options: StorefrontProductOption[]
+}
+
+export interface StorefrontPluginBehaviorCta {
+  type: 'create_album_flow' | 'link'
+  label: string
+  post_url?: string
+  url?: string
+  /**
+   * Generic flag set by any plugin behavior whose action requires an
+   * authenticated customer. The widget redirects unauthenticated users to
+   * the configured login URL with `?return=<current>` instead of letting
+   * the action fail with a bare 401 toast. Plugin-agnostic — core does not
+   * need to know which plugin set the flag.
+   */
+  requires_auth?: boolean
+}
+
+export interface StorefrontPluginBehavior {
+  plugin_id: string
+  group_uuid: string
+  option_uuid: string
+  cta: StorefrontPluginBehaviorCta
+}
+
+export interface StorefrontProductChild {
+  uuid: string
+  sku: string
+  name: string
+  slug: string
+  price: number
+  compare_at_price: number | null
+  stock: number
+  track_stock: boolean
+  status: 'active' | 'inactive' | 'draft'
+  image: string | null
+  images: string[]
+  variant_binding_values: Record<string, unknown> | null
+}
+
 export interface StorefrontProduct {
   uuid: string
   name: string
@@ -29,8 +96,28 @@ export interface StorefrontProduct {
   image: string | null
   attributes: Record<string, unknown>
   metadata: Record<string, unknown>
+  product_type?: 'simple' | 'configurable'
+  option_groups?: StorefrontProductOptionGroup[]
+  plugin_behaviors?: StorefrontPluginBehavior[]
+  children?: StorefrontProductChild[]
+  parent_product_uuid?: string | null
+  variant_binding_values?: Record<string, unknown> | null
+  has_children?: boolean
+  is_container?: boolean
+  marketing_labels?: StorefrontMarketingLabel[]
   created_at: string
   updated_at: string
+}
+
+export interface StorefrontMarketingLabel {
+  uuid: string
+  code: string
+  text: string
+  text_translation?: Record<string, string> | null
+  background_color: string | null
+  text_color: string | null
+  sort_order: number
+  source?: string
 }
 
 export interface StorefrontCategory {
@@ -80,6 +167,9 @@ export interface StorefrontCart {
 }
 
 export interface StorefrontAddress {
+  uuid?: string
+  name?: string | null
+  phone?: string | null
   street: string
   city: string
   postal_code: string
@@ -145,9 +235,27 @@ export interface StorefrontOrder {
 export interface StorefrontShippingMethod {
   code: string
   name: string
-  description: string
-  cost: number
-  estimated_days: number
+  carrier: string
+  price: number
+  currency: string
+  estimated_days?: string | number | null
+  requires_pickup_point?: boolean
+  shipx_service?: string | null
+  // Legacy fields kept so older mocks/payloads don't crash; prefer `price`.
+  cost?: number
+  description?: string
+}
+
+export interface StorefrontPickupPoint {
+  id: string
+  name: string
+  address: string
+  city?: string
+  postal_code?: string
+  latitude?: number | null
+  longitude?: number | null
+  opening_hours?: Record<string, string> | string | null
+  type?: string | string[] | null
 }
 
 export interface StorefrontPaginated<T> {
@@ -292,14 +400,27 @@ export interface StorefrontClient {
     items_count?: number
     cart_uuid?: string
   }): Promise<{ data: { postal_code: string; country: string; methods: StorefrontShippingMethod[] } }>
+  getPickupPoints(params: {
+    postal_code: string
+    carrier?: string
+    radius?: number
+  }): Promise<{ data: { postal_code: string; carrier: string; points: StorefrontPickupPoint[] } }>
 
   // Payments
   initPayment(orderUuid: string, method: string, returnUrl?: string): Promise<{ data: PaymentInitResponse }>
+  getPaymentMethods(): Promise<{ data: Array<{ code: string; name: string; sandbox?: boolean | null }> }>
   getPaymentStatus(paymentId: string): Promise<{ data: { payment_id: string; status: string } }>
 
   // Customer token management
   setCustomerToken(token: string | null): void
   getCustomerToken(): string | null
+
+  // Generic plugin endpoint. `path` must be the storefront-relative path
+  // exposed by the plugin's storefront proxy (e.g. `/plugins/photo-albums/flows/start`).
+  callPluginEndpoint<T = any>(
+    path: string,
+    options?: { method?: string; body?: any; requireAuth?: boolean }
+  ): Promise<T>
 }
 
 export function createStorefrontClient(options: StorefrontClientOptions): StorefrontClient {
@@ -431,10 +552,12 @@ export function createStorefrontClient(options: StorefrontClientOptions): Storef
     // Shipping
     getShippingMethods: () => request('GET', '/shipping/methods'),
     calculateShipping: (data) => request('POST', '/shipping/calculate', { body: data }),
+    getPickupPoints: (params) => request('GET', '/shipping/points', { params }),
 
     // Payments
     initPayment: (orderUuid, method, returnUrl) =>
       request('POST', '/payments/init', { body: { order_uuid: orderUuid, method, return_url: returnUrl } }),
+    getPaymentMethods: () => request('GET', '/payments/methods'),
     getPaymentStatus: (paymentId) => request('GET', `/payments/${paymentId}/status`),
 
     // Customer token management
@@ -444,5 +567,11 @@ export function createStorefrontClient(options: StorefrontClientOptions): Storef
     getCustomerToken() {
       return customerToken
     },
+
+    callPluginEndpoint: (path, opts = {}) =>
+      request(opts.method || 'POST', path, {
+        body: opts.body,
+        requireAuth: opts.requireAuth ?? true,
+      }),
   }
 }

@@ -44,7 +44,7 @@ const currency = computed(() => projectConfig?.value?.commerce?.currency || 'PLN
 
 const productUrl = (product: StorefrontProduct) => {
   const route = projectConfig?.value?.commerce?.routes?.product || '/produkt/:slug'
-  return route.replace(':slug', product.slug)
+  return route.replace(':slug', product.slug || product.sku || product.uuid)
 }
 
 const searchPageUrl = computed(() => {
@@ -171,7 +171,7 @@ onUnmounted(() => {
   padding: 0.75rem 1rem 0.75rem 2.75rem;
   background: var(--lcms-input-bg-color, var(--lcms-color-background, #ffffff));
   color: var(--lcms-input-text-color, var(--lcms-color-text, #1f2937));
-  border: var(--lcms-input-border-width, 1px) var(--lcms-input-border-style, solid) var(--lcms-input-border-color, #d1d5db);
+  border: var(--lcms-input-border-width, 1px) var(--lcms-input-border-style, solid) var(--lcms-input-border-color, var(--lcms-color-border, #d1d5db));
   border-radius: var(--lcms-border-radius, 0.5rem);
   font-size: var(--lcms-font-size-base, 1rem);
   font-family: inherit;

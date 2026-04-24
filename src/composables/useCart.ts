@@ -36,6 +36,7 @@ export interface CartStore {
   cart: Ref<StorefrontCart | null>
   cartUuid: Ref<string | null>
   isLoading: Ref<boolean>
+  hasInitialized: Ref<boolean>
   error: Ref<string | null>
   itemsCount: ComputedRef<number>
   total: ComputedRef<number>
@@ -56,6 +57,7 @@ function createCartStore(): CartStore {
   const cart = ref<StorefrontCart | null>(null)
   const cartUuid = ref<string | null>(null)
   const isLoading = ref(false)
+  const hasInitialized = ref(false)
   const error = ref<string | null>(null)
 
   const { client, isAvailable } = useStorefront()
@@ -70,14 +72,21 @@ function createCartStore(): CartStore {
     if (initialized) return
     initialized = true
 
-    if (!isAvailable.value) return
+    if (!isAvailable.value) {
+      hasInitialized.value = true
+      return
+    }
 
-    // Check cookie for existing cart UUID
+    // Check cookie for existing cart UUID. Flip isLoading synchronously so
+    // widgets render their spinner on the first frame — otherwise the empty
+    // state flashes before loadCart() starts.
     const existingUuid = getCookie(COOKIE_NAME)
     if (existingUuid) {
       cartUuid.value = existingUuid
+      isLoading.value = true
       await loadCart()
     }
+    hasInitialized.value = true
   }
 
   async function loadCart() {
@@ -222,6 +231,7 @@ function createCartStore(): CartStore {
     cart,
     cartUuid,
     isLoading,
+    hasInitialized,
     error,
     itemsCount,
     total,

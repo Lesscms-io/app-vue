@@ -78,6 +78,8 @@ import LcmsAccountIcon from './ecommerce/LcmsAccountIcon.vue'
 import LcmsProductGrid from './ecommerce/LcmsProductGrid.vue'
 import LcmsCategoryGrid from './ecommerce/LcmsCategoryGrid.vue'
 import LcmsSearchBar from './ecommerce/LcmsSearchBar.vue'
+import LcmsSearchIcon from './ecommerce/LcmsSearchIcon.vue'
+import LcmsEcommerceIcons from './ecommerce/LcmsEcommerceIcons.vue'
 import LcmsProductCarousel from './ecommerce/LcmsProductCarousel.vue'
 import LcmsLoginForm from './ecommerce/LcmsLoginForm.vue'
 import LcmsRegisterForm from './ecommerce/LcmsRegisterForm.vue'
@@ -85,7 +87,15 @@ import LcmsCart from './ecommerce/LcmsCart.vue'
 import LcmsCheckout from './ecommerce/LcmsCheckout.vue'
 import LcmsCustomerAccount from './ecommerce/LcmsCustomerAccount.vue'
 import LcmsProductDetail from './ecommerce/LcmsProductDetail.vue'
+import LcmsProductConfigurator from './ecommerce/LcmsProductConfigurator.vue'
+import LcmsProductVariants from './ecommerce/LcmsProductVariants.vue'
 import LcmsCategoryHeader from './ecommerce/LcmsCategoryHeader.vue'
+import LcmsProductField from './ecommerce/LcmsProductField.vue'
+import LcmsProductGallery from './ecommerce/LcmsProductGallery.vue'
+import LcmsProductPrice from './ecommerce/LcmsProductPrice.vue'
+import LcmsProductCart from './ecommerce/LcmsProductCart.vue'
+import LcmsOrderSuccess from './ecommerce/LcmsOrderSuccess.vue'
+import LcmsOrderFailure from './ecommerce/LcmsOrderFailure.vue'
 
 /**
  * Widget type to component mapping
@@ -163,6 +173,8 @@ export const widgetComponents: Record<string, Component> = {
   'product-grid': LcmsProductGrid,
   'category-grid': LcmsCategoryGrid,
   'search-bar': LcmsSearchBar,
+  'search-icon': LcmsSearchIcon,
+  'ecommerce-icons': LcmsEcommerceIcons,
   'product-carousel': LcmsProductCarousel,
   'login-form': LcmsLoginForm,
   'register-form': LcmsRegisterForm,
@@ -170,7 +182,15 @@ export const widgetComponents: Record<string, Component> = {
   checkout: LcmsCheckout,
   'customer-account': LcmsCustomerAccount,
   'product-detail': LcmsProductDetail,
+  'product-configurator': LcmsProductConfigurator,
+  'product-variants': LcmsProductVariants,
   'category-header': LcmsCategoryHeader,
+  'product-field': LcmsProductField,
+  'product-gallery': LcmsProductGallery,
+  'product-price': LcmsProductPrice,
+  'product-cart': LcmsProductCart,
+  'order-success': LcmsOrderSuccess,
+  'order-failure': LcmsOrderFailure,
 }
 
 /**
@@ -259,6 +279,8 @@ export {
   LcmsProductGrid,
   LcmsCategoryGrid,
   LcmsSearchBar,
+  LcmsSearchIcon,
+  LcmsEcommerceIcons,
   LcmsProductCarousel,
   LcmsLoginForm,
   LcmsRegisterForm,
@@ -266,5 +288,13 @@ export {
   LcmsCheckout,
   LcmsCustomerAccount,
   LcmsProductDetail,
+  LcmsProductConfigurator,
+  LcmsProductVariants,
   LcmsCategoryHeader,
+  LcmsProductField,
+  LcmsProductGallery,
+  LcmsProductPrice,
+  LcmsProductCart,
+  LcmsOrderSuccess,
+  LcmsOrderFailure,
 }

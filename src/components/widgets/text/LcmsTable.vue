@@ -116,14 +116,14 @@ const bordered = computed(() => config.value.bordered || false)
 
 .lcms-table--bordered th,
 .lcms-table--bordered td {
-  border: 1px solid #dee2e6;
+  border: 1px solid var(--lcms-color-border, #dee2e6);
 }
 
 .lcms-table:not(.lcms-table--bordered) tbody td {
-  border-bottom: 1px solid #dee2e6;
+  border-bottom: 1px solid var(--lcms-color-border, #dee2e6);
 }
 
 .lcms-table--striped tbody tr:nth-child(even) {
-  background-color: #f8f9fa;
+  background-color: var(--lcms-color-background-alt, #f8f9fa);
 }
 </style>

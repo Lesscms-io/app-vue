@@ -170,7 +170,7 @@ const testimonialStyle = computed(() => {
 }
 
 .lcms-testimonial__star {
-  color: #ffc107;
+  color: var(--lcms-color-warning, #ffc107);
   font-size: 18px;
   transition: color 200ms ease;
 }
@@ -178,7 +178,7 @@ const testimonialStyle = computed(() => {
 .lcms-testimonial__quote {
   font-size: 18px;
   font-style: italic;
-  color: #333;
+  color: var(--lcms-color-text, #333);
   line-height: 1.6;
   margin: 0 0 24px;
   padding: 0;
@@ -208,7 +208,7 @@ const testimonialStyle = computed(() => {
   display: block;
   font-size: 16px;
   font-weight: 600;
-  color: #333;
+  color: var(--lcms-color-text, #333);
   transition: color 200ms ease;
 }
 

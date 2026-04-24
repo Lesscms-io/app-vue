@@ -183,7 +183,7 @@ const boxStyle = computed(() => {
   display: inline-block;
   padding: 10px 24px;
   background-color: #fff;
-  color: #212529;
+  color: var(--lcms-color-text, #212529);
   border-radius: 8px;
   text-decoration: none;
   font-weight: 600;

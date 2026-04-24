@@ -33,6 +33,7 @@ export interface CustomerStore {
   customer: Ref<StorefrontCustomer | null>
   token: Ref<string | null>
   isLoading: Ref<boolean>
+  isInitialized: Ref<boolean>
   error: Ref<string | null>
   isAuthenticated: ComputedRef<boolean>
   init(): Promise<void>
@@ -56,6 +57,7 @@ function createCustomerStore(): CustomerStore {
   const customer = ref<StorefrontCustomer | null>(null)
   const token = ref<string | null>(null)
   const isLoading = ref(false)
+  const isInitialized = ref(false)
   const error = ref<string | null>(null)
 
   const { client } = useStorefront()
@@ -77,16 +79,20 @@ function createCustomerStore(): CustomerStore {
     initialized = true
 
     const storedToken = getStoredToken()
-    if (!storedToken || !client.value) return
+    if (!storedToken || !client.value) {
+      isInitialized.value = true
+      return
+    }
 
     applyToken(storedToken)
     try {
       const response = await client.value.getMe()
       customer.value = response.data
     } catch (err: any) {
-      // Token invalid/expired — clear it
       applyToken(null)
       customer.value = null
+    } finally {
+      isInitialized.value = true
     }
   }
 
@@ -259,6 +265,7 @@ function createCustomerStore(): CustomerStore {
     customer,
     token,
     isLoading,
+    isInitialized,
     error,
     isAuthenticated,
     init,

@@ -5,7 +5,7 @@
  * Customer registration form with validation.
  */
 
-import { computed, reactive, inject, type Ref } from 'vue'
+import { computed, reactive, ref, inject, onMounted, onUnmounted, type Ref } from 'vue'
 import { useLanguage } from '../../../composables/useLanguage'
 import { useCustomer } from '../../../composables/useCustomer'
 import { useToast } from '../../../composables/useToast'
@@ -84,6 +84,26 @@ const form = reactive({
 
 const errors = reactive<Record<string, string>>({})
 
+// Hash-based visibility: form renders only when URL hash is #register,
+// mirroring LoginForm which hides in that state.
+const currentHash = ref('')
+function updateHash() {
+  if (typeof window !== 'undefined') currentHash.value = window.location.hash
+}
+const isVisible = computed(() => currentHash.value === '#register')
+
+onMounted(() => {
+  updateHash()
+  if (typeof window !== 'undefined') {
+    window.addEventListener('hashchange', updateHash)
+  }
+})
+onUnmounted(() => {
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('hashchange', updateHash)
+  }
+})
+
 function validate(): boolean {
   Object.keys(errors).forEach(k => delete errors[k])
 
@@ -109,9 +129,20 @@ async function handleSubmit() {
       phone: form.phone || undefined,
     })
     toast.success(t('registered'))
-    setTimeout(() => {
-      window.location.href = redirectAfterRegister.value
-    }, 500)
+    // Only navigate away if we're not already on the target page — otherwise
+    // a same-page reload causes a SSR/CSR flicker (see LcmsLoginForm).
+    if (typeof window !== 'undefined') {
+      const target = new URL(redirectAfterRegister.value, window.location.origin)
+      if (window.location.pathname !== target.pathname) {
+        setTimeout(() => { window.location.href = redirectAfterRegister.value }, 500)
+      } else {
+        // On same page, clear `#register` hash so LoginForm/Panel take over cleanly
+        if (window.location.hash === '#register') {
+          history.replaceState(null, '', window.location.pathname + window.location.search)
+          window.dispatchEvent(new HashChangeEvent('hashchange'))
+        }
+      }
+    }
   } catch (err: any) {
     toast.error(err.message || t('registerError'))
   }
@@ -119,7 +150,7 @@ async function handleSubmit() {
 </script>
 
 <template>
-  <div class="lcms-register-form">
+  <div v-if="isVisible" class="lcms-register-form">
     <h3 v-if="headingText" class="lcms-register-form__heading">{{ headingText }}</h3>
 
     <form class="lcms-register-form__form" @submit.prevent="handleSubmit">
@@ -232,7 +263,7 @@ async function handleSubmit() {
   padding: 0.625rem 0.875rem;
   background: var(--lcms-input-bg-color, var(--lcms-color-background, #fff));
   color: var(--lcms-input-text-color, var(--lcms-color-text));
-  border: var(--lcms-input-border-width, 1px) var(--lcms-input-border-style, solid) var(--lcms-input-border-color, #d1d5db);
+  border: var(--lcms-input-border-width, 1px) var(--lcms-input-border-style, solid) var(--lcms-input-border-color, var(--lcms-color-border, #d1d5db));
   border-radius: var(--lcms-border-radius, 0.375rem);
   font-size: 0.9375rem;
   font-family: inherit;

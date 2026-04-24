@@ -47,8 +47,12 @@ provide('sectionIsScrolled', isScrolled)
 const handleScroll = () => {
   const s = settings.value as SectionSettings
   if (s.sticky) {
-    const threshold = s.sticky_top || 10
-    isScrolled.value = window.scrollY > threshold
+    // Trigger scrolled-bg as soon as the user actually starts scrolling.
+    // Using `sticky_top` as the threshold (its original meaning is the *offset*
+    // at which the section pins) made the background fade in only after the
+    // user had scrolled past the offset — a long transparent stretch on
+    // top-pinned sections with a header offset (e.g. sticky_top=80).
+    isScrolled.value = window.scrollY > 4
   }
 }
 
@@ -232,9 +236,10 @@ const sectionStyle = computed(() => {
     }
     style.zIndex = String(s.sticky_z_index ?? 100)
 
-    // Add transition for scrolled state
+    // No transition — flip the background the moment the user touches the
+    // scrollwheel. Any interpolation leaves a visible transparent flash.
     if (s.scrolled_bg) {
-      style.transition = 'background-color 0.3s ease, box-shadow 0.3s ease'
+      style.transition = 'none'
     }
 
     // Apply scrolled styles
@@ -660,6 +665,16 @@ function mapFlexAlign(value: string): string {
     :data-section-id="sectionId"
     :style="{ ...sectionStyle, ...sectionAnimStyle }"
   >
+    <video
+      v-if="(settings as any).background_video_url"
+      class="lcms-section__bg-video"
+      :src="(settings as any).background_video_url"
+      :poster="(settings as any).background_image || undefined"
+      autoplay
+      muted
+      loop
+      playsinline
+    />
     <div
       class="lcms-section__grid"
       :style="gridStyle"
@@ -676,6 +691,16 @@ function mapFlexAlign(value: string): string {
         :style="getColumnStyle(column)"
         :data-column-index="colIndex"
       >
+        <video
+          v-if="(getMergedSettings(column.settings as ColumnSettings) as any).background_video_url"
+          class="lcms-section__column-bg-video"
+          :src="(getMergedSettings(column.settings as ColumnSettings) as any).background_video_url"
+          :poster="(getMergedSettings(column.settings as ColumnSettings) as any).background_image || undefined"
+          autoplay
+          muted
+          loop
+          playsinline
+        />
         <template
           v-for="node in getColumnWidgets(column)"
           :key="node.id"
@@ -722,5 +747,36 @@ function mapFlexAlign(value: string): string {
 .lcms-section__column {
   display: flex;
   flex-direction: column;
+  position: relative;
+}
+
+/* Background video (section + column) — under content, hidden on mobile */
+.lcms-section {
+  position: relative;
+  overflow: hidden;
+}
+.lcms-section__bg-video,
+.lcms-section__column-bg-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: inherit;
+}
+.lcms-section__column:has(> .lcms-section__column-bg-video) {
+  overflow: hidden;
+}
+.lcms-section__grid {
+  position: relative;
+  z-index: 1;
+}
+@media (max-width: 767px) {
+  .lcms-section__bg-video,
+  .lcms-section__column-bg-video {
+    display: none;
+  }
 }
 </style>

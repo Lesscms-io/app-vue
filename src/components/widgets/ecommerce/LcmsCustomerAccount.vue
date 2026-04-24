@@ -13,7 +13,10 @@ import { useStorefront } from '../../../composables/useStorefront'
 import { useToast } from '../../../composables/useToast'
 import { formatPrice } from '../../../utils/currency'
 import LcmsLoginForm from './LcmsLoginForm.vue'
+import LcmsRegisterForm from './LcmsRegisterForm.vue'
 import type { StorefrontOrder } from '../../../api/storefront'
+import { defineAsyncComponent } from 'vue'
+import { useSlotEntries } from '../../../composables/usePluginExtensions'
 
 defineOptions({ inheritAttrs: false })
 
@@ -43,9 +46,61 @@ const showLogout = computed(() => config.value.show_logout !== false)
 
 const currency = computed(() => projectConfig?.value?.commerce?.currency || 'PLN')
 
-const activeTab = ref<'profile' | 'orders' | 'addresses'>('profile')
+// activeTab is a string so plugin-contributed tabs (e.g. "albumy") fit too.
+// Built-in tabs use 'profile' | 'orders' | 'addresses'; plugin tabs use the
+// `key` declared in their manifest's `slots["account.tabs"]` entries.
+const activeTab = ref<string>('profile')
 const orders = ref<StorefrontOrder[]>([])
 const isLoadingOrders = ref(false)
+
+// Per-order expansion state — lazy-loaded order details (items, addresses, etc.)
+const expandedOrderUuid = ref<string | null>(null)
+const orderDetails = ref<Record<string, StorefrontOrder>>({})
+const loadingOrderUuid = ref<string | null>(null)
+
+async function toggleOrderExpand(order: StorefrontOrder) {
+  if (expandedOrderUuid.value === order.uuid) {
+    expandedOrderUuid.value = null
+    return
+  }
+  expandedOrderUuid.value = order.uuid
+  if (!orderDetails.value[order.uuid] && client.value) {
+    loadingOrderUuid.value = order.uuid
+    try {
+      const response = await client.value.getOrder(order.uuid)
+      orderDetails.value[order.uuid] = response.data
+    } catch {
+      // Keep list item as-is on error; user can retry by clicking again
+      delete orderDetails.value[order.uuid]
+    } finally {
+      loadingOrderUuid.value = null
+    }
+  }
+}
+
+function formatAddress(addr: any): string {
+  if (!addr) return ''
+  const parts = [
+    [addr.first_name, addr.last_name].filter(Boolean).join(' '),
+    addr.company,
+    [addr.street, addr.building].filter(Boolean).join(' ') + (addr.apartment ? `/${addr.apartment}` : ''),
+    [addr.postal_code, addr.city].filter(Boolean).join(' '),
+    addr.country,
+  ].filter(Boolean)
+  return parts.join(', ')
+}
+
+// Plugin-contributed account tabs (e.g. "Albumy" from photo-albums).
+// Resolved at render time from the host app's plugin-extensions registry.
+const pluginTabs = computed(() =>
+  useSlotEntries('account.tabs').map((entry) => ({
+    ...entry,
+    component: defineAsyncComponent(entry.loader),
+  })),
+)
+const activePluginTab = computed(() =>
+  pluginTabs.value.find((t) => t.key === activeTab.value) || null,
+)
 
 const profileForm = ref({
   name: '',
@@ -77,6 +132,18 @@ const t = (key: string) => {
       orderDate: 'Data',
       orderStatus: 'Status',
       orderTotal: 'Razem',
+      orderItems: 'Produkty',
+      shippingAddress: 'Adres dostawy',
+      billingAddress: 'Adres rozliczeniowy',
+      paymentMethod: 'Sposób płatności',
+      paymentStatus: 'Płatność',
+      shippingMethod: 'Dostawa',
+      trackingNumber: 'Numer śledzenia',
+      subtotal: 'Suma produktów',
+      shippingCost: 'Dostawa',
+      discount: 'Rabat',
+      orderNotes: 'Uwagi',
+      loadingDetails: 'Ładowanie szczegółów...',
       noAddresses: 'Brak adresów',
       defaultAddress: 'Domyślny',
     },
@@ -99,6 +166,18 @@ const t = (key: string) => {
       orderDate: 'Date',
       orderStatus: 'Status',
       orderTotal: 'Total',
+      orderItems: 'Items',
+      shippingAddress: 'Shipping address',
+      billingAddress: 'Billing address',
+      paymentMethod: 'Payment method',
+      paymentStatus: 'Payment',
+      shippingMethod: 'Shipping',
+      trackingNumber: 'Tracking number',
+      subtotal: 'Subtotal',
+      shippingCost: 'Shipping',
+      discount: 'Discount',
+      orderNotes: 'Notes',
+      loadingDetails: 'Loading details...',
       noAddresses: 'No addresses',
       defaultAddress: 'Default',
     },
@@ -168,12 +247,20 @@ function formatDate(date: string) {
 
 <template>
   <div class="lcms-customer-account">
-    <!-- Login form if not authenticated -->
-    <LcmsLoginForm
-      v-if="!customer.isAuthenticated.value"
-      :data="{ heading: { text: headingText } }"
-      :language="language"
-    />
+    <div v-if="!customer.isInitialized.value" class="lcms-customer-account__loading">
+      <div class="lcms-customer-account__spinner" aria-hidden="true" />
+    </div>
+
+    <template v-else-if="!customer.isAuthenticated.value">
+      <LcmsLoginForm
+        :data="{ heading: { text: headingText } }"
+        :language="language"
+      />
+      <LcmsRegisterForm
+        :data="{ heading: { text: headingText } }"
+        :language="language"
+      />
+    </template>
 
     <div v-else class="lcms-customer-account__content">
       <h2 class="lcms-customer-account__heading">{{ headingText }}</h2>
@@ -206,6 +293,16 @@ function formatDate(date: string) {
           @click="activeTab = 'addresses'"
         >
           {{ t('addresses') }}
+        </button>
+        <button
+          v-for="pTab in pluginTabs"
+          :key="`${pTab.pluginId}:${pTab.key}`"
+          type="button"
+          class="lcms-customer-account__tab"
+          :class="{ 'lcms-customer-account__tab--active': activeTab === pTab.key }"
+          @click="activeTab = pTab.key"
+        >
+          {{ pTab.label || pTab.key }}
         </button>
       </div>
 
@@ -254,21 +351,154 @@ function formatDate(date: string) {
         </div>
 
         <div v-else class="lcms-customer-account__orders">
-          <div v-for="order in orders" :key="order.uuid" class="lcms-customer-account__order">
-            <div class="lcms-customer-account__order-header">
-              <div>
-                <div class="lcms-customer-account__order-number">{{ order.order_number }}</div>
-                <div class="lcms-customer-account__order-date">{{ formatDate(order.created_at) }}</div>
+          <div
+            v-for="order in orders"
+            :key="order.uuid"
+            class="lcms-customer-account__order"
+            :class="{ 'lcms-customer-account__order--expanded': expandedOrderUuid === order.uuid }"
+          >
+            <button
+              type="button"
+              class="lcms-customer-account__order-summary"
+              :aria-expanded="expandedOrderUuid === order.uuid"
+              @click="toggleOrderExpand(order)"
+            >
+              <div class="lcms-customer-account__order-header">
+                <div class="lcms-customer-account__order-header-main">
+                  <div class="lcms-customer-account__order-number">{{ order.order_number }}</div>
+                  <div class="lcms-customer-account__order-date">{{ formatDate(order.created_at) }}</div>
+                </div>
+                <span class="lcms-customer-account__order-status" :class="`lcms-customer-account__order-status--${order.status}`">
+                  {{ order.status }}
+                </span>
+                <div class="lcms-customer-account__order-total">
+                  {{ formatPrice(order.total, currency) }}
+                </div>
+                <svg
+                  class="lcms-customer-account__order-chevron"
+                  :class="{ 'lcms-customer-account__order-chevron--open': expandedOrderUuid === order.uuid }"
+                  viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"
+                >
+                  <path d="M6 8l4 4 4-4" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
               </div>
-              <span class="lcms-customer-account__order-status" :class="`lcms-customer-account__order-status--${order.status}`">
-                {{ order.status }}
-              </span>
-            </div>
-            <div class="lcms-customer-account__order-total">
-              {{ formatPrice(order.total, currency) }}
+            </button>
+
+            <div v-if="expandedOrderUuid === order.uuid" class="lcms-customer-account__order-details">
+              <div v-if="loadingOrderUuid === order.uuid" class="lcms-customer-account__order-loading">
+                {{ t('loadingDetails') }}
+              </div>
+
+              <template v-else-if="orderDetails[order.uuid]">
+                <!-- Items -->
+                <div
+                  v-if="orderDetails[order.uuid].items && orderDetails[order.uuid].items.length"
+                  class="lcms-customer-account__order-section"
+                >
+                  <h5 class="lcms-customer-account__order-section-title">{{ t('orderItems') }}</h5>
+                  <div class="lcms-customer-account__order-items">
+                    <div
+                      v-for="item in orderDetails[order.uuid].items"
+                      :key="item.uuid"
+                      class="lcms-customer-account__order-item"
+                    >
+                      <div class="lcms-customer-account__order-item-main">
+                        <div class="lcms-customer-account__order-item-name">{{ item.name }}</div>
+                        <div class="lcms-customer-account__order-item-meta">
+                          <span v-if="item.sku">SKU: {{ item.sku }}</span>
+                          <span>{{ item.quantity }} × {{ formatPrice(item.unit_price, currency) }}</span>
+                        </div>
+                      </div>
+                      <div class="lcms-customer-account__order-item-subtotal">
+                        {{ formatPrice(item.subtotal, currency) }}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Totals breakdown -->
+                <div class="lcms-customer-account__order-section lcms-customer-account__order-totals">
+                  <div v-if="orderDetails[order.uuid].subtotal" class="lcms-customer-account__order-total-row">
+                    <span>{{ t('subtotal') }}</span>
+                    <span>{{ formatPrice(orderDetails[order.uuid].subtotal, currency) }}</span>
+                  </div>
+                  <div v-if="orderDetails[order.uuid].discount" class="lcms-customer-account__order-total-row">
+                    <span>{{ t('discount') }}</span>
+                    <span>-{{ formatPrice(orderDetails[order.uuid].discount, currency) }}</span>
+                  </div>
+                  <div v-if="orderDetails[order.uuid].shipping_cost" class="lcms-customer-account__order-total-row">
+                    <span>{{ t('shippingCost') }}</span>
+                    <span>{{ formatPrice(orderDetails[order.uuid].shipping_cost, currency) }}</span>
+                  </div>
+                  <div class="lcms-customer-account__order-total-row lcms-customer-account__order-total-row--grand">
+                    <span>{{ t('orderTotal') }}</span>
+                    <span>{{ formatPrice(orderDetails[order.uuid].total, currency) }}</span>
+                  </div>
+                </div>
+
+                <!-- Shipping + payment methods -->
+                <div
+                  v-if="orderDetails[order.uuid].shipping_method || orderDetails[order.uuid].payment_method || orderDetails[order.uuid].tracking_number"
+                  class="lcms-customer-account__order-section lcms-customer-account__order-meta-grid"
+                >
+                  <div v-if="orderDetails[order.uuid].shipping_method">
+                    <div class="lcms-customer-account__order-meta-label">{{ t('shippingMethod') }}</div>
+                    <div class="lcms-customer-account__order-meta-value">{{ orderDetails[order.uuid].shipping_method }}</div>
+                  </div>
+                  <div v-if="orderDetails[order.uuid].payment_method">
+                    <div class="lcms-customer-account__order-meta-label">{{ t('paymentMethod') }}</div>
+                    <div class="lcms-customer-account__order-meta-value">
+                      {{ orderDetails[order.uuid].payment_method }}
+                      <span
+                        v-if="orderDetails[order.uuid].payment_status"
+                        class="lcms-customer-account__order-payment-status"
+                      >
+                        ({{ orderDetails[order.uuid].payment_status }})
+                      </span>
+                    </div>
+                  </div>
+                  <div v-if="orderDetails[order.uuid].tracking_number">
+                    <div class="lcms-customer-account__order-meta-label">{{ t('trackingNumber') }}</div>
+                    <div class="lcms-customer-account__order-meta-value">{{ orderDetails[order.uuid].tracking_number }}</div>
+                  </div>
+                </div>
+
+                <!-- Addresses -->
+                <div
+                  v-if="orderDetails[order.uuid].shipping_address || orderDetails[order.uuid].billing_address"
+                  class="lcms-customer-account__order-section lcms-customer-account__order-addresses"
+                >
+                  <div v-if="orderDetails[order.uuid].shipping_address">
+                    <div class="lcms-customer-account__order-meta-label">{{ t('shippingAddress') }}</div>
+                    <div class="lcms-customer-account__order-meta-value">
+                      {{ formatAddress(orderDetails[order.uuid].shipping_address) }}
+                    </div>
+                  </div>
+                  <div v-if="orderDetails[order.uuid].billing_address">
+                    <div class="lcms-customer-account__order-meta-label">{{ t('billingAddress') }}</div>
+                    <div class="lcms-customer-account__order-meta-value">
+                      {{ formatAddress(orderDetails[order.uuid].billing_address) }}
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Notes -->
+                <div
+                  v-if="orderDetails[order.uuid].notes"
+                  class="lcms-customer-account__order-section"
+                >
+                  <div class="lcms-customer-account__order-meta-label">{{ t('orderNotes') }}</div>
+                  <div class="lcms-customer-account__order-meta-value">{{ orderDetails[order.uuid].notes }}</div>
+                </div>
+              </template>
             </div>
           </div>
         </div>
+      </div>
+
+      <!-- Plugin tab panel — rendered when the active tab belongs to a plugin -->
+      <div v-if="activePluginTab" class="lcms-customer-account__panel">
+        <component :is="activePluginTab.component" :customer="customer.customer.value" />
       </div>
 
       <!-- Addresses -->
@@ -308,6 +538,25 @@ function formatDate(date: string) {
 .lcms-customer-account {
   font-family: var(--lcms-font-body, system-ui, sans-serif);
   color: var(--lcms-color-text, #1f2937);
+}
+
+.lcms-customer-account__loading {
+  display: flex;
+  justify-content: center;
+  padding: 3rem 0;
+}
+
+.lcms-customer-account__spinner {
+  width: 2rem;
+  height: 2rem;
+  border: 3px solid var(--lcms-color-border, #e5e7eb);
+  border-top-color: var(--lcms-color-primary, #2563eb);
+  border-radius: 50%;
+  animation: lcms-customer-account-spin 0.8s linear infinite;
+}
+
+@keyframes lcms-customer-account-spin {
+  to { transform: rotate(360deg); }
 }
 
 .lcms-customer-account__heading {
@@ -376,7 +625,7 @@ function formatDate(date: string) {
   padding: 0.625rem 0.875rem;
   background: var(--lcms-input-bg-color, var(--lcms-color-background, #fff));
   color: var(--lcms-input-text-color, var(--lcms-color-text));
-  border: 1px solid var(--lcms-input-border-color, #d1d5db);
+  border: 1px solid var(--lcms-input-border-color, var(--lcms-color-border, #d1d5db));
   border-radius: var(--lcms-border-radius, 0.375rem);
   font-size: 0.9375rem;
   font-family: inherit;
@@ -428,18 +677,177 @@ function formatDate(date: string) {
 }
 
 .lcms-customer-account__order {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 1rem;
   border: 1px solid var(--lcms-color-border, #e5e7eb);
   border-radius: var(--lcms-border-radius, 0.375rem);
+  overflow: hidden;
+  transition: border-color 0.15s;
+}
+
+.lcms-customer-account__order--expanded {
+  border-color: var(--lcms-color-text, #1f2937);
+}
+
+.lcms-customer-account__order-summary {
+  width: 100%;
+  background: transparent;
+  border: 0;
+  padding: 1rem;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  transition: background 0.15s;
+}
+
+.lcms-customer-account__order-summary:hover {
+  background: var(--lcms-color-background-alt, #f9fafb);
 }
 
 .lcms-customer-account__order-header {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto auto auto;
   align-items: center;
   gap: 1rem;
+}
+
+.lcms-customer-account__order-header-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.lcms-customer-account__order-chevron {
+  width: 20px;
+  height: 20px;
+  color: var(--lcms-color-muted, #9ca3af);
+  transition: transform 0.2s;
+}
+
+.lcms-customer-account__order-chevron--open {
+  transform: rotate(180deg);
+  color: var(--lcms-color-text, #1f2937);
+}
+
+.lcms-customer-account__order-details {
+  padding: 1rem 1.25rem 1.25rem;
+  border-top: 1px solid var(--lcms-color-border, #e5e7eb);
+  background: var(--lcms-color-background-alt, #fafafa);
+}
+
+.lcms-customer-account__order-loading {
+  padding: 1rem;
+  color: var(--lcms-color-muted, #6b7280);
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+.lcms-customer-account__order-section {
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--lcms-color-border, #e5e7eb);
+}
+
+.lcms-customer-account__order-section:last-child {
+  border-bottom: 0;
+}
+
+.lcms-customer-account__order-section-title {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--lcms-color-muted, #6b7280);
+  margin: 0 0 0.5rem 0;
+}
+
+.lcms-customer-account__order-items {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.lcms-customer-account__order-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.5rem 0;
+  background: #fff;
+  padding: 0.5rem 0.75rem;
+  border-radius: 4px;
+}
+
+.lcms-customer-account__order-item-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.lcms-customer-account__order-item-name {
+  font-weight: 500;
+  color: var(--lcms-color-text, #1f2937);
+}
+
+.lcms-customer-account__order-item-meta {
+  display: flex;
+  gap: 0.75rem;
+  font-size: 0.8125rem;
+  color: var(--lcms-color-muted, #6b7280);
+  margin-top: 2px;
+}
+
+.lcms-customer-account__order-item-subtotal {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.lcms-customer-account__order-totals {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.lcms-customer-account__order-total-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.875rem;
+  color: var(--lcms-color-text, #1f2937);
+}
+
+.lcms-customer-account__order-total-row--grand {
+  font-weight: 700;
+  font-size: 1rem;
+  padding-top: 6px;
+  border-top: 1px solid var(--lcms-color-border, #e5e7eb);
+  margin-top: 4px;
+}
+
+.lcms-customer-account__order-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.lcms-customer-account__order-addresses {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 1rem;
+}
+
+.lcms-customer-account__order-meta-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--lcms-color-muted, #6b7280);
+  margin-bottom: 2px;
+}
+
+.lcms-customer-account__order-meta-value {
+  font-size: 0.9375rem;
+  color: var(--lcms-color-text, #1f2937);
+}
+
+.lcms-customer-account__order-payment-status {
+  font-size: 0.8125rem;
+  color: var(--lcms-color-muted, #6b7280);
 }
 
 .lcms-customer-account__order-number {
@@ -505,7 +913,7 @@ function formatDate(date: string) {
   right: 0.5rem;
   font-size: 0.6875rem;
   background: var(--lcms-color-primary, #3b82f6);
-  color: #fff;
+  color: var(--lcms-color-white, #fff);
   padding: 0.125rem 0.5rem;
   border-radius: 9999px;
   font-weight: 600;

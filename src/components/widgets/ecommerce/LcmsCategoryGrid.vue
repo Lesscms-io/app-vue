@@ -5,7 +5,7 @@
  * Displays top-level product categories from LessCommerce.
  */
 
-import { computed, ref, onMounted, watch, inject, type Ref } from 'vue'
+import { computed, ref, onMounted, onServerPrefetch, watch, inject, type Ref } from 'vue'
 import { useLanguage } from '../../../composables/useLanguage'
 import { useStorefront } from '../../../composables/useStorefront'
 import type { StorefrontCategory } from '../../../api/storefront'
@@ -63,8 +63,14 @@ async function fetchCategories() {
   }
 }
 
-onMounted(() => {
+onServerPrefetch(async () => {
   if (isAvailable.value) {
+    await fetchCategories()
+  }
+})
+
+onMounted(() => {
+  if (isAvailable.value && categories.value.length === 0 && !error.value) {
     fetchCategories()
   }
 })
@@ -182,7 +188,7 @@ const t = (key: string) => {
 
 .lcms-category-card--skeleton {
   aspect-ratio: 4 / 3;
-  background: linear-gradient(90deg, #f3f4f6 0%, #e5e7eb 50%, #f3f4f6 100%);
+  background: linear-gradient(90deg, var(--lcms-color-background-alt, #f3f4f6) 0%, var(--lcms-color-border, #e5e7eb) 50%, var(--lcms-color-background-alt, #f3f4f6) 100%);
   background-size: 200% 100%;
   animation: lcms-skel 1.5s ease-in-out infinite;
 }
@@ -227,7 +233,7 @@ const t = (key: string) => {
   justify-content: flex-end;
   padding: 1.5rem;
   background: linear-gradient(to top, rgba(0, 0, 0, 0.7) 0%, rgba(0, 0, 0, 0.2) 60%, transparent 100%);
-  color: #fff;
+  color: var(--lcms-color-white, #fff);
 }
 
 .lcms-category-card__name {

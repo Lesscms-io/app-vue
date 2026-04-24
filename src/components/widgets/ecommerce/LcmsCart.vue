@@ -108,7 +108,12 @@ function handleCheckout() {
   <div class="lcms-cart">
     <h2 class="lcms-cart__heading">{{ headingText }}</h2>
 
-    <div v-if="cart.isEmpty.value" class="lcms-cart__empty">
+    <!-- Initial fetch — avoid flashing "cart is empty" before the real state arrives. -->
+    <div v-if="!cart.hasInitialized.value || cart.isLoading.value" class="lcms-cart__loading">
+      <div class="lcms-cart__spinner" aria-hidden="true" />
+    </div>
+
+    <div v-else-if="cart.isEmpty.value" class="lcms-cart__empty">
       <svg class="lcms-cart__empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
         <circle cx="9" cy="21" r="1" />
         <circle cx="20" cy="21" r="1" />
@@ -245,6 +250,28 @@ function handleCheckout() {
   font-weight: var(--lcms-h1-font-weight, 700);
   color: var(--lcms-h1-color, var(--lcms-color-text));
   margin: 0 0 var(--lcms-section-gap, 2rem);
+}
+
+/* Loading state — shown during the initial cart fetch so the customer does not
+   see a momentary "cart is empty" flash before real data arrives. */
+.lcms-cart__loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 6rem 1rem;
+}
+
+.lcms-cart__spinner {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 3px solid var(--lcms-color-border, #e5e7eb);
+  border-top-color: var(--lcms-color-primary, #3d2b1f);
+  animation: lcms-cart-spin 0.8s linear infinite;
+}
+
+@keyframes lcms-cart-spin {
+  to { transform: rotate(360deg); }
 }
 
 /* Empty state */

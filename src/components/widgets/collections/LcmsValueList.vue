@@ -686,19 +686,19 @@ a.lcms-value-list__card:hover {
 
 .lcms-value-list__card-subtitle {
   font-size: 0.85rem;
-  color: #6c757d;
+  color: var(--lcms-color-muted, #6c757d);
   margin-top: 0.15rem;
 }
 
 .lcms-value-list__card-arrow {
   flex-shrink: 0;
-  color: #adb5bd;
+  color: var(--lcms-color-muted, #adb5bd);
   font-size: 0.875rem;
   transition: transform 0.2s;
 }
 
 a.lcms-value-list__card:hover .lcms-value-list__card-arrow {
   transform: translateX(3px);
-  color: #495057;
+  color: var(--lcms-color-text, #495057);
 }
 </style>

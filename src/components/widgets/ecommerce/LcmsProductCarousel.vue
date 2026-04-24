@@ -5,7 +5,7 @@
  * Horizontal scrolling carousel of products with arrow navigation.
  */
 
-import { computed, ref, onMounted, watch, inject, onUnmounted, type Ref } from 'vue'
+import { computed, ref, onMounted, onServerPrefetch, watch, inject, onUnmounted, type Ref } from 'vue'
 import { useLanguage } from '../../../composables/useLanguage'
 import { useStorefront } from '../../../composables/useStorefront'
 import { formatPrice } from '../../../utils/currency'
@@ -61,7 +61,7 @@ const currency = computed(() => projectConfig?.value?.commerce?.currency || 'PLN
 
 const productUrl = (product: StorefrontProduct) => {
   const route = projectConfig?.value?.commerce?.routes?.product || '/produkt/:slug'
-  return route.replace(':slug', product.slug)
+  return route.replace(':slug', product.slug || product.sku || product.uuid)
 }
 
 const trackStyle = computed(() => ({
@@ -148,9 +148,16 @@ async function fetchProducts() {
   }
 }
 
+// SSR: fetch products before render so they appear in the initial HTML
+onServerPrefetch(async () => {
+  if (isAvailable.value) {
+    await fetchProducts()
+  }
+})
+
 onMounted(() => {
   updateItemsPerView()
-  if (isAvailable.value) fetchProducts()
+  if (isAvailable.value && products.value.length === 0 && !error.value) fetchProducts()
   if (typeof window !== 'undefined') {
     window.addEventListener('resize', updateItemsPerView)
     if (autoplay.value) startAutoplay()

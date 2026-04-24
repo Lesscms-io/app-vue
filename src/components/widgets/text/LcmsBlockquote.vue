@@ -93,7 +93,7 @@ const blockquoteContainerStyle = computed(() => {
 
 <style scoped>
 .lcms-blockquote {
-  --accent-color: #50a5f1;
+  --accent-color: var(--lcms-color-primary, #50a5f1);
   margin: 0;
   padding: 16px 0;
   transition: transform var(--transition-duration, 200ms) ease, box-shadow var(--transition-duration, 200ms) ease;
@@ -112,7 +112,7 @@ const blockquoteContainerStyle = computed(() => {
 }
 
 .lcms-blockquote--filled {
-  background-color: #f8f9fa;
+  background-color: var(--lcms-color-background-alt, #f8f9fa);
   border-radius: 8px;
   padding: 24px;
 }
@@ -134,7 +134,7 @@ const blockquoteContainerStyle = computed(() => {
   align-items: center;
   gap: 8px;
   font-size: 0.9em;
-  color: #6c757d;
+  color: var(--lcms-color-muted, #6c757d);
 }
 
 .lcms-blockquote__author {

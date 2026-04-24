@@ -13,6 +13,13 @@ import { useToast } from '../../../composables/useToast'
 import { formatPrice, calculateDiscount } from '../../../utils/currency'
 import type { StorefrontProduct } from '../../../api/storefront'
 
+interface ResolvedRoute {
+  pageCode: string
+  pageUuid: string
+  params: Record<string, string>
+  isHomepage: boolean
+}
+
 defineOptions({ inheritAttrs: false })
 
 interface Props {
@@ -30,6 +37,7 @@ const toast = useToast()
 const projectConfig = inject<Ref<any> | null>('lesscms-project-config', null)
 
 const config = computed(() => props.data?.config || props.data || {})
+const resolvedRoute = inject<Ref<ResolvedRoute | null> | null>('routeParams', null)
 
 const addToCartText = computed(() =>
   extractValue(props.data?.add_to_cart_button?.text) || (props.language === 'en' ? 'Add to cart' : 'Dodaj do koszyka')
@@ -43,6 +51,9 @@ const slugSource = computed(() => config.value.slug_source || 'url')
 const slugUrlSegment = computed(() => Number(config.value.slug_url_segment ?? 1))
 const staticSlug = computed(() => config.value.slug || '')
 
+// Try injected product first (from renderer [...slug].vue), fallback to own fetch
+const injectedProduct = inject<Ref<any> | null>('lcms-product', null)
+
 const product = ref<StorefrontProduct | null>(null)
 const isLoading = ref(false)
 const error = ref<string | null>(null)
@@ -52,41 +63,89 @@ const isAdding = ref(false)
 
 const currency = computed(() => projectConfig?.value?.commerce?.currency || 'PLN')
 
+// Use injected product if available
+const effectiveProduct = computed<any>(() => {
+  const injected = injectedProduct?.value
+  if (injected) return injected
+  return product.value
+})
+
 const resolvedSlug = computed(() => {
   if (slugSource.value === 'static') return staticSlug.value
+  // Try route params first (SSR-safe)
+  const routeVal = resolvedRoute?.value
+  if (routeVal?.params?.slug) return routeVal.params.slug
+  // Fallback: parse window.location (client-only)
   if (typeof window === 'undefined') return ''
   const segments = window.location.pathname.split('/').filter(Boolean)
   return segments[slugUrlSegment.value] || ''
 })
 
 const hasDiscount = computed(() =>
-  product.value?.compare_at_price && product.value.compare_at_price > product.value.price
+  effectiveProduct.value?.compare_at_price && effectiveProduct.value.compare_at_price > effectiveProduct.value.price
 )
 
 const discountPercent = computed(() => {
-  if (!product.value?.compare_at_price) return 0
-  return calculateDiscount(product.value.compare_at_price, product.value.price)
+  if (!effectiveProduct.value?.compare_at_price) return 0
+  return calculateDiscount(effectiveProduct.value.compare_at_price, effectiveProduct.value.price)
 })
 
 const inStock = computed(() => {
-  if (!product.value) return false
-  if (!product.value.track_stock) return true
-  return product.value.stock > 0
+  if (!effectiveProduct.value) return false
+  if (!effectiveProduct.value.track_stock) return true
+  return effectiveProduct.value.stock > 0
 })
 
 const stockStatus = computed(() => {
-  if (!product.value) return null
-  if (!product.value.track_stock) return 'available'
-  if (product.value.stock <= 0) return 'out'
-  if (product.value.stock < 5) return 'low'
+  if (!effectiveProduct.value) return null
+  if (!effectiveProduct.value.track_stock) return 'available'
+  if (effectiveProduct.value.stock <= 0) return 'out'
+  if (effectiveProduct.value.stock < 5) return 'low'
   return 'available'
 })
 
+// Template attributes for auto-render (skip image attribute used in gallery)
+const displayAttributes = computed(() => {
+  const p = effectiveProduct.value
+  if (!p?.template_attributes) return []
+  const imgCode = p.template?.main_image_attribute_code
+  return p.template_attributes.filter((a: any) => a.code !== imgCode)
+})
+
+function getAttributeValue(product: any, attrCode: string): any {
+  return product?.attributes?.[attrCode] ?? null
+}
+
+function formatAttributeValue(value: any, type: string): string {
+  if (value == null) return ''
+  if (Array.isArray(value)) {
+    return value.map(v => typeof v === 'object' ? (v.value || JSON.stringify(v)) : String(v)).join(', ')
+  }
+  if (typeof value === 'object') {
+    // Multilingual object — try current language
+    const lang = props.language || 'pl'
+    return value[lang] || Object.values(value)[0] || ''
+  }
+  if (type === 'bool') return value ? 'Tak' : 'Nie'
+  return String(value)
+}
+
 const allImages = computed(() => {
-  if (!product.value) return []
-  const imgs = [...(product.value.images || [])]
-  if (product.value.image && !imgs.includes(product.value.image)) {
-    imgs.unshift(product.value.image)
+  const p = effectiveProduct.value
+  if (!p) return []
+
+  // Try main_image_attribute_code from template first
+  const imgAttrCode = p.template?.main_image_attribute_code
+  if (imgAttrCode && p.attributes?.[imgAttrCode]) {
+    const attrVal = p.attributes[imgAttrCode]
+    if (Array.isArray(attrVal)) return attrVal
+    if (typeof attrVal === 'string') return [attrVal]
+  }
+
+  // Fallback to core image fields
+  const imgs = [...(p.images || [])]
+  if (p.image && !imgs.includes(p.image)) {
+    imgs.unshift(p.image)
   }
   return imgs
 })
@@ -146,11 +205,11 @@ async function fetchProduct() {
 }
 
 async function handleAddToCart() {
-  if (!product.value || !inStock.value) return
+  if (!effectiveProduct.value || !inStock.value) return
 
   isAdding.value = true
   try {
-    await cart.addItem(product.value.uuid, quantity.value)
+    await cart.addItem(effectiveProduct.value.uuid, quantity.value)
     toast.success(t('addedToCart'))
   } catch (err: any) {
     toast.error(err.message || t('addError'))
@@ -160,7 +219,7 @@ async function handleAddToCart() {
 }
 
 function increaseQty() {
-  if (product.value?.track_stock && quantity.value >= product.value.stock) return
+  if (effectiveProduct.value?.track_stock && quantity.value >= effectiveProduct.value.stock) return
   quantity.value++
 }
 
@@ -169,19 +228,22 @@ function decreaseQty() {
 }
 
 onMounted(() => {
+  // Skip fetch if product is injected from renderer
+  if (injectedProduct?.value) return
   if (isAvailable.value) fetchProduct()
 })
 
 watch([resolvedSlug, isAvailable], () => {
+  if (injectedProduct?.value) return
   if (isAvailable.value) fetchProduct()
 })
 </script>
 
 <template>
   <div class="lcms-product-detail">
-    <div v-if="isLoading" class="lcms-product-detail__loading">{{ t('loading') }}</div>
+    <div v-if="isLoading && !effectiveProduct" class="lcms-product-detail__loading">{{ t('loading') }}</div>
 
-    <div v-else-if="error || !product" class="lcms-product-detail__not-found">
+    <div v-else-if="!effectiveProduct" class="lcms-product-detail__not-found">
       {{ error || t('notFound') }}
     </div>
 
@@ -192,7 +254,7 @@ watch([resolvedSlug, isAvailable], () => {
           <img
             v-if="mainImage"
             :src="mainImage"
-            :alt="product.name"
+            :alt="effectiveProduct.name"
             class="lcms-product-detail__main-image"
           />
           <div v-else class="lcms-product-detail__no-image">
@@ -215,26 +277,26 @@ watch([resolvedSlug, isAvailable], () => {
             :class="{ 'lcms-product-detail__thumb--active': idx === selectedImageIdx }"
             @click="selectedImageIdx = idx"
           >
-            <img :src="img" :alt="`${product.name} ${idx + 1}`" />
+            <img :src="img" :alt="`${effectiveProduct.name} ${idx + 1}`" />
           </button>
         </div>
       </div>
 
       <!-- Info -->
       <div class="lcms-product-detail__info">
-        <span v-if="product.category" class="lcms-product-detail__category">
-          {{ product.category.name }}
+        <span v-if="effectiveProduct.category" class="lcms-product-detail__category">
+          {{ effectiveProduct.category.name }}
         </span>
 
-        <h1 class="lcms-product-detail__name">{{ product.name }}</h1>
+        <h1 class="lcms-product-detail__name">{{ effectiveProduct.name }}</h1>
 
-        <div class="lcms-product-detail__sku">{{ t('sku') }}: {{ product.sku }}</div>
+        <div class="lcms-product-detail__sku">{{ t('sku') }}: {{ effectiveProduct.sku }}</div>
 
         <div class="lcms-product-detail__price-wrap">
           <span v-if="hasDiscount" class="lcms-product-detail__price-original">
-            {{ formatPrice(product.compare_at_price, currency) }}
+            {{ formatPrice(effectiveProduct.compare_at_price, currency) }}
           </span>
-          <span class="lcms-product-detail__price">{{ formatPrice(product.price, currency) }}</span>
+          <span class="lcms-product-detail__price">{{ formatPrice(effectiveProduct.price, currency) }}</span>
         </div>
 
         <div
@@ -245,8 +307,8 @@ watch([resolvedSlug, isAvailable], () => {
           {{ stockStatus === 'available' ? t('stockAvailable') : stockStatus === 'low' ? t('stockLow') : t('stockOut') }}
         </div>
 
-        <p v-if="product.short_description" class="lcms-product-detail__short-description">
-          {{ product.short_description }}
+        <p v-if="effectiveProduct.short_description" class="lcms-product-detail__short-description">
+          {{ effectiveProduct.short_description }}
         </p>
 
         <div v-if="inStock" class="lcms-product-detail__actions">
@@ -276,21 +338,60 @@ watch([resolvedSlug, isAvailable], () => {
         </div>
 
         <!-- Description -->
-        <div v-if="showDescription && product.description" class="lcms-product-detail__section">
+        <div v-if="showDescription && effectiveProduct.description" class="lcms-product-detail__section">
           <h3 class="lcms-product-detail__section-title">{{ t('description') }}</h3>
-          <div class="lcms-product-detail__description" v-html="product.description" />
+          <div class="lcms-product-detail__description" v-html="effectiveProduct.description" />
         </div>
 
-        <!-- Specifications -->
+        <!-- Auto-render template attributes -->
         <div
-          v-if="showSpecifications && product.attributes && Object.keys(product.attributes).length > 0"
+          v-if="displayAttributes.length > 0"
           class="lcms-product-detail__section"
         >
           <h3 class="lcms-product-detail__section-title">{{ t('specifications') }}</h3>
           <table class="lcms-product-detail__specs">
-            <tr v-for="(value, key) in product.attributes" :key="String(key)">
+            <template v-for="attr in displayAttributes" :key="attr.code">
+              <tr v-if="getAttributeValue(effectiveProduct, attr.code) != null">
+                <th>{{ attr.name }}</th>
+                <td>
+                  <!-- Gallery type -->
+                  <div v-if="attr.type === 'gallery'" class="lcms-product-detail__attr-gallery">
+                    <img
+                      v-for="(img, i) in (Array.isArray(getAttributeValue(effectiveProduct, attr.code)) ? getAttributeValue(effectiveProduct, attr.code) : [])"
+                      :key="i"
+                      :src="img"
+                      class="lcms-product-detail__attr-gallery-img"
+                    />
+                  </div>
+                  <!-- Image type -->
+                  <img
+                    v-else-if="attr.type === 'image'"
+                    :src="String(getAttributeValue(effectiveProduct, attr.code))"
+                    class="lcms-product-detail__attr-image"
+                  />
+                  <!-- Textarea/HTML -->
+                  <div
+                    v-else-if="attr.type === 'textarea'"
+                    v-html="formatAttributeValue(getAttributeValue(effectiveProduct, attr.code), attr.type)"
+                  />
+                  <!-- Default: text, number, select, bool, date -->
+                  <span v-else>{{ formatAttributeValue(getAttributeValue(effectiveProduct, attr.code), attr.type) }}</span>
+                </td>
+              </tr>
+            </template>
+          </table>
+        </div>
+
+        <!-- Legacy: raw specifications (when no template_attributes) -->
+        <div
+          v-else-if="showSpecifications && effectiveProduct.attributes && Object.keys(effectiveProduct.attributes).length > 0 && !displayAttributes.length"
+          class="lcms-product-detail__section"
+        >
+          <h3 class="lcms-product-detail__section-title">{{ t('specifications') }}</h3>
+          <table class="lcms-product-detail__specs">
+            <tr v-for="(value, key) in effectiveProduct.attributes" :key="String(key)">
               <th>{{ key }}</th>
-              <td>{{ value }}</td>
+              <td>{{ formatAttributeValue(value, 'text') }}</td>
             </tr>
           </table>
         </div>
@@ -373,7 +474,7 @@ watch([resolvedSlug, isAvailable], () => {
   top: 1rem;
   right: 1rem;
   background: var(--lcms-color-danger, #ef4444);
-  color: #fff;
+  color: var(--lcms-color-white, #fff);
   font-size: 0.875rem;
   font-weight: 700;
   padding: 0.5rem 0.75rem;
@@ -593,7 +694,7 @@ watch([resolvedSlug, isAvailable], () => {
   width: 1rem;
   height: 1rem;
   border: 2px solid rgba(255, 255, 255, 0.3);
-  border-top-color: #fff;
+  border-top-color: var(--lcms-color-white, #fff);
   border-radius: 50%;
   animation: lcms-spin 0.8s linear infinite;
 }
@@ -641,5 +742,24 @@ watch([resolvedSlug, isAvailable], () => {
   font-weight: 500;
   color: var(--lcms-color-muted, #6b7280);
   width: 40%;
+}
+
+.lcms-product-detail__attr-gallery {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.lcms-product-detail__attr-gallery-img {
+  width: 60px;
+  height: 60px;
+  object-fit: cover;
+  border-radius: 0.25rem;
+  border: 1px solid var(--lcms-color-border, #e5e7eb);
+}
+
+.lcms-product-detail__attr-image {
+  max-width: 120px;
+  border-radius: 0.25rem;
 }
 </style>

@@ -190,7 +190,7 @@ const buttonInlineStyle = computed(() => {
   display: flex;
   flex-direction: column;
   background: #fff;
-  border: 2px solid #e9ecef;
+  border: 2px solid var(--lcms-color-border, #e9ecef);
   border-radius: 1rem;
   padding: 2rem;
   position: relative;
@@ -205,7 +205,7 @@ const buttonInlineStyle = computed(() => {
 }
 
 .lcms-pricing--highlighted {
-  border-color: #50a5f1;
+  border-color: var(--lcms-color-primary, #50a5f1);
   box-shadow: 0 4px 20px rgba(80, 165, 241, 0.15);
 }
 
@@ -215,7 +215,7 @@ const buttonInlineStyle = computed(() => {
   left: 50%;
   transform: translateX(-50%);
   padding: 0.25rem 1rem;
-  background: #50a5f1;
+  background: var(--lcms-color-primary, #50a5f1);
   color: #fff;
   font-size: 0.75rem;
   font-weight: 600;
@@ -236,7 +236,7 @@ const buttonInlineStyle = computed(() => {
 
 .lcms-pricing__subtitle {
   font-size: 0.875rem;
-  color: #6c757d;
+  color: var(--lcms-color-muted, #6c757d);
   margin: 0 0 1rem 0;
 }
 
@@ -254,7 +254,7 @@ const buttonInlineStyle = computed(() => {
 
 .lcms-pricing__period {
   font-size: 0.875rem;
-  color: #6c757d;
+  color: var(--lcms-color-muted, #6c757d);
 }
 
 .lcms-pricing__features {
@@ -274,23 +274,23 @@ const buttonInlineStyle = computed(() => {
 }
 
 .lcms-pricing__feature i {
-  color: #28a745;
+  color: var(--lcms-color-success, #28a745);
   width: 1rem;
   flex-shrink: 0;
 }
 
 .lcms-pricing__feature--excluded {
-  color: #adb5bd;
+  color: var(--lcms-color-muted, #adb5bd);
 }
 
 .lcms-pricing__feature--excluded i {
-  color: #dc3545;
+  color: var(--lcms-color-danger, #dc3545);
 }
 
 .lcms-pricing__button {
   display: block;
   padding: 0.75rem 1.5rem;
-  background: #50a5f1;
+  background: var(--lcms-color-primary, #50a5f1);
   color: #fff;
   font-weight: 600;
   text-decoration: none;

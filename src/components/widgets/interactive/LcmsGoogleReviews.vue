@@ -330,7 +330,7 @@ function needsTruncation(review: any) {
 }
 
 .lcms-gr__stars i {
-  color: var(--gr-rating-color, #ffc107);
+  color: var(--gr-rating-color, var(--lcms-color-warning, #ffc107));
   font-size: 16px;
   transition: color 200ms ease;
 }
@@ -392,19 +392,19 @@ function needsTruncation(review: any) {
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  border: 1px solid #dee2e6;
+  border: 1px solid var(--lcms-color-border, #dee2e6);
   background: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   transition: all 200ms ease;
-  color: #495057;
+  color: var(--lcms-color-text, #495057);
 }
 
 .lcms-gr__arrow:hover {
-  background: #f8f9fa;
-  border-color: #adb5bd;
+  background: var(--lcms-color-background-alt, #f8f9fa);
+  border-color: var(--lcms-color-muted, #adb5bd);
 }
 
 /* Card */
@@ -412,13 +412,13 @@ function needsTruncation(review: any) {
   padding: 20px;
   border-radius: var(--gr-card-radius, 8px);
   background: var(--gr-card-bg, #fff);
-  border: 1px solid var(--gr-card-border, #e9ecef);
+  border: 1px solid var(--gr-card-border, var(--lcms-color-border, #e9ecef));
   transition: all 200ms ease;
 }
 
 .lcms-gr--hover .lcms-gr__card:hover {
   background: var(--gr-hover-card-bg, var(--gr-card-bg, #fff));
-  border-color: var(--gr-hover-card-border, var(--gr-card-border, #e9ecef));
+  border-color: var(--gr-hover-card-border, var(--gr-card-border, var(--lcms-color-border, #e9ecef)));
 }
 
 .lcms-gr__card-header {
@@ -439,11 +439,11 @@ function needsTruncation(review: any) {
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background: #e9ecef;
+  background: var(--lcms-color-border, #e9ecef);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #adb5bd;
+  color: var(--lcms-color-muted, #adb5bd);
 }
 
 .lcms-gr__author-info {
@@ -464,7 +464,7 @@ function needsTruncation(review: any) {
 
 .lcms-gr__time {
   font-size: 0.8rem;
-  color: #6c757d;
+  color: var(--lcms-color-muted, #6c757d);
 }
 
 .lcms-gr__stars {
@@ -472,25 +472,25 @@ function needsTruncation(review: any) {
 }
 
 .lcms-gr--hover .lcms-gr__card:hover .lcms-gr__stars i {
-  color: var(--gr-hover-rating, var(--gr-rating-color, #ffc107));
+  color: var(--gr-hover-rating, var(--gr-rating-color, var(--lcms-color-warning, #ffc107)));
 }
 
 .lcms-gr__text {
   font-size: 0.95rem;
   line-height: 1.6;
-  color: var(--gr-review-color, #495057);
+  color: var(--gr-review-color, var(--lcms-color-text, #495057));
   margin: 0;
   transition: color 200ms ease;
 }
 
 .lcms-gr--hover .lcms-gr__card:hover .lcms-gr__text {
-  color: var(--gr-hover-review, var(--gr-review-color, #495057));
+  color: var(--gr-hover-review, var(--gr-review-color, var(--lcms-color-text, #495057)));
 }
 
 .lcms-gr__read-more {
   background: none;
   border: none;
-  color: #50a5f1;
+  color: var(--lcms-color-primary, #50a5f1);
   cursor: pointer;
   font-size: 0.85rem;
   padding: 0;
@@ -506,7 +506,7 @@ function needsTruncation(review: any) {
   text-align: center;
   margin-top: 20px;
   font-size: 0.8rem;
-  color: #adb5bd;
+  color: var(--lcms-color-muted, #adb5bd);
   display: flex;
   align-items: center;
   justify-content: center;
