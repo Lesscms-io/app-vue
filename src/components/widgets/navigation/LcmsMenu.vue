@@ -397,10 +397,19 @@ function getItemTarget(item: MenuItem): string | undefined {
         />
       </Transition>
 
-      <!-- Menu drawer panel -->
+      <!-- Menu drawer panel.
+        `--open` only controls the hamburger drawer slide-in transform.
+        Desktop visibility is handled by `.lcms-menu:not(.--hamburger)
+        .lcms-menu__panel` (always-visible rule), so we must NOT add
+        `--open` based on `!isHamburgerMode`. Doing that put the class
+        into SSR HTML (server defaults to desktop because there's no
+        window.innerWidth), and after hydration flipped the menu into
+        hamburger mode the drawer was momentarily visible at
+        translateX(0) instead of off-screen — that's the lingering
+        white panel users saw on mobile after a fresh load. -->
       <div
         class="lcms-menu__panel"
-        :class="{ 'lcms-menu__panel--open': hamburgerOpen || !isHamburgerMode }"
+        :class="{ 'lcms-menu__panel--open': hamburgerOpen }"
       >
         <!-- Drawer header: logo + close button -->
         <div v-if="isHamburgerMode" class="lcms-menu__drawer-header">
