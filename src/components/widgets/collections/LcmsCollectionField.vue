@@ -158,11 +158,25 @@ const entryLinkSizeClass = computed(() => {
   return ''
 })
 
+// Detect API relation / enriched-select objects so we don't mistake them
+// for multilingual values. Relations look like:
+//   { _id, entry_id, collection_code, value: "Zawoja" }
+// and select options look like { code, value, value_translation }. The
+// multilang fallback `Object.values(v)[0]` would yank `_id` (a bare Mongo
+// ObjectId) into the widget — exactly what surfaced on /realizacja/<slug>.
+// Pass these through so `formattedValue` / `extractOptionLabel` can pick
+// the right human label.
+function isRelationOrOption(v: any): boolean {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return false
+  return '_id' in v || 'entry_id' in v || 'collection_code' in v || 'code' in v
+}
+
 // Get field value from entry or enriched data
 const fieldValue = computed(() => {
   // Use enriched value from API if available
   if (config.value.value !== undefined && config.value.value !== null) {
     const value = config.value.value
+    if (isRelationOrOption(value)) return value
     if (value && typeof value === 'object' && !Array.isArray(value)) {
       return value[currentLanguage.value] || value.pl || Object.values(value)[0]
     }
@@ -174,6 +188,7 @@ const fieldValue = computed(() => {
   if (!entry || !entry.content || !fieldCode.value) return null
 
   const value = entry.content[fieldCode.value]
+  if (isRelationOrOption(value)) return value
   if (value && typeof value === 'object' && !Array.isArray(value)) {
     // Multilingual field
     return value[currentLanguage.value] || value.pl || Object.values(value)[0]
