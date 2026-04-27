@@ -96,6 +96,8 @@ import LcmsProductPrice from './ecommerce/LcmsProductPrice.vue'
 import LcmsProductCart from './ecommerce/LcmsProductCart.vue'
 import LcmsOrderSuccess from './ecommerce/LcmsOrderSuccess.vue'
 import LcmsOrderFailure from './ecommerce/LcmsOrderFailure.vue'
+import LcmsMarketingTopBar from './ecommerce/LcmsMarketingTopBar.vue'
+import LcmsCampaignBanner from './ecommerce/LcmsCampaignBanner.vue'
 
 /**
  * Widget type to component mapping
@@ -191,6 +193,8 @@ export const widgetComponents: Record<string, Component> = {
   'product-cart': LcmsProductCart,
   'order-success': LcmsOrderSuccess,
   'order-failure': LcmsOrderFailure,
+  'marketing-topbar': LcmsMarketingTopBar,
+  'campaign-banner': LcmsCampaignBanner,
 }
 
 /**
@@ -297,4 +301,6 @@ export {
   LcmsProductCart,
   LcmsOrderSuccess,
   LcmsOrderFailure,
+  LcmsMarketingTopBar,
+  LcmsCampaignBanner,
 }

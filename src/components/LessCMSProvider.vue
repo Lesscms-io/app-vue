@@ -28,6 +28,7 @@ import { provide, reactive, watch, onMounted, ref, computed, getCurrentInstance 
 import { createHead, type Head } from '@unhead/vue'
 import { createApiClient, type ApiClient, type ApiClientConfig } from '../api/client'
 import type { LessCMSConfig, ProjectConfig } from '../api/types'
+import { provideActiveCampaigns } from '../composables/useActiveCampaigns'
 
 interface Props {
   /**
@@ -106,6 +107,13 @@ interface Props {
    * LessCommerce Shop UUID this CMS Project is linked to.
    */
   shopUuid?: string
+
+  /**
+   * Editor mode flag. Set to true by the page builder so widgets render
+   * a placeholder when their data is empty (e.g. campaign not active);
+   * production renderer leaves this false so widgets cleanly disappear.
+   */
+  editorMode?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -116,6 +124,7 @@ const props = withDefaults(defineProps<Props>(), {
   autoLoadConfig: true,
   proxyMode: false,
   enableSeo: true,
+  editorMode: false,
 })
 
 const emit = defineEmits<{
@@ -191,6 +200,14 @@ const commerceContext = computed(() => {
   }
 })
 provide('lesscms-commerce-context', commerceContext)
+
+// Editor mode — widgets read this to decide whether to show a placeholder
+// when their content is empty (e.g. campaign not currently active).
+provide('lesscms-editor-mode', computed(() => props.editorMode))
+
+// Active campaigns store — single batch fetch shared across all marketing
+// widgets on the page (topbar, banner, …).
+provideActiveCampaigns()
 
 // Route pages cache (populated after routes are loaded by DynamicPageResolver)
 const routePages = ref<Array<{ code: string; url: string; page_uuid: string }>>([])

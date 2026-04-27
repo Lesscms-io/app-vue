@@ -415,6 +415,11 @@ export interface StorefrontClient {
   setCustomerToken(token: string | null): void
   getCustomerToken(): string | null
 
+  // Marketing
+  getActiveCampaigns(params?: {
+    include?: StorefrontCampaignInclude[]
+  }): Promise<{ data: StorefrontActiveCampaign[] }>
+
   // Generic plugin endpoint. `path` must be the storefront-relative path
   // exposed by the plugin's storefront proxy (e.g. `/plugins/photo-albums/flows/start`).
   callPluginEndpoint<T = any>(
@@ -422,6 +427,51 @@ export interface StorefrontClient {
     options?: { method?: string; body?: any; requireAuth?: boolean }
   ): Promise<T>
 }
+
+export interface StorefrontMarketingTopBar {
+  uuid: string
+  code: string
+  text: string
+  text_translation: Record<string, string> | null
+  background_color: string | null
+  text_color: string | null
+  link_url: string | null
+  link_text: string | null
+  link_text_translation: Record<string, string> | null
+  priority?: number
+}
+
+export type StorefrontBannerPlacement = 'hero' | 'category_strip' | 'cart_drawer' | 'thank_you'
+
+export interface StorefrontMarketingBanner {
+  uuid: string
+  code: string
+  placement: StorefrontBannerPlacement
+  image_url: string | null
+  image_url_mobile: string | null
+  alt_text: string | null
+  alt_text_translation: Record<string, string> | null
+  title: string | null
+  title_translation: Record<string, string> | null
+  subtitle: string | null
+  subtitle_translation: Record<string, string> | null
+  cta_text: string | null
+  cta_text_translation: Record<string, string> | null
+  cta_url: string | null
+  priority: number
+}
+
+export interface StorefrontActiveCampaign {
+  uuid: string
+  name: string
+  name_translation: Record<string, string> | null
+  starts_at: string | null
+  ends_at: string | null
+  topbars?: StorefrontMarketingTopBar[]
+  banners?: StorefrontMarketingBanner[]
+}
+
+export type StorefrontCampaignInclude = 'topbars' | 'banners'
 
 export function createStorefrontClient(options: StorefrontClientOptions): StorefrontClient {
   const baseUrl = options.baseUrl.replace(/\/$/, '')
@@ -572,6 +622,12 @@ export function createStorefrontClient(options: StorefrontClientOptions): Storef
       request(opts.method || 'POST', path, {
         body: opts.body,
         requireAuth: opts.requireAuth ?? true,
+      }),
+
+    // Marketing
+    getActiveCampaigns: (params) =>
+      request('GET', '/marketing/campaigns/active', {
+        params: params?.include ? { include: params.include.join(',') } : undefined,
       }),
   }
 }

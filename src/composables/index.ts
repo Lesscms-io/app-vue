@@ -30,3 +30,5 @@ export { useStorefront, type CommerceContext, type UseStorefrontResult } from '.
 export { useCart, type CartStore } from './useCart'
 export { useCustomer, type CustomerStore } from './useCustomer'
 export { useToast, type ToastApi, type Toast } from './useToast'
+export { useActiveCampaigns, provideActiveCampaigns, type UseActiveCampaignsResult } from './useActiveCampaigns'
+export { useEditorMode } from './useEditorMode'
