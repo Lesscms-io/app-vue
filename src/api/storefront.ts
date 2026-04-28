@@ -484,7 +484,7 @@ export function createStorefrontClient(options: StorefrontClientOptions): Storef
     path: string,
     options: { body?: any; params?: Record<string, any>; requireAuth?: boolean } = {}
   ): Promise<T> {
-    const url = new URL(`${baseUrl}/storefront${path}`)
+    const url = new URL(`${baseUrl}/v1${path}`)
 
     if (options.params) {
       for (const [key, value] of Object.entries(options.params)) {
