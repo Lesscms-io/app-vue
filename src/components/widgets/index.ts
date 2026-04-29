@@ -88,6 +88,7 @@ import LcmsCheckout from './ecommerce/LcmsCheckout.vue'
 import LcmsCustomerAccount from './ecommerce/LcmsCustomerAccount.vue'
 import LcmsProductDetail from './ecommerce/LcmsProductDetail.vue'
 import LcmsProductConfigurator from './ecommerce/LcmsProductConfigurator.vue'
+import LcmsProductConfiguratorWizard from './ecommerce/LcmsProductConfiguratorWizard.vue'
 import LcmsProductVariants from './ecommerce/LcmsProductVariants.vue'
 import LcmsCategoryHeader from './ecommerce/LcmsCategoryHeader.vue'
 import LcmsProductField from './ecommerce/LcmsProductField.vue'
@@ -185,6 +186,7 @@ export const widgetComponents: Record<string, Component> = {
   'customer-account': LcmsCustomerAccount,
   'product-detail': LcmsProductDetail,
   'product-configurator': LcmsProductConfigurator,
+  'product-configurator-wizard': LcmsProductConfiguratorWizard,
   'product-variants': LcmsProductVariants,
   'category-header': LcmsCategoryHeader,
   'product-field': LcmsProductField,
@@ -293,6 +295,7 @@ export {
   LcmsCustomerAccount,
   LcmsProductDetail,
   LcmsProductConfigurator,
+  LcmsProductConfiguratorWizard,
   LcmsProductVariants,
   LcmsCategoryHeader,
   LcmsProductField,

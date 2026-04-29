@@ -17,6 +17,7 @@ import { useCart } from '../../../composables/useCart'
 import { useCustomer } from '../../../composables/useCustomer'
 import { useToast } from '../../../composables/useToast'
 import { formatPrice } from '../../../utils/currency'
+import { isVisible } from '../../../utils/visibility'
 import type {
   StorefrontProduct,
   StorefrontProductOptionGroup,
@@ -255,18 +256,35 @@ watch(
 // `<select>` option would still satisfy a child group's condition and leak it
 // into the UI (e.g. "Sposób dostarczenia plików" is hidden but its default
 // "Zalamo Event" selection would falsely reveal "Link do albumu").
+// Visible options of a group, filtered by per-option visibility rule against
+// the running selection set. Hidden options are dropped from the rendered list.
+function visibleOptionsOf(
+  group: StorefrontProductOptionGroup,
+  selected: Set<string>,
+): StorefrontProductOption[] {
+  return (group.options || []).filter((opt) => isVisible(opt as any, selected))
+}
+
 const visibleGroups = computed<StorefrontProductOptionGroup[]>(() => {
   const result: StorefrontProductOptionGroup[] = []
   const visibleSelections = new Set<string>()
   for (const group of allGroups.value) {
-    const triggers = group.visible_when_option_uuids
-    const visible = !triggers?.length || triggers.some((uuid) => visibleSelections.has(uuid))
-    if (!visible) continue
+    if (!isVisible(group as any, visibleSelections)) continue
     result.push(group)
     const sel = selectedOptions.value[group.uuid]
     if (sel) visibleSelections.add(sel)
   }
   return result
+})
+
+// Selection set built from currently-visible groups — used by per-option rules.
+const selectedSet = computed(() => {
+  const set = new Set<string>()
+  for (const g of visibleGroups.value) {
+    const s = selectedOptions.value[g.uuid]
+    if (s) set.add(s)
+  }
+  return set
 })
 
 // Price calculation — base + sum of modifiers from selected options
@@ -586,7 +604,7 @@ const cssVars = computed(() => ({
           >
             <option value="" disabled>{{ t('selectPlaceholder') }}</option>
             <option
-              v-for="opt in group.options"
+              v-for="opt in visibleOptionsOf(group, selectedSet)"
               :key="opt.uuid"
               :value="opt.uuid"
             >
@@ -600,7 +618,7 @@ const cssVars = computed(() => ({
             class="lcms-product-configurator__radio-group"
           >
             <label
-              v-for="opt in group.options"
+              v-for="opt in visibleOptionsOf(group, selectedSet)"
               :key="opt.uuid"
               class="lcms-product-configurator__radio"
               :class="{ 'lcms-product-configurator__radio--selected': selectedOptions[group.uuid] === opt.uuid }"
@@ -625,7 +643,7 @@ const cssVars = computed(() => ({
             v-else-if="group.display_type === 'color_swatches'"
             class="lcms-product-configurator__swatches"
           >
-            <template v-for="opt in group.options" :key="opt.uuid">
+            <template v-for="opt in visibleOptionsOf(group, selectedSet)" :key="opt.uuid">
               <button
                 v-if="opt.color_hex"
                 type="button"
@@ -653,7 +671,7 @@ const cssVars = computed(() => ({
             v-else-if="group.display_type === 'image_swatches'"
             class="lcms-product-configurator__swatches"
           >
-            <template v-for="opt in group.options" :key="opt.uuid">
+            <template v-for="opt in visibleOptionsOf(group, selectedSet)" :key="opt.uuid">
               <button
                 v-if="opt.thumbnail"
                 type="button"
