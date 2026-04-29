@@ -114,6 +114,15 @@ const cssVars = computed(() => {
 // Per-item open state (cart dropdown + search popover)
 const openIndex = ref<number | null>(null)
 const containerEl = ref<HTMLDivElement | null>(null)
+const triggerEls = ref<HTMLButtonElement[]>([])
+const dropdownPos = ref<{ top: number; right: number } | null>(null)
+
+function computeDropdownPos(index: number) {
+  const btn = triggerEls.value[index]
+  if (!btn) return null
+  const r = btn.getBoundingClientRect()
+  return { top: r.bottom + 8, right: window.innerWidth - r.right }
+}
 
 // Search state (kept at widget level — only one search popover at a time)
 const query = ref('')
@@ -149,13 +158,23 @@ function getLabel(item: Item): string {
 function handleItemClick(item: Item, index: number, e: MouseEvent) {
   if (item.type === 'cart') {
     e.stopPropagation()
-    openIndex.value = openIndex.value === index ? null : index
+    if (openIndex.value === index) {
+      openIndex.value = null
+      dropdownPos.value = null
+    } else {
+      openIndex.value = index
+      dropdownPos.value = computeDropdownPos(index)
+    }
     return
   }
   if (item.type === 'search') {
     e.stopPropagation()
-    openIndex.value = openIndex.value === index ? null : index
     if (openIndex.value === index) {
+      openIndex.value = null
+      dropdownPos.value = null
+    } else {
+      openIndex.value = index
+      dropdownPos.value = computeDropdownPos(index)
       requestAnimationFrame(() => searchInputEl.value?.focus())
     }
     return
@@ -208,6 +227,7 @@ onUnmounted(() => {
       class="lcms-ei__item"
     >
       <button
+        :ref="(el) => { if (el) triggerEls[index] = el as HTMLButtonElement }"
         type="button"
         class="lcms-ei__trigger"
         :class="{ 'lcms-ei__trigger--highlighted': item.highlighted }"
@@ -222,9 +242,11 @@ onUnmounted(() => {
       </button>
 
       <!-- Cart dropdown -->
+      <Teleport to="body">
       <div
-        v-if="item.type === 'cart' && openIndex === index"
+        v-if="item.type === 'cart' && openIndex === index && dropdownPos"
         class="lcms-ei__dropdown lcms-ei__dropdown--cart"
+        :style="{ position: 'fixed', top: dropdownPos.top + 'px', right: dropdownPos.right + 'px' }"
         @click.stop
       >
         <div v-if="cart.isEmpty.value" class="lcms-ei__empty">
@@ -261,11 +283,14 @@ onUnmounted(() => {
           </div>
         </div>
       </div>
+      </Teleport>
 
       <!-- Search popover -->
+      <Teleport to="body">
       <div
-        v-if="item.type === 'search' && openIndex === index"
+        v-if="item.type === 'search' && openIndex === index && dropdownPos"
         class="lcms-ei__dropdown lcms-ei__dropdown--search"
+        :style="{ position: 'fixed', top: dropdownPos.top + 'px', right: dropdownPos.right + 'px' }"
         @click.stop
       >
         <form class="lcms-ei__search-form" @submit="handleSearchSubmit">
@@ -298,6 +323,7 @@ onUnmounted(() => {
           </a>
         </div>
       </div>
+      </Teleport>
     </div>
   </div>
 </template>
