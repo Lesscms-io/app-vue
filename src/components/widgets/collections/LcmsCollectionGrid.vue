@@ -468,7 +468,7 @@ const responsiveCss = computed(() => {
         class="lcms-collection-grid__item"
         :style="{
           ...cardStyle,
-          backgroundImage: showImage && imageField && getImage(entry) ? `url('${encodeURI(contentImage(getImage(entry)).src)}')` : undefined,
+          backgroundImage: showImage && imageField && getImage(entry) ? `url('${contentImage(getImage(entry)).src}')` : undefined,
         }"
       >
         <div class="lcms-collection-grid__overlay-gradient" />
