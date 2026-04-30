@@ -12,7 +12,6 @@
  * only.
  */
 import { computed, inject, type Ref } from 'vue'
-import { useWidgetContainerStyle } from '../../../composables/useWidgetContainerStyle'
 
 interface BusinessInfo {
   type?: string
@@ -108,12 +107,6 @@ const showTaxId = computed(() => config.value.show_tax_id ?? false)
 const showSocial = computed(() => config.value.show_social ?? false)
 const layout = computed(() => config.value.layout || 'stacked')
 
-const { containerStyle } = useWidgetContainerStyle(
-  computed(() => props.data?.style),
-  computed(() => props.currentBreakpoint || 'desktop'),
-  props.project,
-)
-
 const hasAnything = computed(() => {
   const b = business.value
   if (showName.value && b.name) return true
@@ -132,7 +125,6 @@ const hasAnything = computed(() => {
     v-if="hasAnything"
     class="lcms-business-info"
     :class="`lcms-business-info--${layout}`"
-    :style="containerStyle"
   >
     <div
       v-if="showName && business.name"
