@@ -38,6 +38,48 @@ export interface ProjectConfig {
   color_variables: ColorVariable[]
   languages: string[]
   default_language: string
+  // Site-wide OG image fallback (used by renderer when per-page og:image missing)
+  default_og_image?: string | null
+  // Site identity & structured data — fed into Organization / LocalBusiness JSON-LD
+  business?: ProjectBusinessInfo | null
+}
+
+/**
+ * NAP-style site identity. All fields optional — renderer emits whatever is
+ * present and decides between Organization (default) and LocalBusiness based
+ * on `type`. `type` accepts any schema.org class name (LocalBusiness,
+ * TreeCareService, ProfessionalService, Restaurant, Dentist, …) so we don't
+ * have to enumerate them.
+ */
+export interface ProjectBusinessInfo {
+  type?: string
+  name?: string
+  description?: string
+  phone?: string
+  email?: string
+  url?: string
+  logo?: string
+  // Postal address
+  street?: string
+  city?: string
+  region?: string
+  postal_code?: string
+  country?: string
+  // Geo
+  latitude?: number | string
+  longitude?: number | string
+  // Hours — schema.org "openingHours" strings, e.g. "Mo-Fr 09:00-17:00"
+  opening_hours?: string[]
+  // areaServed: list of regions/cities the business covers
+  area_served?: string[]
+  // Aggregate rating (e.g. 4.8 out of 5 from 48 reviews)
+  rating_value?: number | string
+  rating_count?: number | string
+  rating_best?: number | string
+  // Social profiles — schema.org "sameAs"
+  social_profiles?: string[]
+  // VAT / business registration
+  tax_id?: string
 }
 
 export interface ProjectStyles {
@@ -288,6 +330,11 @@ export interface SeoLanguageData {
   og?: SeoOgData
   twitter?: SeoTwitterData
   custom_meta?: SeoCustomMeta[]
+  // schema.org type to emit as JSON-LD on the rendered page. One of
+  // 'Article' | 'Service' | 'FAQPage' | '' (none). Renderer picks the
+  // right builder. Per-language (so a translated page can have its own
+  // schema) but typically users set it once and copy.
+  schema_type?: string
 }
 
 // SEO data is keyed by language code
