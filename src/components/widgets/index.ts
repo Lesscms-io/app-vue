@@ -63,6 +63,7 @@ import LcmsForm from './interactive/LcmsForm.vue'
 
 // Content widgets
 import LcmsBlockContent from './content/LcmsBlockContent.vue'
+import LcmsBusinessInfo from './content/LcmsBusinessInfo.vue'
 
 // Collection widgets
 import LcmsCollectionGrid from './collections/LcmsCollectionGrid.vue'
@@ -161,6 +162,7 @@ export const widgetComponents: Record<string, Component> = {
 
   // Content
   'block-content': LcmsBlockContent,
+  'business-info': LcmsBusinessInfo,
 
   // Collections
   'collection-grid': LcmsCollectionGrid,
@@ -272,6 +274,7 @@ export {
   LcmsForm,
   // Content
   LcmsBlockContent,
+  LcmsBusinessInfo,
   // Collections
   LcmsCollectionGrid,
   LcmsCollectionCarousel,
