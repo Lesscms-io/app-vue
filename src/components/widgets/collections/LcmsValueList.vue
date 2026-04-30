@@ -94,9 +94,13 @@
         </component>
       </div>
     </template>
-    <template v-else>
-      <div class="lcms-value-list__empty">No values found</div>
+    <template v-else-if="emptyText">
+      <div class="lcms-value-list__empty">{{ emptyText }}</div>
     </template>
+    <!-- No emptyText configured: render nothing rather than leak a debug
+         placeholder ("No values found") onto the live page. This is the
+         safe fallback for SEO; editors should set empty_text explicitly
+         when an empty list is expected to surface a message to visitors. -->
   </div>
 </template>
 
@@ -159,6 +163,27 @@ const props = defineProps<{
 }>()
 
 const config = computed(() => props.data.widget || props.data || {})
+
+// Empty-state copy. Multilang object or plain string both supported.
+// Empty value disables the empty placeholder entirely — better UX than a
+// stray English placeholder on a Polish page.
+const lcmsLanguage = inject<Ref<string> | string | null>('lcmsLanguage', null)
+const emptyText = computed(() => {
+  const raw = (config.value as any).empty_text
+  if (!raw) return ''
+  if (typeof raw === 'string') return raw
+  if (typeof raw === 'object') {
+    const lang = (typeof lcmsLanguage === 'string' ? lcmsLanguage : unref(lcmsLanguage)) || 'pl'
+    return (
+      raw[lang] ||
+      raw.pl ||
+      raw.en ||
+      Object.values(raw).find((v) => typeof v === 'string' && v) ||
+      ''
+    )
+  }
+  return ''
+})
 
 // Inject route params for URL-based filter resolution
 const resolvedRoute = inject<Ref<ResolvedRoute | null>>('routeParams', ref(null))

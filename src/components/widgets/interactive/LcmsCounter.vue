@@ -105,8 +105,14 @@ const counterStyle = computed(() => {
   return style
 })
 
-const displayNumber = ref(0)
+// Initial value = target so SSR renders the real number. Crawlers (Google,
+// Facebook OG, etc.) see e.g. "1500+" not "0+". The browser animation only
+// kicks in once the counter scrolls into view, where the brief 0→target
+// rewind reads as the intended count-up effect rather than a flash of
+// missing data.
+const displayNumber = ref(targetNumber.value)
 let animationFrame: number | null = null
+const rootEl = ref<HTMLElement | null>(null)
 
 function animateCounter() {
   const start = 0
@@ -131,20 +137,56 @@ function animateCounter() {
   if (animationFrame) {
     cancelAnimationFrame(animationFrame)
   }
+  // Reset to 0 as the animation start point. Off-screen counters skip
+  // this entirely (the observer never fires) so SSR's target value stays
+  // visible if the user never scrolls there.
+  displayNumber.value = 0
   animationFrame = requestAnimationFrame(update)
 }
 
 onMounted(() => {
-  animateCounter()
+  if (typeof window === 'undefined') return
+
+  // Honour reduced-motion: leave the SSR-rendered target in place and
+  // skip the count-up entirely.
+  const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+  if (reducedMotion) return
+
+  // No IntersectionObserver in older runtimes — fall back to immediate
+  // animation so the count-up still happens.
+  if (typeof IntersectionObserver === 'undefined') {
+    animateCounter()
+    return
+  }
+
+  const el = rootEl.value
+  if (!el) {
+    animateCounter()
+    return
+  }
+  const observer = new IntersectionObserver(
+    (entries) => {
+      if (entries.some((e) => e.isIntersecting)) {
+        observer.disconnect()
+        animateCounter()
+      }
+    },
+    { threshold: 0.2 },
+  )
+  observer.observe(el)
 })
 
+// Re-animate when target changes (preview/editor live edits). Keeps the
+// inline editor experience: tweak the number, watch the count-up replay.
 watch(targetNumber, () => {
+  if (typeof window === 'undefined') return
   animateCounter()
 })
 </script>
 
 <template>
   <div
+    ref="rootEl"
     class="lcms-counter"
     :class="[
       `lcms-counter--align-${alignment}`,

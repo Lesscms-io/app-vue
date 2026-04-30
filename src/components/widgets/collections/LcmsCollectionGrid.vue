@@ -6,7 +6,7 @@
  * Supports custom entry templates from the collection configuration.
  */
 
-import { computed, watch, ref, inject, onMounted, type Ref } from 'vue'
+import { computed, watch, ref, inject, onMounted, unref, type Ref } from 'vue'
 import { useCollection } from '@/composables/useCollection'
 import { useLanguage } from '@/composables/useLanguage'
 import { useApi } from '@/composables/useApi'
@@ -192,10 +192,31 @@ const layoutConfig = computed(() => config.value.layout_config || null)
 // Use enriched entries from API if available, otherwise fetch client-side
 const hasEnrichedData = computed(() => Array.isArray(config.value.entries))
 
-// Resolve filter value from URL (for url-based filters)
-// Use route params (entry_id/slug) from resolved route — more reliable than manual segment parsing
+// Current entry from collection page context.
+// Two providers exist with this key:
+//   - DynamicPageResolver: provides Ref<CollectionEntry|null>
+//   - LcmsEntryTemplateRenderer: provides raw entry object
+// `unref` handles both shapes.
+const injectedCollectionEntry = inject<Ref<Record<string, any> | null> | Record<string, any> | null>(
+  'lcms-collection-entry',
+  null
+)
+
+// Resolve filter value from URL (for url-based filters) or current entry (for current_entry filter)
 const resolvedFilterValue = computed(() => {
-  if (!filterField.value || filterSource.value !== 'url') return ''
+  if (!filterField.value) return ''
+
+  if (filterSource.value === 'current_entry') {
+    const entry = unref(injectedCollectionEntry)
+    if (!entry) return ''
+    return entry.entry_id
+      || entry.metadata?.entry_id
+      || entry.slug
+      || ''
+  }
+
+  if (filterSource.value !== 'url') return ''
+
   const params = resolvedRoute?.value?.params
   if (params) {
     // Use entry_id, slug, or first non-collectionCode param
@@ -209,10 +230,12 @@ const resolvedFilterValue = computed(() => {
   return segments[seg - 1] || ''
 })
 
-// For URL-based filters: fetch from collections API with filter param (server-side filtering)
+// For dynamic filters (URL / current entry): fetch from collections API with filter param
 // For static/no filter: use enriched data from page API, or fetch without filter
-const isUrlFilter = computed(() => filterSource.value === 'url' && filterField.value)
-const needsClientFetch = computed(() => isUrlFilter.value && resolvedFilterValue.value)
+const isDynamicFilter = computed(() =>
+  (filterSource.value === 'url' || filterSource.value === 'current_entry') && filterField.value
+)
+const needsClientFetch = computed(() => isDynamicFilter.value && resolvedFilterValue.value)
 
 // For useCollection: only fetch when NOT using URL filter and NOT having enriched data
 const collectionCodeForFetch = computed(() => {
