@@ -34,6 +34,19 @@ const { extractValue, language: currentLanguage } = useLanguage(props.language)
 // API returns widget data in data.widget
 const config = computed(() => props.data.widget || props.data || {})
 
+// Editor-configured empty-state copy. When unset, the widget renders
+// nothing on empty results (preferred for SEO — saves a DOM node that
+// would just say "no entries" to a Googlebot crawl).
+const emptyText = computed(() => {
+  const raw = (config.value as any).empty_text
+  if (!raw) return ''
+  if (typeof raw === 'string') return raw.trim()
+  if (typeof raw === 'object') {
+    return (raw[props.language || 'pl'] || raw.pl || raw.en || '').toString().trim()
+  }
+  return ''
+})
+
 const collectionCode = computed(() => config.value.collection_code || '')
 const layout = computed(() => config.value.layout || config.value.card_style || 'grid')
 const columns = computed(() => Number(config.value.columns) || 3)
@@ -441,11 +454,15 @@ const responsiveCss = computed(() => {
       Failed to load collection
     </div>
 
+    <!-- Empty state: render the editor-configured `empty_text` if set,
+         otherwise render nothing. The default debug-style "No entries
+         found" leaks to live sites and looks like a bug — the public
+         visitor doesn't need to know we couldn't find anything. -->
     <div
-      v-else-if="entries.length === 0"
+      v-else-if="entries.length === 0 && emptyText"
       class="lcms-collection-grid__empty"
     >
-      No entries found
+      {{ emptyText }}
     </div>
 
     <!-- Custom template rendering -->

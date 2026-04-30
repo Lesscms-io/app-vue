@@ -133,8 +133,11 @@
         </div>
       </template>
     </template>
-    <template v-else>
-      <div class="lcms-collection-grouped__empty">No entries found</div>
+    <!-- Empty state: render the editor-configured `empty_text` if set,
+         otherwise render nothing. The default debug-style "No entries
+         found" leaks to live sites and looks like a bug. -->
+    <template v-else-if="emptyText">
+      <div class="lcms-collection-grouped__empty">{{ emptyText }}</div>
     </template>
   </div>
 </template>
@@ -181,6 +184,18 @@ const props = defineProps<{
 }>()
 
 const config = computed(() => props.data.widget || props.data || {})
+
+// Editor-configured empty-state copy. When unset, the widget renders
+// nothing on empty results (saves the live site from looking broken).
+const emptyText = computed(() => {
+  const raw = (config.value as any).empty_text
+  if (!raw) return ''
+  if (typeof raw === 'string') return raw.trim()
+  if (typeof raw === 'object') {
+    return (raw[props.language || 'pl'] || raw.pl || raw.en || '').toString().trim()
+  }
+  return ''
+})
 
 const collectionCode = computed(() => config.value.collection_code || '')
 const groupByField = computed(() => config.value.group_by_field || '')
