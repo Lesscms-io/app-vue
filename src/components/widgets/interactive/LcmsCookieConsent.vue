@@ -161,8 +161,8 @@ onMounted(() => {
   z-index: 9999;
   font-family: var(--lcms-font-body, inherit);
   font-size: var(--lcms-font-size-base, 14px);
-  background-color: #1a1a2e;
-  color: #e0e0e0;
+  background-color: var(--lcms-color-dark, #1a1a2e);
+  color: var(--lcms-color-white, #e0e0e0);
   padding: 16px 24px;
   box-sizing: border-box;
 }
@@ -274,7 +274,7 @@ onMounted(() => {
 
 .lcms-cookie-consent__btn--accept {
   background-color: var(--lcms-color-primary, #4f46e5);
-  color: #fff;
+  color: var(--lcms-color-white, #fff);
 }
 
 .lcms-cookie-consent__btn--decline {
