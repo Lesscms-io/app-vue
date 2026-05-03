@@ -209,6 +209,44 @@ const selectedSavedAddressUuid = ref<string | null>(null)
 const pickupPoints = ref<StorefrontPickupPoint[]>([])
 const isLoadingPickupPoints = ref(false)
 const selectedPickupPoint = ref<StorefrontPickupPoint | null>(null)
+const pickupPointsVisible = ref(20)
+const pickupSearchTerm = ref('')
+
+const filteredPickupPoints = computed(() => {
+  const term = pickupSearchTerm.value.trim().toLowerCase()
+  if (!term) return pickupPoints.value
+  return pickupPoints.value.filter(p => {
+    const haystack = `${p.name} ${p.address ?? ''} ${p.city ?? ''} ${p.postal_code ?? ''} ${p.description ?? ''}`.toLowerCase()
+    return haystack.includes(term)
+  })
+})
+
+const visiblePickupPoints = computed(() =>
+  filteredPickupPoints.value.slice(0, pickupPointsVisible.value)
+)
+
+function formatDistance(meters?: number | null): string | null {
+  if (meters == null || !Number.isFinite(meters)) return null
+  if (meters < 1000) return `${Math.round(meters)} m`
+  return `${(meters / 1000).toFixed(1).replace(/\.0$/, '')} km`
+}
+
+function formatOpeningHours(hours: StorefrontPickupPoint['opening_hours']): string | null {
+  if (!hours) return null
+  if (typeof hours === 'string') return hours
+  if (typeof hours === 'object') {
+    const today = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][new Date().getDay()]
+    const todayKey = Object.keys(hours).find(k => k.toLowerCase().startsWith(today))
+    if (todayKey) return hours[todayKey]
+    const first = Object.values(hours)[0]
+    return typeof first === 'string' ? first : null
+  }
+  return null
+}
+
+function loadMorePickupPoints() {
+  pickupPointsVisible.value += 20
+}
 
 // Payment methods come from the shop's admin settings (via storefront API)
 // — no hardcoded client-side catalog. Localized labels override the server
@@ -411,6 +449,8 @@ async function loadPickupPoints() {
   if (!form.shipping_postal_code || form.shipping_postal_code.length < 5) return
 
   isLoadingPickupPoints.value = true
+  pickupPointsVisible.value = 20
+  pickupSearchTerm.value = ''
   try {
     const response = await client.value.getPickupPoints({
       postal_code: form.shipping_postal_code,
@@ -418,6 +458,13 @@ async function loadPickupPoints() {
       radius: 10,
     })
     pickupPoints.value = response.data.points || []
+
+    // If the previously-selected point is no longer in the results (e.g.
+    // postcode changed), drop it so checkout doesn't submit a stale id.
+    if (selectedPickupPoint.value) {
+      const stillThere = pickupPoints.value.some(p => p.id === selectedPickupPoint.value!.id)
+      if (!stillThere) selectedPickupPoint.value = null
+    }
   } catch {
     pickupPoints.value = []
   } finally {
@@ -503,7 +550,15 @@ async function handleSubmit() {
         // The carrier-side service code (e.g. `inpost_locker_standard`)
         // that main BE forwards to shipping-service when generating a label.
         shipx_service: selectedShipping.value?.shipx_service || undefined,
-        pickup_point: selectedPickupPoint.value || undefined,
+        pickup_point: selectedPickupPoint.value
+          ? {
+              ...selectedPickupPoint.value,
+              // Tag the chosen point with its carrier so the backend doesn't
+              // have to re-derive it from the shipping_method when carriers
+              // share point types (e.g. dpd_pickup vs inpost_locker).
+              carrier: selectedPickupPoint.value.carrier ?? selectedShipping.value?.carrier ?? undefined,
+            }
+          : undefined,
       },
     }
 
@@ -822,8 +877,23 @@ async function handleSubmit() {
             <!-- Pickup point selector — only for methods that require one (InPost paczkomaty, DPD Pickup, etc.) -->
             <div v-if="pickupPointRequired" class="lcms-checkout__pickup">
               <h4 class="lcms-checkout__subsection-title">
-                {{ props.language === 'en' ? 'Pickup point' : 'Punkt odbioru' }}
+                {{ props.language === 'en' ? 'Pickup point' : 'Wybierz punkt odbioru' }}
               </h4>
+
+              <p v-if="!isLoadingPickupPoints && pickupPoints.length > 0" class="lcms-checkout__pickup-hint">
+                {{ props.language === 'en'
+                  ? `Found ${pickupPoints.length} pickup point${pickupPoints.length === 1 ? '' : 's'} near ${form.shipping_postal_code}`
+                  : `Znaleziono ${pickupPoints.length} ${pickupPoints.length === 1 ? 'punkt' : 'punktów'} blisko ${form.shipping_postal_code}` }}
+              </p>
+
+              <div v-if="pickupPoints.length > 5" class="lcms-checkout__field">
+                <input
+                  v-model="pickupSearchTerm"
+                  type="search"
+                  class="lcms-checkout__input"
+                  :placeholder="props.language === 'en' ? 'Search by name, street or city' : 'Szukaj po nazwie, ulicy lub mieście'"
+                />
+              </div>
 
               <div v-if="isLoadingPickupPoints" class="lcms-checkout__loading-text">
                 {{ props.language === 'en' ? 'Loading points...' : 'Ładowanie punktów...' }}
@@ -832,11 +902,17 @@ async function handleSubmit() {
                 v-else-if="pickupPoints.length === 0"
                 class="lcms-checkout__loading-text"
               >
-                {{ props.language === 'en' ? 'No pickup points nearby' : 'Brak punktów w pobliżu' }}
+                {{ props.language === 'en' ? 'No pickup points nearby — try a different postal code' : 'Brak punktów w pobliżu — sprawdź kod pocztowy' }}
+              </div>
+              <div
+                v-else-if="filteredPickupPoints.length === 0"
+                class="lcms-checkout__loading-text"
+              >
+                {{ props.language === 'en' ? 'No matches for that search' : 'Brak wyników wyszukiwania' }}
               </div>
               <ul v-else class="lcms-checkout__pickup-list">
                 <li
-                  v-for="point in pickupPoints.slice(0, 15)"
+                  v-for="point in visiblePickupPoints"
                   :key="point.id"
                   :class="{
                     'lcms-checkout__pickup-item': true,
@@ -844,16 +920,47 @@ async function handleSubmit() {
                   }"
                   @click="selectPickupPoint(point)"
                 >
-                  <div class="lcms-checkout__pickup-name">{{ point.name }}</div>
+                  <div class="lcms-checkout__pickup-row">
+                    <div class="lcms-checkout__pickup-name">{{ point.name }}</div>
+                    <div v-if="formatDistance(point.distance)" class="lcms-checkout__pickup-distance">
+                      {{ formatDistance(point.distance) }}
+                    </div>
+                  </div>
                   <div class="lcms-checkout__pickup-address">
-                    {{ point.address }}{{ point.city ? `, ${point.city}` : '' }}
+                    {{ point.address }}<template v-if="point.postal_code || point.city">,
+                      {{ [point.postal_code, point.city].filter(Boolean).join(' ') }}
+                    </template>
+                  </div>
+                  <div v-if="point.description" class="lcms-checkout__pickup-meta">
+                    {{ point.description }}
+                  </div>
+                  <div v-if="formatOpeningHours(point.opening_hours)" class="lcms-checkout__pickup-meta">
+                    {{ props.language === 'en' ? 'Today' : 'Dziś' }}: {{ formatOpeningHours(point.opening_hours) }}
                   </div>
                 </li>
               </ul>
 
+              <button
+                v-if="filteredPickupPoints.length > visiblePickupPoints.length"
+                type="button"
+                class="lcms-checkout__btn lcms-checkout__btn--ghost lcms-checkout__pickup-more"
+                @click="loadMorePickupPoints"
+              >
+                {{ props.language === 'en'
+                  ? `Show more (${filteredPickupPoints.length - visiblePickupPoints.length} left)`
+                  : `Pokaż więcej (${filteredPickupPoints.length - visiblePickupPoints.length} pozostało)` }}
+              </button>
+
               <div v-if="selectedPickupPoint" class="lcms-checkout__pickup-selected">
+                <div class="lcms-checkout__pickup-selected-label">
+                  {{ props.language === 'en' ? 'Selected pickup point' : 'Wybrany punkt' }}
+                </div>
                 <strong>{{ selectedPickupPoint.name }}</strong>
-                <span>{{ selectedPickupPoint.address }}</span>
+                <span>
+                  {{ selectedPickupPoint.address }}<template v-if="selectedPickupPoint.postal_code || selectedPickupPoint.city">,
+                    {{ [selectedPickupPoint.postal_code, selectedPickupPoint.city].filter(Boolean).join(' ') }}
+                  </template>
+                </span>
               </div>
               <span v-if="errors.pickup_point" class="lcms-checkout__error">{{ errors.pickup_point }}</span>
             </div>
@@ -1412,14 +1519,45 @@ async function handleSubmit() {
   background: rgba(59, 130, 246, 0.05);
 }
 
+.lcms-checkout__pickup-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
 .lcms-checkout__pickup-name {
   font-weight: 600;
   font-size: 0.9375rem;
 }
 
+.lcms-checkout__pickup-distance {
+  font-size: 0.75rem;
+  color: var(--lcms-color-muted, #6b7280);
+  flex-shrink: 0;
+}
+
 .lcms-checkout__pickup-address {
   font-size: 0.875rem;
   color: var(--lcms-color-muted, #6b7280);
+}
+
+.lcms-checkout__pickup-meta {
+  font-size: 0.75rem;
+  color: var(--lcms-color-muted, #6b7280);
+  margin-top: 0.125rem;
+}
+
+.lcms-checkout__pickup-hint {
+  font-size: 0.8125rem;
+  color: var(--lcms-color-muted, #6b7280);
+  margin: 0 0 0.5rem;
+}
+
+.lcms-checkout__pickup-more {
+  margin-top: 0.5rem;
+  width: 100%;
+  padding: 0.625rem 1rem;
 }
 
 .lcms-checkout__pickup-selected {
@@ -1432,5 +1570,12 @@ async function handleSubmit() {
   flex-direction: column;
   gap: 0.25rem;
   font-size: 0.9375rem;
+}
+
+.lcms-checkout__pickup-selected-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--lcms-color-muted, #6b7280);
 }
 </style>

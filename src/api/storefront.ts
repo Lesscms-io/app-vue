@@ -255,7 +255,13 @@ export interface StorefrontPickupPoint {
   latitude?: number | null
   longitude?: number | null
   opening_hours?: Record<string, string> | string | null
+  /** Free-text description (e.g. "obok wejścia do biedronki"). */
+  description?: string | null
+  /** Distance from the searched postal code, in meters. */
+  distance?: number | null
   type?: string | string[] | null
+  /** Origin carrier code: `inpost`, `dpd`, ... */
+  carrier?: string | null
 }
 
 export interface StorefrontPaginated<T> {
