@@ -334,9 +334,25 @@ const basePrice = computed(() => {
   return p ? Number(p.price) || 0 : 0
 })
 
+// Apply a price-override row to a base value. Shared by numeric per-unit
+// resolution and checkbox surcharge resolution. Override types:
+//   - add / subtract: fixed amount
+//   - absolute: replace base entirely
+//   - add_percent / subtract_percent: percent of base
+function applyOverride(base: number, value: number, type: string | undefined): number {
+  switch (type) {
+    case 'add': return base + value
+    case 'subtract': return base - value
+    case 'add_percent': return base + (base * value / 100)
+    case 'subtract_percent': return base - (base * value / 100)
+    case 'absolute':
+    default: return value // fallback treats undefined as absolute (legacy shape)
+  }
+}
+
 // Effective per-unit rate for a numeric group: walks price_per_unit_overrides
 // and returns the first one whose `when` rule matches the current selection;
-// falls back to group.price_per_unit. Mirrors how option price overrides work.
+// falls back to group.price_per_unit.
 function effectivePricePerUnit(group: StorefrontProductOptionGroup): number {
   const base = Number(group.price_per_unit ?? 0) || 0
   const overrides = group.price_per_unit_overrides || []
@@ -347,10 +363,25 @@ function effectivePricePerUnit(group: StorefrontProductOptionGroup): number {
     if (andGroups.length === 0) continue
     const matches = andGroups.every((row) => row.some((uuid) => sel.has(uuid)))
     if (!matches) continue
-    const v = Number(ov.value) || 0
-    if (ov.type === 'add') return base + v
-    if (ov.type === 'subtract') return base - v
-    return v // 'absolute' (default)
+    return applyOverride(base, Number(ov.value) || 0, ov.type)
+  }
+  return base
+}
+
+// Effective surcharge for a checkbox group when the box is ticked. Walks
+// checkbox_price_overrides; first matching rule wins, else falls back to
+// checkbox_price_modifier.
+function effectiveCheckboxModifier(group: StorefrontProductOptionGroup): number {
+  const base = Number(group.checkbox_price_modifier ?? 0) || 0
+  const overrides = group.checkbox_price_overrides || []
+  if (!overrides.length) return base
+  const sel = selectedSet.value
+  for (const ov of overrides) {
+    const andGroups = ov?.when?.and_groups || []
+    if (andGroups.length === 0) continue
+    const matches = andGroups.every((row) => row.some((uuid) => sel.has(uuid)))
+    if (!matches) continue
+    return applyOverride(base, Number(ov.value) || 0, ov.type)
   }
   return base
 }
@@ -369,8 +400,8 @@ const totalPrice = computed(() => {
     if (group.display_type === 'text') continue
     if (group.display_type === 'file') continue
     if (group.display_type === 'checkbox') {
-      if (customValues.value[group.uuid] === true && group.checkbox_price_modifier) {
-        total += Number(group.checkbox_price_modifier)
+      if (customValues.value[group.uuid] === true) {
+        total += effectiveCheckboxModifier(group)
       }
       continue
     }
@@ -630,7 +661,7 @@ async function handleAddToCart() {
       })
     } else if (g.display_type === 'checkbox') {
       if (customValues.value[g.uuid] !== true) continue
-      const delta = Number(g.checkbox_price_modifier ?? 0) || 0
+      const delta = effectiveCheckboxModifier(g)
       configuredOptions.push({
         group_uuid: g.uuid,
         group_name: g.name,
@@ -912,9 +943,9 @@ const cssVars = computed(() => ({
             />
             <span class="lcms-product-configurator__checkbox-label">{{ group.checkbox_label || 'TAK' }}</span>
             <span
-              v-if="group.checkbox_price_modifier"
+              v-if="effectiveCheckboxModifier(group)"
               class="lcms-product-configurator__checkbox-price"
-            >(+{{ formatPrice(group.checkbox_price_modifier, currency) }})</span>
+            >(+{{ formatPrice(effectiveCheckboxModifier(group), currency) }})</span>
           </label>
 
           <!-- file upload display -->

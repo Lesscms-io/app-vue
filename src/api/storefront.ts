@@ -21,7 +21,7 @@ export interface StorefrontVisibilityRule {
 export interface StorefrontPriceOverride {
   when: StorefrontVisibilityRule
   value: number
-  type?: 'absolute' | 'add' | 'subtract'
+  type?: 'absolute' | 'add' | 'subtract' | 'add_percent' | 'subtract_percent'
 }
 
 export interface StorefrontProductOption {
@@ -57,6 +57,8 @@ export interface StorefrontProductOptionGroup {
   /** display_type='checkbox' only: single yes/no toggle config. */
   checkbox_label?: string | null
   checkbox_price_modifier?: number | null
+  /** Conditional surcharge overrides for checkbox groups. First match wins. */
+  checkbox_price_overrides?: StorefrontPriceOverride[] | null
   options: StorefrontProductOption[]
 }
 
