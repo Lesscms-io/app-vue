@@ -23,6 +23,7 @@ import type {
   StorefrontProductOptionGroup,
   StorefrontProductOption,
   StorefrontPluginBehavior,
+  StorefrontOptionUpload,
 } from '../../../api/storefront'
 
 // Resolves `var:<color>` refs to the runtime CSS variable, mirroring what
@@ -164,7 +165,7 @@ const resolvedSlug = computed(() => {
   return segments[slugUrlSegment.value] || ''
 })
 
-const t = (key: string) => {
+const t = (key: string, params?: Record<string, string | number>) => {
   const lang = props.language || 'pl'
   const dict: Record<string, Record<string, string>> = {
     pl: {
@@ -179,6 +180,14 @@ const t = (key: string) => {
       defaultButton: 'Dodaj do koszyka',
       defaultTotal: 'Razem:',
       fillRequired: 'Uzupełnij wymagane opcje',
+      filePickButton: 'Wybierz pliki',
+      fileDropHint: 'lub przeciągnij i upuść',
+      fileInvalidExt: 'Plik {name} ma niedozwolone rozszerzenie',
+      fileTooLarge: 'Plik {name} jest większy niż {max} KB',
+      fileTooMany: 'Maksymalnie {count} plików',
+      fileUploading: 'Wgrywanie...',
+      fileUploadFailed: 'Nie udało się wgrać pliku',
+      fileRemove: 'Usuń',
     },
     en: {
       loading: 'Loading...',
@@ -192,9 +201,23 @@ const t = (key: string) => {
       defaultButton: 'Add to cart',
       defaultTotal: 'Total:',
       fillRequired: 'Please fill in required options',
+      filePickButton: 'Pick files',
+      fileDropHint: 'or drag and drop',
+      fileInvalidExt: 'File {name} has a disallowed extension',
+      fileTooLarge: 'File {name} is larger than {max} KB',
+      fileTooMany: 'Maximum {count} files',
+      fileUploading: 'Uploading...',
+      fileUploadFailed: 'Upload failed',
+      fileRemove: 'Remove',
     },
   }
-  return dict[lang]?.[key] || dict.pl[key] || key
+  let value = dict[lang]?.[key] || dict.pl[key] || key
+  if (params) {
+    for (const [k, v] of Object.entries(params)) {
+      value = value.replace(new RegExp(`\\{${k}\\}`, 'g'), String(v))
+    }
+  }
+  return value
 }
 
 const headingText = computed(() =>
@@ -219,6 +242,10 @@ const allGroups = computed<StorefrontProductOptionGroup[]>(() => {
 const selectedOptions = ref<Record<string, string>>({})
 // Free-form value state: group_uuid -> string/number (for text/numeric groups)
 const customValues = ref<Record<string, string | number>>({})
+// File-upload state: group_uuid -> list of uploaded files
+const fileUploads = ref<Record<string, StorefrontOptionUpload[]>>({})
+// Per-group upload progress / error
+const fileUploadStatus = ref<Record<string, { uploading: boolean; error: string | null }>>({})
 
 // Apply default selections when product loads
 watch(
@@ -226,11 +253,14 @@ watch(
   (groups) => {
     const nextSelected: Record<string, string> = {}
     const nextCustom: Record<string, string | number> = {}
+    const nextFiles: Record<string, StorefrontOptionUpload[]> = {}
     for (const group of groups) {
       if (group.display_type === 'numeric') {
         nextCustom[group.uuid] = group.numeric_min ?? 0
       } else if (group.display_type === 'text') {
         nextCustom[group.uuid] = ''
+      } else if (group.display_type === 'file') {
+        nextFiles[group.uuid] = fileUploads.value[group.uuid] || []
       } else {
         // For <select> always sync state with what the browser displays
         // (first option when no is_default is set) — otherwise `isGroupVisible`
@@ -242,6 +272,7 @@ watch(
     }
     selectedOptions.value = nextSelected
     customValues.value = nextCustom
+    fileUploads.value = nextFiles
   },
   { immediate: true }
 )
@@ -330,6 +361,9 @@ const missingRequired = computed(() =>
     if (g.display_type === 'numeric') {
       const v = Number(customValues.value[g.uuid] ?? NaN)
       return isNaN(v) || (g.numeric_min != null && v < g.numeric_min)
+    }
+    if (g.display_type === 'file') {
+      return (fileUploads.value[g.uuid] || []).length === 0
     }
     return !selectedOptions.value[g.uuid]
   })
@@ -440,6 +474,83 @@ function setCustomValue(groupUuid: string, value: string | number) {
   customValues.value = { ...customValues.value, [groupUuid]: value }
 }
 
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`
+}
+
+function validateFileForGroup(group: StorefrontProductOptionGroup, file: File): string | null {
+  const ext = (file.name.split('.').pop() || '').toLowerCase()
+  const allowed = (group.file_allowed_extensions || []).map((e) => e.toLowerCase())
+  if (allowed.length > 0 && !allowed.includes(ext)) {
+    return t('fileInvalidExt', { name: file.name })
+  }
+  if (group.file_max_size_kb && file.size > group.file_max_size_kb * 1024) {
+    return t('fileTooLarge', { name: file.name, max: group.file_max_size_kb })
+  }
+  return null
+}
+
+async function handleFileSelect(group: StorefrontProductOptionGroup, ev: Event) {
+  const input = ev.target as HTMLInputElement
+  if (!input.files || !input.files.length || !client.value) return
+
+  const maxCount = group.file_max_count || 1
+  const current = fileUploads.value[group.uuid] || []
+  const remaining = Math.max(0, maxCount - current.length)
+  if (remaining === 0) {
+    toast.error(t('fileTooMany', { count: maxCount }))
+    input.value = ''
+    return
+  }
+
+  const filesToUpload = Array.from(input.files).slice(0, remaining)
+  fileUploadStatus.value = {
+    ...fileUploadStatus.value,
+    [group.uuid]: { uploading: true, error: null },
+  }
+
+  try {
+    const cartUuid = await cart.ensureCart()
+    for (const file of filesToUpload) {
+      const validationError = validateFileForGroup(group, file)
+      if (validationError) {
+        toast.error(validationError)
+        continue
+      }
+      try {
+        const res = await client.value.uploadOptionFile(cartUuid, group.uuid, file)
+        fileUploads.value = {
+          ...fileUploads.value,
+          [group.uuid]: [...(fileUploads.value[group.uuid] || []), res.data],
+        }
+      } catch (err: any) {
+        toast.error(err?.message || t('fileUploadFailed'))
+      }
+    }
+  } finally {
+    fileUploadStatus.value = {
+      ...fileUploadStatus.value,
+      [group.uuid]: { uploading: false, error: null },
+    }
+    input.value = ''
+  }
+}
+
+async function removeFileUpload(groupUuid: string, uploadUuid: string) {
+  if (!client.value) return
+  try {
+    await client.value.deleteOptionUpload(uploadUuid)
+  } catch {
+    // Even on delete failure clear local state — server retention will handle orphans.
+  }
+  fileUploads.value = {
+    ...fileUploads.value,
+    [groupUuid]: (fileUploads.value[groupUuid] || []).filter((u) => u.uuid !== uploadUuid),
+  }
+}
+
 function optionPriceDeltaText(option: StorefrontProductOption): string {
   const delta = applyModifier(basePrice.value, option)
   if (!delta) return ''
@@ -481,6 +592,22 @@ async function handleAddToCart() {
         group_name: g.name,
         type: 'text',
         value,
+        price_delta: 0,
+      })
+    } else if (g.display_type === 'file') {
+      const uploads = fileUploads.value[g.uuid] || []
+      if (uploads.length === 0) continue
+      configuredOptions.push({
+        group_uuid: g.uuid,
+        group_name: g.name,
+        type: 'file',
+        value: uploads.map((u) => u.uuid),
+        files_meta: uploads.map((u) => ({
+          uuid: u.uuid,
+          name: u.original_filename,
+          url: u.public_url,
+          size: u.size,
+        })),
         price_delta: 0,
       })
     } else if (g.display_type === 'numeric') {
@@ -725,6 +852,62 @@ const cssVars = computed(() => ({
               v-if="group.price_per_unit"
               class="lcms-product-configurator__numeric-rate"
             >× {{ formatPrice(group.price_per_unit, currency) }}</span>
+          </div>
+
+          <!-- file upload display -->
+          <div
+            v-else-if="group.display_type === 'file'"
+            class="lcms-product-configurator__file"
+          >
+            <ul
+              v-if="(fileUploads[group.uuid] || []).length > 0"
+              class="lcms-product-configurator__file-list"
+            >
+              <li
+                v-for="upload in fileUploads[group.uuid]"
+                :key="upload.uuid"
+                class="lcms-product-configurator__file-item"
+              >
+                <i class="bx bx-file" />
+                <span class="lcms-product-configurator__file-name">{{ upload.original_filename }}</span>
+                <span class="lcms-product-configurator__file-size">{{ formatFileSize(upload.size) }}</span>
+                <button
+                  type="button"
+                  class="lcms-product-configurator__file-remove"
+                  :title="t('fileRemove')"
+                  @click="removeFileUpload(group.uuid, upload.uuid)"
+                >
+                  <i class="bx bx-x" />
+                </button>
+              </li>
+            </ul>
+            <label
+              v-if="(fileUploads[group.uuid] || []).length < (group.file_max_count || 1)"
+              class="lcms-product-configurator__file-trigger"
+              :class="{ 'is-uploading': fileUploadStatus[group.uuid]?.uploading }"
+            >
+              <input
+                type="file"
+                hidden
+                :multiple="(group.file_max_count || 1) > 1"
+                :accept="(group.file_allowed_extensions || []).map((e) => '.' + e).join(',')"
+                :disabled="fileUploadStatus[group.uuid]?.uploading"
+                @change="handleFileSelect(group, $event)"
+              />
+              <i class="bx bx-cloud-upload" />
+              <span v-if="fileUploadStatus[group.uuid]?.uploading">{{ t('fileUploading') }}</span>
+              <span v-else>{{ t('filePickButton') }}</span>
+            </label>
+            <div
+              v-if="group.file_allowed_extensions?.length || group.file_max_size_kb"
+              class="lcms-product-configurator__file-hint"
+            >
+              <span v-if="group.file_allowed_extensions?.length">
+                {{ group.file_allowed_extensions.map((e) => '.' + e).join(', ') }}
+              </span>
+              <span v-if="group.file_max_size_kb"> · max {{ group.file_max_size_kb }} KB</span>
+              <span v-if="(group.file_max_count || 1) > 1"> · do {{ group.file_max_count }} plików</span>
+            </div>
           </div>
         </div>
       </div>
@@ -1047,5 +1230,84 @@ const cssVars = computed(() => ({
 
 @keyframes lcms-pc-spin {
   to { transform: rotate(360deg); }
+}
+
+.lcms-product-configurator__file {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.lcms-product-configurator__file-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.lcms-product-configurator__file-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border: 1px solid var(--lcms-color-border, #dee2e6);
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.02);
+  font-size: 0.875rem;
+}
+.lcms-product-configurator__file-item > i:first-child {
+  color: var(--lcms-color-muted, #74788d);
+  font-size: 18px;
+}
+.lcms-product-configurator__file-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lcms-product-configurator__file-size {
+  color: var(--lcms-color-muted, #74788d);
+  font-size: 0.75rem;
+  flex-shrink: 0;
+}
+.lcms-product-configurator__file-remove {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--lcms-color-muted, #adb5bd);
+  font-size: 18px;
+  line-height: 1;
+  padding: 0;
+  transition: color 0.15s ease;
+}
+.lcms-product-configurator__file-remove:hover {
+  color: var(--lcms-color-danger, #dc3545);
+}
+.lcms-product-configurator__file-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: 1px dashed var(--lcms-color-border, #ced4da);
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--lcms-color-muted, #74788d);
+  font-size: 0.875rem;
+  transition: border-color 0.15s ease, color 0.15s ease, background-color 0.15s ease;
+  align-self: flex-start;
+}
+.lcms-product-configurator__file-trigger:hover {
+  border-color: var(--lcms-color-primary, #50a5f1);
+  color: var(--lcms-color-primary, #50a5f1);
+  background: rgba(80, 165, 241, 0.05);
+}
+.lcms-product-configurator__file-trigger.is-uploading {
+  pointer-events: none;
+  opacity: 0.7;
+}
+.lcms-product-configurator__file-hint {
+  font-size: 0.75rem;
+  color: var(--lcms-color-muted, #74788d);
 }
 </style>

@@ -43,6 +43,7 @@ export interface CartStore {
   isEmpty: ComputedRef<boolean>
   init(): Promise<void>
   loadCart(): Promise<void>
+  ensureCart(): Promise<string>
   addItem(productUuid: string, quantity?: number, metadata?: Record<string, unknown>): Promise<void>
   updateItem(itemUuid: string, quantity: number): Promise<void>
   removeItem(itemUuid: string): Promise<void>
@@ -238,6 +239,7 @@ function createCartStore(): CartStore {
     isEmpty,
     init,
     loadCart,
+    ensureCart,
     addItem,
     updateItem,
     removeItem,

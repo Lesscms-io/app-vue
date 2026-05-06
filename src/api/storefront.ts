@@ -10,7 +10,7 @@
 // Types — mirror Storefront API response shapes
 // ============================================================================
 
-export type StorefrontOptionDisplayType = 'select' | 'radio' | 'image_swatches' | 'color_swatches' | 'numeric' | 'text'
+export type StorefrontOptionDisplayType = 'select' | 'radio' | 'image_swatches' | 'color_swatches' | 'numeric' | 'text' | 'file'
 export type StorefrontOptionPriceModifierType = 'fixed_price' | 'percentage'
 
 export interface StorefrontProductOption {
@@ -37,6 +37,10 @@ export interface StorefrontProductOptionGroup {
   numeric_max: number | null
   numeric_step: number | null
   price_per_unit: number | null
+  /** display_type='file' only: per-group upload constraints. */
+  file_allowed_extensions?: string[] | null
+  file_max_size_kb?: number | null
+  file_max_count?: number | null
   options: StorefrontProductOption[]
 }
 
@@ -432,6 +436,24 @@ export interface StorefrontClient {
     path: string,
     options?: { method?: string; body?: any; requireAuth?: boolean }
   ): Promise<T>
+
+  // Option-group file uploads (display_type=file)
+  uploadOptionFile(
+    cartUuid: string,
+    optionGroupUuid: string,
+    file: File,
+    onProgress?: (progress: number) => void
+  ): Promise<{ data: StorefrontOptionUpload }>
+  deleteOptionUpload(uploadUuid: string): Promise<void>
+}
+
+export interface StorefrontOptionUpload {
+  uuid: string
+  original_filename: string
+  extension: string
+  mime_type: string
+  size: number
+  public_url: string | null
 }
 
 export interface StorefrontMarketingTopBar {
@@ -629,6 +651,51 @@ export function createStorefrontClient(options: StorefrontClientOptions): Storef
         body: opts.body,
         requireAuth: opts.requireAuth ?? true,
       }),
+
+    // Option-group file uploads. Multipart goes through a dedicated POST that
+    // bypasses the JSON request() helper. Storefront proxy must expose
+    // /v1/cart/:cart/option-groups/:group/uploads accepting multipart/form-data.
+    async uploadOptionFile(cartUuid, optionGroupUuid, file, onProgress) {
+      const formData = new FormData()
+      formData.append('file', file)
+
+      const url = `${baseUrl}/v1/cart/${cartUuid}/option-groups/${optionGroupUuid}/uploads`
+
+      // Use XMLHttpRequest so we can report upload progress; fetch lacks a
+      // native progress event for request bodies.
+      return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest()
+        xhr.open('POST', url)
+        xhr.setRequestHeader('X-Api-Key', apiKey)
+        xhr.setRequestHeader('Accept', 'application/json')
+        if (customerToken) {
+          xhr.setRequestHeader('Authorization', `Bearer ${customerToken}`)
+        }
+        xhr.upload.onprogress = (ev) => {
+          if (onProgress && ev.lengthComputable) {
+            onProgress(Math.round((ev.loaded / ev.total) * 100))
+          }
+        }
+        xhr.onload = () => {
+          let body: any = null
+          try { body = JSON.parse(xhr.responseText) } catch { /* ignore */ }
+          if (xhr.status >= 200 && xhr.status < 300) {
+            resolve(body)
+          } else {
+            reject(new StorefrontApiError(
+              body?.message || xhr.statusText || 'Upload failed',
+              xhr.status,
+              body?.code,
+              body?.errors
+            ))
+          }
+        }
+        xhr.onerror = () => reject(new StorefrontApiError('Network error', 0, 'NETWORK_ERROR'))
+        xhr.send(formData)
+      })
+    },
+    deleteOptionUpload: (uploadUuid) =>
+      request('DELETE', `/cart/option-uploads/${uploadUuid}`),
 
     // Marketing
     getActiveCampaigns: (params) =>
