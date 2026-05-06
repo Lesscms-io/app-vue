@@ -10,8 +10,19 @@
 // Types — mirror Storefront API response shapes
 // ============================================================================
 
-export type StorefrontOptionDisplayType = 'select' | 'radio' | 'image_swatches' | 'color_swatches' | 'numeric' | 'text' | 'file'
+export type StorefrontOptionDisplayType = 'select' | 'radio' | 'image_swatches' | 'color_swatches' | 'numeric' | 'text' | 'file' | 'checkbox'
 export type StorefrontOptionPriceModifierType = 'fixed_price' | 'percentage'
+
+export interface StorefrontVisibilityRule {
+  mode?: 'show_when' | 'hide_when'
+  and_groups: string[][]
+}
+
+export interface StorefrontPriceOverride {
+  when: StorefrontVisibilityRule
+  value: number
+  type?: 'absolute' | 'add' | 'subtract'
+}
 
 export interface StorefrontProductOption {
   uuid: string
@@ -37,10 +48,15 @@ export interface StorefrontProductOptionGroup {
   numeric_max: number | null
   numeric_step: number | null
   price_per_unit: number | null
+  /** Conditional per-unit overrides for numeric groups. First match wins. */
+  price_per_unit_overrides?: StorefrontPriceOverride[] | null
   /** display_type='file' only: per-group upload constraints. */
   file_allowed_extensions?: string[] | null
   file_max_size_kb?: number | null
   file_max_count?: number | null
+  /** display_type='checkbox' only: single yes/no toggle config. */
+  checkbox_label?: string | null
+  checkbox_price_modifier?: number | null
   options: StorefrontProductOption[]
 }
 

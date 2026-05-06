@@ -240,8 +240,8 @@ const allGroups = computed<StorefrontProductOptionGroup[]>(() => {
 
 // Selected option state: group_uuid -> option_uuid (for select/radio/swatches)
 const selectedOptions = ref<Record<string, string>>({})
-// Free-form value state: group_uuid -> string/number (for text/numeric groups)
-const customValues = ref<Record<string, string | number>>({})
+// Free-form value state: group_uuid -> string/number/boolean (text/numeric/checkbox groups)
+const customValues = ref<Record<string, string | number | boolean>>({})
 // File-upload state: group_uuid -> list of uploaded files
 const fileUploads = ref<Record<string, StorefrontOptionUpload[]>>({})
 // Per-group upload progress / error
@@ -252,13 +252,15 @@ watch(
   allGroups,
   (groups) => {
     const nextSelected: Record<string, string> = {}
-    const nextCustom: Record<string, string | number> = {}
+    const nextCustom: Record<string, string | number | boolean> = {}
     const nextFiles: Record<string, StorefrontOptionUpload[]> = {}
     for (const group of groups) {
       if (group.display_type === 'numeric') {
         nextCustom[group.uuid] = group.numeric_min ?? 0
       } else if (group.display_type === 'text') {
         nextCustom[group.uuid] = ''
+      } else if (group.display_type === 'checkbox') {
+        nextCustom[group.uuid] = false
       } else if (group.display_type === 'file') {
         nextFiles[group.uuid] = fileUploads.value[group.uuid] || []
       } else {
@@ -332,17 +334,46 @@ const basePrice = computed(() => {
   return p ? Number(p.price) || 0 : 0
 })
 
+// Effective per-unit rate for a numeric group: walks price_per_unit_overrides
+// and returns the first one whose `when` rule matches the current selection;
+// falls back to group.price_per_unit. Mirrors how option price overrides work.
+function effectivePricePerUnit(group: StorefrontProductOptionGroup): number {
+  const base = Number(group.price_per_unit ?? 0) || 0
+  const overrides = group.price_per_unit_overrides || []
+  if (!overrides.length) return base
+  const sel = selectedSet.value
+  for (const ov of overrides) {
+    const andGroups = ov?.when?.and_groups || []
+    if (andGroups.length === 0) continue
+    const matches = andGroups.every((row) => row.some((uuid) => sel.has(uuid)))
+    if (!matches) continue
+    const v = Number(ov.value) || 0
+    if (ov.type === 'add') return base + v
+    if (ov.type === 'subtract') return base - v
+    return v // 'absolute' (default)
+  }
+  return base
+}
+
 const totalPrice = computed(() => {
   let total = basePrice.value
   for (const group of visibleGroups.value) {
     if (group.display_type === 'numeric') {
       const qty = Number(customValues.value[group.uuid] ?? 0)
-      if (qty > 0 && group.price_per_unit) {
-        total += qty * group.price_per_unit
+      const rate = effectivePricePerUnit(group)
+      if (qty > 0 && rate) {
+        total += qty * rate
       }
       continue
     }
     if (group.display_type === 'text') continue
+    if (group.display_type === 'file') continue
+    if (group.display_type === 'checkbox') {
+      if (customValues.value[group.uuid] === true && group.checkbox_price_modifier) {
+        total += Number(group.checkbox_price_modifier)
+      }
+      continue
+    }
     const selectedUuid = selectedOptions.value[group.uuid]
     if (!selectedUuid) continue
     const option = group.options.find((o) => o.uuid === selectedUuid)
@@ -364,6 +395,9 @@ const missingRequired = computed(() =>
     }
     if (g.display_type === 'file') {
       return (fileUploads.value[g.uuid] || []).length === 0
+    }
+    if (g.display_type === 'checkbox') {
+      return customValues.value[g.uuid] !== true
     }
     return !selectedOptions.value[g.uuid]
   })
@@ -470,7 +504,7 @@ function selectOption(groupUuid: string, optionUuid: string) {
   selectedOptions.value = { ...selectedOptions.value, [groupUuid]: optionUuid }
 }
 
-function setCustomValue(groupUuid: string, value: string | number) {
+function setCustomValue(groupUuid: string, value: string | number | boolean) {
   customValues.value = { ...customValues.value, [groupUuid]: value }
 }
 
@@ -594,6 +628,17 @@ async function handleAddToCart() {
         value,
         price_delta: 0,
       })
+    } else if (g.display_type === 'checkbox') {
+      if (customValues.value[g.uuid] !== true) continue
+      const delta = Number(g.checkbox_price_modifier ?? 0) || 0
+      configuredOptions.push({
+        group_uuid: g.uuid,
+        group_name: g.name,
+        type: 'checkbox',
+        value: true,
+        checkbox_label: g.checkbox_label || 'TAK',
+        price_delta: delta,
+      })
     } else if (g.display_type === 'file') {
       const uploads = fileUploads.value[g.uuid] || []
       if (uploads.length === 0) continue
@@ -613,7 +658,8 @@ async function handleAddToCart() {
     } else if (g.display_type === 'numeric') {
       const qty = Number(customValues.value[g.uuid] ?? 0)
       if (!qty) continue
-      const delta = g.price_per_unit ? qty * g.price_per_unit : 0
+      const rate = effectivePricePerUnit(g)
+      const delta = rate ? qty * rate : 0
       configuredOptions.push({
         group_uuid: g.uuid,
         group_name: g.name,
@@ -849,10 +895,27 @@ const cssVars = computed(() => ({
               @input="setCustomValue(group.uuid, Number(($event.target as HTMLInputElement).value))"
             />
             <span
-              v-if="group.price_per_unit"
+              v-if="effectivePricePerUnit(group)"
               class="lcms-product-configurator__numeric-rate"
-            >× {{ formatPrice(group.price_per_unit, currency) }}</span>
+            >× {{ formatPrice(effectivePricePerUnit(group), currency) }}</span>
           </div>
+
+          <!-- checkbox (yes/no toggle with optional price modifier) -->
+          <label
+            v-else-if="group.display_type === 'checkbox'"
+            class="lcms-product-configurator__checkbox"
+          >
+            <input
+              type="checkbox"
+              :checked="customValues[group.uuid] === true"
+              @change="setCustomValue(group.uuid, ($event.target as HTMLInputElement).checked)"
+            />
+            <span class="lcms-product-configurator__checkbox-label">{{ group.checkbox_label || 'TAK' }}</span>
+            <span
+              v-if="group.checkbox_price_modifier"
+              class="lcms-product-configurator__checkbox-price"
+            >(+{{ formatPrice(group.checkbox_price_modifier, currency) }})</span>
+          </label>
 
           <!-- file upload display -->
           <div
@@ -1230,6 +1293,30 @@ const cssVars = computed(() => ({
 
 @keyframes lcms-pc-spin {
   to { transform: rotate(360deg); }
+}
+
+.lcms-product-configurator__checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 0.95rem;
+  user-select: none;
+}
+.lcms-product-configurator__checkbox input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: var(--lcms-color-primary, #50a5f1);
+}
+.lcms-product-configurator__checkbox-label {
+  text-transform: uppercase;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+}
+.lcms-product-configurator__checkbox-price {
+  color: var(--lcms-color-muted, #74788d);
+  font-size: 0.9em;
 }
 
 .lcms-product-configurator__file {
