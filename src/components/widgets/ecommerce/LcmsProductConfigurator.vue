@@ -107,6 +107,14 @@ const buttonInlineStyle = computed(() => {
 const showHeading = computed(() => config.value.show_heading !== false)
 const showPriceSummary = computed(() => config.value.show_price_summary !== false)
 const showRequiredBadge = computed(() => config.value.show_required_badge !== false)
+const showOptionPrices = computed(() => config.value.show_option_prices !== false)
+const swatchSize = computed<'sm' | 'md' | 'lg'>(() => {
+  const s = config.value.swatch_size
+  return s === 'sm' || s === 'lg' ? s : 'md'
+})
+const wizardMode = computed(() => config.value.wizard_mode === true)
+const showProgress = computed(() => config.value.show_progress !== false)
+const showStepCount = computed(() => config.value.show_step_count !== false)
 const slugSource = computed(() => config.value.slug_source || 'url')
 const slugUrlSegment = computed(() => Number(config.value.slug_url_segment ?? 2))
 const staticSlug = computed(() => config.value.slug || '')
@@ -172,7 +180,7 @@ const t = (key: string, params?: Record<string, string | number>) => {
       loading: 'Ładowanie...',
       notFound: 'Produkt nie znaleziony',
       noOptions: 'Ten produkt nie ma opcji do skonfigurowania.',
-      required: 'wymagane',
+      required: '*',
       selectPlaceholder: 'Wybierz...',
       addedToCart: 'Dodano do koszyka',
       addError: 'Nie udało się dodać do koszyka',
@@ -188,12 +196,17 @@ const t = (key: string, params?: Record<string, string | number>) => {
       fileUploading: 'Wgrywanie...',
       fileUploadFailed: 'Nie udało się wgrać pliku',
       fileRemove: 'Usuń',
+      stepBack: 'Wstecz',
+      stepNext: 'Dalej',
+      stepSummary: 'Podsumowanie',
+      step: 'Krok',
+      of: 'z',
     },
     en: {
       loading: 'Loading...',
       notFound: 'Product not found',
       noOptions: 'This product has no configurable options.',
-      required: 'required',
+      required: '*',
       selectPlaceholder: 'Select...',
       addedToCart: 'Added to cart',
       addError: 'Failed to add to cart',
@@ -209,6 +222,11 @@ const t = (key: string, params?: Record<string, string | number>) => {
       fileUploading: 'Uploading...',
       fileUploadFailed: 'Upload failed',
       fileRemove: 'Remove',
+      stepBack: 'Back',
+      stepNext: 'Next',
+      stepSummary: 'Summary',
+      step: 'Step',
+      of: 'of',
     },
   }
   let value = dict[lang]?.[key] || dict.pl[key] || key
@@ -247,6 +265,12 @@ const fileUploads = ref<Record<string, StorefrontOptionUpload[]>>({})
 // Per-group upload progress / error
 const fileUploadStatus = ref<Record<string, { uploading: boolean; error: string | null }>>({})
 
+// Wizard-mode navigation state. Only used when config.wizard_mode = true; classic
+// mode ignores these refs entirely. We keep the same selection/upload/customValue
+// state shapes — wizard just paginates over visibleGroups.
+const currentStep = ref(0)
+const showSummary = ref(false)
+
 // Apply default selections when product loads
 watch(
   allGroups,
@@ -275,6 +299,8 @@ watch(
     selectedOptions.value = nextSelected
     customValues.value = nextCustom
     fileUploads.value = nextFiles
+    currentStep.value = 0
+    showSummary.value = false
   },
   { immediate: true }
 )
@@ -319,6 +345,99 @@ const selectedSet = computed(() => {
   }
   return set
 })
+
+// --- Wizard navigation -----------------------------------------------------
+// In wizard_mode we paginate visibleGroups one-per-step. If the user goes back
+// and changes a choice that hides a previously-visited step, this watch snaps
+// the cursor back into bounds.
+const totalSteps = computed(() => visibleGroups.value.length)
+const currentGroup = computed<StorefrontProductOptionGroup | null>(
+  () => visibleGroups.value[currentStep.value] || null
+)
+const isFirstStep = computed(() => currentStep.value === 0)
+const isLastStep = computed(() => currentStep.value >= totalSteps.value - 1)
+const progressPercent = computed(() => {
+  if (totalSteps.value === 0) return 0
+  if (showSummary.value) return 100
+  return Math.round(((currentStep.value + 1) / totalSteps.value) * 100)
+})
+
+watch(visibleGroups, (groups) => {
+  if (currentStep.value > groups.length - 1) {
+    currentStep.value = Math.max(0, groups.length - 1)
+  }
+})
+
+function isGroupValid(g: StorefrontProductOptionGroup): boolean {
+  if (!g.is_required) return true
+  if (g.display_type === 'text') {
+    return !!String(customValues.value[g.uuid] ?? '').trim()
+  }
+  if (g.display_type === 'numeric') {
+    const v = Number(customValues.value[g.uuid] ?? NaN)
+    return !isNaN(v) && (g.numeric_min == null || v >= g.numeric_min)
+  }
+  if (g.display_type === 'file') {
+    return (fileUploads.value[g.uuid] || []).length > 0
+  }
+  if (g.display_type === 'checkbox') {
+    return customValues.value[g.uuid] === true
+  }
+  return !!selectedOptions.value[g.uuid]
+}
+
+function goNextStep() {
+  const g = currentGroup.value
+  if (g && !isGroupValid(g)) {
+    toast.error(t('fillRequired'))
+    return
+  }
+  if (isLastStep.value) {
+    showSummary.value = true
+    return
+  }
+  currentStep.value += 1
+}
+
+function goPrevStep() {
+  if (showSummary.value) {
+    showSummary.value = false
+    return
+  }
+  if (currentStep.value > 0) currentStep.value -= 1
+}
+
+// What the loop renders. Wizard step view shows a single group; classic and
+// wizard summary both show the full list (summary just hides the inputs via
+// a separate v-if branch in the template).
+const groupsToShow = computed<StorefrontProductOptionGroup[]>(() => {
+  if (wizardMode.value && !showSummary.value) {
+    const g = currentGroup.value
+    return g ? [g] : []
+  }
+  return visibleGroups.value
+})
+
+// Resolves the human-readable summary text for a group based on current state.
+// Used by the wizard summary list.
+function groupSummaryValue(g: StorefrontProductOptionGroup): string {
+  if (g.display_type === 'text') return String(customValues.value[g.uuid] ?? '') || '—'
+  if (g.display_type === 'numeric') {
+    const v = customValues.value[g.uuid]
+    return v === undefined || v === null || v === '' ? '—' : String(v)
+  }
+  if (g.display_type === 'checkbox') {
+    return customValues.value[g.uuid] === true ? (g.checkbox_label || 'TAK') : '—'
+  }
+  if (g.display_type === 'file') {
+    const ups = fileUploads.value[g.uuid] || []
+    if (!ups.length) return '—'
+    return ups.map((u) => u.original_filename).join(', ')
+  }
+  const sel = selectedOptions.value[g.uuid]
+  if (!sel) return '—'
+  return g.options.find((o) => o.uuid === sel)?.name || '—'
+}
 
 // Price calculation — base + sum of modifiers from selected options
 function applyModifier(base: number, option: StorefrontProductOption): number {
@@ -784,17 +903,55 @@ const cssVars = computed(() => ({
         {{ t('noOptions') }}
       </div>
 
-      <div v-else class="lcms-product-configurator__groups">
+      <!-- Wizard progress bar -->
+      <div
+        v-else-if="wizardMode && showProgress && totalSteps > 0"
+        class="lcms-product-configurator__progress"
+      >
+        <div class="lcms-product-configurator__progress-bar">
+          <div
+            class="lcms-product-configurator__progress-fill"
+            :style="{ width: progressPercent + '%' }"
+          />
+        </div>
+        <div v-if="showStepCount" class="lcms-product-configurator__progress-label">
+          <span v-if="!showSummary">{{ t('step') }} {{ currentStep + 1 }} {{ t('of') }} {{ totalSteps }}</span>
+          <span v-else>{{ t('stepSummary') }}</span>
+          <span class="lcms-product-configurator__progress-percent">{{ progressPercent }}%</span>
+        </div>
+      </div>
+
+      <!-- Wizard summary (shown after last step) -->
+      <div
+        v-if="wizardMode && showSummary"
+        class="lcms-product-configurator__summary-list"
+      >
+        <h4 class="lcms-product-configurator__summary-title">{{ t('stepSummary') }}</h4>
+        <ul>
+          <li v-for="g in visibleGroups" :key="g.uuid">
+            <strong>{{ g.name }}:</strong>
+            <span>{{ groupSummaryValue(g) }}</span>
+          </li>
+        </ul>
+      </div>
+
+      <div
+        v-else-if="allGroups.length > 0"
+        class="lcms-product-configurator__groups"
+        :class="{ 'lcms-product-configurator__groups--wizard': wizardMode }"
+      >
         <div
-          v-for="group in visibleGroups"
+          v-for="group in groupsToShow"
           :key="group.uuid"
           class="lcms-product-configurator__group"
+          :class="`lcms-product-configurator__group--swatch-${swatchSize}`"
         >
           <div class="lcms-product-configurator__group-label">
             <span class="lcms-product-configurator__group-name">{{ group.name }}</span>
             <span
               v-if="showRequiredBadge && group.is_required"
               class="lcms-product-configurator__required"
+              :aria-label="'wymagane'"
             >{{ t('required') }}</span>
           </div>
 
@@ -848,16 +1005,24 @@ const cssVars = computed(() => ({
             class="lcms-product-configurator__swatches"
           >
             <template v-for="opt in visibleOptionsOf(group, selectedSet)" :key="opt.uuid">
-              <button
+              <div
                 v-if="opt.color_hex"
-                type="button"
-                class="lcms-product-configurator__swatch lcms-product-configurator__swatch--color"
-                :class="{ 'lcms-product-configurator__swatch--selected': selectedOptions[group.uuid] === opt.uuid }"
-                :title="opt.name + (optionPriceDeltaText(opt) ? ` (${optionPriceDeltaText(opt)})` : '')"
-                :style="{ backgroundColor: opt.color_hex }"
-                :aria-label="opt.name"
-                @click="selectOption(group.uuid, opt.uuid)"
-              />
+                class="lcms-product-configurator__swatch-cell"
+              >
+                <button
+                  type="button"
+                  class="lcms-product-configurator__swatch lcms-product-configurator__swatch--color"
+                  :class="{ 'lcms-product-configurator__swatch--selected': selectedOptions[group.uuid] === opt.uuid }"
+                  :title="opt.name + (optionPriceDeltaText(opt) ? ` (${optionPriceDeltaText(opt)})` : '')"
+                  :style="{ backgroundColor: opt.color_hex }"
+                  :aria-label="opt.name"
+                  @click="selectOption(group.uuid, opt.uuid)"
+                />
+                <span
+                  v-if="showOptionPrices && optionPriceDeltaText(opt)"
+                  class="lcms-product-configurator__swatch-price"
+                >{{ optionPriceDeltaText(opt) }}</span>
+              </div>
               <button
                 v-else
                 type="button"
@@ -876,17 +1041,31 @@ const cssVars = computed(() => ({
             class="lcms-product-configurator__swatches"
           >
             <template v-for="opt in visibleOptionsOf(group, selectedSet)" :key="opt.uuid">
-              <button
+              <div
                 v-if="opt.thumbnail"
-                type="button"
-                class="lcms-product-configurator__swatch lcms-product-configurator__swatch--image"
-                :class="{ 'lcms-product-configurator__swatch--selected': selectedOptions[group.uuid] === opt.uuid }"
-                :title="opt.name + (optionPriceDeltaText(opt) ? ` (${optionPriceDeltaText(opt)})` : '')"
-                :aria-label="opt.name"
-                @click="selectOption(group.uuid, opt.uuid)"
+                class="lcms-product-configurator__swatch-cell"
               >
-                <img :src="opt.thumbnail" :alt="opt.name" />
-              </button>
+                <button
+                  type="button"
+                  class="lcms-product-configurator__swatch lcms-product-configurator__swatch--image"
+                  :class="{ 'lcms-product-configurator__swatch--selected': selectedOptions[group.uuid] === opt.uuid }"
+                  :title="opt.name + (optionPriceDeltaText(opt) ? ` (${optionPriceDeltaText(opt)})` : '')"
+                  :aria-label="opt.name"
+                  @click="selectOption(group.uuid, opt.uuid)"
+                >
+                  <img :src="opt.thumbnail" :alt="opt.name" />
+                </button>
+                <span
+                  v-if="showOptionPrices"
+                  class="lcms-product-configurator__swatch-caption"
+                >
+                  <span class="lcms-product-configurator__swatch-name">{{ opt.name }}</span>
+                  <span
+                    v-if="optionPriceDeltaText(opt)"
+                    class="lcms-product-configurator__swatch-price"
+                  >{{ optionPriceDeltaText(opt) }}</span>
+                </span>
+              </div>
               <button
                 v-else
                 type="button"
@@ -935,6 +1114,7 @@ const cssVars = computed(() => ({
           <label
             v-else-if="group.display_type === 'checkbox'"
             class="lcms-product-configurator__checkbox"
+            :class="{ 'lcms-product-configurator__checkbox--checked': customValues[group.uuid] === true }"
           >
             <input
               type="checkbox"
@@ -1003,40 +1183,100 @@ const cssVars = computed(() => ({
               <span v-if="(group.file_max_count || 1) > 1"> · do {{ group.file_max_count }} plików</span>
             </div>
           </div>
+
+          <!-- Fallback for unknown display_type. Renders the group as a
+               checkbox so the user can still toggle a TAK/NIE answer. Without
+               this, an option group with a missing or unrecognised display_type
+               vanishes silently — exactly the bug the user reported with
+               "Album pokazowy DEMO". -->
+          <label
+            v-else
+            class="lcms-product-configurator__checkbox"
+            :class="{ 'lcms-product-configurator__checkbox--checked': customValues[group.uuid] === true }"
+          >
+            <input
+              type="checkbox"
+              :checked="customValues[group.uuid] === true"
+              @change="setCustomValue(group.uuid, ($event.target as HTMLInputElement).checked)"
+            />
+            <span class="lcms-product-configurator__checkbox-label">{{ group.checkbox_label || 'TAK' }}</span>
+          </label>
         </div>
       </div>
 
-      <div v-if="showPriceSummary" class="lcms-product-configurator__summary">
+      <!-- Price summary: always shown when enabled. In wizard mode the live
+           total updates as the user steps through, so they always see how
+           their selections affect the price. -->
+      <div
+        v-if="showPriceSummary"
+        class="lcms-product-configurator__summary"
+      >
         <span class="lcms-product-configurator__summary-label">{{ totalLabelText }}</span>
         <span class="lcms-product-configurator__summary-amount">
           {{ formatPrice(totalPrice, currency) }}
         </span>
       </div>
 
-      <button
-        v-if="activeBehavior"
-        type="button"
-        :class="buttonClass"
-        :style="buttonInlineStyle"
-        :disabled="!canRunBehavior"
-        @click="handleBehaviorAction"
+      <!-- Wizard nav (prev/next on a step; on summary step we render
+           the regular add-to-cart / behavior button below). -->
+      <div
+        v-if="wizardMode && !showSummary && totalSteps > 0"
+        class="lcms-product-configurator__wizard-nav"
       >
-        <span v-if="isAdding" class="lcms-product-configurator__spinner" />
-        {{ behaviorButtonText }}
-      </button>
-      <button
-        v-else
-        type="button"
-        :class="buttonClass"
-        :style="buttonInlineStyle"
-        :disabled="!canAddToCart"
-        @click="handleAddToCart"
-      >
-        <span v-if="isAdding" class="lcms-product-configurator__spinner" />
-        <i v-else-if="buttonIcon && buttonIconPosition === 'left'" :class="buttonIcon" style="margin-right: 6px;" />
-        {{ buttonText }}
-        <i v-if="buttonIcon && buttonIconPosition === 'right'" :class="buttonIcon" style="margin-left: 6px;" />
-      </button>
+        <button
+          type="button"
+          class="lcms-product-configurator__nav-btn lcms-product-configurator__nav-btn--secondary"
+          :disabled="isFirstStep"
+          @click="goPrevStep"
+        >
+          {{ t('stepBack') }}
+        </button>
+        <button
+          type="button"
+          class="lcms-product-configurator__nav-btn lcms-product-configurator__nav-btn--primary"
+          @click="goNextStep"
+        >
+          {{ isLastStep ? t('stepSummary') : t('stepNext') }}
+        </button>
+      </div>
+
+      <!-- Add-to-cart / plugin-behavior button. In wizard mode shown only
+           on the summary step. The "Back" button on summary lets the user
+           return to the last step. -->
+      <template v-if="!wizardMode || showSummary">
+        <button
+          v-if="wizardMode && showSummary"
+          type="button"
+          class="lcms-product-configurator__nav-btn lcms-product-configurator__nav-btn--secondary lcms-product-configurator__back-btn"
+          @click="goPrevStep"
+        >
+          {{ t('stepBack') }}
+        </button>
+        <button
+          v-if="activeBehavior"
+          type="button"
+          :class="buttonClass"
+          :style="buttonInlineStyle"
+          :disabled="!canRunBehavior"
+          @click="handleBehaviorAction"
+        >
+          <span v-if="isAdding" class="lcms-product-configurator__spinner" />
+          {{ behaviorButtonText }}
+        </button>
+        <button
+          v-else
+          type="button"
+          :class="buttonClass"
+          :style="buttonInlineStyle"
+          :disabled="!canAddToCart"
+          @click="handleAddToCart"
+        >
+          <span v-if="isAdding" class="lcms-product-configurator__spinner" />
+          <i v-else-if="buttonIcon && buttonIconPosition === 'left'" :class="buttonIcon" style="margin-right: 6px;" />
+          {{ buttonText }}
+          <i v-if="buttonIcon && buttonIconPosition === 'right'" :class="buttonIcon" style="margin-left: 6px;" />
+        </button>
+      </template>
     </template>
   </div>
 </template>
@@ -1082,10 +1322,9 @@ const cssVars = computed(() => ({
 }
 
 .lcms-product-configurator__required {
-  font-size: 0.75rem;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  font-size: 1.125rem;
+  font-weight: 700;
+  line-height: 1;
   color: var(--lcms-pc-required-color, var(--lcms-color-danger, #ef4444));
 }
 
@@ -1168,23 +1407,37 @@ const cssVars = computed(() => ({
 .lcms-product-configurator__swatches {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: 0.75rem;
+}
+
+/* Wraps each swatch + its caption (name + price). Layout = column so caption
+ * sits below the swatch. Width-aligns to swatch dimensions so captions don't
+ * stretch the row. */
+.lcms-product-configurator__swatch-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.375rem;
+  font-size: 0.8125rem;
 }
 
 .lcms-product-configurator__swatch {
-  width: 2.75rem;
-  height: 2.75rem;
+  /* Default size = md. Per-group size class on parent overrides. */
+  width: 4.5rem;
+  height: 4.5rem;
   border: 2px solid var(--lcms-pc-option-border, var(--lcms-color-border, #d1d5db));
   border-radius: var(--lcms-border-radius, 0.375rem);
   cursor: pointer;
   padding: 0;
   overflow: hidden;
-  transition: border-color 0.15s, transform 0.1s;
+  background: var(--lcms-pc-option-bg, transparent);
+  /* No transition on border-color: hover should feel instant. The 1.03 scale
+   * pop also gone — it caused the perceived "lag" the user reported because
+   * transform animations stack on top of the border colour shift. */
 }
 
 .lcms-product-configurator__swatch:hover {
   border-color: var(--lcms-pc-option-border-hover, var(--lcms-color-primary, #3b82f6));
-  transform: scale(1.03);
 }
 
 .lcms-product-configurator__swatch--selected {
@@ -1197,6 +1450,42 @@ const cssVars = computed(() => ({
   height: 100%;
   object-fit: cover;
   display: block;
+}
+
+/* Per-group swatch sizing — small / medium / large. Applied via the wrapping
+ * group div so all swatches in a group share the same dimensions. */
+.lcms-product-configurator__group--swatch-sm .lcms-product-configurator__swatch {
+  width: 2.75rem;
+  height: 2.75rem;
+}
+.lcms-product-configurator__group--swatch-md .lcms-product-configurator__swatch {
+  width: 4.5rem;
+  height: 4.5rem;
+}
+.lcms-product-configurator__group--swatch-lg .lcms-product-configurator__swatch {
+  width: 6.5rem;
+  height: 6.5rem;
+}
+
+.lcms-product-configurator__swatch-caption {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.125rem;
+  line-height: 1.2;
+  max-width: 6.5rem;
+}
+
+.lcms-product-configurator__swatch-name {
+  font-weight: 500;
+  color: var(--lcms-color-text, #1f2937);
+  word-break: break-word;
+}
+
+.lcms-product-configurator__swatch-price {
+  font-weight: 600;
+  color: var(--lcms-color-muted, #6b7280);
+  font-size: 0.8125rem;
 }
 
 .lcms-product-configurator__chip {
@@ -1326,28 +1615,139 @@ const cssVars = computed(() => ({
   to { transform: rotate(360deg); }
 }
 
+/* Checkbox group — beefed up so the YES toggle is unmistakable. Renders as
+ * a clickable card that visibly highlights when checked, instead of the prior
+ * tight inline label that disappeared on a busy product page. */
 .lcms-product-configurator__checkbox {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 0.625rem;
   cursor: pointer;
-  font-size: 0.95rem;
+  font-size: 1rem;
   user-select: none;
+  padding: 0.625rem 0.875rem;
+  border: 1px solid var(--lcms-pc-option-border, var(--lcms-color-border, #d1d5db));
+  border-radius: var(--lcms-border-radius, 0.375rem);
+  background: var(--lcms-pc-option-bg, var(--lcms-color-background, #fff));
+  color: var(--lcms-pc-option-text, var(--lcms-color-text, #1f2937));
+  align-self: flex-start;
+}
+.lcms-product-configurator__checkbox:hover {
+  border-color: var(--lcms-pc-option-border-hover, var(--lcms-color-primary, #3b82f6));
+}
+.lcms-product-configurator__checkbox--checked {
+  background: var(--lcms-pc-option-selected-bg, rgba(59, 130, 246, 0.08));
+  border-color: var(--lcms-pc-option-selected-border, var(--lcms-color-primary, #3b82f6));
 }
 .lcms-product-configurator__checkbox input[type="checkbox"] {
-  width: 18px;
-  height: 18px;
+  width: 22px;
+  height: 22px;
   cursor: pointer;
   accent-color: var(--lcms-color-primary, #50a5f1);
+  margin: 0;
 }
 .lcms-product-configurator__checkbox-label {
-  text-transform: uppercase;
-  font-weight: 500;
+  font-weight: 600;
   letter-spacing: 0.3px;
 }
 .lcms-product-configurator__checkbox-price {
   color: var(--lcms-color-muted, #74788d);
   font-size: 0.9em;
+}
+
+/* --- Wizard mode -------------------------------------------------------- */
+.lcms-product-configurator__progress {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  margin-bottom: 1.25rem;
+}
+.lcms-product-configurator__progress-bar {
+  height: 8px;
+  background: var(--lcms-color-background-alt, #f3f4f6);
+  border-radius: 9999px;
+  overflow: hidden;
+}
+.lcms-product-configurator__progress-fill {
+  height: 100%;
+  background: var(--lcms-color-primary, #3b82f6);
+  transition: width 0.3s ease;
+}
+.lcms-product-configurator__progress-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8125rem;
+  color: var(--lcms-color-muted, #6b7280);
+}
+.lcms-product-configurator__progress-percent {
+  font-weight: 600;
+  color: var(--lcms-color-text, #1f2937);
+}
+
+.lcms-product-configurator__summary-list {
+  border: 1px solid var(--lcms-color-border, #e5e7eb);
+  border-radius: var(--lcms-border-radius, 0.5rem);
+  padding: 1rem 1.25rem;
+  background: var(--lcms-color-background, #fff);
+  margin-bottom: 1rem;
+}
+.lcms-product-configurator__summary-title {
+  margin: 0 0 0.75rem 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+.lcms-product-configurator__summary-list ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.lcms-product-configurator__summary-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px dashed var(--lcms-color-border, #e5e7eb);
+}
+.lcms-product-configurator__summary-list li:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.lcms-product-configurator__wizard-nav {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: space-between;
+  margin-top: 1.25rem;
+}
+.lcms-product-configurator__nav-btn {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  border-radius: var(--lcms-btn-border-radius, 0.375rem);
+  border: 1px solid transparent;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.lcms-product-configurator__nav-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.lcms-product-configurator__nav-btn--primary {
+  background: var(--lcms-color-primary, #3b82f6);
+  color: var(--lcms-color-white, #fff);
+}
+.lcms-product-configurator__nav-btn--secondary {
+  background: var(--lcms-color-background, #fff);
+  color: var(--lcms-color-text, #1f2937);
+  border-color: var(--lcms-color-border, #d1d5db);
+}
+.lcms-product-configurator__back-btn {
+  flex: none;
+  width: auto;
+  margin-bottom: 0.5rem;
 }
 
 .lcms-product-configurator__file {
