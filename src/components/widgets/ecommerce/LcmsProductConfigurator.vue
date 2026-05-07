@@ -116,6 +116,23 @@ const swatchColumns = computed<number>(() => {
   const n = Number(config.value.swatch_columns)
   return Number.isFinite(n) && n >= 1 ? Math.min(n, 8) : 2
 })
+const radioColumns = computed<number>(() => {
+  const n = Number(config.value.radio_columns)
+  return Number.isFinite(n) && n >= 1 ? Math.min(n, 6) : 1
+})
+
+// Radio container grid style — clamps user's radio_columns to count of visible
+// options so a group with 2 options on a 3-col setting doesn't render an empty
+// trailing cell.
+function radioGridStyle(group: StorefrontProductOptionGroup): Record<string, string> {
+  const visible = visibleOptionsOf(group, selectedSet.value).length
+  if (visible <= 1 || radioColumns.value <= 1) return {}
+  const cols = Math.max(1, Math.min(radioColumns.value, visible))
+  return {
+    display: 'grid',
+    gridTemplateColumns: `repeat(${cols}, 1fr)`,
+  }
+}
 const wizardMode = computed(() => config.value.wizard_mode === true)
 const showProgress = computed(() => config.value.show_progress !== false)
 const showStepCount = computed(() => config.value.show_step_count !== false)
@@ -723,6 +740,36 @@ function setCustomValue(groupUuid: string, value: string | number | boolean) {
   customValues.value = { ...customValues.value, [groupUuid]: value }
 }
 
+// Numeric stepper helpers — clamp to numeric_min/numeric_max bounds, fall back
+// to numeric_min when current value is empty / NaN so the first +/- click
+// produces a sensible starting number.
+function stepNumeric(group: StorefrontProductOptionGroup, delta: number) {
+  const step = Number(group.numeric_step ?? 1) || 1
+  const min = group.numeric_min ?? null
+  const max = group.numeric_max ?? null
+  const current = Number(customValues.value[group.uuid] ?? NaN)
+  let next = isNaN(current) ? (min ?? 0) : current + delta * step
+  if (min != null && next < min) next = min
+  if (max != null && next > max) next = max
+  setCustomValue(group.uuid, next)
+}
+
+function canDecrement(group: StorefrontProductOptionGroup): boolean {
+  const min = group.numeric_min ?? null
+  const current = Number(customValues.value[group.uuid] ?? NaN)
+  if (isNaN(current)) return true
+  if (min == null) return true
+  return current > min
+}
+
+function canIncrement(group: StorefrontProductOptionGroup): boolean {
+  const max = group.numeric_max ?? null
+  const current = Number(customValues.value[group.uuid] ?? NaN)
+  if (isNaN(current)) return true
+  if (max == null) return true
+  return current < max
+}
+
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
@@ -1066,6 +1113,7 @@ const cssVars = computed(() => ({
           <div
             v-else-if="group.display_type === 'radio'"
             class="lcms-product-configurator__radio-group"
+            :style="radioGridStyle(group)"
           >
             <label
               v-for="opt in visibleOptionsOf(group, selectedSet)"
@@ -1179,21 +1227,39 @@ const cssVars = computed(() => ({
             @input="setCustomValue(group.uuid, ($event.target as HTMLInputElement).value)"
           />
 
-          <!-- numeric input display -->
+          <!-- numeric input display — stepper with explicit -/+ buttons.
+               Native browser spinners are tiny on most stylesheets; users on
+               touch can't reliably hit them either. -->
           <div
             v-else-if="group.display_type === 'numeric'"
             class="lcms-product-configurator__numeric"
           >
-            <input
-              type="number"
-              class="lcms-product-configurator__numeric-input"
-              :style="inputInlineStyle"
-              :value="customValues[group.uuid] ?? ''"
-              :min="group.numeric_min ?? undefined"
-              :max="group.numeric_max ?? undefined"
-              :step="group.numeric_step ?? 1"
-              @input="setCustomValue(group.uuid, Number(($event.target as HTMLInputElement).value))"
-            />
+            <div class="lcms-product-configurator__stepper">
+              <button
+                type="button"
+                class="lcms-product-configurator__stepper-btn"
+                :disabled="!canDecrement(group)"
+                aria-label="Zmniejsz"
+                @click="stepNumeric(group, -1)"
+              >−</button>
+              <input
+                type="number"
+                class="lcms-product-configurator__stepper-input"
+                :style="inputInlineStyle"
+                :value="customValues[group.uuid] ?? ''"
+                :min="group.numeric_min ?? undefined"
+                :max="group.numeric_max ?? undefined"
+                :step="group.numeric_step ?? 1"
+                @input="setCustomValue(group.uuid, Number(($event.target as HTMLInputElement).value))"
+              />
+              <button
+                type="button"
+                class="lcms-product-configurator__stepper-btn"
+                :disabled="!canIncrement(group)"
+                aria-label="Zwiększ"
+                @click="stepNumeric(group, 1)"
+              >+</button>
+            </div>
             <span
               v-if="effectivePricePerUnit(group)"
               class="lcms-product-configurator__numeric-rate"
@@ -1454,6 +1520,9 @@ const cssVars = computed(() => ({
   flex-direction: column;
   gap: 0.5rem;
 }
+/* Grid mode kicks in via inline style from radioGridStyle(group) when
+ * radio_columns > 1. The flex-column above is the "stacked full-width"
+ * fallback (radio_columns=1 default). */
 
 .lcms-product-configurator__radio {
   display: flex;
@@ -1461,7 +1530,11 @@ const cssVars = computed(() => ({
   gap: 0.75rem;
   padding: 0.625rem 0.875rem;
   border: 1px solid var(--lcms-pc-option-border, var(--lcms-color-border, #d1d5db));
-  background: var(--lcms-pc-option-bg, var(--lcms-color-background, #fff));
+  /* Unselected default = no fill so the project's body background shows through.
+   * Filling here from --lcms-color-background made every row read as "selected"
+   * when the project bg differs from white. Use --lcms-pc-option-bg ONLY when
+   * the user explicitly sets it in the widget config. */
+  background: var(--lcms-pc-option-bg, transparent);
   color: var(--lcms-pc-option-text, var(--lcms-color-text, #1f2937));
   border-radius: var(--lcms-border-radius, 0.375rem);
   cursor: pointer;
@@ -1469,7 +1542,7 @@ const cssVars = computed(() => ({
 }
 
 .lcms-product-configurator__radio:hover {
-  background: var(--lcms-pc-option-bg-hover, var(--lcms-pc-option-bg, var(--lcms-color-background, #fff)));
+  background: var(--lcms-pc-option-bg-hover, rgba(0, 0, 0, 0.02));
   border-color: var(--lcms-pc-option-border-hover, var(--lcms-color-primary, #3b82f6));
   color: var(--lcms-pc-option-text-hover, var(--lcms-pc-option-text, var(--lcms-color-text, #1f2937)));
 }
@@ -1601,7 +1674,7 @@ const cssVars = computed(() => ({
   padding: 0.5rem 0.875rem;
   font-size: 0.9375rem;
   border: 1px solid var(--lcms-pc-option-border, var(--lcms-color-border, #d1d5db));
-  background: var(--lcms-pc-option-bg, var(--lcms-color-background, #fff));
+  background: var(--lcms-pc-option-bg, transparent);
   color: var(--lcms-pc-option-text, var(--lcms-color-text, #1f2937));
   border-radius: var(--lcms-border-radius, 0.375rem);
   cursor: pointer;
@@ -1609,7 +1682,7 @@ const cssVars = computed(() => ({
 }
 
 .lcms-product-configurator__chip:hover {
-  background: var(--lcms-pc-option-bg-hover, var(--lcms-pc-option-bg, var(--lcms-color-background, #fff)));
+  background: var(--lcms-pc-option-bg-hover, rgba(0, 0, 0, 0.02));
   border-color: var(--lcms-pc-option-border-hover, var(--lcms-color-primary, #3b82f6));
   color: var(--lcms-pc-option-text-hover, var(--lcms-pc-option-text, var(--lcms-color-text, #1f2937)));
 }
@@ -1665,6 +1738,59 @@ const cssVars = computed(() => ({
 
 .lcms-product-configurator__numeric-input {
   width: 8rem;
+}
+
+/* Stepper: -/+ buttons flank a centered numeric input. Buttons share the same
+ * border/colors as the option swatches so theming flows consistently. */
+.lcms-product-configurator__stepper {
+  display: inline-flex;
+  align-items: stretch;
+  border: 1px solid var(--lcms-pc-option-border, var(--lcms-color-border, #d1d5db));
+  border-radius: var(--lcms-border-radius, 0.375rem);
+  overflow: hidden;
+  height: 2.75rem;
+}
+.lcms-product-configurator__stepper-btn {
+  width: 2.75rem;
+  border: 0;
+  background: var(--lcms-pc-option-bg, transparent);
+  color: var(--lcms-pc-option-text, var(--lcms-color-text, #1f2937));
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+.lcms-product-configurator__stepper-btn:hover:not(:disabled) {
+  background: var(--lcms-pc-option-bg-hover, rgba(0, 0, 0, 0.04));
+  color: var(--lcms-pc-option-text-hover, var(--lcms-color-primary, #3b82f6));
+}
+.lcms-product-configurator__stepper-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.lcms-product-configurator__stepper-input {
+  width: 5rem;
+  border: 0;
+  border-left: 1px solid var(--lcms-pc-option-border, var(--lcms-color-border, #d1d5db));
+  border-right: 1px solid var(--lcms-pc-option-border, var(--lcms-color-border, #d1d5db));
+  background: var(--lcms-pc-option-bg, transparent);
+  color: var(--lcms-pc-option-text, var(--lcms-color-text, #1f2937));
+  text-align: center;
+  font-size: 1rem;
+  -moz-appearance: textfield;
+}
+/* Hide the native spinner — we have explicit buttons. */
+.lcms-product-configurator__stepper-input::-webkit-outer-spin-button,
+.lcms-product-configurator__stepper-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.lcms-product-configurator__stepper-input:focus {
+  outline: none;
 }
 
 .lcms-product-configurator__numeric-rate {
@@ -1737,7 +1863,7 @@ const cssVars = computed(() => ({
   padding: 0.625rem 0.875rem;
   border: 1px solid var(--lcms-pc-option-border, var(--lcms-color-border, #d1d5db));
   border-radius: var(--lcms-border-radius, 0.375rem);
-  background: var(--lcms-pc-option-bg, var(--lcms-color-background, #fff));
+  background: var(--lcms-pc-option-bg, transparent);
   color: var(--lcms-pc-option-text, var(--lcms-color-text, #1f2937));
   align-self: flex-start;
 }
