@@ -439,13 +439,14 @@ function groupSummaryValue(g: StorefrontProductOptionGroup): string {
   return g.options.find((o) => o.uuid === sel)?.name || '—'
 }
 
-// Price calculation — base + sum of modifiers from selected options
-function applyModifier(base: number, option: StorefrontProductOption): number {
-  if (!option.price_modifier_type || option.price_modifier_value === null) return 0
-  if (option.price_modifier_type === 'percentage') {
-    return base * (option.price_modifier_value / 100)
-  }
-  return option.price_modifier_value
+// Price calculation — base + sum of modifiers from selected options.
+// `price_modifier_type` was dropped in BE migration 2026_05_05; now the value
+// alone is additive (negative = subtract). Older renderers gated on the type
+// existing and silently returned 0, which is why prices stopped showing.
+function applyModifier(_base: number, option: StorefrontProductOption): number {
+  const v = option.price_modifier_value
+  if (v === null || v === undefined) return 0
+  return Number(v) || 0
 }
 
 const basePrice = computed(() => {

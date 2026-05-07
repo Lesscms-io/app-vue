@@ -11,7 +11,6 @@
 // ============================================================================
 
 export type StorefrontOptionDisplayType = 'select' | 'radio' | 'image_swatches' | 'color_swatches' | 'numeric' | 'text' | 'file' | 'checkbox'
-export type StorefrontOptionPriceModifierType = 'fixed_price' | 'percentage'
 
 export interface StorefrontVisibilityRule {
   mode?: 'show_when' | 'hide_when'
@@ -28,7 +27,8 @@ export interface StorefrontProductOption {
   uuid: string
   name: string
   code: string
-  price_modifier_type: StorefrontOptionPriceModifierType | null
+  /** Additive price delta vs base. Negative = subtract. Type column was
+   *  dropped in BE migration 2026_05_05 — value alone now drives modifier. */
   price_modifier_value: number | null
   color_hex: string | null
   thumbnail: string | null

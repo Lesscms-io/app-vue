@@ -249,13 +249,12 @@ function goPrev() {
   if (currentStep.value > 0) currentStep.value -= 1
 }
 
-// Price calc
-function applyModifier(base: number, option: StorefrontProductOption): number {
-  if (!option.price_modifier_type || option.price_modifier_value === null) return 0
-  if (option.price_modifier_type === 'percentage') {
-    return base * (option.price_modifier_value / 100)
-  }
-  return option.price_modifier_value
+// Price calc — type column dropped in BE migration 2026_05_05; value is now
+// purely additive (negative = subtract).
+function applyModifier(_base: number, option: StorefrontProductOption): number {
+  const v = option.price_modifier_value
+  if (v === null || v === undefined) return 0
+  return Number(v) || 0
 }
 
 const basePrice = computed(() => {
@@ -282,17 +281,9 @@ const totalPrice = computed(() => {
 })
 
 function optionPriceDeltaText(opt: StorefrontProductOption): string {
-  if (!opt.price_modifier_type || opt.price_modifier_type === 'none') return ''
   const v = Number(opt.price_modifier_value ?? 0)
   if (!v) return ''
-  if (opt.price_modifier_type === 'percentage') {
-    return `${v > 0 ? '+' : ''}${v}%`
-  }
-  if (opt.price_modifier_type === 'absolute') {
-    return formatPrice(v, currency.value)
-  }
-  // add / subtract
-  const sign = opt.price_modifier_type === 'subtract' ? '-' : '+'
+  const sign = v > 0 ? '+' : '-'
   return `${sign}${formatPrice(Math.abs(v), currency.value)}`
 }
 
