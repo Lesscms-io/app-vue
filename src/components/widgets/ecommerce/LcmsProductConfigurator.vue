@@ -347,13 +347,73 @@ const selectedSet = computed(() => {
 })
 
 // --- Wizard navigation -----------------------------------------------------
-// In wizard_mode we paginate visibleGroups one-per-step. If the user goes back
-// and changes a choice that hides a previously-visited step, this watch snaps
-// the cursor back into bounds.
-const totalSteps = computed(() => visibleGroups.value.length)
-const currentGroup = computed<StorefrontProductOptionGroup | null>(
-  () => visibleGroups.value[currentStep.value] || null
+// In wizard_mode we paginate `effectiveSteps`. Each step holds 1+ groups —
+// either one-per-step (default) or as configured via `config.wizard_steps`.
+
+interface WizardStepConfig {
+  label?: Record<string, string>
+  group_codes?: string[]
+}
+
+interface EffectiveStep {
+  label: Record<string, string> | null
+  groups: StorefrontProductOptionGroup[]
+}
+
+const wizardStepsConfig = computed<WizardStepConfig[]>(() => {
+  const v = config.value.wizard_steps
+  return Array.isArray(v) ? v : []
+})
+
+// Resolve config steps against currently-visible groups. Missing codes are
+// silently dropped (e.g. group renamed/deleted in commerce). Any visible group
+// not assigned to a config step gets appended as its own trailing step so the
+// user never loses an option just because the config is incomplete.
+const effectiveSteps = computed<EffectiveStep[]>(() => {
+  const visible = visibleGroups.value
+  const cfg = wizardStepsConfig.value
+  if (cfg.length === 0) {
+    return visible.map((g) => ({ label: null, groups: [g] }))
+  }
+  const byCode: Record<string, StorefrontProductOptionGroup> = {}
+  for (const g of visible) byCode[g.code] = g
+  const claimed = new Set<string>()
+  const steps: EffectiveStep[] = []
+  for (const step of cfg) {
+    const codes = Array.isArray(step.group_codes) ? step.group_codes : []
+    const groups: StorefrontProductOptionGroup[] = []
+    for (const code of codes) {
+      const g = byCode[code]
+      if (g && !claimed.has(g.uuid)) {
+        groups.push(g)
+        claimed.add(g.uuid)
+      }
+    }
+    if (groups.length > 0) {
+      steps.push({ label: step.label || null, groups })
+    }
+  }
+  // Trailing fallback: any visible group not yet claimed gets its own step.
+  for (const g of visible) {
+    if (!claimed.has(g.uuid)) {
+      steps.push({ label: null, groups: [g] })
+    }
+  }
+  return steps
+})
+
+const totalSteps = computed(() => effectiveSteps.value.length)
+const currentStepData = computed<EffectiveStep | null>(
+  () => effectiveSteps.value[currentStep.value] || null
 )
+const currentStepGroups = computed<StorefrontProductOptionGroup[]>(
+  () => currentStepData.value?.groups || []
+)
+const currentStepLabel = computed<string>(() => {
+  const lbl = currentStepData.value?.label
+  if (!lbl) return ''
+  return extractValue(lbl) || ''
+})
 const isFirstStep = computed(() => currentStep.value === 0)
 const isLastStep = computed(() => currentStep.value >= totalSteps.value - 1)
 const progressPercent = computed(() => {
@@ -362,9 +422,9 @@ const progressPercent = computed(() => {
   return Math.round(((currentStep.value + 1) / totalSteps.value) * 100)
 })
 
-watch(visibleGroups, (groups) => {
-  if (currentStep.value > groups.length - 1) {
-    currentStep.value = Math.max(0, groups.length - 1)
+watch(effectiveSteps, (steps) => {
+  if (currentStep.value > steps.length - 1) {
+    currentStep.value = Math.max(0, steps.length - 1)
   }
 })
 
@@ -387,10 +447,11 @@ function isGroupValid(g: StorefrontProductOptionGroup): boolean {
 }
 
 function goNextStep() {
-  const g = currentGroup.value
-  if (g && !isGroupValid(g)) {
-    toast.error(t('fillRequired'))
-    return
+  for (const g of currentStepGroups.value) {
+    if (!isGroupValid(g)) {
+      toast.error(t('fillRequired'))
+      return
+    }
   }
   if (isLastStep.value) {
     showSummary.value = true
@@ -407,13 +468,12 @@ function goPrevStep() {
   if (currentStep.value > 0) currentStep.value -= 1
 }
 
-// What the loop renders. Wizard step view shows a single group; classic and
-// wizard summary both show the full list (summary just hides the inputs via
-// a separate v-if branch in the template).
+// What the loop renders. Wizard step view shows the current step's groups;
+// classic and wizard summary both show the full list (summary just hides the
+// inputs via a separate v-if branch in the template).
 const groupsToShow = computed<StorefrontProductOptionGroup[]>(() => {
   if (wizardMode.value && !showSummary.value) {
-    const g = currentGroup.value
-    return g ? [g] : []
+    return currentStepGroups.value
   }
   return visibleGroups.value
 })
@@ -941,6 +1001,16 @@ const cssVars = computed(() => ({
         class="lcms-product-configurator__groups"
         :class="{ 'lcms-product-configurator__groups--wizard': wizardMode }"
       >
+        <!-- Step label, shown only when the user has assigned a custom label
+             to the current step via config.wizard_steps. With per-group steps
+             (no config) we let the group's own name serve as the heading. -->
+        <h4
+          v-if="wizardMode && currentStepLabel"
+          class="lcms-product-configurator__step-label"
+        >
+          {{ currentStepLabel }}
+        </h4>
+
         <div
           v-for="group in groupsToShow"
           :key="group.uuid"
@@ -1749,6 +1819,14 @@ const cssVars = computed(() => ({
   flex: none;
   width: auto;
   margin-bottom: 0.5rem;
+}
+
+.lcms-product-configurator__step-label {
+  font-family: var(--lcms-font-heading, var(--lcms-font-body));
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin: 0 0 0.75rem 0;
+  color: var(--lcms-pc-heading-color, var(--lcms-color-text, #1f2937));
 }
 
 .lcms-product-configurator__file {
