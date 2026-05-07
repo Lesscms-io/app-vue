@@ -112,6 +112,10 @@ const swatchSize = computed<'sm' | 'md' | 'lg'>(() => {
   const s = config.value.swatch_size
   return s === 'sm' || s === 'lg' ? s : 'md'
 })
+const swatchColumns = computed<number>(() => {
+  const n = Number(config.value.swatch_columns)
+  return Number.isFinite(n) && n >= 1 ? Math.min(n, 8) : 2
+})
 const wizardMode = computed(() => config.value.wizard_mode === true)
 const showProgress = computed(() => config.value.show_progress !== false)
 const showStepCount = computed(() => config.value.show_step_count !== false)
@@ -796,6 +800,20 @@ async function removeFileUpload(groupUuid: string, uploadUuid: string) {
   }
 }
 
+// Effective grid column count for an image_swatches group: clamps the user's
+// `swatch_columns` to the number of visible image options so a group with
+// fewer items doesn't render a half-empty row.
+function imageSwatchGridStyle(group: StorefrontProductOptionGroup): Record<string, string> {
+  const opts = visibleOptionsOf(group, selectedSet.value)
+  const visibleImages = opts.filter((o) => !!o.thumbnail).length
+  if (visibleImages === 0) return {}
+  const cols = Math.max(1, Math.min(swatchColumns.value, visibleImages))
+  return {
+    display: 'grid',
+    gridTemplateColumns: `repeat(${cols}, 1fr)`,
+  }
+}
+
 function optionPriceDeltaText(option: StorefrontProductOption): string {
   const delta = applyModifier(basePrice.value, option)
   if (!delta) return ''
@@ -1109,7 +1127,8 @@ const cssVars = computed(() => ({
           <!-- image swatches display -->
           <div
             v-else-if="group.display_type === 'image_swatches'"
-            class="lcms-product-configurator__swatches"
+            class="lcms-product-configurator__swatches lcms-product-configurator__swatches--grid"
+            :style="imageSwatchGridStyle(group)"
           >
             <template v-for="opt in visibleOptionsOf(group, selectedSet)" :key="opt.uuid">
               <div
@@ -1536,6 +1555,25 @@ const cssVars = computed(() => ({
 .lcms-product-configurator__group--swatch-lg .lcms-product-configurator__swatch {
   width: 6.5rem;
   height: 6.5rem;
+}
+
+/* Grid layout for image swatches: cells stretch to column width, swatch fills
+ * its cell, aspect-ratio keeps the image square. The fixed width/height from
+ * .lcms-product-configurator__swatch--image is overridden so grid sizing wins.
+ * Color swatches stay flex (small dots, flex-wrap is fine). */
+.lcms-product-configurator__swatches--grid {
+  gap: 0.75rem;
+}
+.lcms-product-configurator__swatches--grid .lcms-product-configurator__swatch-cell {
+  width: auto;
+}
+.lcms-product-configurator__swatches--grid .lcms-product-configurator__swatch--image {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1 / 1;
+}
+.lcms-product-configurator__swatches--grid .lcms-product-configurator__swatch-caption {
+  max-width: none;
 }
 
 .lcms-product-configurator__swatch-caption {
