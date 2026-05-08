@@ -117,9 +117,24 @@ const swatchColumns = computed<number>(() => {
   return Number.isFinite(n) && n >= 1 ? Math.min(n, 8) : 2
 })
 const radioColumns = computed<number>(() => {
-  const n = Number(config.value.radio_columns)
-  return Number.isFinite(n) && n >= 1 ? Math.min(n, 6) : 1
+  const explicit = Number(config.value.radio_columns)
+  if (Number.isFinite(explicit) && explicit >= 1) return Math.min(explicit, 6)
+  // Unset → inherit swatch_columns. Most projects want radios laid out the
+  // same way as image/colour swatches (DG-Lab feedback 2026-05-08), so a
+  // sensible default beats a per-page tweak.
+  const swatch = Number(config.value.swatch_columns)
+  return Number.isFinite(swatch) && swatch >= 1 ? Math.min(swatch, 6) : 2
 })
+
+const swatchImageMaxHeight = computed<string | null>(() => {
+  const n = Number(config.value.swatch_image_max_height)
+  return Number.isFinite(n) && n > 0 ? `${n}px` : null
+})
+const swatchImgStyle = computed<Record<string, string>>(() => (
+  swatchImageMaxHeight.value
+    ? { maxHeight: swatchImageMaxHeight.value, objectFit: 'contain' }
+    : {}
+))
 
 // Radio container grid style — clamps user's radio_columns to count of visible
 // options so a group with 2 options on a 3-col setting doesn't render an empty
@@ -1191,7 +1206,7 @@ const cssVars = computed(() => ({
                   :aria-label="opt.name"
                   @click="selectOption(group.uuid, opt.uuid)"
                 >
-                  <img :src="opt.thumbnail" :alt="opt.name" />
+                  <img :src="opt.thumbnail" :alt="opt.name" :style="swatchImgStyle" />
                 </button>
                 <span
                   v-if="showOptionPrices"
