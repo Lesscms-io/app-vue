@@ -360,6 +360,26 @@ function visibleOptionsOf(
   return (group.options || []).filter((opt) => isVisible(opt as any, selected))
 }
 
+// Synthetic UUIDs for non-options group types, used by visibility rules.
+// Convention shared with useRuleGraph.flattenOptions in lesscommerce/fe so
+// the rule editor's chip UUIDs round-trip into the runtime evaluator.
+//   checkbox          → ${uuid}__yes / ${uuid}__no
+//   numeric|text|file → ${uuid}__set / ${uuid}__unset
+function syntheticVisibilityIdFor(group: StorefrontProductOptionGroup): string | null {
+  if (group.display_type === 'checkbox') {
+    return `${group.uuid}__${customValues.value[group.uuid] === true ? 'yes' : 'no'}`
+  }
+  if (group.display_type === 'numeric') {
+    const v = Number(customValues.value[group.uuid] ?? NaN)
+    return `${group.uuid}__${Number.isFinite(v) && v !== 0 ? 'set' : 'unset'}`
+  }
+  if (group.display_type === 'text' || group.display_type === 'file') {
+    const filled = !!String(customValues.value[group.uuid] ?? '').trim()
+    return `${group.uuid}__${filled ? 'set' : 'unset'}`
+  }
+  return null
+}
+
 const visibleGroups = computed<StorefrontProductOptionGroup[]>(() => {
   const result: StorefrontProductOptionGroup[] = []
   const visibleSelections = new Set<string>()
@@ -368,16 +388,21 @@ const visibleGroups = computed<StorefrontProductOptionGroup[]>(() => {
     result.push(group)
     const sel = selectedOptions.value[group.uuid]
     if (sel) visibleSelections.add(sel)
+    const synth = syntheticVisibilityIdFor(group)
+    if (synth) visibleSelections.add(synth)
   }
   return result
 })
 
 // Selection set built from currently-visible groups — used by per-option rules.
+// Non-options groups contribute their synthetic UUID (see syntheticVisibilityIdFor).
 const selectedSet = computed(() => {
   const set = new Set<string>()
   for (const g of visibleGroups.value) {
     const s = selectedOptions.value[g.uuid]
     if (s) set.add(s)
+    const synth = syntheticVisibilityIdFor(g)
+    if (synth) set.add(synth)
   }
   return set
 })
