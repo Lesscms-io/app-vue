@@ -1531,13 +1531,33 @@ const cssVars = computed(() => {
 .lcms-product-configurator__groups {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  /* Per-group padding + top border handles inter-group spacing now;
+   * gap on top would double the rhythm. */
+  gap: 0;
 }
 
+/* Two-column row per group: label on the left (~1/4), control on the right
+ * (~3/4). On narrow screens we stack — same flex-column behaviour as before
+ * the layout change.
+ *
+ * `min-width: 0` on the control side prevents inner grids/flex from blowing
+ * the column out wider than 3fr would imply (Firefox/Chrome both default
+ * grid items to `min-width: auto`, which is the *content* min-content size). */
 .lcms-product-configurator__group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  display: grid;
+  grid-template-columns: minmax(140px, 1fr) minmax(0, 3fr);
+  gap: 0.75rem 1.5rem;
+  align-items: start;
+  padding: 0.75rem 0;
+}
+.lcms-product-configurator__group + .lcms-product-configurator__group {
+  border-top: 1px solid var(--lcms-pc-divider, rgba(0, 0, 0, 0.06));
+}
+@media (max-width: 600px) {
+  .lcms-product-configurator__group {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
 }
 
 .lcms-product-configurator__group-label {
@@ -1546,6 +1566,7 @@ const cssVars = computed(() => {
   gap: 0.5rem;
   font-size: 0.9375rem;
   font-weight: 600;
+  padding-top: 0.5rem;
   color: var(--lcms-pc-group-label-color, var(--lcms-color-text, #1f2937));
 }
 
@@ -1597,10 +1618,11 @@ const cssVars = computed(() => {
  * fallback (radio_columns=1 default). */
 
 .lcms-product-configurator__radio {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  padding: 0.625rem 0.875rem;
+  padding: 0.875rem 1.125rem;
   border: 1px solid var(--lcms-pc-option-border, var(--lcms-color-border, #d1d5db));
   /* Unselected default = no fill so the project's body background shows through.
    * Filling here from --lcms-color-background made every row read as "selected"
@@ -1608,9 +1630,9 @@ const cssVars = computed(() => {
    * the user explicitly sets it in the widget config. */
   background: var(--lcms-pc-option-bg, transparent);
   color: var(--lcms-pc-option-text, var(--lcms-color-text, #1f2937));
-  border-radius: var(--lcms-border-radius, 0.375rem);
+  border-radius: 0.75rem;
   cursor: pointer;
-  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.15s;
 }
 
 .lcms-product-configurator__radio:hover {
@@ -1622,16 +1644,37 @@ const cssVars = computed(() => {
 .lcms-product-configurator__radio--selected {
   background: var(--lcms-pc-option-selected-bg, rgba(59, 130, 246, 0.08));
   border-color: var(--lcms-pc-option-selected-border, var(--lcms-color-primary, #3b82f6));
-  /* Ring matches __swatch--selected — guarantees the selected radio pops
-   * above the unselected ones even when the project overrides
-   * --lcms-color-border to a colour close to --lcms-color-primary, which
-   * otherwise leaves selected and unselected with the same outline. */
-  box-shadow: 0 0 0 2px var(--lcms-pc-option-selected-ring, rgba(59, 130, 246, 0.18));
+  font-weight: 600;
+}
+/* Selected check on the trailing edge — replaces the native radio circle as
+ * the selected indicator. Drawn with currentColor so it inherits any text
+ * colour the project set on selected rows. */
+.lcms-product-configurator__radio--selected::after {
+  content: '';
+  width: 0.75rem;
+  height: 0.5rem;
+  margin-left: auto;
+  border-left: 2px solid var(--lcms-pc-option-selected-border, var(--lcms-color-primary, #3b82f6));
+  border-bottom: 2px solid var(--lcms-pc-option-selected-border, var(--lcms-color-primary, #3b82f6));
+  transform: rotate(-45deg) translateY(-2px);
+  flex-shrink: 0;
 }
 
+/* Visually hide the native input but keep it focusable for keyboard / a11y.
+ * Selection is now communicated by the chip background + check ::after. */
 .lcms-product-configurator__radio input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
   margin: 0;
-  accent-color: var(--lcms-color-primary, #3b82f6);
+  padding: 0;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  overflow: hidden;
+  white-space: nowrap;
+}
+.lcms-product-configurator__radio:focus-within {
+  box-shadow: 0 0 0 3px var(--lcms-pc-option-selected-ring, rgba(59, 130, 246, 0.22));
 }
 
 .lcms-product-configurator__radio-label {
@@ -1651,14 +1694,15 @@ const cssVars = computed(() => {
 }
 
 /* Wraps each swatch + its caption (name + price). Layout = column so caption
- * sits below the swatch. Width-aligns to swatch dimensions so captions don't
- * stretch the row. */
+ * sits below the swatch. Cells centre horizontally so the swatch + label sit
+ * in the middle of their grid track regardless of column width. */
 .lcms-product-configurator__swatch-cell {
   display: flex;
   flex-direction: column;
-  align-items: stretch;
-  gap: 0.375rem;
+  align-items: center;
+  gap: 0.5rem;
   font-size: 0.8125rem;
+  text-align: center;
 }
 
 .lcms-product-configurator__swatch {
@@ -1729,10 +1773,10 @@ const cssVars = computed(() => {
 .lcms-product-configurator__swatch-caption {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
   gap: 0.125rem;
   line-height: 1.2;
-  max-width: 6.5rem;
+  max-width: 100%;
 }
 
 .lcms-product-configurator__swatch-name {
