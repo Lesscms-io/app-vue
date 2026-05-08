@@ -134,10 +134,17 @@ const swatchImageMaxHeight = computed<string | null>(() => {
 // class fixes the button at 4.5rem × 4.5rem, so capping the img alone is a
 // no-op (the button is already smaller than any sane cap value). Capping the
 // button + width:100% lets the image grow with the grid cell up to the
-// configured cap.
+// configured cap. Both max-width and max-height are needed: the grid CSS sets
+// `aspect-ratio: 1/1` plus `width: 100%`, so capping height alone leaves a
+// rectangle (browsers don't auto-shrink width when only max-height clamps).
 const swatchImgButtonStyle = computed<Record<string, string>>(() => (
   swatchImageMaxHeight.value
-    ? { width: '100%', height: 'auto', maxHeight: swatchImageMaxHeight.value }
+    ? {
+        width: '100%',
+        height: 'auto',
+        maxWidth: swatchImageMaxHeight.value,
+        maxHeight: swatchImageMaxHeight.value,
+      }
     : {}
 ))
 const swatchImgStyle = computed<Record<string, string>>(() => (
@@ -1039,21 +1046,35 @@ watch([resolvedSlug, isAvailable], () => {
 // Every configurable color gets a var so the user's choices reactively reflow
 // through the component. Button colors live on global .lcms-button__link--*
 // classes, so no vars needed for the button itself.
-const cssVars = computed(() => ({
-  '--lcms-pc-heading-color': heading.value.color || '',
-  '--lcms-pc-group-label-color': groupLabel.value.color || '',
-  '--lcms-pc-required-color': groupLabel.value.required_color || '',
-  '--lcms-pc-option-bg': optionStyle.value.background || '',
-  '--lcms-pc-option-bg-hover': optionStyle.value['background:hover'] || '',
-  '--lcms-pc-option-border': optionStyle.value.border_color || '',
-  '--lcms-pc-option-border-hover': optionStyle.value['border_color:hover'] || '',
-  '--lcms-pc-option-selected-bg': optionStyle.value.selected_background || '',
-  '--lcms-pc-option-selected-border': optionStyle.value.selected_border_color || '',
-  '--lcms-pc-option-text': optionStyle.value.text_color || '',
-  '--lcms-pc-option-text-hover': optionStyle.value['text_color:hover'] || '',
-  '--lcms-pc-summary-color': priceSummary.value.color || '',
-  '--lcms-pc-summary-amount-color': priceSummary.value.amount_color || '',
-}))
+//
+// Empty entries are dropped: an empty custom property (`--foo:;`) is defined-
+// as-empty, which makes `var(--foo, fallback)` resolve to empty and breaks the
+// fallback chain (e.g. `border: 2px solid ` → invalid → initial value). On
+// SSR that produced a stray default border that "fixed itself" only after the
+// first click re-patched inline styles via setProperty('', '') (which removes
+// the property in CSSOM).
+const cssVars = computed(() => {
+  const raw: Record<string, string | null | undefined> = {
+    '--lcms-pc-heading-color': resolveColor(heading.value.color),
+    '--lcms-pc-group-label-color': resolveColor(groupLabel.value.color),
+    '--lcms-pc-required-color': resolveColor(groupLabel.value.required_color),
+    '--lcms-pc-option-bg': resolveColor(optionStyle.value.background),
+    '--lcms-pc-option-bg-hover': resolveColor(optionStyle.value['background:hover']),
+    '--lcms-pc-option-border': resolveColor(optionStyle.value.border_color),
+    '--lcms-pc-option-border-hover': resolveColor(optionStyle.value['border_color:hover']),
+    '--lcms-pc-option-selected-bg': resolveColor(optionStyle.value.selected_background),
+    '--lcms-pc-option-selected-border': resolveColor(optionStyle.value.selected_border_color),
+    '--lcms-pc-option-text': resolveColor(optionStyle.value.text_color),
+    '--lcms-pc-option-text-hover': resolveColor(optionStyle.value['text_color:hover']),
+    '--lcms-pc-summary-color': resolveColor(priceSummary.value.color),
+    '--lcms-pc-summary-amount-color': resolveColor(priceSummary.value.amount_color),
+  }
+  const out: Record<string, string> = {}
+  for (const [k, v] of Object.entries(raw)) {
+    if (v) out[k] = v
+  }
+  return out
+})
 </script>
 
 <template>
