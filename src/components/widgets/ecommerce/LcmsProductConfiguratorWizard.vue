@@ -136,7 +136,7 @@ const allGroups = computed<StorefrontProductOptionGroup[]>(() => {
 
 // State
 const selectedOptions = ref<Record<string, string>>({})
-const customValues = ref<Record<string, string | number>>({})
+const customValues = ref<Record<string, string | number | boolean>>({})
 const currentStep = ref(0)
 const showSummary = ref(false)
 
@@ -144,12 +144,14 @@ watch(
   allGroups,
   (groups) => {
     const nextSelected: Record<string, string> = {}
-    const nextCustom: Record<string, string | number> = {}
+    const nextCustom: Record<string, string | number | boolean> = {}
     for (const group of groups) {
       if (group.display_type === 'numeric') {
         nextCustom[group.uuid] = group.numeric_min ?? 0
       } else if (group.display_type === 'text') {
         nextCustom[group.uuid] = ''
+      } else if (group.display_type === 'checkbox') {
+        nextCustom[group.uuid] = false
       } else {
         const defaultOpt = group.options.find((o) => o.is_default) || null
         if (defaultOpt) nextSelected[group.uuid] = defaultOpt.uuid
@@ -172,6 +174,8 @@ const visibleGroups = computed<StorefrontProductOptionGroup[]>(() => {
     result.push(group)
     const sel = selectedOptions.value[group.uuid]
     if (sel) visibleSelections.add(sel)
+    const synth = syntheticVisibilityIdFor(group)
+    if (synth) visibleSelections.add(synth)
   }
   return result
 })
@@ -181,12 +185,32 @@ const selectedSet = computed(() => {
   for (const g of visibleGroups.value) {
     const s = selectedOptions.value[g.uuid]
     if (s) set.add(s)
+    const synth = syntheticVisibilityIdFor(g)
+    if (synth) set.add(synth)
   }
   return set
 })
 
 function visibleOptionsOf(group: StorefrontProductOptionGroup): StorefrontProductOption[] {
   return (group.options || []).filter((opt) => isVisible(opt as any, selectedSet.value))
+}
+
+// Synthetic visibility UUIDs for non-options groups. Mirrors
+// LcmsProductConfigurator.syntheticVisibilityIdFor and the
+// useRuleGraph.flattenOptions convention used by the rule editor.
+function syntheticVisibilityIdFor(group: StorefrontProductOptionGroup): string | null {
+  if (group.display_type === 'checkbox') {
+    return `${group.uuid}__${customValues.value[group.uuid] === true ? 'yes' : 'no'}`
+  }
+  if (group.display_type === 'numeric') {
+    const v = Number(customValues.value[group.uuid] ?? NaN)
+    return `${group.uuid}__${Number.isFinite(v) && v !== 0 ? 'set' : 'unset'}`
+  }
+  if (group.display_type === 'text' || group.display_type === 'file') {
+    const filled = !!String(customValues.value[group.uuid] ?? '').trim()
+    return `${group.uuid}__${filled ? 'set' : 'unset'}`
+  }
+  return null
 }
 
 // Snap currentStep into bounds when visible groups change.
@@ -218,6 +242,9 @@ function isCurrentStepValid(): boolean {
     const v = Number(customValues.value[g.uuid] ?? NaN)
     return !isNaN(v) && (g.numeric_min == null || v >= g.numeric_min)
   }
+  if (g.display_type === 'checkbox') {
+    return customValues.value[g.uuid] === true
+  }
   return !!selectedOptions.value[g.uuid]
 }
 
@@ -225,7 +252,7 @@ function selectOption(groupUuid: string, optionUuid: string) {
   selectedOptions.value = { ...selectedOptions.value, [groupUuid]: optionUuid }
 }
 
-function setCustomValue(groupUuid: string, value: string | number) {
+function setCustomValue(groupUuid: string, value: string | number | boolean) {
   customValues.value = { ...customValues.value, [groupUuid]: value }
 }
 
@@ -262,15 +289,66 @@ const basePrice = computed(() => {
   return p ? Number(p.price) || 0 : 0
 })
 
+// Percent overrides resolve against `percentBase` (product price for checkbox
+// surcharges, group price_per_unit for numeric per-unit rate). Flat add/subtract
+// always operates on `base` (the existing modifier value).
+function applyOverride(base: number, value: number, type: string | undefined, percentBase: number): number {
+  switch (type) {
+    case 'add': return base + value
+    case 'subtract': return base - value
+    case 'add_percent': return base + (percentBase * value / 100)
+    case 'subtract_percent': return base - (percentBase * value / 100)
+    case 'absolute':
+    default: return value
+  }
+}
+
+function effectivePricePerUnit(group: StorefrontProductOptionGroup): number {
+  const base = Number(group.price_per_unit ?? 0) || 0
+  const overrides = group.price_per_unit_overrides || []
+  if (!overrides.length) return base
+  const sel = selectedSet.value
+  for (const ov of overrides) {
+    const andGroups = ov?.when?.and_groups || []
+    if (andGroups.length === 0) continue
+    const matches = andGroups.every((row) => row.some((uuid) => sel.has(uuid)))
+    if (!matches) continue
+    return applyOverride(base, Number(ov.value) || 0, ov.type, base)
+  }
+  return base
+}
+
+function effectiveCheckboxModifier(group: StorefrontProductOptionGroup): number {
+  const base = Number(group.checkbox_price_modifier ?? 0) || 0
+  const overrides = group.checkbox_price_overrides || []
+  if (!overrides.length) return base
+  const sel = selectedSet.value
+  for (const ov of overrides) {
+    const andGroups = ov?.when?.and_groups || []
+    if (andGroups.length === 0) continue
+    const matches = andGroups.every((row) => row.some((uuid) => sel.has(uuid)))
+    if (!matches) continue
+    return applyOverride(base, Number(ov.value) || 0, ov.type, basePrice.value)
+  }
+  return base
+}
+
 const totalPrice = computed(() => {
   let total = basePrice.value
   for (const group of visibleGroups.value) {
     if (group.display_type === 'numeric') {
       const qty = Number(customValues.value[group.uuid] ?? 0)
-      if (qty > 0 && group.price_per_unit) total += qty * group.price_per_unit
+      const rate = effectivePricePerUnit(group)
+      if (qty > 0 && rate) total += qty * rate
       continue
     }
     if (group.display_type === 'text') continue
+    if (group.display_type === 'checkbox') {
+      if (customValues.value[group.uuid] === true) {
+        total += effectiveCheckboxModifier(group)
+      }
+      continue
+    }
     const selectedUuid = selectedOptions.value[group.uuid]
     if (!selectedUuid) continue
     const option = group.options.find((o) => o.uuid === selectedUuid)
@@ -283,7 +361,14 @@ const totalPrice = computed(() => {
 function optionPriceDeltaText(opt: StorefrontProductOption): string {
   const v = Number(opt.price_modifier_value ?? 0)
   if (!v) return ''
-  const sign = v > 0 ? '+' : '-'
+  const sign = v > 0 ? '+' : '−'
+  return `${sign}${formatPrice(Math.abs(v), currency.value)}`
+}
+
+function checkboxPriceDeltaText(g: StorefrontProductOptionGroup): string {
+  const v = effectiveCheckboxModifier(g)
+  if (!v) return ''
+  const sign = v > 0 ? '+' : '−'
   return `${sign}${formatPrice(Math.abs(v), currency.value)}`
 }
 
@@ -294,6 +379,7 @@ const missingRequired = computed(() =>
       const v = Number(customValues.value[g.uuid] ?? NaN)
       return isNaN(v) || (g.numeric_min != null && v < g.numeric_min)
     }
+    if (g.display_type === 'checkbox') return customValues.value[g.uuid] !== true
     return !selectedOptions.value[g.uuid]
   }),
 )
@@ -325,6 +411,8 @@ async function addToCart() {
     for (const group of visibleGroups.value) {
       if (group.display_type === 'numeric' || group.display_type === 'text') {
         metadata.custom_values[group.code || group.uuid] = customValues.value[group.uuid]
+      } else if (group.display_type === 'checkbox') {
+        metadata.custom_values[group.code || group.uuid] = customValues.value[group.uuid] === true
       } else {
         const sel = selectedOptions.value[group.uuid]
         if (sel) {
@@ -480,6 +568,24 @@ onMounted(fetchProduct)
           class="lcms-pcw__select"
           @input="setCustomValue(currentGroup.uuid, ($event.target as HTMLInputElement).value)"
         >
+
+        <!-- checkbox (yes/no toggle with optional price modifier) -->
+        <label
+          v-else-if="currentGroup.display_type === 'checkbox'"
+          class="lcms-pcw__checkbox"
+          :class="{ 'lcms-pcw__checkbox--checked': customValues[currentGroup.uuid] === true }"
+        >
+          <input
+            type="checkbox"
+            :checked="customValues[currentGroup.uuid] === true"
+            @change="setCustomValue(currentGroup.uuid, ($event.target as HTMLInputElement).checked)"
+          >
+          <span class="lcms-pcw__checkbox-label">{{ currentGroup.checkbox_label || 'TAK' }}</span>
+          <span
+            v-if="checkboxPriceDeltaText(currentGroup)"
+            class="lcms-pcw__price-delta"
+          >({{ checkboxPriceDeltaText(currentGroup) }})</span>
+        </label>
       </div>
 
       <!-- Summary step (final) -->
@@ -490,6 +596,9 @@ onMounted(fetchProduct)
             <strong>{{ g.name }}:</strong>
             <template v-if="g.display_type === 'numeric' || g.display_type === 'text'">
               {{ customValues[g.uuid] || '—' }}
+            </template>
+            <template v-else-if="g.display_type === 'checkbox'">
+              {{ customValues[g.uuid] === true ? (g.checkbox_label || 'TAK') : '—' }}
             </template>
             <template v-else>
               {{ g.options.find((o) => o.uuid === selectedOptions[g.uuid])?.name || '—' }}
@@ -634,14 +743,14 @@ onMounted(fetchProduct)
 .lcms-pcw__radio-group {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 1rem;
 }
 
 .lcms-pcw__radio {
   display: flex;
   align-items: center;
-  gap: 0.625rem;
-  padding: 0.75rem;
+  gap: 0.75rem;
+  padding: 1rem 1.125rem;
   border: 1px solid var(--lcms-color-border, #e5e7eb);
   border-radius: var(--lcms-border-radius, 0.375rem);
   cursor: pointer;
@@ -665,7 +774,7 @@ onMounted(fetchProduct)
 .lcms-pcw__swatches {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: 0.875rem;
 }
 
 .lcms-pcw__swatch {
@@ -706,6 +815,26 @@ onMounted(fetchProduct)
 .lcms-pcw__chip--selected {
   border-color: var(--lcms-color-primary, #3b82f6);
   background: var(--lcms-color-background-alt, #eff6ff);
+}
+
+.lcms-pcw__checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.125rem;
+  border: 1px solid var(--lcms-color-border, #e5e7eb);
+  border-radius: var(--lcms-border-radius, 0.375rem);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.lcms-pcw__checkbox--checked {
+  border-color: var(--lcms-color-primary, #3b82f6);
+  background: var(--lcms-color-background-alt, #eff6ff);
+}
+
+.lcms-pcw__checkbox-label {
+  flex: 1;
 }
 
 .lcms-pcw__summary-list {

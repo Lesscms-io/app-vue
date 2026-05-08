@@ -594,15 +594,20 @@ const basePrice = computed(() => {
 
 // Apply a price-override row to a base value. Shared by numeric per-unit
 // resolution and checkbox surcharge resolution. Override types:
-//   - add / subtract: fixed amount
+//   - add / subtract: fixed amount applied to `base`
 //   - absolute: replace base entirely
-//   - add_percent / subtract_percent: percent of base
-function applyOverride(base: number, value: number, type: string | undefined): number {
+//   - add_percent / subtract_percent: percent of `percentBase`
+//
+// `percentBase` decouples the percent reference from the additive base — for
+// checkbox surcharges the user expects "subtract 50%" to mean 50% of the
+// product price, not 50% of the (often zero) checkbox surcharge default.
+// For numeric per-unit rate the percent base stays the unit price itself.
+function applyOverride(base: number, value: number, type: string | undefined, percentBase: number): number {
   switch (type) {
     case 'add': return base + value
     case 'subtract': return base - value
-    case 'add_percent': return base + (base * value / 100)
-    case 'subtract_percent': return base - (base * value / 100)
+    case 'add_percent': return base + (percentBase * value / 100)
+    case 'subtract_percent': return base - (percentBase * value / 100)
     case 'absolute':
     default: return value // fallback treats undefined as absolute (legacy shape)
   }
@@ -621,14 +626,15 @@ function effectivePricePerUnit(group: StorefrontProductOptionGroup): number {
     if (andGroups.length === 0) continue
     const matches = andGroups.every((row) => row.some((uuid) => sel.has(uuid)))
     if (!matches) continue
-    return applyOverride(base, Number(ov.value) || 0, ov.type)
+    return applyOverride(base, Number(ov.value) || 0, ov.type, base)
   }
   return base
 }
 
 // Effective surcharge for a checkbox group when the box is ticked. Walks
 // checkbox_price_overrides; first matching rule wins, else falls back to
-// checkbox_price_modifier.
+// checkbox_price_modifier. Percent overrides resolve against the product
+// price, so "subtract 50%" lowers the total by half the product price.
 function effectiveCheckboxModifier(group: StorefrontProductOptionGroup): number {
   const base = Number(group.checkbox_price_modifier ?? 0) || 0
   const overrides = group.checkbox_price_overrides || []
@@ -639,7 +645,7 @@ function effectiveCheckboxModifier(group: StorefrontProductOptionGroup): number 
     if (andGroups.length === 0) continue
     const matches = andGroups.every((row) => row.some((uuid) => sel.has(uuid)))
     if (!matches) continue
-    return applyOverride(base, Number(ov.value) || 0, ov.type)
+    return applyOverride(base, Number(ov.value) || 0, ov.type, basePrice.value)
   }
   return base
 }
@@ -921,8 +927,15 @@ function imageSwatchGridStyle(group: StorefrontProductOptionGroup): Record<strin
 function optionPriceDeltaText(option: StorefrontProductOption): string {
   const delta = applyModifier(basePrice.value, option)
   if (!delta) return ''
-  const sign = delta > 0 ? '+' : ''
-  return `${sign}${formatPrice(delta, currency.value)}`
+  const sign = delta > 0 ? '+' : '−'
+  return `${sign}${formatPrice(Math.abs(delta), currency.value)}`
+}
+
+function checkboxPriceDeltaText(group: StorefrontProductOptionGroup): string {
+  const delta = effectiveCheckboxModifier(group)
+  if (!delta) return ''
+  const sign = delta > 0 ? '+' : '−'
+  return `${sign}${formatPrice(Math.abs(delta), currency.value)}`
 }
 
 async function fetchProduct() {
@@ -1351,9 +1364,9 @@ const cssVars = computed(() => {
             />
             <span class="lcms-product-configurator__checkbox-label">{{ group.checkbox_label || 'TAK' }}</span>
             <span
-              v-if="effectiveCheckboxModifier(group)"
+              v-if="checkboxPriceDeltaText(group)"
               class="lcms-product-configurator__checkbox-price"
-            >(+{{ formatPrice(effectiveCheckboxModifier(group), currency) }})</span>
+            >({{ checkboxPriceDeltaText(group) }})</span>
           </label>
 
           <!-- file upload display -->
@@ -1548,7 +1561,7 @@ const cssVars = computed(() => {
   grid-template-columns: minmax(140px, 1fr) minmax(0, 3fr);
   gap: 0.75rem 1.5rem;
   align-items: start;
-  padding: 0.75rem 0;
+  padding: 1.5rem 0;
 }
 .lcms-product-configurator__group + .lcms-product-configurator__group {
   border-top: 1px solid var(--lcms-pc-divider, rgba(0, 0, 0, 0.06));
