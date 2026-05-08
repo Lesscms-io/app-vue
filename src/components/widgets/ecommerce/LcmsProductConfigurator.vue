@@ -130,6 +130,16 @@ const swatchImageMaxHeight = computed<string | null>(() => {
   const n = Number(config.value.swatch_image_max_height)
   return Number.isFinite(n) && n > 0 ? `${n}px` : null
 })
+// Apply the cap to the BUTTON, not just the inner <img>. The default size
+// class fixes the button at 4.5rem × 4.5rem, so capping the img alone is a
+// no-op (the button is already smaller than any sane cap value). Capping the
+// button + width:100% lets the image grow with the grid cell up to the
+// configured cap.
+const swatchImgButtonStyle = computed<Record<string, string>>(() => (
+  swatchImageMaxHeight.value
+    ? { width: '100%', height: 'auto', maxHeight: swatchImageMaxHeight.value }
+    : {}
+))
 const swatchImgStyle = computed<Record<string, string>>(() => (
   swatchImageMaxHeight.value
     ? { maxHeight: swatchImageMaxHeight.value, objectFit: 'contain' }
@@ -1227,6 +1237,7 @@ const cssVars = computed(() => ({
                   type="button"
                   class="lcms-product-configurator__swatch lcms-product-configurator__swatch--image"
                   :class="{ 'lcms-product-configurator__swatch--selected': selectedOptions[group.uuid] === opt.uuid }"
+                  :style="swatchImgButtonStyle"
                   :title="opt.name + (optionPriceDeltaText(opt) ? ` (${optionPriceDeltaText(opt)})` : '')"
                   :aria-label="opt.name"
                   @click="selectOption(group.uuid, opt.uuid)"
@@ -1590,6 +1601,11 @@ const cssVars = computed(() => ({
 .lcms-product-configurator__radio--selected {
   background: var(--lcms-pc-option-selected-bg, rgba(59, 130, 246, 0.08));
   border-color: var(--lcms-pc-option-selected-border, var(--lcms-color-primary, #3b82f6));
+  /* Ring matches __swatch--selected — guarantees the selected radio pops
+   * above the unselected ones even when the project overrides
+   * --lcms-color-border to a colour close to --lcms-color-primary, which
+   * otherwise leaves selected and unselected with the same outline. */
+  box-shadow: 0 0 0 2px var(--lcms-pc-option-selected-ring, rgba(59, 130, 246, 0.18));
 }
 
 .lcms-product-configurator__radio input {
