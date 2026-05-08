@@ -372,6 +372,25 @@ function checkboxPriceDeltaText(g: StorefrontProductOptionGroup): string {
   return `${sign}${formatPrice(Math.abs(v), currency.value)}`
 }
 
+// Summary visual: small clickable thumb/swatch shown alongside the option
+// name in the summary step. Mirrors LcmsProductConfigurator.groupSummaryVisual.
+function groupSummaryVisual(g: StorefrontProductOptionGroup): { thumbnail: string | null; color_hex: string | null; name: string } | null {
+  if (g.display_type === 'text' || g.display_type === 'numeric' || g.display_type === 'checkbox') {
+    return null
+  }
+  const sel = selectedOptions.value[g.uuid]
+  if (!sel) return null
+  const opt = g.options.find((o) => o.uuid === sel)
+  if (!opt) return null
+  if (!opt.thumbnail && !opt.color_hex) return null
+  return { thumbnail: opt.thumbnail, color_hex: opt.color_hex, name: opt.name }
+}
+
+const lightbox = ref<string | null>(null)
+function openLightboxImage(url: string) { lightbox.value = url }
+function openLightboxColor(hex: string) { lightbox.value = `color:${hex}` }
+function closeLightbox() { lightbox.value = null }
+
 const missingRequired = computed(() =>
   visibleGroups.value.filter((g) => g.is_required).some((g) => {
     if (g.display_type === 'text') return !String(customValues.value[g.uuid] ?? '').trim()
@@ -594,21 +613,70 @@ onMounted(fetchProduct)
         <ul class="lcms-pcw__summary-list">
           <li v-for="g in visibleGroups" :key="g.uuid">
             <strong>{{ g.name }}:</strong>
-            <template v-if="g.display_type === 'numeric' || g.display_type === 'text'">
-              {{ customValues[g.uuid] || '—' }}
-            </template>
-            <template v-else-if="g.display_type === 'checkbox'">
-              {{ customValues[g.uuid] === true ? (g.checkbox_label || 'TAK') : '—' }}
-            </template>
-            <template v-else>
-              {{ g.options.find((o) => o.uuid === selectedOptions[g.uuid])?.name || '—' }}
-            </template>
+            <span class="lcms-pcw__summary-value">
+              <template v-if="g.display_type === 'numeric' || g.display_type === 'text'">
+                {{ customValues[g.uuid] || '—' }}
+              </template>
+              <template v-else-if="g.display_type === 'checkbox'">
+                {{ customValues[g.uuid] === true ? (g.checkbox_label || 'TAK') : '—' }}
+              </template>
+              <template v-else-if="groupSummaryVisual(g)">
+                <button
+                  v-if="groupSummaryVisual(g)!.thumbnail"
+                  type="button"
+                  class="lcms-pcw__summary-thumb"
+                  title="Kliknij, aby powiększyć"
+                  @click="openLightboxImage(groupSummaryVisual(g)!.thumbnail!)"
+                >
+                  <img :src="groupSummaryVisual(g)!.thumbnail!" :alt="groupSummaryVisual(g)!.name">
+                </button>
+                <button
+                  v-else-if="groupSummaryVisual(g)!.color_hex"
+                  type="button"
+                  class="lcms-pcw__summary-thumb lcms-pcw__summary-thumb--color"
+                  title="Kliknij, aby powiększyć"
+                  :style="{ backgroundColor: groupSummaryVisual(g)!.color_hex! }"
+                  :aria-label="groupSummaryVisual(g)!.name"
+                  @click="openLightboxColor(groupSummaryVisual(g)!.color_hex!)"
+                />
+                <span>{{ groupSummaryVisual(g)!.name }}</span>
+              </template>
+              <template v-else>
+                {{ g.options.find((o) => o.uuid === selectedOptions[g.uuid])?.name || '—' }}
+              </template>
+            </span>
           </li>
         </ul>
         <div class="lcms-pcw__total">
           <span>{{ t('defaultTotal') }}</span>
           <strong>{{ formatPrice(totalPrice, currency) }}</strong>
         </div>
+      </div>
+
+      <!-- Lightbox overlay for summary thumbnails. Click outside the figure
+           closes; Esc bound on the focused dialog also closes. -->
+      <div
+        v-if="lightbox"
+        class="lcms-pcw__lightbox"
+        role="dialog"
+        aria-modal="true"
+        tabindex="-1"
+        @click="closeLightbox"
+        @keydown.esc="closeLightbox"
+      >
+        <img
+          v-if="!lightbox.startsWith('color:')"
+          :src="lightbox"
+          alt=""
+          class="lcms-pcw__lightbox-image"
+          @click.stop
+        >
+        <div
+          v-else
+          class="lcms-pcw__lightbox-color"
+          :style="{ backgroundColor: lightbox.slice(6) }"
+          @click.stop
+        />
       </div>
 
       <!-- Nav -->
@@ -852,6 +920,67 @@ onMounted(fetchProduct)
   gap: 0.75rem;
   padding-bottom: 0.5rem;
   border-bottom: 1px solid var(--lcms-color-border, #e5e7eb);
+}
+
+.lcms-pcw__summary-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.625rem;
+  text-align: right;
+}
+
+.lcms-pcw__summary-thumb {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--lcms-color-border, #d1d5db);
+  border-radius: 0.25rem;
+  background: #fff;
+  padding: 0;
+  cursor: zoom-in;
+  overflow: hidden;
+  transition: transform 0.12s ease, border-color 0.12s ease;
+}
+
+.lcms-pcw__summary-thumb:hover {
+  transform: scale(1.08);
+  border-color: var(--lcms-color-primary, #3b82f6);
+}
+
+.lcms-pcw__summary-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.lcms-pcw__lightbox {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.78);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 2rem;
+  cursor: zoom-out;
+}
+
+.lcms-pcw__lightbox-image {
+  max-width: min(90vw, 1200px);
+  max-height: 90vh;
+  object-fit: contain;
+  border-radius: 0.5rem;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.5);
+  cursor: default;
+}
+
+.lcms-pcw__lightbox-color {
+  width: min(60vw, 400px);
+  height: min(60vw, 400px);
+  border-radius: 0.5rem;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.5);
+  cursor: default;
 }
 
 .lcms-pcw__total {

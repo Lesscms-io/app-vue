@@ -254,6 +254,7 @@ const t = (key: string, params?: Record<string, string | number>) => {
       stepSummary: 'Podsumowanie',
       step: 'Krok',
       of: 'z',
+      zoomThumb: 'Kliknij, aby powiększyć',
     },
     en: {
       loading: 'Loading...',
@@ -280,6 +281,7 @@ const t = (key: string, params?: Record<string, string | number>) => {
       stepSummary: 'Summary',
       step: 'Step',
       of: 'of',
+      zoomThumb: 'Click to zoom',
     },
   }
   let value = dict[lang]?.[key] || dict.pl[key] || key
@@ -555,6 +557,30 @@ const groupsToShow = computed<StorefrontProductOptionGroup[]>(() => {
   }
   return visibleGroups.value
 })
+
+// For visual option groups (image/color swatches, or any select-type whose
+// chosen option carries a thumbnail/color), expose the visual so the wizard
+// summary can render a small clickable preview alongside the option name.
+// Returns null for non-visual or unselected groups so the template falls back
+// to plain text rendering.
+function groupSummaryVisual(g: StorefrontProductOptionGroup): { thumbnail: string | null; color_hex: string | null; name: string } | null {
+  if (g.display_type === 'text' || g.display_type === 'numeric' || g.display_type === 'checkbox' || g.display_type === 'file') {
+    return null
+  }
+  const sel = selectedOptions.value[g.uuid]
+  if (!sel) return null
+  const opt = g.options.find((o) => o.uuid === sel)
+  if (!opt) return null
+  if (!opt.thumbnail && !opt.color_hex) return null
+  return { thumbnail: opt.thumbnail, color_hex: opt.color_hex, name: opt.name }
+}
+
+// Lightbox state for summary thumbnails. Holds either a thumbnail URL or a
+// `color:#hex` sentinel — the overlay template branches on the prefix.
+const lightbox = ref<string | null>(null)
+function openLightboxImage(url: string) { lightbox.value = url }
+function openLightboxColor(hex: string) { lightbox.value = `color:${hex}` }
+function closeLightbox() { lightbox.value = null }
 
 // Resolves the human-readable summary text for a group based on current state.
 // Used by the wizard summary list.
@@ -1140,9 +1166,58 @@ const cssVars = computed(() => {
         <ul>
           <li v-for="g in visibleGroups" :key="g.uuid">
             <strong>{{ g.name }}:</strong>
-            <span>{{ groupSummaryValue(g) }}</span>
+            <span class="lcms-product-configurator__summary-value">
+              <template v-if="groupSummaryVisual(g)">
+                <button
+                  v-if="groupSummaryVisual(g)!.thumbnail"
+                  type="button"
+                  class="lcms-product-configurator__summary-thumb"
+                  :title="t('zoomThumb')"
+                  @click="openLightboxImage(groupSummaryVisual(g)!.thumbnail!)"
+                >
+                  <img :src="groupSummaryVisual(g)!.thumbnail!" :alt="groupSummaryVisual(g)!.name">
+                </button>
+                <button
+                  v-else-if="groupSummaryVisual(g)!.color_hex"
+                  type="button"
+                  class="lcms-product-configurator__summary-thumb lcms-product-configurator__summary-thumb--color"
+                  :title="t('zoomThumb')"
+                  :style="{ backgroundColor: groupSummaryVisual(g)!.color_hex! }"
+                  :aria-label="groupSummaryVisual(g)!.name"
+                  @click="openLightboxColor(groupSummaryVisual(g)!.color_hex!)"
+                />
+                <span>{{ groupSummaryVisual(g)!.name }}</span>
+              </template>
+              <template v-else>{{ groupSummaryValue(g) }}</template>
+            </span>
           </li>
         </ul>
+      </div>
+
+      <!-- Lightbox overlay for summary thumbnails. Click anywhere outside the
+           figure (or press Esc — handled by the @keydown on the overlay) closes. -->
+      <div
+        v-if="lightbox"
+        class="lcms-product-configurator__lightbox"
+        role="dialog"
+        aria-modal="true"
+        tabindex="-1"
+        @click="closeLightbox"
+        @keydown.esc="closeLightbox"
+      >
+        <img
+          v-if="!lightbox.startsWith('color:')"
+          :src="lightbox"
+          alt=""
+          class="lcms-product-configurator__lightbox-image"
+          @click.stop
+        >
+        <div
+          v-else
+          class="lcms-product-configurator__lightbox-color"
+          :style="{ backgroundColor: lightbox.slice(6) }"
+          @click.stop
+        />
       </div>
 
       <div
@@ -2083,6 +2158,71 @@ const cssVars = computed(() => {
 .lcms-product-configurator__summary-list li:last-child {
   border-bottom: 0;
   padding-bottom: 0;
+}
+
+.lcms-product-configurator__summary-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.625rem;
+  text-align: right;
+}
+
+.lcms-product-configurator__summary-thumb {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--lcms-color-border, #d1d5db);
+  border-radius: 0.25rem;
+  background: #fff;
+  padding: 0;
+  cursor: zoom-in;
+  overflow: hidden;
+  transition: transform 0.12s ease, border-color 0.12s ease;
+}
+
+.lcms-product-configurator__summary-thumb:hover {
+  transform: scale(1.08);
+  border-color: var(--lcms-color-primary, #3b82f6);
+}
+
+.lcms-product-configurator__summary-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.lcms-product-configurator__summary-thumb--color {
+  background-clip: padding-box;
+}
+
+.lcms-product-configurator__lightbox {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.78);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 2rem;
+  cursor: zoom-out;
+}
+
+.lcms-product-configurator__lightbox-image {
+  max-width: min(90vw, 1200px);
+  max-height: 90vh;
+  object-fit: contain;
+  border-radius: 0.5rem;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.5);
+  cursor: default;
+}
+
+.lcms-product-configurator__lightbox-color {
+  width: min(60vw, 400px);
+  height: min(60vw, 400px);
+  border-radius: 0.5rem;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.5);
+  cursor: default;
 }
 
 .lcms-product-configurator__wizard-nav {
