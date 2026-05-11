@@ -235,6 +235,11 @@ const sectionStyle = computed(() => {
       style.top = s.sticky_top ? `${s.sticky_top}px` : '0'
     }
     style.zIndex = String(s.sticky_z_index ?? 100)
+    // Sticky sections almost always host nav widgets (menus, mini-cart,
+    // account icon) whose dropdowns need to extend below the section
+    // bounds. The base `.lcms-section { overflow: hidden }` clips bg media,
+    // but here it would also clip the dropdowns. Override to visible.
+    style.overflow = 'visible'
 
     // No transition — flip the background the moment the user touches the
     // scrollwheel. Any interpolation leaves a visible transparent flash.
