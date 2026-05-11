@@ -657,23 +657,78 @@ function effectivePricePerUnit(group: StorefrontProductOptionGroup): number {
   return base
 }
 
-// Effective surcharge for a checkbox group when the box is ticked. Walks
-// checkbox_price_overrides; first matching rule wins, else falls back to
-// checkbox_price_modifier. Percent overrides resolve against the product
-// price, so "subtract 50%" lowers the total by half the product price.
-function effectiveCheckboxModifier(group: StorefrontProductOptionGroup): number {
-  const base = Number(group.checkbox_price_modifier ?? 0) || 0
+// First override row whose `when.and_groups` matches the current selection
+// set, or null if none match. Shared by static/effective resolvers and by
+// the display-label helper so they all agree on which rule won.
+function matchedCheckboxOverride(group: StorefrontProductOptionGroup): any | null {
   const overrides = group.checkbox_price_overrides || []
-  if (!overrides.length) return base
+  if (!overrides.length) return null
   const sel = selectedSet.value
   for (const ov of overrides) {
     const andGroups = ov?.when?.and_groups || []
     if (andGroups.length === 0) continue
     const matches = andGroups.every((row) => row.some((uuid) => sel.has(uuid)))
     if (!matches) continue
-    return applyOverride(base, Number(ov.value) || 0, ov.type, basePrice.value)
+    return ov
   }
-  return base
+  return null
+}
+
+// Non-percent contribution of a checkbox group — used when computing the
+// percentBase for other percent-based modifiers, to break the recursion
+// "% off everything" ↔ "everything includes the other %". Percent overrides
+// collapse to the static base (typically 0 for a discount checkbox).
+function staticCheckboxModifier(group: StorefrontProductOptionGroup): number {
+  const base = Number(group.checkbox_price_modifier ?? 0) || 0
+  const ov = matchedCheckboxOverride(group)
+  if (!ov) return base
+  if (ov.type === 'subtract_percent' || ov.type === 'add_percent') return base
+  return applyOverride(base, Number(ov.value) || 0, ov.type, basePrice.value)
+}
+
+// Configured subtotal with one checkbox group's contribution removed. Used
+// as the percentBase for that group's own percent rule so "subtract 50%"
+// means "half off the rest of the configured value", not half off the bare
+// product price. Other checkboxes contribute their *static* modifier so a
+// second percent rule doesn't recurse.
+function subtotalExcludingCheckbox(excludeUuid: string): number {
+  let total = basePrice.value
+  for (const g of visibleGroups.value) {
+    if (g.uuid === excludeUuid) continue
+    if (g.display_type === 'numeric') {
+      const qty = Number(customValues.value[g.uuid] ?? 0)
+      const rate = effectivePricePerUnit(g)
+      if (qty > 0 && rate) total += qty * rate
+      continue
+    }
+    if (g.display_type === 'text' || g.display_type === 'file') continue
+    if (g.display_type === 'checkbox') {
+      if (customValues.value[g.uuid] === true) total += staticCheckboxModifier(g)
+      continue
+    }
+    const selectedUuid = selectedOptions.value[g.uuid]
+    if (!selectedUuid) continue
+    const option = g.options.find((o) => o.uuid === selectedUuid)
+    if (!option) continue
+    total += applyModifier(basePrice.value, option)
+  }
+  return total
+}
+
+// Effective surcharge for a checkbox group when the box is ticked. Walks
+// checkbox_price_overrides; first matching rule wins, else falls back to
+// checkbox_price_modifier. Percent overrides resolve against the configured
+// subtotal of all other groups, so "subtract 50%" means half off the whole
+// configured price (base + every other surcharge), not half off the product
+// base price alone.
+function effectiveCheckboxModifier(group: StorefrontProductOptionGroup): number {
+  const base = Number(group.checkbox_price_modifier ?? 0) || 0
+  const ov = matchedCheckboxOverride(group)
+  if (!ov) return base
+  const percentBase = (ov.type === 'subtract_percent' || ov.type === 'add_percent')
+    ? subtotalExcludingCheckbox(group.uuid)
+    : basePrice.value
+  return applyOverride(base, Number(ov.value) || 0, ov.type, percentBase)
 }
 
 const totalPrice = computed(() => {
@@ -958,6 +1013,17 @@ function optionPriceDeltaText(option: StorefrontProductOption): string {
 }
 
 function checkboxPriceDeltaText(group: StorefrontProductOptionGroup): string {
+  // For percent-based rules, show the rule itself ("−50%") instead of the
+  // złoty amount — the amount depends on every other selection and changes
+  // as the user picks options, which is more noise than signal in the
+  // checkbox label. Static (złoty) modifiers keep showing the amount.
+  const ov = matchedCheckboxOverride(group)
+  if (ov && (ov.type === 'subtract_percent' || ov.type === 'add_percent')) {
+    const v = Number(ov.value) || 0
+    if (!v) return ''
+    const sign = ov.type === 'subtract_percent' ? '−' : '+'
+    return `${sign}${v}%`
+  }
   const delta = effectiveCheckboxModifier(group)
   if (!delta) return ''
   const sign = delta > 0 ? '+' : '−'
@@ -1194,32 +1260,8 @@ const cssVars = computed(() => {
         </ul>
       </div>
 
-      <!-- Lightbox overlay for summary thumbnails. Click anywhere outside the
-           figure (or press Esc — handled by the @keydown on the overlay) closes. -->
-      <div
-        v-if="lightbox"
-        class="lcms-product-configurator__lightbox"
-        role="dialog"
-        aria-modal="true"
-        tabindex="-1"
-        @click="closeLightbox"
-        @keydown.esc="closeLightbox"
-      >
-        <img
-          v-if="!lightbox.startsWith('color:')"
-          :src="lightbox"
-          alt=""
-          class="lcms-product-configurator__lightbox-image"
-          @click.stop
-        >
-        <div
-          v-else
-          class="lcms-product-configurator__lightbox-color"
-          :style="{ backgroundColor: lightbox.slice(6) }"
-          @click.stop
-        />
-      </div>
-
+      <!-- Option-input groups. When the wizard summary is showing this is
+           hidden so the user sees only the recap, not the editable form. -->
       <div
         v-else-if="allGroups.length > 0"
         class="lcms-product-configurator__groups"
@@ -1518,6 +1560,33 @@ const cssVars = computed(() => {
             <span class="lcms-product-configurator__checkbox-label">{{ group.checkbox_label || 'TAK' }}</span>
           </label>
         </div>
+      </div>
+
+      <!-- Lightbox overlay for summary thumbnails. Sits outside the
+           summary/groups v-if/v-else-if chain so it can open over either.
+           Click outside the image (or press Esc) closes. -->
+      <div
+        v-if="lightbox"
+        class="lcms-product-configurator__lightbox"
+        role="dialog"
+        aria-modal="true"
+        tabindex="-1"
+        @click="closeLightbox"
+        @keydown.esc="closeLightbox"
+      >
+        <img
+          v-if="!lightbox.startsWith('color:')"
+          :src="lightbox"
+          alt=""
+          class="lcms-product-configurator__lightbox-image"
+          @click.stop
+        >
+        <div
+          v-else
+          class="lcms-product-configurator__lightbox-color"
+          :style="{ backgroundColor: lightbox.slice(6) }"
+          @click.stop
+        />
       </div>
 
       <!-- Price summary: always shown when enabled. In wizard mode the live

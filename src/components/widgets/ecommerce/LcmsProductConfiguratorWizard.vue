@@ -318,19 +318,66 @@ function effectivePricePerUnit(group: StorefrontProductOptionGroup): number {
   return base
 }
 
-function effectiveCheckboxModifier(group: StorefrontProductOptionGroup): number {
-  const base = Number(group.checkbox_price_modifier ?? 0) || 0
+function matchedCheckboxOverride(group: StorefrontProductOptionGroup): any | null {
   const overrides = group.checkbox_price_overrides || []
-  if (!overrides.length) return base
+  if (!overrides.length) return null
   const sel = selectedSet.value
   for (const ov of overrides) {
     const andGroups = ov?.when?.and_groups || []
     if (andGroups.length === 0) continue
     const matches = andGroups.every((row) => row.some((uuid) => sel.has(uuid)))
     if (!matches) continue
-    return applyOverride(base, Number(ov.value) || 0, ov.type, basePrice.value)
+    return ov
   }
-  return base
+  return null
+}
+
+// Non-percent contribution of a checkbox — collapses percent overrides to
+// the static base so another percent rule's percentBase computation doesn't
+// recurse into self.
+function staticCheckboxModifier(group: StorefrontProductOptionGroup): number {
+  const base = Number(group.checkbox_price_modifier ?? 0) || 0
+  const ov = matchedCheckboxOverride(group)
+  if (!ov) return base
+  if (ov.type === 'subtract_percent' || ov.type === 'add_percent') return base
+  return applyOverride(base, Number(ov.value) || 0, ov.type, basePrice.value)
+}
+
+// Configured subtotal excluding one checkbox group's contribution. Percent
+// checkbox rules use this as their percentBase so "subtract 50%" means half
+// off the rest of the configured price, not half off the product base.
+function subtotalExcludingCheckbox(excludeUuid: string): number {
+  let total = basePrice.value
+  for (const g of visibleGroups.value) {
+    if (g.uuid === excludeUuid) continue
+    if (g.display_type === 'numeric') {
+      const qty = Number(customValues.value[g.uuid] ?? 0)
+      const rate = effectivePricePerUnit(g)
+      if (qty > 0 && rate) total += qty * rate
+      continue
+    }
+    if (g.display_type === 'text') continue
+    if (g.display_type === 'checkbox') {
+      if (customValues.value[g.uuid] === true) total += staticCheckboxModifier(g)
+      continue
+    }
+    const selectedUuid = selectedOptions.value[g.uuid]
+    if (!selectedUuid) continue
+    const option = g.options.find((o) => o.uuid === selectedUuid)
+    if (!option) continue
+    total += applyModifier(basePrice.value, option)
+  }
+  return total
+}
+
+function effectiveCheckboxModifier(group: StorefrontProductOptionGroup): number {
+  const base = Number(group.checkbox_price_modifier ?? 0) || 0
+  const ov = matchedCheckboxOverride(group)
+  if (!ov) return base
+  const percentBase = (ov.type === 'subtract_percent' || ov.type === 'add_percent')
+    ? subtotalExcludingCheckbox(group.uuid)
+    : basePrice.value
+  return applyOverride(base, Number(ov.value) || 0, ov.type, percentBase)
 }
 
 const totalPrice = computed(() => {
@@ -366,6 +413,15 @@ function optionPriceDeltaText(opt: StorefrontProductOption): string {
 }
 
 function checkboxPriceDeltaText(g: StorefrontProductOptionGroup): string {
+  // Percent rules display the rule itself ("−50%"); fixed-amount rules show
+  // the złoty delta. See LcmsProductConfigurator for the rationale.
+  const ov = matchedCheckboxOverride(g)
+  if (ov && (ov.type === 'subtract_percent' || ov.type === 'add_percent')) {
+    const v = Number(ov.value) || 0
+    if (!v) return ''
+    const sign = ov.type === 'subtract_percent' ? '−' : '+'
+    return `${sign}${v}%`
+  }
   const v = effectiveCheckboxModifier(g)
   if (!v) return ''
   const sign = v > 0 ? '+' : '−'
