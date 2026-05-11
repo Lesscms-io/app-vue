@@ -97,6 +97,30 @@ onUnmounted(() => {
   }
 })
 
+// Resolve a post-auth return target from the URL. Accepts:
+//   - ?return_to=/path      (path-only, used by AuthGate)
+//   - ?return=/path         (path-only, sender's choice)
+//   - ?return=<absolute>    (absolute URL, must be same-origin)
+// Anything pointing off-origin or unparseable returns null so the caller
+// falls back to its default — never follow an arbitrary URL, that's an
+// open redirect.
+function resolveReturnTarget(): string | null {
+  if (typeof window === 'undefined') return null
+  const params = new URLSearchParams(window.location.search)
+  const raw = params.get('return') || params.get('return_to')
+  if (!raw) return null
+  if (raw.startsWith('/') && !raw.startsWith('//')) return raw
+  try {
+    const u = new URL(raw, window.location.origin)
+    if (u.origin === window.location.origin) {
+      return u.pathname + u.search + u.hash
+    }
+  } catch {
+    /* fall through */
+  }
+  return null
+}
+
 async function handleLogin() {
   Object.keys(errors).forEach(k => delete errors[k])
 
@@ -111,14 +135,11 @@ async function handleLogin() {
     // A same-page reload causes a flicker: SSR (no localStorage) renders
     // LoginForm until the client init() fetches getMe() and flips state.
     if (typeof window !== 'undefined') {
-      // Prefer ?return_to=<path> (set by AuthGate when gating a protected page)
-      // over the widget's default redirect. Only accept same-origin paths.
-      const params = new URLSearchParams(window.location.search)
-      const rawReturnTo = params.get('return_to')
-      const returnTo = rawReturnTo && rawReturnTo.startsWith('/') && !rawReturnTo.startsWith('//')
-        ? rawReturnTo
-        : null
-      const destination = returnTo || redirectAfterLogin.value
+      // Honor ?return_to=<path> (set by AuthGate) and ?return=<url> (set by
+      // LcmsProductConfigurator when a plugin CTA requires auth). Both must
+      // resolve to the same origin — never follow an absolute URL pointing
+      // somewhere else, that would be an open redirect.
+      const destination = resolveReturnTarget() || redirectAfterLogin.value
       const target = new URL(destination, window.location.origin)
       if (window.location.pathname !== target.pathname || window.location.search !== target.search) {
         setTimeout(() => { window.location.href = destination }, 500)

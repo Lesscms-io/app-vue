@@ -118,6 +118,27 @@ function validate(): boolean {
   return Object.keys(errors).length === 0
 }
 
+// Resolve a post-register return target from the URL. Mirrors LcmsLoginForm:
+// accepts ?return=/path, ?return_to=/path, or ?return=<absolute> when same
+// origin. Off-origin / unparseable falls back to null so the caller uses
+// `redirectAfterRegister`.
+function resolveReturnTarget(): string | null {
+  if (typeof window === 'undefined') return null
+  const params = new URLSearchParams(window.location.search)
+  const raw = params.get('return') || params.get('return_to')
+  if (!raw) return null
+  if (raw.startsWith('/') && !raw.startsWith('//')) return raw
+  try {
+    const u = new URL(raw, window.location.origin)
+    if (u.origin === window.location.origin) {
+      return u.pathname + u.search + u.hash
+    }
+  } catch {
+    /* fall through */
+  }
+  return null
+}
+
 async function handleSubmit() {
   if (!validate()) return
 
@@ -129,12 +150,15 @@ async function handleSubmit() {
       phone: form.phone || undefined,
     })
     toast.success(t('registered'))
-    // Only navigate away if we're not already on the target page — otherwise
-    // a same-page reload causes a SSR/CSR flicker (see LcmsLoginForm).
+    // Honor ?return=<path|same-origin URL> set by callers like
+    // LcmsProductConfigurator gating a plugin behavior on auth. Without
+    // this the user lands on the default /konto profile after register
+    // and loses the configurator flow they came from.
     if (typeof window !== 'undefined') {
-      const target = new URL(redirectAfterRegister.value, window.location.origin)
-      if (window.location.pathname !== target.pathname) {
-        setTimeout(() => { window.location.href = redirectAfterRegister.value }, 500)
+      const destination = resolveReturnTarget() || redirectAfterRegister.value
+      const target = new URL(destination, window.location.origin)
+      if (window.location.pathname !== target.pathname || window.location.search !== target.search) {
+        setTimeout(() => { window.location.href = destination }, 500)
       } else {
         // On same page, clear `#register` hash so LoginForm/Panel take over cleanly
         if (window.location.hash === '#register') {

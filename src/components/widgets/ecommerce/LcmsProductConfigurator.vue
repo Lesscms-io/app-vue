@@ -92,6 +92,16 @@ const buttonClass = computed(() => [
   `lcms-button__link--size-${buttonSize.value}`
 ])
 
+// Back button on the summary step shares the CTA's size/padding/radius
+// classes so the two visually match in the same row — the small floating
+// nav-btn-secondary used to dwarf next to a full-width CTA.
+const backButtonClass = computed(() => [
+  'lcms-product-configurator__back-btn',
+  'lcms-button__link',
+  'lcms-button__link--outline',
+  `lcms-button__link--size-${buttonSize.value}`
+])
+
 const RADIUS_MAP: Record<string, string> = {
   none: '0', sm: '4px', md: '8px', lg: '12px', pill: '50px'
 }
@@ -326,7 +336,68 @@ const fileUploadStatus = ref<Record<string, { uploading: boolean; error: string 
 const currentStep = ref(0)
 const showSummary = ref(false)
 
-// Apply default selections when product loads
+// Persisted-state TTL: long enough to survive an auth round-trip (register
+// flow can take several minutes if the user fumbles email confirmation,
+// password rules, etc.) but short enough that returning to the page hours
+// later doesn't surprise the user with stale selections.
+const PERSISTED_STATE_TTL_MS = 30 * 60 * 1000
+function persistedStateKey(productUuid: string) {
+  return `lcms-pc-state:${productUuid}`
+}
+
+function loadPersistedState(productUuid: string): {
+  selectedOptions: Record<string, string>
+  customValues: Record<string, string | number | boolean>
+  fileUploads: Record<string, StorefrontOptionUpload[]>
+} | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = window.localStorage.getItem(persistedStateKey(productUuid))
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    if (!parsed || typeof parsed !== 'object') return null
+    if (typeof parsed.savedAt !== 'number' || Date.now() - parsed.savedAt > PERSISTED_STATE_TTL_MS) {
+      window.localStorage.removeItem(persistedStateKey(productUuid))
+      return null
+    }
+    return {
+      selectedOptions: parsed.selectedOptions || {},
+      customValues: parsed.customValues || {},
+      fileUploads: parsed.fileUploads || {},
+    }
+  } catch {
+    return null
+  }
+}
+
+function savePersistedState(productUuid: string) {
+  if (typeof window === 'undefined') return
+  try {
+    window.localStorage.setItem(persistedStateKey(productUuid), JSON.stringify({
+      savedAt: Date.now(),
+      selectedOptions: selectedOptions.value,
+      customValues: customValues.value,
+      fileUploads: fileUploads.value,
+    }))
+  } catch {
+    /* quota exceeded or storage disabled — silent fail, user just loses state */
+  }
+}
+
+function clearPersistedState(productUuid: string) {
+  if (typeof window === 'undefined') return
+  try {
+    window.localStorage.removeItem(persistedStateKey(productUuid))
+  } catch {
+    /* noop */
+  }
+}
+
+// Apply default selections when product loads, then overlay any persisted
+// selections from a previous session of this same product. The persistence
+// path matters for the auth-gated plugin CTA flow: clicking the CTA while
+// logged out navigates to /konto, and without persistence the user comes
+// back to an empty configurator after register.
 watch(
   allGroups,
   (groups) => {
@@ -351,6 +422,29 @@ watch(
         if (defaultOpt) nextSelected[group.uuid] = defaultOpt.uuid
       }
     }
+
+    // Overlay persisted state on top of defaults. We only restore values for
+    // groups that still exist on the product (in case the product was edited
+    // server-side since the state was saved). The persisted file uploads keep
+    // their server-side UUIDs, so the BE-side OptionUpload claim survives.
+    const productUuid = effectiveProduct.value?.uuid
+    const persisted = productUuid ? loadPersistedState(productUuid) : null
+    if (persisted) {
+      const validGroupUuids = new Set(groups.map((g) => g.uuid))
+      for (const [uuid, optUuid] of Object.entries(persisted.selectedOptions)) {
+        if (validGroupUuids.has(uuid)) nextSelected[uuid] = optUuid
+      }
+      for (const [uuid, val] of Object.entries(persisted.customValues)) {
+        if (validGroupUuids.has(uuid)) nextCustom[uuid] = val
+      }
+      for (const [uuid, files] of Object.entries(persisted.fileUploads)) {
+        if (validGroupUuids.has(uuid)) nextFiles[uuid] = files
+      }
+      // Clear after restore — if the user reloads later we don't want to
+      // re-apply stale selections that they explicitly cleared.
+      if (productUuid) clearPersistedState(productUuid)
+    }
+
     selectedOptions.value = nextSelected
     customValues.value = nextCustom
     fileUploads.value = nextFiles
@@ -823,9 +917,11 @@ async function handleBehaviorAction() {
 
   // Generic auth gate — any plugin behavior may set `requires_auth: true`
   // on its CTA. Core doesn't know which plugin; if the flag is on and the
-  // customer isn't logged in, redirect to the login URL with `?return=<here>`
-  // so they land back on this product page.
+  // customer isn't logged in, save the configurator state, then redirect to
+  // the login URL with `?return=<here>` so they land back on this product
+  // page with their selections restored after register/login.
   if (cta.requires_auth && !customer.isAuthenticated.value) {
+    if (p?.uuid) savePersistedState(p.uuid)
     const loginUrl = projectConfig?.value?.commerce?.routes?.account || '/konto'
     const returnTo = typeof window !== 'undefined' ? window.location.href : ''
     const sep = loginUrl.includes('?') ? '&' : '?'
@@ -845,8 +941,24 @@ async function handleBehaviorAction() {
 
   if (cta.type === 'create_album_flow') {
     if (!cta.post_url || !client.value) return
+    if (missingRequired.value) {
+      toast.error(t('fillRequired'))
+      return
+    }
     isAdding.value = true
     try {
+      // Drop the configured product into the cart *before* handing off to
+      // the plugin's designer flow. Without this the user comes back from
+      // the external page to an empty cart and has to re-configure.
+      const metadata = buildConfiguredCartMetadata()
+      try {
+        await cart.addItem(p.uuid, 1, metadata)
+      } catch (cartErr: any) {
+        toast.error(cartErr?.message || t('addError'))
+        isAdding.value = false
+        return
+      }
+
       const returnUrl = typeof window !== 'undefined' ? window.location.href : ''
       const response = await client.value.callPluginEndpoint<{
         data?: { redirect_url?: string; designer_url?: string }
@@ -1045,15 +1157,12 @@ async function fetchProduct() {
   }
 }
 
-async function handleAddToCart() {
-  const p = effectiveProduct.value
-  if (!p) return
-  if (missingRequired.value) {
-    toast.error(t('fillRequired'))
-    return
-  }
-
-  // Build metadata payload: selected options with their resolved names and prices
+// Build the cart-item metadata payload from the current configurator state.
+// Shared by handleAddToCart and handleBehaviorAction so a plugin CTA can also
+// drop the configured product into the cart before redirecting off-site —
+// without that the user comes back from the external designer to an empty
+// cart and has to configure all over again.
+function buildConfiguredCartMetadata(): { configured_options: Array<Record<string, unknown>>; configured_total: number } {
   const configuredOptions: Array<Record<string, unknown>> = []
   for (const g of visibleGroups.value) {
     if (g.display_type === 'text') {
@@ -1121,10 +1230,21 @@ async function handleAddToCart() {
     }
   }
 
-  const metadata = {
+  return {
     configured_options: configuredOptions,
     configured_total: totalPrice.value,
   }
+}
+
+async function handleAddToCart() {
+  const p = effectiveProduct.value
+  if (!p) return
+  if (missingRequired.value) {
+    toast.error(t('fillRequired'))
+    return
+  }
+
+  const metadata = buildConfiguredCartMetadata()
 
   isAdding.value = true
   try {
@@ -1223,12 +1343,13 @@ const cssVars = computed(() => {
         </div>
       </div>
 
-      <!-- Wizard summary (shown after last step) -->
+      <!-- Wizard summary (shown after last step). The "Podsumowanie" label
+           is already rendered next to the progress bar above, so we don't
+           repeat it as a heading inside the list. -->
       <div
         v-if="wizardMode && showSummary"
         class="lcms-product-configurator__summary-list"
       >
-        <h4 class="lcms-product-configurator__summary-title">{{ t('stepSummary') }}</h4>
         <ul>
           <li v-for="g in visibleGroups" :key="g.uuid">
             <strong>{{ g.name }}:</strong>
@@ -1626,41 +1747,48 @@ const cssVars = computed(() => {
       </div>
 
       <!-- Add-to-cart / plugin-behavior button. In wizard mode shown only
-           on the summary step. The "Back" button on summary lets the user
-           return to the last step. -->
+           on the summary step. On summary the "Back" button sits in the
+           same row so the two visually match the wizard's prev/next pair
+           on earlier steps rather than a small floating link above a
+           giant full-width CTA. -->
       <template v-if="!wizardMode || showSummary">
-        <button
-          v-if="wizardMode && showSummary"
-          type="button"
-          class="lcms-product-configurator__nav-btn lcms-product-configurator__nav-btn--secondary lcms-product-configurator__back-btn"
-          @click="goPrevStep"
+        <div
+          :class="{ 'lcms-product-configurator__summary-actions': wizardMode && showSummary }"
         >
-          {{ t('stepBack') }}
-        </button>
-        <button
-          v-if="activeBehavior"
-          type="button"
-          :class="buttonClass"
-          :style="buttonInlineStyle"
-          :disabled="!canRunBehavior"
-          @click="handleBehaviorAction"
-        >
-          <span v-if="isAdding" class="lcms-product-configurator__spinner" />
-          {{ behaviorButtonText }}
-        </button>
-        <button
-          v-else
-          type="button"
-          :class="buttonClass"
-          :style="buttonInlineStyle"
-          :disabled="!canAddToCart"
-          @click="handleAddToCart"
-        >
-          <span v-if="isAdding" class="lcms-product-configurator__spinner" />
-          <i v-else-if="buttonIcon && buttonIconPosition === 'left'" :class="buttonIcon" style="margin-right: 6px;" />
-          {{ buttonText }}
-          <i v-if="buttonIcon && buttonIconPosition === 'right'" :class="buttonIcon" style="margin-left: 6px;" />
-        </button>
+          <button
+            v-if="wizardMode && showSummary"
+            type="button"
+            :class="backButtonClass"
+            :style="buttonInlineStyle"
+            @click="goPrevStep"
+          >
+            {{ t('stepBack') }}
+          </button>
+          <button
+            v-if="activeBehavior"
+            type="button"
+            :class="buttonClass"
+            :style="buttonInlineStyle"
+            :disabled="!canRunBehavior"
+            @click="handleBehaviorAction"
+          >
+            <span v-if="isAdding" class="lcms-product-configurator__spinner" />
+            {{ behaviorButtonText }}
+          </button>
+          <button
+            v-else
+            type="button"
+            :class="buttonClass"
+            :style="buttonInlineStyle"
+            :disabled="!canAddToCart"
+            @click="handleAddToCart"
+          >
+            <span v-if="isAdding" class="lcms-product-configurator__spinner" />
+            <i v-else-if="buttonIcon && buttonIconPosition === 'left'" :class="buttonIcon" style="margin-right: 6px;" />
+            {{ buttonText }}
+            <i v-if="buttonIcon && buttonIconPosition === 'right'" :class="buttonIcon" style="margin-left: 6px;" />
+          </button>
+        </div>
       </template>
     </template>
   </div>
@@ -2322,10 +2450,24 @@ const cssVars = computed(() => {
   color: var(--lcms-color-text, #1f2937);
   border-color: var(--lcms-color-border, #d1d5db);
 }
-.lcms-product-configurator__back-btn {
-  flex: none;
+.lcms-product-configurator__summary-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: stretch;
+  margin-top: 1.25rem;
+}
+/* CTA in the row takes remaining space. Override the standalone width:100%
+ * (used outside summary mode) so flex can distribute width across both
+ * buttons instead of forcing the CTA to consume the full container width. */
+.lcms-product-configurator__summary-actions > .lcms-product-configurator__button {
+  flex: 1 1 0;
   width: auto;
-  margin-bottom: 0.5rem;
+}
+/* Back button stays narrow on the left as a secondary outline, height
+ * inherited from the matching `lcms-button__link--size-{x}` class. */
+.lcms-product-configurator__back-btn {
+  flex: 0 0 auto;
+  min-width: 7rem;
 }
 
 .lcms-product-configurator__step-label {
