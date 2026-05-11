@@ -28,10 +28,10 @@
     "preview": "vite preview",
     "type-check": "vue-tsc --noEmit",
     "engine": "vite --config vite.engine.config.js",
-    "build:engine": "vite build --config vite.engine.config.js"
+    "build:engine": "vite build --config vite.engine.config.js",
+    "prepare": "[ -f dist/lesscms-vue.js ] || vite build --mode lib"
   },
   "dependencies": {
-    "@lesscms/vue-widgets": "github:Lesscms-io/app-vue",
     "@unhead/vue": "^1.9.0",
     "boxicons": "^2.1.4",
     "vue": "^3.4.0",
