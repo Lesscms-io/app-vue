@@ -426,20 +426,66 @@ async function addToCart() {
   if (!canAddToCart.value || !effectiveProduct.value) return
   isAdding.value = true
   try {
-    const metadata: Record<string, any> = { selected_options: {}, custom_values: {} }
-    for (const group of visibleGroups.value) {
-      if (group.display_type === 'numeric' || group.display_type === 'text') {
-        metadata.custom_values[group.code || group.uuid] = customValues.value[group.uuid]
-      } else if (group.display_type === 'checkbox') {
-        metadata.custom_values[group.code || group.uuid] = customValues.value[group.uuid] === true
+    // Mirror LcmsProductConfigurator.handleAddToCart shape so the BE
+    // (CartService::addItem) can read configured_total as unit_price and
+    // configured_options as per-line option breakdown. Without this the
+    // cart line would fall back to the product's base price.
+    const configuredOptions: Array<Record<string, unknown>> = []
+    for (const g of visibleGroups.value) {
+      if (g.display_type === 'text') {
+        const value = String(customValues.value[g.uuid] ?? '').trim()
+        if (!value) continue
+        configuredOptions.push({
+          group_uuid: g.uuid,
+          group_name: g.name,
+          type: 'text',
+          value,
+          price_delta: 0,
+        })
+      } else if (g.display_type === 'checkbox') {
+        if (customValues.value[g.uuid] !== true) continue
+        const delta = effectiveCheckboxModifier(g)
+        configuredOptions.push({
+          group_uuid: g.uuid,
+          group_name: g.name,
+          type: 'checkbox',
+          value: true,
+          checkbox_label: g.checkbox_label || 'TAK',
+          price_delta: delta,
+        })
+      } else if (g.display_type === 'numeric') {
+        const qty = Number(customValues.value[g.uuid] ?? 0)
+        if (!qty) continue
+        const rate = effectivePricePerUnit(g)
+        const delta = rate ? qty * rate : 0
+        configuredOptions.push({
+          group_uuid: g.uuid,
+          group_name: g.name,
+          type: 'numeric',
+          value: qty,
+          price_delta: delta,
+        })
       } else {
-        const sel = selectedOptions.value[group.uuid]
-        if (sel) {
-          const opt = group.options.find((o) => o.uuid === sel)
-          metadata.selected_options[group.code || group.uuid] = opt?.code || opt?.name || sel
-        }
+        const selUuid = selectedOptions.value[g.uuid]
+        if (!selUuid) continue
+        const opt = g.options.find((o) => o.uuid === selUuid)
+        if (!opt) continue
+        configuredOptions.push({
+          group_uuid: g.uuid,
+          group_name: g.name,
+          type: 'option',
+          option_uuid: opt.uuid,
+          option_name: opt.name,
+          price_delta: applyModifier(basePrice.value, opt),
+        })
       }
     }
+
+    const metadata = {
+      configured_options: configuredOptions,
+      configured_total: totalPrice.value,
+    }
+
     await cart.addItem(effectiveProduct.value.uuid, 1, metadata)
     toast.success(t('addedToCart'))
   } catch {
