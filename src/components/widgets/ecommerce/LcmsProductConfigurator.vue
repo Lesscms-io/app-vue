@@ -947,18 +947,10 @@ async function handleBehaviorAction() {
     }
     isAdding.value = true
     try {
-      // Drop the configured product into the cart *before* handing off to
-      // the plugin's designer flow. Without this the user comes back from
-      // the external page to an empty cart and has to re-configure.
-      const metadata = buildConfiguredCartMetadata()
-      try {
-        await cart.addItem(p.uuid, 1, metadata)
-      } catch (cartErr: any) {
-        toast.error(cartErr?.message || t('addError'))
-        isAdding.value = false
-        return
-      }
-
+      // No cart.addItem here. The plugin's own return page
+      // (Pages/AlbumReturn.vue in photo-albums) does the add after the
+      // customer finishes designing — adding here too produces a
+      // duplicate cart line.
       const returnUrl = typeof window !== 'undefined' ? window.location.href : ''
       const response = await client.value.callPluginEndpoint<{
         data?: { redirect_url?: string; designer_url?: string }
