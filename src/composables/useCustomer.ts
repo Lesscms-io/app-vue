@@ -64,7 +64,7 @@ function createCustomerStore(): CustomerStore {
 
   const isAuthenticated = computed(() => !!customer.value && !!token.value)
 
-  let initialized = false
+  let initPromise: Promise<void> | null = null
 
   function applyToken(newToken: string | null) {
     token.value = newToken
@@ -74,26 +74,34 @@ function createCustomerStore(): CustomerStore {
     }
   }
 
+  // Share the in-flight init() across concurrent callers. The previous
+  // `if (initialized) return` pattern bailed out the second caller before
+  // getMe() resolved, leaving `customer.value === null` while the first
+  // call was still hydrating it. That broke the configurator's auto-fire
+  // path on return from login: the await returned synchronously, the
+  // `isAuthenticated` check ran against null, and the plugin CTA never
+  // re-fired.
   async function init() {
-    if (initialized) return
-    initialized = true
+    if (initPromise) return initPromise
+    initPromise = (async () => {
+      const storedToken = getStoredToken()
+      if (!storedToken || !client.value) {
+        isInitialized.value = true
+        return
+      }
 
-    const storedToken = getStoredToken()
-    if (!storedToken || !client.value) {
-      isInitialized.value = true
-      return
-    }
-
-    applyToken(storedToken)
-    try {
-      const response = await client.value.getMe()
-      customer.value = response.data
-    } catch (err: any) {
-      applyToken(null)
-      customer.value = null
-    } finally {
-      isInitialized.value = true
-    }
+      applyToken(storedToken)
+      try {
+        const response = await client.value.getMe()
+        customer.value = response.data
+      } catch (err: any) {
+        applyToken(null)
+        customer.value = null
+      } finally {
+        isInitialized.value = true
+      }
+    })()
+    return initPromise
   }
 
   async function login(email: string, password: string) {

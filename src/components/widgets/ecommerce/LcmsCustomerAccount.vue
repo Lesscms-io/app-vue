@@ -46,6 +46,35 @@ const showLogout = computed(() => config.value.show_logout !== false)
 
 const currency = computed(() => projectConfig?.value?.commerce?.currency || 'PLN')
 
+// True when the page was reached with a `?return=` / `?return_to=` query
+// param — i.e. the user is here to authenticate and bounce back to where
+// they came from (e.g. configurator CTA).
+const hasReturnTarget = ref(false)
+// True only when `isAuthenticated` flipped from false → true on THIS page
+// load with a return target present. After that flip LcmsLoginForm fires
+// `window.location.href = destination` immediately, but Vue's reactivity
+// flips this component's branch first — without the guard the account view
+// would render for one frame, producing the "login form → flash of Moje
+// konto → destination page" experience. A user who lands on /konto?return=…
+// already authed (browser back, manual nav) keeps this flag false and sees
+// the regular account view.
+const justAuthedForRedirect = ref(false)
+onMounted(() => {
+  if (typeof window === 'undefined') return
+  const params = new URLSearchParams(window.location.search)
+  hasReturnTarget.value = !!(params.get('return') || params.get('return_to'))
+})
+watch(() => customer.isAuthenticated.value, (next, prev) => {
+  // Skip the init-time flip: when a stored token hydrates the customer at
+  // page load, isAuthenticated goes false → true *before* isInitialized
+  // flips to true. A real user login happens after init() has already
+  // completed, so checking isInitialized cleanly separates the two cases.
+  if (!customer.isInitialized.value) return
+  if (!prev && next && hasReturnTarget.value) {
+    justAuthedForRedirect.value = true
+  }
+})
+
 // activeTab is a string so plugin-contributed tabs (e.g. "albumy") fit too.
 // Built-in tabs use 'profile' | 'orders' | 'addresses'; plugin tabs use the
 // `key` declared in their manifest's `slots["account.tabs"]` entries.
@@ -233,7 +262,12 @@ async function handleSaveProfile() {
 
 async function handleLogout() {
   await customer.logout()
-  window.location.reload()
+  // No reload — Vue reactivity flips this component from the account view
+  // straight to LcmsLoginForm via the `!isAuthenticated` branch. A reload
+  // forced the whole page through SSR + hydration, which double-flashed
+  // the login form (visible immediately on logout via the reactive flip,
+  // then again after the SSR spinner + client init).
+  activeTab.value = 'profile'
 }
 
 function formatDate(date: string) {
@@ -262,8 +296,29 @@ function formatDate(date: string) {
       />
     </template>
 
+    <div v-else-if="justAuthedForRedirect" class="lcms-customer-account__loading">
+      <div class="lcms-customer-account__spinner" aria-hidden="true" />
+    </div>
+
     <div v-else class="lcms-customer-account__content">
-      <h2 class="lcms-customer-account__heading">{{ headingText }}</h2>
+      <div class="lcms-customer-account__header">
+        <h2 class="lcms-customer-account__heading">{{ headingText }}</h2>
+        <button
+          v-if="showLogout"
+          type="button"
+          class="lcms-customer-account__logout-icon"
+          :title="t('logout')"
+          :aria-label="t('logout')"
+          @click="handleLogout"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+            <polyline points="16 17 21 12 16 7" />
+            <line x1="21" y1="12" x2="9" y2="12" />
+          </svg>
+          <span class="lcms-customer-account__logout-icon-label">{{ t('logout') }}</span>
+        </button>
+      </div>
 
       <!-- Tabs -->
       <div class="lcms-customer-account__tabs">
@@ -526,10 +581,6 @@ function formatDate(date: string) {
         </div>
       </div>
 
-      <!-- Logout -->
-      <button v-if="showLogout" type="button" class="lcms-customer-account__logout" @click="handleLogout">
-        {{ t('logout') }}
-      </button>
     </div>
   </div>
 </template>
@@ -559,11 +610,60 @@ function formatDate(date: string) {
   to { transform: rotate(360deg); }
 }
 
+.lcms-customer-account__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
 .lcms-customer-account__heading {
   font-family: var(--lcms-font-heading, var(--lcms-font-body));
   font-size: var(--lcms-h2-font-size, 1.875rem);
   font-weight: var(--lcms-h2-font-weight, 700);
-  margin: 0 0 1.5rem;
+  margin: 0;
+}
+
+.lcms-customer-account__logout-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.5rem 0.75rem;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--lcms-border-radius, 0.375rem);
+  color: var(--lcms-color-muted, #6b7280);
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.lcms-customer-account__logout-icon svg {
+  width: 1.125rem;
+  height: 1.125rem;
+  flex-shrink: 0;
+}
+
+.lcms-customer-account__logout-icon:hover {
+  color: var(--lcms-color-danger, #ef4444);
+  border-color: var(--lcms-color-danger, #ef4444);
+  background: rgba(239, 68, 68, 0.05);
+}
+
+.lcms-customer-account__logout-icon-label {
+  white-space: nowrap;
+}
+
+@media (max-width: 480px) {
+  .lcms-customer-account__logout-icon-label {
+    display: none;
+  }
+  .lcms-customer-account__logout-icon {
+    padding: 0.5rem;
+  }
 }
 
 .lcms-customer-account__tabs {
@@ -920,20 +1020,4 @@ function formatDate(date: string) {
   text-transform: uppercase;
 }
 
-.lcms-customer-account__logout {
-  margin-top: 1.5rem;
-  padding: 0.625rem 1.25rem;
-  background: transparent;
-  color: var(--lcms-color-danger, #ef4444);
-  border: 1px solid var(--lcms-color-danger, #ef4444);
-  border-radius: var(--lcms-border-radius, 0.375rem);
-  font-size: 0.875rem;
-  font-weight: 500;
-  font-family: inherit;
-  cursor: pointer;
-}
-
-.lcms-customer-account__logout:hover {
-  background: rgba(239, 68, 68, 0.05);
-}
 </style>

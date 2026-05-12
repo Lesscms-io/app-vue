@@ -349,6 +349,7 @@ function loadPersistedState(productUuid: string): {
   selectedOptions: Record<string, string>
   customValues: Record<string, string | number | boolean>
   fileUploads: Record<string, StorefrontOptionUpload[]>
+  pendingBehavior: boolean
 } | null {
   if (typeof window === 'undefined') return null
   try {
@@ -364,13 +365,17 @@ function loadPersistedState(productUuid: string): {
       selectedOptions: parsed.selectedOptions || {},
       customValues: parsed.customValues || {},
       fileUploads: parsed.fileUploads || {},
+      pendingBehavior: !!parsed.pendingBehavior,
     }
   } catch {
     return null
   }
 }
 
-function savePersistedState(productUuid: string) {
+// pendingBehavior signals "user clicked the behavior CTA but got bounced to
+// login first" — after login + state restore the configurator should fire
+// the CTA again automatically instead of forcing the user to click twice.
+function savePersistedState(productUuid: string, options: { pendingBehavior?: boolean } = {}) {
   if (typeof window === 'undefined') return
   try {
     window.localStorage.setItem(persistedStateKey(productUuid), JSON.stringify({
@@ -378,6 +383,7 @@ function savePersistedState(productUuid: string) {
       selectedOptions: selectedOptions.value,
       customValues: customValues.value,
       fileUploads: fileUploads.value,
+      pendingBehavior: !!options.pendingBehavior,
     }))
   } catch {
     /* quota exceeded or storage disabled — silent fail, user just loses state */
@@ -393,6 +399,34 @@ function clearPersistedState(productUuid: string) {
   }
 }
 
+// Strip `lcms_pending_action=1` from the current URL and notify any
+// listener (e.g. app.vue) that the redirect overlay should be dismissed.
+// Used after a successful or failed auto-fire on return from login: the
+// marker is single-use and a stale value would keep the overlay forever.
+function dismissPendingActionMarker() {
+  if (typeof window === 'undefined') return
+  try {
+    const url = new URL(window.location.href)
+    if (url.searchParams.has('lcms_pending_action')) {
+      url.searchParams.delete('lcms_pending_action')
+      const next = url.pathname + (url.search || '') + (url.hash || '')
+      window.history.replaceState(null, '', next)
+    }
+    window.dispatchEvent(new Event('lcms:redirect-action-done'))
+  } catch {
+    /* noop */
+  }
+}
+
+// Tracks the productUuid we've already initialized defaults+restore for.
+// Without this, any re-evaluation of `allGroups` (e.g. a re-render that
+// produces a new sorted array reference) would re-run the watcher, find
+// no persisted state (cleared on the first run) and wipe the user's
+// in-progress selections back to defaults. The auth-gated CTA round-trip
+// was the visible failure case: state restored fine, then a second
+// watcher fire reset it to defaults before the user saw anything.
+const initializedForProductUuid = ref<string | null>(null)
+
 // Apply default selections when product loads, then overlay any persisted
 // selections from a previous session of this same product. The persistence
 // path matters for the auth-gated plugin CTA flow: clicking the CTA while
@@ -401,6 +435,11 @@ function clearPersistedState(productUuid: string) {
 watch(
   allGroups,
   (groups) => {
+    const currentProductUuid = effectiveProduct.value?.uuid || null
+    if (currentProductUuid && initializedForProductUuid.value === currentProductUuid) {
+      return
+    }
+
     const nextSelected: Record<string, string> = {}
     const nextCustom: Record<string, string | number | boolean> = {}
     const nextFiles: Record<string, StorefrontOptionUpload[]> = {}
@@ -450,6 +489,41 @@ watch(
     fileUploads.value = nextFiles
     currentStep.value = 0
     showSummary.value = false
+    // Only lock the watcher to this productUuid once the product is fully
+    // loaded (has option groups). An early fire with `{uuid, option_groups: []}`
+    // would otherwise prevent a later fire-with-groups from running the
+    // restore path.
+    if (currentProductUuid && groups.length > 0) {
+      initializedForProductUuid.value = currentProductUuid
+    }
+
+    // If the persisted state was saved while bouncing the user to login for
+    // a behavior CTA, resume that CTA now that they're back. Without this
+    // the user has to click "Zaprojektuj u nas" twice — once before login,
+    // once after — which is what `proces zakupowy jest dalej zjebany`
+    // looked like end-user side.
+    if (persisted?.pendingBehavior && typeof window !== 'undefined') {
+      void (async () => {
+        try {
+          await customer.init()
+          if (customer.isAuthenticated.value) {
+            await handleBehaviorAction()
+          }
+        } finally {
+          // If we didn't navigate away (auth failed, API error, missing
+          // required option after restore), drop the redirect overlay so
+          // the user can see the configurator UI again. Same handler also
+          // covers the no-op case: configurator hydrated, no pending
+          // behavior left, but URL still carries the marker.
+          dismissPendingActionMarker()
+        }
+      })()
+    } else if (typeof window !== 'undefined') {
+      // No pending behavior to fire — if the URL still has the marker
+      // (stale tab, manual refresh after the overlay was dismissed once,
+      // etc.), drop it so the overlay disappears immediately.
+      dismissPendingActionMarker()
+    }
   },
   { immediate: true }
 )
@@ -917,15 +991,31 @@ async function handleBehaviorAction() {
 
   // Generic auth gate — any plugin behavior may set `requires_auth: true`
   // on its CTA. Core doesn't know which plugin; if the flag is on and the
-  // customer isn't logged in, save the configurator state, then redirect to
-  // the login URL with `?return=<here>` so they land back on this product
-  // page with their selections restored after register/login.
+  // customer isn't logged in, save the configurator state (with a
+  // `pendingBehavior: true` marker), then redirect to the login URL with
+  // `?return=<here>`. After login the configurator restores the state AND
+  // auto-fires this behavior so the customer ends up where they wanted to
+  // go — on the album designer — instead of needing to click the CTA twice.
+  //
+  // await customer.init() first — without it, a customer who's already
+  // logged in (token in localStorage) but whose store hasn't hydrated yet
+  // would be falsely sent to /konto. init() is idempotent.
+  if (cta.requires_auth) {
+    await customer.init()
+  }
   if (cta.requires_auth && !customer.isAuthenticated.value) {
-    if (p?.uuid) savePersistedState(p.uuid)
+    if (p?.uuid) savePersistedState(p.uuid, { pendingBehavior: true })
     const loginUrl = projectConfig?.value?.commerce?.routes?.account || '/konto'
-    const returnTo = typeof window !== 'undefined' ? window.location.href : ''
     const sep = loginUrl.includes('?') ? '&' : '?'
     if (typeof window !== 'undefined') {
+      // Append `lcms_pending_action=1` to the return URL so the destination
+      // page can render a full-screen redirect overlay from the very first
+      // SSR paint — without this marker, the user briefly sees the product
+      // page they came from while the configurator's auto-fire is in
+      // flight on the way to the album designer.
+      const returnUrlObj = new URL(window.location.href)
+      returnUrlObj.searchParams.set('lcms_pending_action', '1')
+      const returnTo = returnUrlObj.toString()
       window.location.href = `${loginUrl}${sep}return=${encodeURIComponent(returnTo)}`
     }
     return

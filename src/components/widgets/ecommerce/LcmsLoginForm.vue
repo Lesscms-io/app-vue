@@ -142,7 +142,11 @@ async function handleLogin() {
       const destination = resolveReturnTarget() || redirectAfterLogin.value
       const target = new URL(destination, window.location.origin)
       if (window.location.pathname !== target.pathname || window.location.search !== target.search) {
-        setTimeout(() => { window.location.href = destination }, 500)
+        // Navigate immediately — a setTimeout here lets Vue's reactivity flip
+        // the parent (LcmsCustomerAccount) to the "Moje konto" branch first,
+        // producing a half-second flash of the account view before the
+        // browser actually leaves the page.
+        window.location.href = destination
       }
     }
   } catch (err: any) {
