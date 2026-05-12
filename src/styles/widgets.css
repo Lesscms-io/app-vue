@@ -153,13 +153,19 @@
   width: auto;
 }
 
-/* Widgets that must always stretch to full width regardless of column alignment */
+/* Widgets that must always stretch to full width regardless of column alignment.
+ * Image is here because the natural read is "image fills its slot"; the only
+ * way an image's width should shrink is if the editor explicitly sets
+ * widget-level `width` or `auto_width: true`. WidgetRenderer honours those. */
 .lcms-section__column--align-center .lcms-widget--menu,
 .lcms-section__column--align-start .lcms-widget--menu,
 .lcms-section__column--align-end .lcms-widget--menu,
 .lcms-section__column--align-center .lcms-widget--grid,
 .lcms-section__column--align-start .lcms-widget--grid,
-.lcms-section__column--align-end .lcms-widget--grid {
+.lcms-section__column--align-end .lcms-widget--grid,
+.lcms-section__column--align-center .lcms-widget--image,
+.lcms-section__column--align-start .lcms-widget--image,
+.lcms-section__column--align-end .lcms-widget--image {
   width: 100%;
 }
 
