@@ -5,7 +5,7 @@
  * Full cart page with items, quantity controls, totals, checkout button.
  */
 
-import { computed, inject, type Ref } from 'vue'
+import { computed, inject, reactive, type Ref } from 'vue'
 import { useLanguage } from '../../../composables/useLanguage'
 import { useCart } from '../../../composables/useCart'
 import { useToast } from '../../../composables/useToast'
@@ -65,6 +65,8 @@ const t = (key: string) => {
       removeError: 'Nie udało się usunąć',
       removed: 'Usunięto z koszyka',
       editAlbum: 'Edytuj projekt albumu',
+      showOptions: 'Pokaż opcje',
+      hideOptions: 'Ukryj opcje',
     },
     en: {
       summary: 'Summary',
@@ -79,6 +81,8 @@ const t = (key: string) => {
       removeError: 'Failed to remove',
       removed: 'Removed from cart',
       editAlbum: 'Edit album',
+      showOptions: 'Show options',
+      hideOptions: 'Hide options',
     },
   }
   return dict[lang]?.[key] || dict.pl[key] || key
@@ -118,6 +122,15 @@ function normalizedConfiguredOptions(metadata: any): ConfiguredRow[] {
       .filter((row) => row.label && row.value)
   }
   return []
+}
+
+// Per-item expanded state for the configured-options list. Collapsed by
+// default so the cart row stays short — the customer rarely needs the
+// full options dump and a 15-line album spec was pushing the image and
+// qty controls into the middle of the row.
+const expandedOptions = reactive<Record<string, boolean>>({})
+function toggleOptions(itemUuid: string) {
+  expandedOptions[itemUuid] = !expandedOptions[itemUuid]
 }
 
 // Photo-albums plugin tags its cart items with album_id; the cart row
@@ -182,6 +195,7 @@ function handleCheckout() {
           v-for="item in cart.cart.value?.items || []"
           :key="item.uuid"
           class="lcms-cart__item"
+          :class="{ 'lcms-cart__item--expanded': expandedOptions[item.uuid] }"
         >
           <a :href="productUrl(item.product.slug)" class="lcms-cart__item-image-link">
             <img
@@ -204,8 +218,20 @@ function handleCheckout() {
               {{ item.product.name }}
             </a>
             <div class="lcms-cart__item-sku">{{ item.product.sku }}</div>
-            <ul
+            <button
               v-if="normalizedConfiguredOptions(item.metadata).length > 0"
+              type="button"
+              class="lcms-cart__item-options-toggle"
+              :aria-expanded="!!expandedOptions[item.uuid]"
+              @click="toggleOptions(item.uuid)"
+            >
+              {{ expandedOptions[item.uuid] ? t('hideOptions') : t('showOptions') }}
+              <span class="lcms-cart__item-options-count">
+                ({{ normalizedConfiguredOptions(item.metadata).length }})
+              </span>
+            </button>
+            <ul
+              v-if="expandedOptions[item.uuid] && normalizedConfiguredOptions(item.metadata).length > 0"
               class="lcms-cart__item-options"
             >
               <li
@@ -397,6 +423,12 @@ function handleCheckout() {
     grid-template-columns: auto 1fr auto;
     align-items: center;
   }
+  /* When the configured-options list is open the row gets tall; switching
+   * to top alignment keeps image + qty pinned to the row's top instead of
+   * floating in the middle of a long options dump. */
+  .lcms-cart__item--expanded {
+    align-items: flex-start;
+  }
 }
 
 .lcms-cart__item-image-link {
@@ -450,6 +482,30 @@ function handleCheckout() {
   font-size: 0.75rem;
   color: var(--lcms-color-muted, #6b7280);
   margin-bottom: 0.5rem;
+}
+
+.lcms-cart__item-options-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0 0 0.5rem;
+  font: inherit;
+  font-size: 0.8125rem;
+  color: var(--lcms-color-primary, #3b82f6);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.lcms-cart__item-options-toggle:hover {
+  text-decoration: none;
+}
+
+.lcms-cart__item-options-count {
+  color: var(--lcms-color-muted, #6b7280);
+  text-decoration: none;
 }
 
 .lcms-cart__item-options {
