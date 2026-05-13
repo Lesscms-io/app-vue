@@ -500,7 +500,7 @@ function mapHorizontalAlign(value: string): string {
   <component
     :is="linkSettings ? 'a' : 'div'"
     ref="widgetRef"
-    :id="settings.css_id || widgetId"
+    :id="settings.id || widgetId"
     :href="linkSettings?.url"
     :target="linkSettings?.targetBlank ? '_blank' : undefined"
     :rel="linkSettings?.targetBlank ? 'noopener noreferrer' : undefined"

@@ -665,7 +665,7 @@ function mapFlexAlign(value: string): string {
 
   <section
     ref="sectionRef"
-    :id="settings.cssId || sectionUniqueId"
+    :id="settings.id || sectionUniqueId"
     :class="sectionClass"
     :data-section-id="sectionId"
     :style="{ ...sectionStyle, ...sectionAnimStyle }"
@@ -687,7 +687,7 @@ function mapFlexAlign(value: string): string {
       <div
         v-for="(column, colIndex) in columns"
         :key="column.id || colIndex"
-        :id="column.settings?.cssId || getColumnId(column, colIndex)"
+        :id="column.settings?.id || getColumnId(column, colIndex)"
         class="lcms-section__column"
         :class="[
           { 'lcms-hidden': isColumnHidden(column) },
