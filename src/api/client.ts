@@ -42,6 +42,13 @@ export interface ApiClient {
   getPage(code: string): Promise<PageResponse>
 
   /**
+   * Get a draft page by its preview token. Used by the renderer when a
+   * `?preview_token=` query is present so editors can share an unguessable
+   * URL that renders the unpublished version of a page.
+   */
+  getPagePreview(token: string): Promise<PageResponse>
+
+  /**
    * Get collection entries
    */
   getCollection(code: string, params?: CollectionParams): Promise<CollectionResponse>
@@ -295,6 +302,10 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
 
     getPage(code: string) {
       return get<PageResponse>(`/pages/${encodeURIComponent(code)}`)
+    },
+
+    getPagePreview(token: string) {
+      return get<PageResponse>(`/pages/preview/${encodeURIComponent(token)}`)
     },
 
     getCollection(code: string, params?: CollectionParams) {
