@@ -43,6 +43,8 @@ export interface StorefrontProductOptionGroup {
   display_type: StorefrontOptionDisplayType
   is_required: boolean
   sort_order: number
+  /** Etykieta scalająca kilka grup w jeden krok wizarda. NULL = osobny krok. */
+  wizard_step?: string | null
   visible_when_option_uuids: string[]
   numeric_min: number | null
   numeric_max: number | null

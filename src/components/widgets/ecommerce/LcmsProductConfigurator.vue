@@ -605,17 +605,32 @@ const selectedSet = computed(() => {
 })
 
 // --- Wizard navigation -----------------------------------------------------
-// Wizard is one group per step, ordered by the group's own sort_order. No
-// per-widget configuration — group structure lives in the configurator
-// (commerce), not in the widget settings.
+// Wizard step structure lives w konfiguratorze (commerce): grupa może mieć
+// `wizard_step` (etykietę) — grupy z tą samą etykietą zlepione są w jeden krok
+// w kolejności pojawienia się w `visibleGroups` (czyli wg sort_order). Grupa
+// bez wizard_step idzie jako osobny krok (legacy behavior — 1 group = 1 step).
 
 interface EffectiveStep {
+  /** Etykieta kroku — null jeśli krok to "samotna" grupa bez wizard_step. */
+  label: string | null
   groups: StorefrontProductOptionGroup[]
 }
 
-const effectiveSteps = computed<EffectiveStep[]>(() =>
-  visibleGroups.value.map((g) => ({ groups: [g] })),
-)
+const effectiveSteps = computed<EffectiveStep[]>(() => {
+  const steps: EffectiveStep[] = []
+  const labelToIndex = new Map<string, number>()
+  for (const g of visibleGroups.value) {
+    const rawLabel = g.wizard_step
+    const label = typeof rawLabel === 'string' && rawLabel.trim() ? rawLabel.trim() : null
+    if (label !== null && labelToIndex.has(label)) {
+      steps[labelToIndex.get(label)!].groups.push(g)
+    } else {
+      const idx = steps.push({ label, groups: [g] }) - 1
+      if (label !== null) labelToIndex.set(label, idx)
+    }
+  }
+  return steps
+})
 
 const totalSteps = computed(() => effectiveSteps.value.length)
 const currentStepData = computed<EffectiveStep | null>(
@@ -1435,6 +1450,17 @@ const cssVars = computed(() => {
           'lcms-product-configurator__groups--flat': displayMode === 'flat',
         }"
       >
+        <!-- Step title — etykieta kroku gdy w wizardzie kilka grup zostało
+             scalonych w jeden krok (wizard_step na grupie w configuratorze).
+             Pojedyncza grupa na krok = brak labela = nie renderujemy
+             (nagłówki grup już wystarczają). -->
+        <div
+          v-if="wizardMode && !showSummary && currentStepData?.label && currentStepGroups.length > 0"
+          class="lcms-product-configurator__step-title"
+        >
+          {{ currentStepData.label }}
+        </div>
+
         <div
           v-for="group in groupsToShow"
           :key="group.uuid"
@@ -2519,6 +2545,16 @@ const cssVars = computed(() => {
   font-size: 1.125rem;
   font-weight: 600;
   margin: 0 0 0.75rem 0;
+  color: var(--lcms-pc-heading-color, var(--lcms-color-text, #1f2937));
+}
+
+.lcms-product-configurator__step-title {
+  font-family: var(--lcms-font-heading, var(--lcms-font-body));
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0 0 1rem 0;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--lcms-color-border, #e5e7eb);
   color: var(--lcms-pc-heading-color, var(--lcms-color-text, #1f2937));
 }
 
