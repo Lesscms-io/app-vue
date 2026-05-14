@@ -11,11 +11,24 @@ const PRESETS = [400, 800, 1200]
 const PRESETS_SMALL = [100, 200, 400]
 const PRESETS_HERO = [800, 1200, 1920]
 
+// SVG is vector — image-proxy doesn't allow svg in its IMAGE_EXTENSIONS
+// allowlist (returns 400) and rasterizing via Sharp would lose quality.
+// Skip the proxy entirely and serve the original asset.
+function isSvg(url: string): boolean {
+  if (!url) return false
+  try {
+    return new URL(url).pathname.toLowerCase().endsWith('.svg')
+  } catch {
+    return url.toLowerCase().split('?')[0].endsWith('.svg')
+  }
+}
+
 /**
  * Build srcset string from image URL
  */
 export function buildSrcset(url: string, widths: number[] = PRESETS): string {
   if (!url) return ''
+  if (isSvg(url)) return url
   const sep = url.includes('?') ? '&' : '?'
   return widths.map(w => `${url}${sep}w=${w} ${w}w`).join(', ')
 }
@@ -25,6 +38,7 @@ export function buildSrcset(url: string, widths: number[] = PRESETS): string {
  */
 export function buildSrc(url: string, width: number): string {
   if (!url) return ''
+  if (isSvg(url)) return url
   const sep = url.includes('?') ? '&' : '?'
   return `${url}${sep}w=${width}`
 }
