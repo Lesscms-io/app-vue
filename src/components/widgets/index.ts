@@ -54,6 +54,7 @@ import LcmsGoogleReviews from './interactive/LcmsGoogleReviews.vue'
 
 // Navigation widgets
 import LcmsMenu from './navigation/LcmsMenu.vue'
+import LcmsNavBar from './navigation/LcmsNavBar.vue'
 import LcmsSocialIcons from './navigation/LcmsSocialIcons.vue'
 import LcmsBreadcrumbs from './navigation/LcmsBreadcrumbs.vue'
 import LcmsToc from './navigation/LcmsToc.vue'
@@ -152,6 +153,7 @@ export const widgetComponents: Record<string, Component> = {
 
   // Navigation
   menu: LcmsMenu,
+  'nav-bar': LcmsNavBar,
   'social-icons': LcmsSocialIcons,
   breadcrumbs: LcmsBreadcrumbs,
   toc: LcmsToc,
@@ -265,6 +267,7 @@ export {
   LcmsGoogleReviews,
   // Navigation
   LcmsMenu,
+  LcmsNavBar,
   LcmsSocialIcons,
   LcmsBreadcrumbs,
   LcmsToc,
