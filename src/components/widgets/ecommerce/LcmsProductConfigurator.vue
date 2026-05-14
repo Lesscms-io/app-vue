@@ -175,7 +175,17 @@ function radioGridStyle(group: StorefrontProductOptionGroup): Record<string, str
     gridTemplateColumns: `repeat(${cols}, 1fr)`,
   }
 }
-const wizardMode = computed(() => config.value.wizard_mode === true)
+// Display mode = single source of truth for how the configurator paints groups:
+//   'grouped' (default) — each group as a labeled section, group-by-group flow
+//   'flat'              — same controls, no group headings, one continuous list
+//   'wizard'            — one group per step, prev/next buttons + progress
+// Backwards-compat with the legacy `wizard_mode: true` toggle is intentionally
+// dropped (per product decision) — old pages render as 'grouped'.
+const displayMode = computed<'flat' | 'grouped' | 'wizard'>(() => {
+  const m = config.value.display_mode
+  return m === 'flat' || m === 'wizard' ? m : 'grouped'
+})
+const wizardMode = computed(() => displayMode.value === 'wizard')
 const showProgress = computed(() => config.value.show_progress !== false)
 const showStepCount = computed(() => config.value.show_step_count !== false)
 const slugSource = computed(() => config.value.slug_source || 'url')
@@ -330,9 +340,9 @@ const fileUploads = ref<Record<string, StorefrontOptionUpload[]>>({})
 // Per-group upload progress / error
 const fileUploadStatus = ref<Record<string, { uploading: boolean; error: string | null }>>({})
 
-// Wizard-mode navigation state. Only used when config.wizard_mode = true; classic
-// mode ignores these refs entirely. We keep the same selection/upload/customValue
-// state shapes — wizard just paginates over visibleGroups.
+// Wizard-mode navigation state. Only used when displayMode = 'wizard'; flat
+// and grouped modes ignore these refs entirely. We keep the same selection/
+// upload/customValue state shapes — wizard just paginates over visibleGroups.
 const currentStep = ref(0)
 const showSummary = ref(false)
 
@@ -595,60 +605,17 @@ const selectedSet = computed(() => {
 })
 
 // --- Wizard navigation -----------------------------------------------------
-// In wizard_mode we paginate `effectiveSteps`. Each step holds 1+ groups —
-// either one-per-step (default) or as configured via `config.wizard_steps`.
-
-interface WizardStepConfig {
-  label?: Record<string, string>
-  group_codes?: string[]
-}
+// Wizard is one group per step, ordered by the group's own sort_order. No
+// per-widget configuration — group structure lives in the configurator
+// (commerce), not in the widget settings.
 
 interface EffectiveStep {
-  label: Record<string, string> | null
   groups: StorefrontProductOptionGroup[]
 }
 
-const wizardStepsConfig = computed<WizardStepConfig[]>(() => {
-  const v = config.value.wizard_steps
-  return Array.isArray(v) ? v : []
-})
-
-// Resolve config steps against currently-visible groups. Missing codes are
-// silently dropped (e.g. group renamed/deleted in commerce). Any visible group
-// not assigned to a config step gets appended as its own trailing step so the
-// user never loses an option just because the config is incomplete.
-const effectiveSteps = computed<EffectiveStep[]>(() => {
-  const visible = visibleGroups.value
-  const cfg = wizardStepsConfig.value
-  if (cfg.length === 0) {
-    return visible.map((g) => ({ label: null, groups: [g] }))
-  }
-  const byCode: Record<string, StorefrontProductOptionGroup> = {}
-  for (const g of visible) byCode[g.code] = g
-  const claimed = new Set<string>()
-  const steps: EffectiveStep[] = []
-  for (const step of cfg) {
-    const codes = Array.isArray(step.group_codes) ? step.group_codes : []
-    const groups: StorefrontProductOptionGroup[] = []
-    for (const code of codes) {
-      const g = byCode[code]
-      if (g && !claimed.has(g.uuid)) {
-        groups.push(g)
-        claimed.add(g.uuid)
-      }
-    }
-    if (groups.length > 0) {
-      steps.push({ label: step.label || null, groups })
-    }
-  }
-  // Trailing fallback: any visible group not yet claimed gets its own step.
-  for (const g of visible) {
-    if (!claimed.has(g.uuid)) {
-      steps.push({ label: null, groups: [g] })
-    }
-  }
-  return steps
-})
+const effectiveSteps = computed<EffectiveStep[]>(() =>
+  visibleGroups.value.map((g) => ({ groups: [g] })),
+)
 
 const totalSteps = computed(() => effectiveSteps.value.length)
 const currentStepData = computed<EffectiveStep | null>(
@@ -657,11 +624,6 @@ const currentStepData = computed<EffectiveStep | null>(
 const currentStepGroups = computed<StorefrontProductOptionGroup[]>(
   () => currentStepData.value?.groups || []
 )
-const currentStepLabel = computed<string>(() => {
-  const lbl = currentStepData.value?.label
-  if (!lbl) return ''
-  return extractValue(lbl) || ''
-})
 const isFirstStep = computed(() => currentStep.value === 0)
 const isLastStep = computed(() => currentStep.value >= totalSteps.value - 1)
 const progressPercent = computed(() => {
@@ -1468,18 +1430,11 @@ const cssVars = computed(() => {
       <div
         v-else-if="allGroups.length > 0"
         class="lcms-product-configurator__groups"
-        :class="{ 'lcms-product-configurator__groups--wizard': wizardMode }"
+        :class="{
+          'lcms-product-configurator__groups--wizard': wizardMode,
+          'lcms-product-configurator__groups--flat': displayMode === 'flat',
+        }"
       >
-        <!-- Step label, shown only when the user has assigned a custom label
-             to the current step via config.wizard_steps. With per-group steps
-             (no config) we let the group's own name serve as the heading. -->
-        <h4
-          v-if="wizardMode && currentStepLabel"
-          class="lcms-product-configurator__step-label"
-        >
-          {{ currentStepLabel }}
-        </h4>
-
         <div
           v-for="group in groupsToShow"
           :key="group.uuid"
@@ -1935,6 +1890,13 @@ const cssVars = computed(() => {
   font-weight: 600;
   padding-top: 0.5rem;
   color: var(--lcms-pc-group-label-color, var(--lcms-color-text, #1f2937));
+}
+
+/* Flat mode: drop group headings so all groups read as one continuous list.
+   Group order (and option order within each) stays as the configurator
+   defined it; only the visual section separator is suppressed. */
+.lcms-product-configurator__groups--flat .lcms-product-configurator__group-label {
+  display: none;
 }
 
 .lcms-product-configurator__required {
