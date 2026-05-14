@@ -59,15 +59,10 @@ const columnsMobile = computed(() => Number(config.value.columns_mobile) || 1)
 const showPrice = computed(() => config.value.show_price !== false)
 const showCategory = computed(() => config.value.show_category !== false)
 
-// Field mapping — image auto-detects from template's main_image_attribute_code
-const fieldImage = computed(() => {
-  if (config.value.field_image && config.value.field_image !== 'image') return config.value.field_image
-  // Auto-detect from first product's template
-  const firstProduct = products.value[0] as any
-  const imgCode = firstProduct?.template?.main_image_attribute_code
-  if (imgCode) return `attributes.${imgCode}`
-  return config.value.field_image || 'image'
-})
+// Field mapping — `image` in the storefront cache is already resolved by
+// the backend via Product::effective_thumbnail (own column → parent's →
+// template.main_image_attribute_code). No per-template detection here.
+const fieldImage = computed(() => config.value.field_image || 'image')
 const fieldName = computed(() => config.value.field_name || 'name')
 const fieldPrice = computed(() => config.value.field_price || 'price')
 const fieldCategory = computed(() => config.value.field_category || 'category.name')
