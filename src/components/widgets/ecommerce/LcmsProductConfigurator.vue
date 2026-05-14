@@ -179,11 +179,16 @@ function radioGridStyle(group: StorefrontProductOptionGroup): Record<string, str
 //   'grouped' (default) — each group as a labeled section, group-by-group flow
 //   'flat'              — same controls, no group headings, one continuous list
 //   'wizard'            — one group per step, prev/next buttons + progress
-// Backwards-compat with the legacy `wizard_mode: true` toggle is intentionally
-// dropped (per product decision) — old pages render as 'grouped'.
+// Legacy back-compat: pages saved before the display_mode migration carry
+// `wizard_mode: true/false` instead. We honor it here — without this fallback
+// every old wizard-mode page silently regresses to 'grouped' on first render
+// (and the editor preselects 'wizard' from the same legacy flag, so admins
+// see the right setting and assume it's working, but the storefront paints flat).
 const displayMode = computed<'flat' | 'grouped' | 'wizard'>(() => {
   const m = config.value.display_mode
-  return m === 'flat' || m === 'wizard' ? m : 'grouped'
+  if (m === 'flat' || m === 'wizard' || m === 'grouped') return m
+  if (config.value.wizard_mode === true) return 'wizard'
+  return 'grouped'
 })
 const wizardMode = computed(() => displayMode.value === 'wizard')
 const showProgress = computed(() => config.value.show_progress !== false)
