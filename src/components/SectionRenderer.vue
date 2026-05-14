@@ -174,17 +174,28 @@ const sectionStyle = computed(() => {
       try { encodedUrl = encodeURI(decodeURI(rawUrl)) } catch { encodedUrl = rawUrl }
       const imgSize = s.background_size || 'cover'
       const imgPos = s.background_position || 'center center'
-      if (gradientValue) {
-        // Gradient on top of image
+      const imgOpacity = (s as any).background_image_opacity ?? 100
+      if (imgOpacity < 100) {
+        // Opacity uses pseudo-element overlay (CSS vars + has-bg-image-opacity class).
+        // Inline `background-image` stays gradient-only here; ::before paints the image.
+        style['--bg-image'] = `url("${encodedUrl}")`
+        style['--bg-image-opacity'] = String(imgOpacity / 100)
+        style['--bg-size'] = imgSize
+        style['--bg-position'] = imgPos
+        if (gradientValue) {
+          style.backgroundImage = gradientValue
+        }
+      } else if (gradientValue) {
         style.backgroundImage = `${gradientValue}, url("${encodedUrl}")`
         style.backgroundSize = `auto, ${imgSize}`
         style.backgroundPosition = `0 0, ${imgPos}`
+        style.backgroundRepeat = 'no-repeat'
       } else {
         style.backgroundImage = `url("${encodedUrl}")`
         style.backgroundSize = imgSize
         style.backgroundPosition = imgPos
+        style.backgroundRepeat = 'no-repeat'
       }
-      style.backgroundRepeat = 'no-repeat'
     } else if (gradientValue) {
       style.backgroundImage = gradientValue
     }
@@ -375,16 +386,26 @@ function getColumnStyle(column: PageColumn) {
       try { encodedUrl = encodeURI(decodeURI(rawUrl)) } catch { encodedUrl = rawUrl }
       const imgSize = s.background_size || 'cover'
       const imgPos = s.background_position || 'center center'
-      if (gradientValue) {
+      const imgOpacity = (s as any).background_image_opacity ?? 100
+      if (imgOpacity < 100) {
+        style['--bg-image'] = `url("${encodedUrl}")`
+        style['--bg-image-opacity'] = String(imgOpacity / 100)
+        style['--bg-size'] = imgSize
+        style['--bg-position'] = imgPos
+        if (gradientValue) {
+          style.backgroundImage = gradientValue
+        }
+      } else if (gradientValue) {
         style.backgroundImage = `${gradientValue}, url("${encodedUrl}")`
         style.backgroundSize = `auto, ${imgSize}`
         style.backgroundPosition = `0 0, ${imgPos}`
+        style.backgroundRepeat = 'no-repeat'
       } else {
         style.backgroundImage = `url("${encodedUrl}")`
         style.backgroundSize = imgSize
         style.backgroundPosition = imgPos
+        style.backgroundRepeat = 'no-repeat'
       }
-      style.backgroundRepeat = 'no-repeat'
     } else if (gradientValue) {
       style.backgroundImage = gradientValue
     }
@@ -586,6 +607,18 @@ const sectionAnimStyle = computed(() => {
 // Check if section is hidden for current breakpoint
 const isSectionHidden = computed(() => isHidden(props.section.settings))
 
+// Section background image with opacity < 100 — pseudo-element overlay path
+const sectionHasBgImageOpacity = computed(() => {
+  const s = settings.value as any
+  return !!s.background_image && (s.background_image_opacity ?? 100) < 100
+})
+
+// Column background image with opacity < 100 — same path
+function columnHasBgImageOpacity(column: PageColumn): boolean {
+  const s = getMergedSettings(column.settings as ColumnSettings) as any
+  return !!s.background_image && (s.background_image_opacity ?? 100) < 100
+}
+
 // CSS class for section
 const sectionClass = computed(() => {
   const classes = ['lcms-section', `lcms-section--grid-${gridType.value}`]
@@ -599,6 +632,9 @@ const sectionClass = computed(() => {
   }
   if (isStacked.value) {
     classes.push('lcms-section--stacked')
+  }
+  if (sectionHasBgImageOpacity.value) {
+    classes.push('lcms-section--has-bg-image-opacity')
   }
 
   // Add breakpoint class for CSS targeting
@@ -694,7 +730,7 @@ function mapFlexAlign(value: string): string {
         :id="column.settings?.id || getColumnId(column, colIndex)"
         class="lcms-section__column"
         :class="[
-          { 'lcms-hidden': isColumnHidden(column) },
+          { 'lcms-hidden': isColumnHidden(column), 'lcms-section__column--has-bg-image-opacity': columnHasBgImageOpacity(column) },
           getColumnAlignClass(column)
         ]"
         :style="getColumnStyle(column)"
@@ -750,6 +786,27 @@ function mapFlexAlign(value: string): string {
 /* Stacked layout class (applied via JS based on breakpoint settings) */
 .lcms-section--stacked .lcms-section__grid {
   grid-template-columns: 1fr !important;
+}
+
+/* Background image with opacity < 100 — pseudo-element overlay (matches WidgetRenderer pattern) */
+.lcms-section--has-bg-image-opacity::before,
+.lcms-section__column--has-bg-image-opacity::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: var(--bg-image);
+  background-size: var(--bg-size, cover);
+  background-position: var(--bg-position, center center);
+  background-repeat: no-repeat;
+  opacity: var(--bg-image-opacity, 1);
+  pointer-events: none;
+  border-radius: inherit;
+  z-index: 0;
+}
+/* Keep column widget children above the overlay (section grid already has z-index: 1) */
+.lcms-section__column--has-bg-image-opacity > *:not(.lcms-section__column-bg-video) {
+  position: relative;
+  z-index: 1;
 }
 
 /* Column flex layout for proper vertical alignment */
