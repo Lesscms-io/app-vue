@@ -76,14 +76,16 @@ const loading = ref(false)
 const errorMsg = ref<string | null>(null)
 const isFullscreen = ref(false)
 
-// pdfjs-dist worker — bundled by Vite/webpack via the .mjs URL helper. Using a
-// runtime URL keeps the worker out of the main bundle.
+// pdfjs-dist worker — pulled from a public CDN (pinned to whatever version of
+// pdfjs-dist this build was compiled against). We can't use Vite's `?url`
+// asset helper here because app/vue ships as a library bundle and the worker
+// asset wouldn't be emitted on the consumer side.
 let pdfjsLib: any = null
 async function ensurePdfJs() {
   if (pdfjsLib) return pdfjsLib
   pdfjsLib = await import('pdfjs-dist')
-  const worker = await import('pdfjs-dist/build/pdf.worker.min.mjs?url')
-  pdfjsLib.GlobalWorkerOptions.workerSrc = (worker as any).default || worker
+  pdfjsLib.GlobalWorkerOptions.workerSrc =
+    `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`
   return pdfjsLib
 }
 
