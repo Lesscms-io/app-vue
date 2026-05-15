@@ -2,14 +2,25 @@
 /**
  * PDF Viewer Widget
  *
- * Renders the PDF onto a <canvas> via pdfjs-dist and ships a custom toolbar
- * (prev / next / zoom / download / fullscreen). Native <iframe> + #toolbar=1
- * was insufficient — Chrome 105+ strips the embedded PDF viewer chrome for
- * cross-origin iframes (img.lesscms.io ≠ host page), so users saw the PDF
- * but no controls. Rendering ourselves sidesteps that entirely.
+ * Renders a PDF flipbook via dflip. dflip + its assets (three.js, pdf.js worker
+ * shipped with dflip, sounds, CSS) are served from the renderer's /dflip/ path
+ * so we don't depend on any external CDN. The PDF binary is fetched through
+ * /pdf-proxy on the renderer so dflip sees a same-origin blob URL — avoids
+ * Chrome's cross-origin PDF viewer restrictions and any CORS quirks.
+ *
+ * The widget exposes only prev/next/download buttons; dflip's own UI is hidden.
  */
 
-import { computed, ref, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+
+declare global {
+  interface Window {
+    DFLIP: any
+    jQuery: any
+    $: any
+    dFlipLocation: string
+  }
+}
 
 defineOptions({ inheritAttrs: false })
 
@@ -20,9 +31,6 @@ interface Props {
     height_mode?: 'fixed' | 'container'
     page_mode?: 'single' | 'double'
     show_controls?: boolean
-    show_thumbnails?: boolean
-    show_outline?: boolean
-    show_fullscreen?: boolean
     show_download?: boolean
     background_color?: string
   }
@@ -34,21 +42,22 @@ const props = defineProps<Props>()
 
 const config = computed<Record<string, any>>(() => (props.data as any)?.widget || props.data || {})
 
-const pdfUrl = computed<string | null>(() => {
+const pdfSource = computed<string>(() => {
   const f = config.value.file
-  if (!f) return null
+  if (!f) return ''
   if (typeof f === 'string') return f
-  return (f as any).public_link || (f as any).url || null
+  return (f as any).public_link || (f as any).url || ''
 })
 
 const height = computed(() => {
   const h = parseInt(String(config.value.height))
   return h > 0 ? h : 600
 })
+const heightMode = computed<'fixed' | 'container'>(() => (config.value.height_mode === 'container' ? 'container' : 'fixed'))
+const viewerHeight = computed(() => (heightMode.value === 'container' ? 'calc(100vh - 40px)' : `${height.value}px`))
 
 const showControls = computed(() => config.value.show_controls !== false)
 const showDownload = computed(() => config.value.show_download !== false)
-const showFullscreen = computed(() => config.value.show_fullscreen !== false)
 const pageMode = computed<'single' | 'double'>(() => (config.value.page_mode === 'single' ? 'single' : 'double'))
 
 function resolveColor(val: string | null | undefined): string | null {
@@ -62,341 +71,309 @@ function resolveColor(val: string | null | undefined): string | null {
   }
   return val
 }
+const backgroundColor = computed(() => resolveColor(config.value.background_color) || 'transparent')
 
-const backgroundColor = computed(() => resolveColor(config.value.background_color) || '#1a1a1a')
+const containerRef = ref<HTMLElement | null>(null)
+const flipbookRef = ref<HTMLElement | null>(null)
+const isLoading = ref(true)
+const isReady = ref(false)
+const loadError = ref<string | null>(null)
+const blobUrl = ref<string | null>(null)
+let flipbookInstance: any = null
+const instanceId = computed(() => `pdf-flipbook-${Math.random().toString(36).slice(2, 11)}`)
 
-const wrapperRef = ref<HTMLElement | null>(null)
-const canvasLeftRef = ref<HTMLCanvasElement | null>(null)
-const canvasRightRef = ref<HTMLCanvasElement | null>(null)
-const pdfDoc = ref<any>(null)
-const pageCount = ref(0)
-const currentPage = ref(1)
-const zoom = ref(1)
-const loading = ref(false)
-const errorMsg = ref<string | null>(null)
-const isFullscreen = ref(false)
+// Hosts whose files we route through /pdf-proxy so dflip gets a same-origin
+// blob URL — keeps Chrome's cross-origin PDF restrictions out of the picture.
+const PROXIED_HOSTS = ['https://img.lesscms.io/', 'https://cdn.lesscms.io/']
 
-// pdfjs-dist worker — pulled from a public CDN (pinned to whatever version of
-// pdfjs-dist this build was compiled against). We can't use Vite's `?url`
-// asset helper here because app/vue ships as a library bundle and the worker
-// asset wouldn't be emitted on the consumer side.
-let pdfjsLib: any = null
-async function ensurePdfJs() {
-  if (pdfjsLib) return pdfjsLib
-  pdfjsLib = await import('pdfjs-dist')
-  pdfjsLib.GlobalWorkerOptions.workerSrc =
-    `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`
-  return pdfjsLib
+async function fetchPdfAsBlob(url: string): Promise<string> {
+  const fetchUrl = PROXIED_HOSTS.some((h) => url.startsWith(h))
+    ? `/pdf-proxy?url=${encodeURIComponent(url)}`
+    : url
+  const response = await fetch(fetchUrl)
+  if (!response.ok) throw new Error(`Failed to fetch PDF: ${response.status}`)
+  const blob = await response.blob()
+  return URL.createObjectURL(blob)
 }
 
-async function renderPage(canvas: HTMLCanvasElement | null, pageNum: number) {
-  if (!canvas || !pdfDoc.value || pageNum < 1 || pageNum > pageCount.value) {
-    if (canvas) {
-      const ctx = canvas.getContext('2d')
-      ctx?.clearRect(0, 0, canvas.width, canvas.height)
+function loadScript(src: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const existing = document.querySelector(`script[src="${src}"]`)
+    if (existing) {
+      if ((existing as any).__loaded) return resolve()
+      existing.addEventListener('load', () => resolve())
+      existing.addEventListener('error', () => reject(new Error(`Failed: ${src}`)))
+      return
     }
-    return
-  }
-  const page = await pdfDoc.value.getPage(pageNum)
-  const viewport = page.getViewport({ scale: zoom.value * 1.5 })
-  const ctx = canvas.getContext('2d')
-  if (!ctx) return
-  canvas.width = viewport.width
-  canvas.height = viewport.height
-  await page.render({ canvasContext: ctx, viewport }).promise
+    const s = document.createElement('script')
+    s.src = src
+    s.async = false
+    s.onload = () => { (s as any).__loaded = true; resolve() }
+    s.onerror = () => reject(new Error(`Failed: ${src}`))
+    document.head.appendChild(s)
+  })
 }
 
-async function renderCurrent() {
-  if (!pdfDoc.value) return
-  if (pageMode.value === 'double') {
-    // Spreads: page 1 alone (cover), then 2-3, 4-5, etc.
-    if (currentPage.value === 1) {
-      await renderPage(canvasLeftRef.value, 1)
-      await renderPage(canvasRightRef.value, 0) // clear
-    } else {
-      await renderPage(canvasLeftRef.value, currentPage.value)
-      await renderPage(canvasRightRef.value, currentPage.value + 1)
-    }
-  } else {
-    await renderPage(canvasLeftRef.value, currentPage.value)
+async function ensureDflip() {
+  if (window.DFLIP && window.jQuery) return
+
+  if (!window.jQuery) {
+    await loadScript('https://code.jquery.com/jquery-3.7.1.min.js')
+  }
+
+  window.dFlipLocation = '/dflip/'
+  ;(window as any).defined = (window as any).defined || function (o: any) { return typeof o !== 'undefined' }
+
+  if (!document.querySelector('link[href*="dflip.min.css"]')) {
+    const link = document.createElement('link')
+    link.rel = 'stylesheet'
+    link.href = '/dflip/css/dflip.min.css'
+    document.head.appendChild(link)
+  }
+
+  const scripts = [
+    '/dflip/js/libs/three.min.js',
+    '/dflip/js/libs/compatibility.min.js',
+    '/dflip/js/libs/mockup.min.js',
+    '/dflip/js/libs/pdf.min.js',
+    '/dflip/js/dflip.min.js',
+  ]
+  for (const src of scripts) await loadScript(src)
+
+  if (window.DFLIP?.defaults) {
+    window.DFLIP.defaults.pdfjsSrc = '/dflip/js/libs/pdf.min.js'
+    window.DFLIP.defaults.pdfjsCompatibilitySrc = '/dflip/js/libs/compatibility.min.js'
+    window.DFLIP.defaults.threejsSrc = '/dflip/js/libs/three.min.js'
+    window.DFLIP.defaults.mockupjsSrc = '/dflip/js/libs/mockup.min.js'
+    window.DFLIP.defaults.soundFile = '/dflip/sound/turn2.mp3'
   }
 }
 
-async function loadPdf() {
-  if (!pdfUrl.value) return
-  loading.value = true
-  errorMsg.value = null
+function initFlipbook() {
+  if (!flipbookRef.value || !blobUrl.value || !window.jQuery || !window.DFLIP) return
+
+  if (flipbookInstance) {
+    try { flipbookInstance.dispose?.() } catch (e) { /* ignore */ }
+    flipbookRef.value.innerHTML = ''
+  }
+
+  isLoading.value = true
+  const $ = window.jQuery
+  // Open-book aspect: 2 A4 pages side-by-side ≈ 1.414:1 (sqrt(2)).
+  const containerWidth = flipbookRef.value.parentElement?.clientWidth || 1200
+  const containerHeight = Math.round(containerWidth / 1.414)
+
+  flipbookInstance = $(flipbookRef.value).flipBook(blobUrl.value, {
+    height: heightMode.value === 'container' ? '100%' : containerHeight,
+    autoEnableOutline: false,
+    autoEnableThumbnail: false,
+    webgl: true,
+    hard: 'none',
+    duration: 800,
+    backgroundColor: backgroundColor.value || 'transparent',
+    backgroundImage: '',
+    paddingTop: 10,
+    paddingBottom: 10,
+    paddingLeft: 10,
+    paddingRight: 10,
+    controlsPosition: 'bottom',
+    // Hide every native dflip control — we render our own arrows + download.
+    hideControls: 'altPrev,altNext,outline,thumbnail,zoomIn,zoomOut,fullScreen,share,download,pageNumber,sound,more',
+    scrollWheel: true,
+    soundEnable: false,
+    pageMode: pageMode.value === 'single' ? window.DFLIP.PAGE_MODE.SINGLE : window.DFLIP.PAGE_MODE.DOUBLE,
+    singlePageMode: window.DFLIP.SINGLE_PAGE_MODE.BOOKLET,
+    direction: window.DFLIP.DIRECTION.LTR,
+    onReady: () => { isLoading.value = false },
+  })
+}
+
+async function loadAndRender() {
+  if (!pdfSource.value) return
+  isLoading.value = true
+  loadError.value = null
   try {
-    const lib = await ensurePdfJs()
-    const task = lib.getDocument({ url: pdfUrl.value })
-    pdfDoc.value = await task.promise
-    pageCount.value = pdfDoc.value.numPages
-    currentPage.value = 1
-    await nextTick()
-    await renderCurrent()
+    if (blobUrl.value) URL.revokeObjectURL(blobUrl.value)
+    blobUrl.value = await fetchPdfAsBlob(pdfSource.value)
+    initFlipbook()
   } catch (e: any) {
-    errorMsg.value = e?.message || 'Failed to load PDF'
-    console.error('[LcmsPdfViewer] load error:', e)
-  } finally {
-    loading.value = false
+    loadError.value = e?.message || 'Failed to load PDF'
+    isLoading.value = false
+    console.error('[LcmsPdfViewer]', e)
   }
 }
 
-function prevPage() {
-  const step = pageMode.value === 'double' && currentPage.value > 1 ? 2 : 1
-  currentPage.value = Math.max(1, currentPage.value - step)
-  renderCurrent()
-}
-function nextPage() {
-  const step = pageMode.value === 'double' && currentPage.value > 1 ? 2 : 1
-  currentPage.value = Math.min(pageCount.value, currentPage.value + step)
-  renderCurrent()
-}
-function zoomIn() { zoom.value = Math.min(3, +(zoom.value + 0.25).toFixed(2)); renderCurrent() }
-function zoomOut() { zoom.value = Math.max(0.5, +(zoom.value - 0.25).toFixed(2)); renderCurrent() }
-
-function download() {
-  if (!pdfUrl.value) return
+function prevPage() { try { flipbookInstance?.target?.prev?.() } catch (e) { /* noop */ } }
+function nextPage() { try { flipbookInstance?.target?.next?.() } catch (e) { /* noop */ } }
+function downloadPdf() {
+  if (!pdfSource.value) return
   const a = document.createElement('a')
-  a.href = pdfUrl.value
-  a.download = pdfUrl.value.split('/').pop() || 'document.pdf'
+  a.href = pdfSource.value
+  a.download = (pdfSource.value.split('/').pop() || 'document.pdf')
   a.target = '_blank'
   a.rel = 'noopener'
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
+  document.body.appendChild(a); a.click(); document.body.removeChild(a)
 }
 
-function toggleFullscreen() {
-  if (!wrapperRef.value) return
-  if (!document.fullscreenElement) {
-    wrapperRef.value.requestFullscreen?.().then(() => { isFullscreen.value = true })
-  } else {
-    document.exitFullscreen?.().then(() => { isFullscreen.value = false })
+onMounted(async () => {
+  try {
+    await ensureDflip()
+    isReady.value = true
+    await loadAndRender()
+  } catch (e: any) {
+    loadError.value = e?.message || 'Failed to load PDF viewer'
+    isLoading.value = false
   }
-}
+})
 
-onMounted(() => { loadPdf() })
-onBeforeUnmount(() => { pdfDoc.value?.destroy?.() })
-watch(() => pdfUrl.value, () => loadPdf())
-watch(() => pageMode.value, () => renderCurrent())
+watch(pdfSource, () => { if (isReady.value) loadAndRender() })
 
-const containerStyle = computed(() => ({
-  height: isFullscreen.value ? '100vh' : `${height.value}px`,
-  backgroundColor: backgroundColor.value
-}))
+onBeforeUnmount(() => {
+  try { flipbookInstance?.dispose?.() } catch (e) { /* ignore */ }
+  if (blobUrl.value) URL.revokeObjectURL(blobUrl.value)
+})
 </script>
 
 <template>
-  <div
-    ref="wrapperRef"
-    class="lcms-pdf-viewer"
-    :style="containerStyle"
-  >
+  <div ref="containerRef" class="lcms-pdf">
     <div
-      v-if="loading"
-      class="lcms-pdf-viewer__status"
+      v-if="pdfSource && !loadError"
+      class="lcms-pdf__viewer"
+      :style="{ height: viewerHeight }"
     >
-      <i class="fa-solid fa-spinner fa-spin" />
-      <span>Wczytywanie…</span>
-    </div>
-
-    <div
-      v-else-if="errorMsg"
-      class="lcms-pdf-viewer__status lcms-pdf-viewer__status--error"
-    >
-      <i class="fa-solid fa-triangle-exclamation" />
-      <span>{{ errorMsg }}</span>
-    </div>
-
-    <div
-      v-else-if="!pdfUrl"
-      class="lcms-pdf-viewer__status"
-    >
-      <i class="fa-solid fa-file-pdf" />
-      <span>No PDF file selected</span>
-    </div>
-
-    <template v-else>
-      <div class="lcms-pdf-viewer__stage">
-        <canvas ref="canvasLeftRef" class="lcms-pdf-viewer__canvas" />
-        <canvas
-          v-if="pageMode === 'double'"
-          ref="canvasRightRef"
-          class="lcms-pdf-viewer__canvas"
-        />
+      <div v-if="isLoading" class="lcms-pdf__loading">
+        <i class="fa-solid fa-spinner fa-spin" />
+        <span>Wczytywanie…</span>
       </div>
 
       <div
+        :id="instanceId"
+        ref="flipbookRef"
+        class="lcms-pdf__flipbook"
+      />
+
+      <button
         v-if="showControls"
-        class="lcms-pdf-viewer__toolbar"
+        type="button"
+        class="lcms-pdf__arrow lcms-pdf__arrow--prev"
+        aria-label="Poprzednia strona"
+        @click="prevPage"
       >
-        <button
-          type="button"
-          class="lcms-pdf-viewer__btn"
-          :disabled="currentPage <= 1"
-          aria-label="Poprzednia strona"
-          @click="prevPage"
-        >
-          <i class="fa-solid fa-chevron-left" />
-        </button>
+        <i class="fa-solid fa-chevron-left" />
+      </button>
 
-        <span class="lcms-pdf-viewer__page-indicator">
-          {{ currentPage }} / {{ pageCount }}
-        </span>
+      <button
+        v-if="showControls"
+        type="button"
+        class="lcms-pdf__arrow lcms-pdf__arrow--next"
+        aria-label="Następna strona"
+        @click="nextPage"
+      >
+        <i class="fa-solid fa-chevron-right" />
+      </button>
 
-        <button
-          type="button"
-          class="lcms-pdf-viewer__btn"
-          :disabled="currentPage >= pageCount"
-          aria-label="Następna strona"
-          @click="nextPage"
-        >
-          <i class="fa-solid fa-chevron-right" />
-        </button>
+      <button
+        v-if="showDownload"
+        type="button"
+        class="lcms-pdf__download"
+        aria-label="Pobierz PDF"
+        @click="downloadPdf"
+      >
+        <i class="fa-solid fa-download" />
+      </button>
+    </div>
 
-        <span class="lcms-pdf-viewer__divider" />
+    <div v-else-if="loadError" class="lcms-pdf__placeholder lcms-pdf__placeholder--error">
+      <i class="fa-solid fa-exclamation-triangle" />
+      <span>{{ loadError }}</span>
+    </div>
 
-        <button
-          type="button"
-          class="lcms-pdf-viewer__btn"
-          aria-label="Pomniejsz"
-          @click="zoomOut"
-        >
-          <i class="fa-solid fa-magnifying-glass-minus" />
-        </button>
-        <span class="lcms-pdf-viewer__zoom-indicator">{{ Math.round(zoom * 100) }}%</span>
-        <button
-          type="button"
-          class="lcms-pdf-viewer__btn"
-          aria-label="Powiększ"
-          @click="zoomIn"
-        >
-          <i class="fa-solid fa-magnifying-glass-plus" />
-        </button>
-
-        <span class="lcms-pdf-viewer__divider" />
-
-        <button
-          v-if="showDownload"
-          type="button"
-          class="lcms-pdf-viewer__btn"
-          aria-label="Pobierz"
-          @click="download"
-        >
-          <i class="fa-solid fa-download" />
-        </button>
-
-        <button
-          v-if="showFullscreen"
-          type="button"
-          class="lcms-pdf-viewer__btn"
-          aria-label="Pełny ekran"
-          @click="toggleFullscreen"
-        >
-          <i :class="isFullscreen ? 'fa-solid fa-compress' : 'fa-solid fa-expand'" />
-        </button>
-      </div>
-    </template>
+    <div v-else class="lcms-pdf__placeholder">
+      <i class="fa-solid fa-file-pdf" />
+      <span>Nie podano URL pliku PDF</span>
+    </div>
   </div>
 </template>
 
 <style scoped>
-.lcms-pdf-viewer {
+.lcms-pdf {
+  width: 100%;
+  position: relative;
+}
+
+.lcms-pdf__viewer {
   width: 100%;
   position: relative;
   overflow: hidden;
-  border-radius: 8px;
-  display: flex;
-  flex-direction: column;
 }
 
-.lcms-pdf-viewer__stage {
-  flex: 1 1 auto;
-  min-height: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  overflow: auto;
-  padding: 16px;
-}
-
-.lcms-pdf-viewer__canvas {
-  max-width: 100%;
-  max-height: 100%;
-  height: auto;
-  display: block;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
-  background: #fff;
-}
-
-.lcms-pdf-viewer__toolbar {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 8px 12px;
-  background: rgba(0, 0, 0, 0.55);
-  backdrop-filter: blur(8px);
-  color: #fff;
-}
-
-.lcms-pdf-viewer__btn {
-  background: transparent;
-  border: 0;
-  color: inherit;
-  padding: 6px 10px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 14px;
-  line-height: 1;
-  transition: background 120ms ease, opacity 120ms ease;
-}
-.lcms-pdf-viewer__btn:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.15);
-}
-.lcms-pdf-viewer__btn:disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
-}
-
-.lcms-pdf-viewer__page-indicator,
-.lcms-pdf-viewer__zoom-indicator {
-  font-size: 13px;
-  font-variant-numeric: tabular-nums;
-  min-width: 56px;
-  text-align: center;
-  user-select: none;
-}
-
-.lcms-pdf-viewer__divider {
-  width: 1px;
-  height: 20px;
-  background: rgba(255, 255, 255, 0.25);
-  margin: 0 4px;
-}
-
-.lcms-pdf-viewer__status {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
+.lcms-pdf__flipbook {
   width: 100%;
   height: 100%;
+}
+
+.lcms-pdf__loading,
+.lcms-pdf__placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   gap: 12px;
   color: var(--lcms-color-muted, #cccccc);
+  pointer-events: none;
 }
-.lcms-pdf-viewer__status i {
+.lcms-pdf__loading i,
+.lcms-pdf__placeholder i {
   font-size: 48px;
-  opacity: 0.5;
+  opacity: 0.6;
 }
-.lcms-pdf-viewer__status--error {
+.lcms-pdf__placeholder--error {
+  position: static;
+  pointer-events: auto;
   color: var(--lcms-color-danger, #dc3545);
 }
-.lcms-pdf-viewer__status--error i {
-  color: var(--lcms-color-danger, #dc3545);
-  opacity: 0.7;
+
+.lcms-pdf__arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 0;
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  z-index: 5;
+  transition: background 120ms ease;
 }
+.lcms-pdf__arrow:hover { background: rgba(0, 0, 0, 0.7); }
+.lcms-pdf__arrow--prev { left: 12px; }
+.lcms-pdf__arrow--next { right: 12px; }
+
+.lcms-pdf__download {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 0;
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  z-index: 5;
+  transition: background 120ms ease;
+}
+.lcms-pdf__download:hover { background: rgba(0, 0, 0, 0.7); }
 </style>

@@ -34,7 +34,6 @@
   "dependencies": {
     "@unhead/vue": "^1.9.0",
     "boxicons": "^2.1.4",
-    "pdfjs-dist": "^5.7.284",
     "vue": "^3.4.0",
     "vue-router": "^4.2.0"
   },
