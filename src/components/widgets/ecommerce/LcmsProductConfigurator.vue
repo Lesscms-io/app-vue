@@ -1024,6 +1024,23 @@ async function handleBehaviorAction() {
       // customer finishes designing — adding here too produces a
       // duplicate cart line.
       const returnUrl = typeof window !== 'undefined' ? window.location.href : ''
+      // Snapshot the configurator so the plugin can persist it on the album and
+      // the post-designer cart line carries the right price + every selected
+      // option (cover material, color, finish, engraving, …). Without this the
+      // plugin only sees pages_count + page size from album.studio and the cart
+      // falls back to product->price = 0.00 zł for configurator parents.
+      const snapshot = buildConfiguredCartMetadata()
+      // Hint which group is "ilość stron / rozkładówek" (pages) and which is
+      // "rozmiar" so the reconciliation can compare album.studio's actual
+      // pages/size to what the customer picked and flag mismatches.
+      const pagesGroup = visibleGroups.value.find((g) =>
+        g.display_type === 'numeric' && /stron|rozkładówek|rozkladow/i.test(`${g.code} ${g.name}`)
+      ) || visibleGroups.value.find((g) =>
+        /stron|liczba-stron|rozkładówek|rozkladow/i.test(`${g.code} ${g.name}`)
+      )
+      const sizeGroup = visibleGroups.value.find((g) =>
+        /rozmiar/i.test(g.code) || /rozmiar/i.test(g.name)
+      )
       const response = await client.value.callPluginEndpoint<{
         data?: { redirect_url?: string; designer_url?: string }
         designer_url?: string
@@ -1032,6 +1049,10 @@ async function handleBehaviorAction() {
         body: {
           product_id: p.uuid,
           return_url: returnUrl,
+          configured_options: snapshot.configured_options,
+          configured_total: snapshot.configured_total,
+          configured_pages_group_uuid: pagesGroup?.uuid,
+          configured_size_group_uuid: sizeGroup?.uuid,
         },
       })
       const redirect =
