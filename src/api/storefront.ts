@@ -59,6 +59,8 @@ export interface StorefrontProductOptionGroup {
   /** display_type='checkbox' only: single yes/no toggle config. */
   checkbox_label?: string | null
   checkbox_price_modifier?: number | null
+  /** Optional preview image rendered next to the TAK/NIE label. */
+  checkbox_image?: string | null
   /** Conditional surcharge overrides for checkbox groups. First match wins. */
   checkbox_price_overrides?: StorefrontPriceOverride[] | null
   options: StorefrontProductOption[]

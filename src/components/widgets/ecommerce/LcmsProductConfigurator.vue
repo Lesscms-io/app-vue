@@ -1690,7 +1690,7 @@ const cssVars = computed(() => {
             >× {{ formatPrice(effectivePricePerUnit(group), currency) }}</span>
           </div>
 
-          <!-- checkbox (yes/no toggle with optional price modifier) -->
+          <!-- checkbox (yes/no toggle with optional price modifier + preview image) -->
           <label
             v-else-if="group.display_type === 'checkbox'"
             class="lcms-product-configurator__checkbox"
@@ -1700,6 +1700,13 @@ const cssVars = computed(() => {
               type="checkbox"
               :checked="customValues[group.uuid] === true"
               @change="setCustomValue(group.uuid, ($event.target as HTMLInputElement).checked)"
+            />
+            <img
+              v-if="group.checkbox_image"
+              :src="group.checkbox_image"
+              class="lcms-product-configurator__checkbox-image"
+              alt=""
+              loading="lazy"
             />
             <span class="lcms-product-configurator__checkbox-label">{{ group.checkbox_label || 'TAK' }}</span>
             <span
@@ -1778,6 +1785,13 @@ const cssVars = computed(() => {
               type="checkbox"
               :checked="customValues[group.uuid] === true"
               @change="setCustomValue(group.uuid, ($event.target as HTMLInputElement).checked)"
+            />
+            <img
+              v-if="group.checkbox_image"
+              :src="group.checkbox_image"
+              class="lcms-product-configurator__checkbox-image"
+              alt=""
+              loading="lazy"
             />
             <span class="lcms-product-configurator__checkbox-label">{{ group.checkbox_label || 'TAK' }}</span>
           </label>
@@ -2402,6 +2416,16 @@ const cssVars = computed(() => {
 .lcms-product-configurator__checkbox-price {
   color: var(--lcms-color-muted, #74788d);
   font-size: 0.9em;
+}
+/* Optional preview thumbnail right of the checkbox box, before the label.
+   Constrained height so it doesn't dominate the row regardless of source aspect. */
+.lcms-product-configurator__checkbox-image {
+  height: 44px;
+  width: auto;
+  max-width: 64px;
+  object-fit: contain;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.03);
 }
 
 /* --- Wizard mode -------------------------------------------------------- */
