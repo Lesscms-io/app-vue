@@ -10,6 +10,7 @@ import { useLanguage } from '../../../composables/useLanguage'
 import { useCart } from '../../../composables/useCart'
 import { useToast } from '../../../composables/useToast'
 import { formatPrice } from '../../../utils/currency'
+import PluginSlot from '../../PluginSlot.vue'
 
 defineOptions({ inheritAttrs: false })
 
@@ -64,7 +65,6 @@ const t = (key: string) => {
       updateError: 'Nie udało się zaktualizować',
       removeError: 'Nie udało się usunąć',
       removed: 'Usunięto z koszyka',
-      editAlbum: 'Edytuj projekt albumu',
       showOptions: 'Pokaż opcje',
       hideOptions: 'Ukryj opcje',
     },
@@ -80,7 +80,6 @@ const t = (key: string) => {
       updateError: 'Failed to update',
       removeError: 'Failed to remove',
       removed: 'Removed from cart',
-      editAlbum: 'Edit album',
       showOptions: 'Show options',
       hideOptions: 'Hide options',
     },
@@ -88,13 +87,11 @@ const t = (key: string) => {
   return dict[lang]?.[key] || dict.pl[key] || key
 }
 
-// Normalize configured options into a uniform [{label, value}] list so the
-// row template doesn't branch on producer.
-//
-// LcmsProductConfigurator.handleAddToCart writes an array of
-//   { group_name, option_name, value, type, price_delta, ... }
-// AlbumReturn (photo-albums plugin) writes a Record<group_code, option_label>.
-// Both should render the same way in the cart row.
+// Normalize configured options into a uniform [{label, value}] list. Shape is
+// what LcmsProductConfigurator.buildConfiguredCartMetadata produces:
+// Array<{ group_name, option_name?, value?, type, price_delta?, ... }>.
+// Plain Record<group, label> objects are accepted as a fallback for items
+// added through producers that don't emit the typed array shape.
 interface ConfiguredRow { label: string; value: string }
 function normalizedConfiguredOptions(metadata: any): ConfiguredRow[] {
   const raw = metadata?.configured_options
@@ -131,18 +128,6 @@ function normalizedConfiguredOptions(metadata: any): ConfiguredRow[] {
 const expandedOptions = reactive<Record<string, boolean>>({})
 function toggleOptions(itemUuid: string) {
   expandedOptions[itemUuid] = !expandedOptions[itemUuid]
-}
-
-// Photo-albums plugin tags its cart items with album_id; the cart row
-// surfaces an "Edytuj projekt albumu" link back to AlbumReturn so the
-// customer can jump to the designer without retracing the configurator
-// flow.
-function albumEditUrl(metadata: any): string | null {
-  if (!metadata) return null
-  if (metadata.plugin_id !== 'photo-albums') return null
-  const id = metadata.album_id
-  if (!id || typeof id !== 'string') return null
-  return `/konto/albumy/${encodeURIComponent(id)}/return`
 }
 
 async function handleUpdate(itemUuid: string, qty: number) {
@@ -242,13 +227,12 @@ function handleCheckout() {
                 <span class="lcms-cart__item-option-value">{{ opt.value }}</span>
               </li>
             </ul>
-            <a
-              v-if="albumEditUrl(item.metadata)"
-              :href="albumEditUrl(item.metadata)!"
-              class="lcms-cart__item-album-link"
-            >
-              {{ t('editAlbum') }}
-            </a>
+            <!-- Cart-item extras slot — plugins (e.g. photo-albums) render
+                 per-item affordances here ("Edytuj projekt albumu", album
+                 status badges, etc.). Core knows nothing about specific
+                 plugins; whichever ones the host registered for this slot
+                 mount themselves and receive the `item` as a prop. -->
+            <PluginSlot name="cart.item.extras" :context="{ item }" />
             <div class="lcms-cart__item-price">{{ formatPrice(item.unit_price, currency) }}</div>
           </div>
 
@@ -531,19 +515,6 @@ function handleCheckout() {
 
 .lcms-cart__item-option-value {
   color: var(--lcms-color-text, #4b5563);
-}
-
-.lcms-cart__item-album-link {
-  display: block;
-  width: fit-content;
-  margin: 0.25rem 0 0.5rem;
-  font-size: 0.8125rem;
-  color: var(--lcms-color-primary, #3b82f6);
-  text-decoration: underline;
-}
-
-.lcms-cart__item-album-link:hover {
-  text-decoration: none;
 }
 
 .lcms-cart__item-price {
