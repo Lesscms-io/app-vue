@@ -485,7 +485,10 @@ function handleCheckout() {
 }
 
 .lcms-cart__item-options-toggle {
-  display: inline-flex;
+  /* block so the plugin-supplied "Edytuj projekt albumu" link (rendered right
+     after this toggle in the cart line) lands on its own line — they used to
+     run into each other on the same row. */
+  display: flex;
   align-items: center;
   gap: 0.25rem;
   background: transparent;
@@ -497,6 +500,7 @@ function handleCheckout() {
   color: var(--lcms-color-primary, #3b82f6);
   cursor: pointer;
   text-decoration: underline;
+  width: fit-content;
 }
 
 .lcms-cart__item-options-toggle:hover {
@@ -530,7 +534,8 @@ function handleCheckout() {
 }
 
 .lcms-cart__item-album-link {
-  display: inline-block;
+  display: block;
+  width: fit-content;
   margin: 0.25rem 0 0.5rem;
   font-size: 0.8125rem;
   color: var(--lcms-color-primary, #3b82f6);
