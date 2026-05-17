@@ -789,35 +789,41 @@ function applyOverride(base: number, value: number, type: string | undefined, pe
   }
 }
 
-// Effective per-unit rate for a numeric group: walks price_per_unit_overrides
-// and returns the first one whose `when` rule matches the current selection;
-// falls back to group.price_per_unit.
+// Walk price_per_unit_overrides top-to-bottom; first whose `when` matches
+// (or has no conditions = always matches) wins. Pure rules model — admin
+// adds at minimum one catch-all rule for the base rate. Legacy back-compat:
+// when no overrides[] exist at all, fall back to scalar group.price_per_unit
+// so shops mid-migration keep working until they convert to rules.
 function effectivePricePerUnit(group: StorefrontProductOptionGroup): number {
-  const base = Number(group.price_per_unit ?? 0) || 0
   const overrides = group.price_per_unit_overrides || []
-  if (!overrides.length) return base
+  if (!overrides.length) return Number(group.price_per_unit ?? 0) || 0
   const sel = selectedSet.value
   for (const ov of overrides) {
     const andGroups = ov?.when?.and_groups || []
-    if (andGroups.length === 0) continue
-    const matches = andGroups.every((row) => row.some((uuid) => sel.has(uuid)))
+    const matches = andGroups.length === 0
+      ? true
+      : andGroups.every((row) => row.some((uuid) => sel.has(uuid)))
     if (!matches) continue
-    return applyOverride(base, Number(ov.value) || 0, ov.type, base)
+    // Rules operate on 0, not the legacy scalar. "Add 100" means +100 PLN,
+    // not scalar + 100 — otherwise old shops with leftover scalar=50 would
+    // see surprise math when adding their first rule.
+    return applyOverride(0, Number(ov.value) || 0, ov.type, 0)
   }
-  return base
+  return 0
 }
 
-// First override row whose `when.and_groups` matches the current selection
-// set, or null if none match. Shared by static/effective resolvers and by
-// the display-label helper so they all agree on which rule won.
+// First override row whose `when.and_groups` matches the current selection.
+// Empty conditions count as a match (acts as the catch-all / "always" rule).
+// Returns the matched override row, or null when none of the rules match.
 function matchedCheckboxOverride(group: StorefrontProductOptionGroup): any | null {
   const overrides = group.checkbox_price_overrides || []
   if (!overrides.length) return null
   const sel = selectedSet.value
   for (const ov of overrides) {
     const andGroups = ov?.when?.and_groups || []
-    if (andGroups.length === 0) continue
-    const matches = andGroups.every((row) => row.some((uuid) => sel.has(uuid)))
+    const matches = andGroups.length === 0
+      ? true
+      : andGroups.every((row) => row.some((uuid) => sel.has(uuid)))
     if (!matches) continue
     return ov
   }
@@ -827,13 +833,18 @@ function matchedCheckboxOverride(group: StorefrontProductOptionGroup): any | nul
 // Non-percent contribution of a checkbox group — used when computing the
 // percentBase for other percent-based modifiers, to break the recursion
 // "% off everything" ↔ "everything includes the other %". Percent overrides
-// collapse to the static base (typically 0 for a discount checkbox).
+// collapse to 0 (their effect lives in the percent reference, not here).
+//
+// Rules-only mode: no scalar base; checkbox surcharge comes purely from the
+// matched override. Legacy back-compat: when no overrides[] exist at all,
+// fall back to scalar group.checkbox_price_modifier.
 function staticCheckboxModifier(group: StorefrontProductOptionGroup): number {
-  const base = Number(group.checkbox_price_modifier ?? 0) || 0
+  const overrides = group.checkbox_price_overrides || []
+  if (!overrides.length) return Number(group.checkbox_price_modifier ?? 0) || 0
   const ov = matchedCheckboxOverride(group)
-  if (!ov) return base
-  if (ov.type === 'subtract_percent' || ov.type === 'add_percent') return base
-  return applyOverride(base, Number(ov.value) || 0, ov.type, basePrice.value)
+  if (!ov) return 0
+  if (ov.type === 'subtract_percent' || ov.type === 'add_percent') return 0
+  return applyOverride(0, Number(ov.value) || 0, ov.type, basePrice.value)
 }
 
 // Configured subtotal with one checkbox group's contribution removed. Used
@@ -866,19 +877,20 @@ function subtotalExcludingCheckbox(excludeUuid: string): number {
 }
 
 // Effective surcharge for a checkbox group when the box is ticked. Walks
-// checkbox_price_overrides; first matching rule wins, else falls back to
-// checkbox_price_modifier. Percent overrides resolve against the configured
-// subtotal of all other groups, so "subtract 50%" means half off the whole
-// configured price (base + every other surcharge), not half off the product
-// base price alone.
+// Rules-only effective surcharge: first matching checkbox_price_overrides
+// row wins (empty conditions = always). Legacy back-compat: when no
+// overrides[] exist, fall back to scalar group.checkbox_price_modifier.
+// Percent overrides resolve against the configured subtotal of all other
+// groups so "subtract 50%" means half off the whole configured price.
 function effectiveCheckboxModifier(group: StorefrontProductOptionGroup): number {
-  const base = Number(group.checkbox_price_modifier ?? 0) || 0
+  const overrides = group.checkbox_price_overrides || []
+  if (!overrides.length) return Number(group.checkbox_price_modifier ?? 0) || 0
   const ov = matchedCheckboxOverride(group)
-  if (!ov) return base
+  if (!ov) return 0
   const percentBase = (ov.type === 'subtract_percent' || ov.type === 'add_percent')
     ? subtotalExcludingCheckbox(group.uuid)
     : basePrice.value
-  return applyOverride(base, Number(ov.value) || 0, ov.type, percentBase)
+  return applyOverride(0, Number(ov.value) || 0, ov.type, percentBase)
 }
 
 const totalPrice = computed(() => {
