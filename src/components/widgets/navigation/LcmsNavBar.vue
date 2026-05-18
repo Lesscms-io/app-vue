@@ -131,6 +131,38 @@ watch(slots, (val) => {
   }))
 }, { immediate: true, deep: true })
 
+// Resolve a menu item's visible label using the same fallback chain as
+// the editor's MenuWidget: configured label_field → common fields
+// (title/name/label/text) → first non-empty field → raw item.label.
+// Without the fallbacks, items whose `label` is just the menu's
+// generated code (e.g. "menu-glowne-1") would render the code on the
+// storefront even though the editor previewed the real entry name.
+function resolveFieldValue(val: any): string {
+  if (!val) return ''
+  if (typeof val === 'string') return val
+  if (typeof val === 'object') {
+    return (extractValue(val) as string) || ''
+  }
+  return String(val)
+}
+
+function getMenuItemLabel(item: any, labelField: string): string {
+  const data = item?.fields || item?.custom || {}
+  if (labelField && data[labelField] !== undefined) {
+    const r = resolveFieldValue(data[labelField])
+    if (r) return r
+  }
+  for (const k of ['title', 'name', 'label', 'text']) {
+    const r = resolveFieldValue(data[k])
+    if (r) return r
+  }
+  for (const v of Object.values(data)) {
+    const r = resolveFieldValue(v)
+    if (r) return r
+  }
+  return (extractValue(item?.label) as string) || item?.metadata?.entry_id || ''
+}
+
 function btnClasses(style: string, size: string) {
   const sty = style || 'info'
   const sz = size || 'md'
@@ -218,7 +250,7 @@ onMounted(() => {
               :key="`mi-${mIdx}`"
               class="lcms-nav-bar__menu-item"
             >
-              <a :href="mi.url || '#'">{{ extractValue(mi.label) }}</a>
+              <a :href="mi.url || '#'">{{ getMenuItemLabel(mi, item.config?.label_field || '') }}</a>
             </li>
           </ul>
 
@@ -362,7 +394,7 @@ onMounted(() => {
                 <a
                   :href="mi.url || '#'"
                   @click="drawerOpen = false"
-                >{{ extractValue(mi.label) }}</a>
+                >{{ getMenuItemLabel(mi, item.config?.label_field || '') }}</a>
               </li>
             </ul>
             <a
