@@ -124,6 +124,35 @@ const shadowMap: Record<string, string> = {
 const instanceId = Math.random().toString(36).substring(2, 9)
 const cellIds = computed(() => (props.items || []).map((_, idx) => `lcms-wcell-${instanceId}-${idx}`))
 
+// Border width of the first item — used to size the negative margin overlap
+// when gap=0. Assumes uniform borders (typical case for a card grid).
+const collapseBorderWidth = computed<number>(() => {
+  const first = (props.items || [])[0] as any
+  const bw = Number(first?.data?.style?.border_width ?? 0)
+  return Number.isFinite(bw) && bw > 0 ? bw : 1
+})
+
+// When gap=0 + grid layout, shift every item after the first column/row
+// LEFT/UP by `border_width` so adjacent borders overlap into a single line
+// instead of doubling. Mirrors LcmsTabs/LcmsCollectionGrouped negative-margin
+// trick, adapted to 2D grid via nth-child math driven by `columns`.
+const collapsedBorderCss = computed(() => {
+  if (gap.value !== 0 || layout.value === 'inline') return ''
+  const bw = collapseBorderWidth.value
+  const cols = columns.value
+  const tabletCols = columnsTablet.value || (cols > 2 ? Math.max(1, Math.ceil(cols / 2)) : cols)
+  const mobileCols = columnsMobile.value || (cols > 1 ? 1 : cols)
+  const rule = (n: number) => `
+    #${wrapperId} .lcms-wrapper__cell:not(:nth-child(${n}n + 1)) { margin-left: -${bw}px; }
+    #${wrapperId} .lcms-wrapper__cell:nth-child(n + ${n + 1}) { margin-top: -${bw}px; }
+  `
+  return [
+    rule(cols),
+    `@media (max-width: 1199px) { ${rule(tabletCols)} }`,
+    `@media (max-width: 767px) { ${rule(mobileCols)} }`,
+  ].join('\n')
+})
+
 // Dynamic hover CSS for cells
 const hoverCss = computed(() => {
   let css = ''
@@ -177,6 +206,7 @@ const hoverCss = computed(() => {
 <template>
   <!-- Dynamic hover CSS -->
   <component :is="'style'" v-if="hoverCss">{{ hoverCss }}</component>
+  <component :is="'style'" v-if="collapsedBorderCss">{{ collapsedBorderCss }}</component>
 
   <div :id="wrapperId" class="lcms-wrapper" :class="{ 'lcms-wrapper--grid': layout !== 'inline', 'lcms-wrapper--equal-height': equalHeight }" :style="containerStyle">
     <div class="lcms-wrapper__grid" :style="gridStyle">
