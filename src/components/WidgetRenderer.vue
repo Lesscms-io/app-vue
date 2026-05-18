@@ -358,9 +358,29 @@ const widgetStyle = computed(() => {
   const hoverScale = s['scale:hover']
   const hoverShadowPreset = s['shadow_preset:hover']
 
-  if (hoverBg) style['--wcsh-bg'] = resolveColor(hoverBg)
-  if (hoverBorderColor) style['--wcsh-border-color'] = resolveColor(hoverBorderColor)
-  if (hoverBorderWidth) style['--wcsh-border-width'] = `${hoverBorderWidth}px`
+  // Hover vars feed `!important var(...)` rules in widgets.css. An unset var
+  // becomes an invalid declaration → reverts to CSS initial (medium ~3px for
+  // border-width, currentColor for border-color). So when the user defines
+  // only one hover field (e.g. just border_color:hover), the others must
+  // fall back to the matching normal-state value, otherwise a partial hover
+  // edit produces a phantom thick border / color shift.
+  const hasAnyHover = !!(hoverBg || hoverBorderColor || hoverBorderWidth || hoverBoxShadow || hoverLift || (hoverScale && hoverScale !== 1) || (hoverShadowPreset && hoverShadowPreset !== 'none'))
+  if (hasAnyHover) {
+    const effectiveHoverBg = hoverBg || s.background_color || 'transparent'
+    style['--wcsh-bg'] = effectiveHoverBg === 'transparent'
+      ? 'transparent'
+      : (resolveColor(effectiveHoverBg) || 'transparent')
+
+    const effectiveHoverBorderColor = hoverBorderColor || s.border_color
+    style['--wcsh-border-color'] = effectiveHoverBorderColor
+      ? (resolveColor(effectiveHoverBorderColor) || 'currentColor')
+      : 'currentColor'
+
+    const effectiveHoverBorderWidth = (hoverBorderWidth !== undefined && hoverBorderWidth !== null && hoverBorderWidth !== '')
+      ? hoverBorderWidth
+      : (s.border_width || 0)
+    style['--wcsh-border-width'] = `${effectiveHoverBorderWidth}px`
+  }
   if (hoverBoxShadow) style['--wcsh-box-shadow'] = hoverBoxShadow
   if (hoverLift) style['--wcsh-lift'] = `-${hoverLift}px`
   if (hoverScale && hoverScale !== 1) style['--wcsh-scale'] = String(hoverScale)
