@@ -13,6 +13,7 @@ import LcmsWrapper from './widgets/LcmsWrapper.vue'
 import { useResponsiveSettings } from '@/composables/useResponsiveSettings'
 import { useScrollAnimation } from '@/composables/useScrollAnimation'
 import { resolveColor } from '@/utils/resolveColor'
+import { buildGradientCss } from '@/utils/gradient'
 import type { PageSection, PageColumn, WidgetContent, SectionSettings, ColumnSettings } from '@/api/types'
 
 interface HoverSettings {
@@ -147,25 +148,27 @@ const sectionStyle = computed(() => {
   // Background image + gradient (gradient overlays image)
   {
     let gradientValue = ''
-    // Gradient (API returns { gradient: { type, color_start, color_end, angle } })
+    // Modern shape (API returns { gradient: { type, color_start, color_end, angle?, position?, intensity? } })
     if (s.gradient && s.gradient.color_start && s.gradient.color_end) {
-      const type = s.gradient.type || 'linear'
-      const angle = s.gradient.angle ?? 180
-      const start = resolveColor(s.gradient.color_start)
-      const end = resolveColor(s.gradient.color_end)
-      gradientValue = type === 'linear'
-        ? `linear-gradient(${angle}deg, ${start}, ${end})`
-        : `radial-gradient(circle, ${start}, ${end})`
+      gradientValue = buildGradientCss(
+        s.gradient.type || 'linear',
+        s.gradient.angle ?? 180,
+        s.gradient.position || 'center',
+        s.gradient.intensity ?? 0,
+        resolveColor(s.gradient.color_start),
+        resolveColor(s.gradient.color_end)
+      )
     }
-    // Also support legacy format (use_gradient)
+    // Legacy flat format
     else if (s.use_gradient && s.gradient_color_start && s.gradient_color_end) {
-      const type = s.gradient_type || 'linear'
-      const angle = s.gradient_angle ?? 180
-      const start = resolveColor(s.gradient_color_start)
-      const end = resolveColor(s.gradient_color_end)
-      gradientValue = type === 'linear'
-        ? `linear-gradient(${angle}deg, ${start}, ${end})`
-        : `radial-gradient(circle, ${start}, ${end})`
+      gradientValue = buildGradientCss(
+        s.gradient_type || 'linear',
+        s.gradient_angle ?? 180,
+        s.gradient_position || 'center',
+        s.gradient_intensity ?? 0,
+        resolveColor(s.gradient_color_start),
+        resolveColor(s.gradient_color_end)
+      )
     }
 
     if (s.background_image) {
@@ -362,22 +365,24 @@ function getColumnStyle(column: PageColumn) {
   {
     let gradientValue = ''
     if (s.gradient && s.gradient.color_start && s.gradient.color_end) {
-      const type = s.gradient.type || 'linear'
-      const angle = s.gradient.angle ?? 180
-      const start = resolveColor(s.gradient.color_start)
-      const end = resolveColor(s.gradient.color_end)
-      gradientValue = type === 'linear'
-        ? `linear-gradient(${angle}deg, ${start}, ${end})`
-        : `radial-gradient(circle, ${start}, ${end})`
+      gradientValue = buildGradientCss(
+        s.gradient.type || 'linear',
+        s.gradient.angle ?? 180,
+        s.gradient.position || 'center',
+        s.gradient.intensity ?? 0,
+        resolveColor(s.gradient.color_start),
+        resolveColor(s.gradient.color_end)
+      )
     }
     else if (s.use_gradient && s.gradient_color_start && s.gradient_color_end) {
-      const type = s.gradient_type || 'linear'
-      const angle = s.gradient_angle ?? 180
-      const start = resolveColor(s.gradient_color_start)
-      const end = resolveColor(s.gradient_color_end)
-      gradientValue = type === 'linear'
-        ? `linear-gradient(${angle}deg, ${start}, ${end})`
-        : `radial-gradient(circle, ${start}, ${end})`
+      gradientValue = buildGradientCss(
+        s.gradient_type || 'linear',
+        s.gradient_angle ?? 180,
+        s.gradient_position || 'center',
+        s.gradient_intensity ?? 0,
+        resolveColor(s.gradient_color_start),
+        resolveColor(s.gradient_color_end)
+      )
     }
 
     if (s.background_image) {

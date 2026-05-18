@@ -14,6 +14,7 @@ import LcmsMultiItemWrapper from './widgets/LcmsMultiItemWrapper.vue'
 import { useResponsiveSettings } from '@/composables/useResponsiveSettings'
 import { useScrollAnimation } from '@/composables/useScrollAnimation'
 import { resolveColor } from '@/utils/resolveColor'
+import { buildGradientCss } from '@/utils/gradient'
 import { useLanguage } from '@/composables/useLanguage'
 import type { Widget, WidgetSettings } from '@/api/types'
 
@@ -219,23 +220,28 @@ const widgetStyle = computed(() => {
   // Background image + gradient (gradient overlays image)
   {
     let gradientValue = ''
+    // Note: WidgetRenderer's gradient shape uses camelCase (colorStart) in the
+    // modern path because that's what the public-api transformer emits for
+    // widgets. SectionRenderer's modern path uses snake_case (color_start).
     if (s.gradient && s.gradient.colorStart && s.gradient.colorEnd) {
-      const type = s.gradient.type || 'linear'
-      const angle = s.gradient.angle ?? 180
-      const start = resolveColor(s.gradient.colorStart)
-      const end = resolveColor(s.gradient.colorEnd)
-      gradientValue = type === 'linear'
-        ? `linear-gradient(${angle}deg, ${start}, ${end})`
-        : `radial-gradient(circle, ${start}, ${end})`
+      gradientValue = buildGradientCss(
+        s.gradient.type || 'linear',
+        s.gradient.angle ?? 180,
+        s.gradient.position || 'center',
+        s.gradient.intensity ?? 0,
+        resolveColor(s.gradient.colorStart),
+        resolveColor(s.gradient.colorEnd)
+      )
     }
     else if (s.use_gradient && s.gradient_color_start && s.gradient_color_end) {
-      const type = s.gradient_type || 'linear'
-      const angle = s.gradient_angle ?? 180
-      const start = resolveColor(s.gradient_color_start)
-      const end = resolveColor(s.gradient_color_end)
-      gradientValue = type === 'linear'
-        ? `linear-gradient(${angle}deg, ${start}, ${end})`
-        : `radial-gradient(circle, ${start}, ${end})`
+      gradientValue = buildGradientCss(
+        s.gradient_type || 'linear',
+        s.gradient_angle ?? 180,
+        s.gradient_position || 'center',
+        s.gradient_intensity ?? 0,
+        resolveColor(s.gradient_color_start),
+        resolveColor(s.gradient_color_end)
+      )
     }
 
     if (s.background_image) {

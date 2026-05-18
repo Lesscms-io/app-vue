@@ -109,6 +109,12 @@ export interface GradientSettings {
   color_start?: string
   color_end?: string
   angle?: number
+  position?: string
+  intensity?: number
+  // WidgetRenderer's modern path consumes camelCase keys (colorStart / colorEnd) —
+  // historic divergence from SectionRenderer's snake_case path.
+  colorStart?: string
+  colorEnd?: string
 }
 
 export interface BaseSettings {
@@ -129,6 +135,8 @@ export interface BaseSettings {
   use_gradient?: boolean
   gradient_type?: 'linear' | 'radial'
   gradient_angle?: number
+  gradient_position?: string
+  gradient_intensity?: number
   gradient_color_start?: string
   gradient_color_end?: string
 

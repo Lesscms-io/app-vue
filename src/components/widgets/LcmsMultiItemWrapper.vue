@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import type { Component } from 'vue'
 import { useLanguage } from '@/composables/useLanguage'
 import { resolveColor } from '@/utils/resolveColor'
+import { buildGradientCss } from '@/utils/gradient'
 
 interface MultiItemData {
   widget_type: string
@@ -97,15 +98,16 @@ const getItemStyle = (item: MultiItemData): Record<string, string> => {
 
   // Gradient
   if (itemSettings.useGradient) {
-    const type = itemSettings.gradientType || 'linear'
     const start = resolveColor(itemSettings.gradientColorStart) || '#667eea'
     const end = resolveColor(itemSettings.gradientColorEnd) || '#764ba2'
-    const angle = itemSettings.gradientAngle ?? 180
-    if (type === 'radial') {
-      style.background = `radial-gradient(circle, ${start} 0%, ${end} 100%)`
-    } else {
-      style.background = `linear-gradient(${angle}deg, ${start} 0%, ${end} 100%)`
-    }
+    style.background = buildGradientCss(
+      itemSettings.gradientType || 'linear',
+      itemSettings.gradientAngle ?? 180,
+      itemSettings.gradientPosition || 'center',
+      itemSettings.gradientIntensity ?? 0,
+      start,
+      end
+    )
   }
 
   // Padding
