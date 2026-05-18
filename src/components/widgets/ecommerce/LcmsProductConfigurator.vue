@@ -820,7 +820,7 @@ function effectivePricePerUnit(group: StorefrontProductOptionGroup): number {
     const andGroups = ov?.when?.and_groups || []
     const matches = andGroups.length === 0
       ? true
-      : andGroups.every((row) => row.some((uuid) => sel.has(uuid)))
+      : andGroups.every((row) => row.length === 0 || row.some((uuid) => sel.has(uuid)))
     if (!matches) continue
     // Rules operate on 0, not the legacy scalar. "Add 100" means +100 PLN,
     // not scalar + 100 — otherwise old shops with leftover scalar=50 would
@@ -841,7 +841,7 @@ function matchedCheckboxOverride(group: StorefrontProductOptionGroup): any | nul
     const andGroups = ov?.when?.and_groups || []
     const matches = andGroups.length === 0
       ? true
-      : andGroups.every((row) => row.some((uuid) => sel.has(uuid)))
+      : andGroups.every((row) => row.length === 0 || row.some((uuid) => sel.has(uuid)))
     if (!matches) continue
     return ov
   }
