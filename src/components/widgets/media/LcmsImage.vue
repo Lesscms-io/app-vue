@@ -71,3 +71,37 @@ const imageStyle = computed(() => {
     </div>
   </figure>
 </template>
+
+<style scoped>
+/* Bez `margin: 1em 40px` (browser default na <figure>) — w editorze (ImageWidget.vue)
+ * obrazek wypełnia kolumnę 100%, a tu w prod miał browserowy margin i wyglądał
+ * mniejszy + odsunięty od krawędzi. Dopasowane do .image-widget / .widget-image
+ * z editora. */
+.lcms-image {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.lcms-image__img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.lcms-image__placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  background: var(--lcms-color-background-alt, #f8f9fa);
+  color: var(--lcms-color-muted, #adb5bd);
+  font-size: 32px;
+}
+</style>
