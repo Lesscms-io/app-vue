@@ -53,6 +53,10 @@ const dropdownGroup = computed(() => props.data.dropdown || {})
 const menuCode = computed(() => configGroup.value.menu_code || '')
 const labelField = computed(() => configGroup.value.label_field || '')
 const layout = computed(() => configGroup.value.layout || 'horizontal')
+// Layout preset — gdy ustawiony (logo-left/right/center-split/center-below) renderujemy
+// uproszczony 1-rzędowy układ. Stare widgety bez tego pola lecą starym renderem (legacy).
+const layoutPreset = computed(() => configGroup.value.layout_preset || '')
+const isPresetMode = computed(() => !!layoutPreset.value)
 const hamburgerBreakpoint = computed(() => configGroup.value.hamburger_breakpoint || 'never')
 const itemsAlignment = computed(() => configGroup.value.items_alignment || 'left')
 const itemsGap = computed(() => {
@@ -254,6 +258,18 @@ const menuCssVars = computed(() => {
 
 const { items, loading, error } = useMenu(menuCode)
 
+// Split items for logo-center-split preset (logo siedzi w środku rzędu między dwiema połówkami).
+const presetFirstHalf = computed(() => {
+  if (!items.value?.length) return []
+  const mid = Math.ceil(items.value.length / 2)
+  return items.value.slice(0, mid)
+})
+const presetSecondHalf = computed(() => {
+  if (!items.value?.length) return []
+  const mid = Math.ceil(items.value.length / 2)
+  return items.value.slice(mid)
+})
+
 const hamburgerOpen = ref(false)
 const openSubmenus = ref<Record<string, boolean>>({})
 
@@ -331,6 +347,7 @@ function getItemTarget(item: MenuItem): string | undefined {
     :class="[
       `lcms-menu--${layout}`,
       `lcms-menu--align-${itemsAlignment}`,
+      isPresetMode && !isHamburgerMode ? `lcms-menu--preset-${layoutPreset}` : '',
       linkHoverAnimation !== 'none' ? `lcms-menu--anim-${linkHoverAnimation}` : '',
       { 'lcms-menu--hamburger': isHamburgerMode, 'lcms-menu--open': hamburgerOpen && isHamburgerMode, 'is-scrolled': sectionIsScrolled.value }
     ]"
@@ -349,6 +366,134 @@ function getItemTarget(item: MenuItem): string | undefined {
     >
       Failed to load menu
     </div>
+
+    <!-- =========================================================
+         PRESET MODE — uproszczony 1-rzędowy układ (logo + lista + CTA).
+         Render tylko gdy layout_preset jest ustawiony I nie jesteśmy
+         w hamburger mode. Hamburger zawsze leci legacy drawerem.
+         ========================================================= -->
+    <template v-else-if="isPresetMode && !isHamburgerMode">
+      <a
+        v-if="hasLogo"
+        href="/"
+        class="lcms-menu__logo lcms-menu__preset-logo"
+      >
+        <img
+          v-if="logoType === 'image'"
+          :src="logoOptimized?.src || logoLight || logoDark"
+          :srcset="logoOptimized?.srcset || undefined"
+          :sizes="logoOptimized?.sizes || undefined"
+          :style="{ height: `${logoHeight}px` }"
+          alt="Logo"
+          decoding="async"
+          class="lcms-menu__logo-img"
+        >
+        <span
+          v-else
+          class="lcms-menu__logo-text"
+          :style="{ fontFamily: logoFontFamily || undefined, fontSize: `${logoFontSize}px`, fontWeight: logoFontWeight, color: logoColor || undefined }"
+        >{{ logoText }}</span>
+      </a>
+
+      <ul class="lcms-menu__list lcms-menu__list--primary">
+        <li
+          v-for="item in (layoutPreset === 'logo-center-split' ? presetFirstHalf : items)"
+          :key="item.id"
+          class="lcms-menu__item"
+          :class="{ 'lcms-menu__item--has-children': item.children && item.children.length > 0 }"
+        >
+          <a
+            :href="getItemUrl(item)"
+            class="lcms-menu__link"
+            :style="itemsPadding ? { padding: itemsPadding } : undefined"
+            :target="getItemTarget(item)"
+            @click="handleLinkClick"
+          >
+            {{ getItemLabel(item) }}
+          </a>
+          <ul
+            v-if="item.children && item.children.length > 0"
+            class="lcms-menu__submenu"
+          >
+            <li
+              v-for="child in item.children"
+              :key="child.id"
+              class="lcms-menu__subitem"
+            >
+              <a
+                :href="getItemUrl(child)"
+                class="lcms-menu__sublink"
+                :target="getItemTarget(child)"
+                @click="handleLinkClick"
+              >
+                {{ getItemLabel(child) }}
+              </a>
+            </li>
+          </ul>
+        </li>
+      </ul>
+
+      <ul
+        v-if="layoutPreset === 'logo-center-split' && presetSecondHalf.length > 0"
+        class="lcms-menu__list lcms-menu__list--secondary"
+      >
+        <li
+          v-for="item in presetSecondHalf"
+          :key="item.id"
+          class="lcms-menu__item"
+          :class="{ 'lcms-menu__item--has-children': item.children && item.children.length > 0 }"
+        >
+          <a
+            :href="getItemUrl(item)"
+            class="lcms-menu__link"
+            :style="itemsPadding ? { padding: itemsPadding } : undefined"
+            :target="getItemTarget(item)"
+            @click="handleLinkClick"
+          >
+            {{ getItemLabel(item) }}
+          </a>
+          <ul
+            v-if="item.children && item.children.length > 0"
+            class="lcms-menu__submenu"
+          >
+            <li
+              v-for="child in item.children"
+              :key="child.id"
+              class="lcms-menu__subitem"
+            >
+              <a
+                :href="getItemUrl(child)"
+                class="lcms-menu__sublink"
+                :target="getItemTarget(child)"
+                @click="handleLinkClick"
+              >
+                {{ getItemLabel(child) }}
+              </a>
+            </li>
+          </ul>
+        </li>
+      </ul>
+
+      <a
+        v-if="ctaText"
+        :href="resolvedCtaUrl"
+        class="lcms-menu__cta lcms-menu__preset-cta"
+        :class="[
+          `lcms-menu__cta--${ctaStyle}`,
+          `lcms-menu__cta--size-${ctaSize}`
+        ]"
+        :style="ctaInlineStyle"
+        :target="ctaTargetBlank ? '_blank' : undefined"
+        :rel="ctaTargetBlank ? 'noopener noreferrer' : undefined"
+        @click="handleLinkClick"
+      >
+        <span v-if="isCtaSvgIcon && ctaIconPosition === 'left'" class="lcms-menu__cta-icon lcms-menu__cta-icon--left lcms-menu__cta-svg" v-html="ctaSvgContent" />
+        <i v-else-if="ctaIcon && ctaIconPosition === 'left'" :class="ctaIcon" class="lcms-menu__cta-icon lcms-menu__cta-icon--left" />
+        {{ ctaText }}
+        <span v-if="isCtaSvgIcon && ctaIconPosition === 'right'" class="lcms-menu__cta-icon lcms-menu__cta-icon--right lcms-menu__cta-svg" v-html="ctaSvgContent" />
+        <i v-else-if="ctaIcon && ctaIconPosition === 'right'" :class="ctaIcon" class="lcms-menu__cta-icon lcms-menu__cta-icon--right" />
+      </a>
+    </template>
 
     <template v-else>
       <!-- Logo (before hamburger in markup for left position) -->
@@ -606,6 +751,109 @@ function getItemTarget(item: MenuItem): string | undefined {
   flex-direction: column;
   align-items: center;
 }
+
+/* ===========================
+   Layout presets (1-rzędowe układy)
+   - logo-left: [LOGO] [lista→prawo] [CTA]
+   - logo-right: [CTA] [lista→lewo] [LOGO]
+   - logo-center-split: [pół listy→prawo] [LOGO] [pół listy→lewo] [CTA]
+   - logo-center-below: kolumna [LOGO] / [lista wycentrowana] / [CTA]
+   =========================== */
+
+/* Wspólne: w trybie preset nav jest flex, dzieci pozycjonowane przez order */
+.lcms-menu[class*="lcms-menu--preset-"]:not(.lcms-menu--hamburger) {
+  display: flex;
+  align-items: center;
+  gap: var(--lcms-menu-items-gap, 12px);
+  width: 100%;
+}
+
+.lcms-menu[class*="lcms-menu--preset-"] .lcms-menu__preset-logo {
+  flex-shrink: 0;
+}
+
+.lcms-menu[class*="lcms-menu--preset-"] .lcms-menu__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  gap: var(--lcms-menu-items-gap, 12px);
+  flex-wrap: wrap;
+  flex: 1;
+}
+
+/* logo-left: logo lewo, menu wyrównane do prawej, CTA na końcu */
+.lcms-menu--preset-logo-left .lcms-menu__preset-logo { order: 0; }
+.lcms-menu--preset-logo-left .lcms-menu__list--primary {
+  order: 1;
+  justify-content: flex-end;
+}
+.lcms-menu--preset-logo-left .lcms-menu__preset-cta { order: 2; margin-left: 0; }
+
+/* logo-right: lustrzane odbicie */
+.lcms-menu--preset-logo-right .lcms-menu__preset-cta { order: 0; margin-left: 0; margin-right: 0; }
+.lcms-menu--preset-logo-right .lcms-menu__list--primary {
+  order: 1;
+  justify-content: flex-start;
+}
+.lcms-menu--preset-logo-right .lcms-menu__preset-logo { order: 2; }
+
+/* logo-center-split: lista podzielona na pół, logo w środku */
+.lcms-menu--preset-logo-center-split .lcms-menu__list--primary {
+  order: 0;
+  justify-content: flex-end;
+  flex: 1;
+}
+.lcms-menu--preset-logo-center-split .lcms-menu__preset-logo {
+  order: 1;
+  flex: 0 0 auto;
+}
+.lcms-menu--preset-logo-center-split .lcms-menu__list--secondary {
+  order: 2;
+  justify-content: flex-start;
+  flex: 1;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  gap: var(--lcms-menu-items-gap, 12px);
+  flex-wrap: wrap;
+}
+.lcms-menu--preset-logo-center-split .lcms-menu__preset-cta { order: 3; margin-left: 0; }
+
+/* logo-center-aside: menu po lewej, logo strict-środek, CTA prawo. Grid 1fr auto 1fr
+   gwarantuje że logo jest w geometrycznym środku niezależnie od długości listy/CTA. */
+.lcms-menu--preset-logo-center-aside {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+}
+.lcms-menu--preset-logo-center-aside .lcms-menu__list--primary {
+  grid-column: 1;
+  justify-content: flex-start;
+}
+.lcms-menu--preset-logo-center-aside .lcms-menu__preset-logo {
+  grid-column: 2;
+  justify-self: center;
+}
+.lcms-menu--preset-logo-center-aside .lcms-menu__preset-cta {
+  grid-column: 3;
+  justify-self: end;
+  margin-left: 0;
+}
+
+/* logo-center-below: kolumna — logo nad menu */
+.lcms-menu--preset-logo-center-below {
+  flex-direction: column;
+  align-items: center;
+}
+.lcms-menu--preset-logo-center-below .lcms-menu__preset-logo { order: 0; }
+.lcms-menu--preset-logo-center-below .lcms-menu__list--primary {
+  order: 1;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+.lcms-menu--preset-logo-center-below .lcms-menu__preset-cta { order: 2; margin-left: 0; }
 
 /* ===========================
    Logo
@@ -1141,6 +1389,24 @@ function getItemTarget(item: MenuItem): string | undefined {
   background-color: transparent;
   color: var(--lcms-color-accent, #FF6B35);
   border: 1px solid var(--lcms-color-accent, #FF6B35);
+}
+
+/* Link-style CTA — transparent, underlined, dziedziczy kolor linków menu */
+.lcms-menu__cta--link {
+  background-color: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  color: var(--lcms-menu-link-color, inherit);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  font-weight: inherit;
+}
+
+.lcms-menu__cta--link:hover {
+  filter: none;
+  color: var(--lcms-menu-link-hover-color, var(--lcms-menu-link-color, inherit));
+  text-decoration: underline;
 }
 
 .lcms-menu--vertical .lcms-menu__cta {
