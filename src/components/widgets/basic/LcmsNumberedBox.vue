@@ -1,7 +1,11 @@
 <template>
   <div class="lcms-numbered-box" :class="[positionClass, { 'has-hover': hasHover, 'has-hover-number-color': !!hoverNumberColor, 'has-hover-number-bg': !!hoverNumberBg, 'has-hover-title-color': !!hoverTitleColor, 'has-hover-text-color': !!hoverTextColor }]" :style="cardStyle">
-    <div class="lcms-numbered-box__number" :style="numberStyles">
-      {{ displayNumber }}
+    <div
+      class="lcms-numbered-box__number"
+      :style="numberStyles"
+    >
+      <span v-if="customNumberHtml" v-html="customNumberHtml" />
+      <template v-else>{{ displayNumber }}</template>
     </div>
     <div class="lcms-numbered-box__content" :style="contentStyle">
       <DynamicHtml
@@ -52,6 +56,15 @@ const textGroup = computed(() => config.value.text || {})
 const displayNumber = computed(() => {
   const idx = props.itemIndex ?? 0
   return String(idx + 1).padStart(2, '0')
+})
+
+const customNumberHtml = computed(() => {
+  const raw = extractValue(numberGroup.value.html) || ''
+  if (!raw) return ''
+  // Treat empty TipTap content (e.g. <p></p>) as no override → auto-counter
+  const textContent = raw.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, '').trim()
+  if (!textContent) return ''
+  return stripBlockWrappers(raw)
 })
 
 // Strip block-level wrappers (p, div) from heading HTML to avoid invalid nesting in SSR
@@ -189,6 +202,21 @@ const numberStyles = computed(() => {
   box-sizing: content-box;
   font-variant-numeric: tabular-nums;
   transition: color var(--transition-duration, 200ms) ease, background-color var(--transition-duration, 200ms) ease;
+}
+
+.lcms-numbered-box__number :deep(p),
+.lcms-numbered-box__number :deep(h1),
+.lcms-numbered-box__number :deep(h2),
+.lcms-numbered-box__number :deep(h3),
+.lcms-numbered-box__number :deep(h4),
+.lcms-numbered-box__number :deep(h5),
+.lcms-numbered-box__number :deep(h6) {
+  margin: 0;
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+  color: inherit;
+  display: inline;
 }
 
 .lcms-numbered-box.has-hover.has-hover-number-color:hover .lcms-numbered-box__number {

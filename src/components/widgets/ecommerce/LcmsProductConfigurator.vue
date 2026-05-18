@@ -582,16 +582,34 @@ function syntheticVisibilityIdFor(group: StorefrontProductOptionGroup): string |
   return null
 }
 
+// Visibility resolves via fixed-point iteration so a group's rule can reference
+// any other group regardless of sort_order. Previous incremental build only let
+// rules reference earlier groups, which silently broke setups like "Kolor
+// koszyczka" gated on a later "Pudełko Woodenbox › TAK" checkbox. Caps at 8
+// passes — way more than any realistic dependency chain.
 const visibleGroups = computed<StorefrontProductOptionGroup[]>(() => {
-  const result: StorefrontProductOptionGroup[] = []
-  const visibleSelections = new Set<string>()
-  for (const group of allGroups.value) {
-    if (!isVisible(group as any, visibleSelections)) continue
-    result.push(group)
-    const sel = selectedOptions.value[group.uuid]
-    if (sel) visibleSelections.add(sel)
-    const synth = syntheticVisibilityIdFor(group)
-    if (synth) visibleSelections.add(synth)
+  let prevVisible = new Set<string>(allGroups.value.map((g) => g.uuid))
+  let result: StorefrontProductOptionGroup[] = []
+  for (let pass = 0; pass < 8; pass++) {
+    const selections = new Set<string>()
+    for (const group of allGroups.value) {
+      if (!prevVisible.has(group.uuid)) continue
+      const sel = selectedOptions.value[group.uuid]
+      if (sel) selections.add(sel)
+      const synth = syntheticVisibilityIdFor(group)
+      if (synth) selections.add(synth)
+    }
+    result = []
+    const nextVisible = new Set<string>()
+    for (const group of allGroups.value) {
+      if (!isVisible(group as any, selections)) continue
+      result.push(group)
+      nextVisible.add(group.uuid)
+    }
+    if (nextVisible.size === prevVisible.size && [...nextVisible].every((u) => prevVisible.has(u))) {
+      break
+    }
+    prevVisible = nextVisible
   }
   return result
 })

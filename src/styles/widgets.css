@@ -470,6 +470,12 @@
   margin-bottom: 0;
 }
 
+/* Empty paragraphs (from double-Enter in editor) — render as visible blank line,
+   matching how TipTap shows them while editing. */
+.lcms-text p:empty::before {
+  content: "\200b";
+}
+
 /* Headings inside text widget - use project CSS variables, inline styles override when present */
 .lcms-text h1 { font-size: var(--lcms-h1-font-size); font-weight: var(--lcms-h1-font-weight); color: var(--lcms-h1-color); line-height: var(--lcms-h1-line-height); margin: 0 0 var(--lcms-h1-margin-bottom); }
 .lcms-text h2 { font-size: var(--lcms-h2-font-size); font-weight: var(--lcms-h2-font-weight); color: var(--lcms-h2-color); line-height: var(--lcms-h2-line-height); margin: 0 0 var(--lcms-h2-margin-bottom); }
