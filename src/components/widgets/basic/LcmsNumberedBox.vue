@@ -67,10 +67,13 @@ const customNumberHtml = computed(() => {
   return stripBlockWrappers(raw)
 })
 
-// Strip block-level wrappers (p, div) from heading HTML to avoid invalid nesting in SSR
+// Strip block-level wrappers (p, div, h1-h6) from heading HTML to avoid invalid
+// nesting in SSR — DynamicHtml re-wraps with titleTag (e.g. h3), so a saved
+// `<h3>...</h3>` from TipTap becomes `<h3><h3>...</h3></h3>` which the parser
+// auto-collapses, leaving the title's class on an empty element.
 function stripBlockWrappers(html: string): string {
   if (!html) return ''
-  return html.replace(/^<(p|div)[^>]*>(.*)<\/\1>$/s, '$2').trim()
+  return html.replace(/^<(p|div|h[1-6])[^>]*>(.*)<\/\1>$/s, '$2').trim()
 }
 
 // Heading

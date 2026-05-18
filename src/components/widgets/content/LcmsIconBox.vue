@@ -61,10 +61,10 @@ const isSvgIcon = computed(() => (iconValue.value || '').startsWith('svg:'))
 const svgContent = computed(() => isSvgIcon.value ? iconValue.value.slice(4) : '')
 const iconClass = computed(() => isSvgIcon.value ? '' : (iconValue.value || 'fas fa-star'))
 
-// Strip block-level wrappers (p, div) from HTML to avoid invalid nesting in SSR
+// Strip block-level wrappers (p, div, h1-h6) from HTML to avoid invalid nesting in SSR
 function stripBlockWrappers(html: string): string {
   if (!html) return ''
-  return html.replace(/^<(p|div)[^>]*>(.*)<\/\1>$/s, '$2').trim()
+  return html.replace(/^<(p|div|h[1-6])[^>]*>(.*)<\/\1>$/s, '$2').trim()
 }
 
 // Content values
