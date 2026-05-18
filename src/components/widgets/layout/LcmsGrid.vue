@@ -28,7 +28,7 @@ const { isMobile, isTablet, currentBreakpoint } = useResponsiveSettings()
 // API returns widget data with columns array
 const config = computed(() => props.data.widget || props.data || {})
 const columns = computed(() => config.value.columns || [])
-const gap = computed(() => config.value.gap || 16)
+const gap = computed(() => config.value.gap ?? 16)
 const stackOnMobile = computed(() => config.value.stack_on_mobile !== false)
 const stackOnTablet = computed(() => config.value.stack_on_tablet === true)
 

@@ -25,7 +25,7 @@ const props = defineProps<{
 const columns = computed(() => props.data.columns || 1)
 const columnsTablet = computed(() => props.data.columns_tablet)
 const columnsMobile = computed(() => props.data.columns_mobile)
-const gap = computed(() => props.data.gap || 16)
+const gap = computed(() => props.data.gap ?? 16)
 const layout = computed(() => props.data.layout || 'grid')
 const equalHeight = computed(() => !!props.data.equal_height)
 
