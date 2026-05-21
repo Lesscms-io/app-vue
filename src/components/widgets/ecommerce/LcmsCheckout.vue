@@ -6,7 +6,7 @@
  * payment method, notes, summary, submit.
  */
 
-import { computed, ref, reactive, onMounted, watch, inject, type Ref } from 'vue'
+import { computed, ref, reactive, onMounted, onBeforeUnmount, nextTick, watch, inject, type Ref } from 'vue'
 import { useLanguage } from '../../../composables/useLanguage'
 import { useStorefront } from '../../../composables/useStorefront'
 import { useCart } from '../../../composables/useCart'
@@ -14,6 +14,9 @@ import { useCustomer } from '../../../composables/useCustomer'
 import { useToast } from '../../../composables/useToast'
 import { formatPrice } from '../../../utils/currency'
 import type { StorefrontShippingMethod, StorefrontPickupPoint, StorefrontAddress } from '../../../api/storefront'
+import { countriesFor } from '../../../data/countries'
+import LcmsCountrySelect from '../../common/LcmsCountrySelect.vue'
+import LcmsAddressBookModal from './LcmsAddressBookModal.vue'
 
 defineOptions({ inheritAttrs: false })
 
@@ -170,6 +173,7 @@ const form = reactive({
   customer_phone: '',
   company: '',
   tax_id: '',
+  wants_invoice: false,
   shipping_street: '',
   shipping_city: '',
   shipping_postal_code: '',
@@ -202,6 +206,20 @@ const isAuthSubmitting = ref(false)
 // Saved addresses (only loaded for authenticated customers)
 const savedAddresses = ref<StorefrontAddress[]>([])
 const selectedSavedAddressUuid = ref<string | null>(null)
+const selectedInvoiceAddressUuid = ref<string | null>(null)
+
+// Address-book modal — separate instances for shipping vs invoice so they
+// remember selection independently and don't reuse each other's view state.
+const isShippingBookOpen = ref(false)
+const isInvoiceBookOpen = ref(false)
+
+function onShippingAddressPicked(addr: StorefrontAddress) {
+  applySavedAddress(addr)
+}
+
+function onInvoiceAddressPicked(addr: StorefrontAddress) {
+  applyInvoiceAddress(addr)
+}
 
 // Pickup-point state. InPost-style paczkomat selection lives alongside
 // the shipping method radio list: once the user picks a `requires_pickup_point`
@@ -271,8 +289,29 @@ const paymentMethods = computed(() =>
   remotePaymentMethods.value.map(m => ({
     code: m.code,
     label: paymentLabelFor(m.code, m.name),
+    logo_url: m.logo_url || null,
   }))
 )
+
+// Fallback boxicons class when a method has no admin-uploaded logo.
+// Match by code first (more specific), then by carrier (shipping only).
+function shippingIconClass(method: StorefrontShippingMethod): string {
+  const code = (method.code || '').toLowerCase()
+  const carrier = (method.carrier || '').toLowerCase()
+  if (method.requires_pickup_point) return 'bx-store'
+  if (code.includes('paczkomat') || carrier.includes('inpost')) return 'bx-package'
+  if (carrier.includes('dpd') || carrier.includes('dhl') || carrier.includes('ups') || code.includes('kurier') || code.includes('courier')) return 'bx-car'
+  if (code.includes('pickup') || code.includes('odbior')) return 'bx-store'
+  return 'bx-package'
+}
+
+function paymentIconClass(code: string): string {
+  const c = code.toLowerCase()
+  if (c.includes('cod') || c.includes('pobranie')) return 'bx-money'
+  if (c.includes('bank') || c.includes('transfer') || c.includes('przelew')) return 'bx-buildings'
+  if (c.includes('blik')) return 'bx-mobile-alt'
+  return 'bx-credit-card'
+}
 
 const selectedShipping = computed(() =>
   shippingMethods.value.find(m => m.code === form.shipping_method) || null
@@ -294,6 +333,8 @@ const total = computed(() => subtotal.value + shippingCost.value)
 const pickupPointRequired = computed(() =>
   Boolean(selectedShipping.value?.requires_pickup_point)
 )
+
+const countryOptions = computed(() => countriesFor(props.language))
 
 // Pre-fill from logged-in customer
 watch(() => customer.customer.value, (cust) => {
@@ -326,6 +367,95 @@ watch(() => customer.isAuthenticated.value, (isAuth) => {
   }
 }, { immediate: true })
 
+// --- NIP lookup (Biała Lista VAT, Ministerstwo Finansów) ---
+// Public, no auth, CORS allow-all. Triggered via explicit button — auto-lookup
+// is heavy on the registry and surprises users mid-typing.
+const isLookingUpNip = ref(false)
+const nipLookupError = ref<string | null>(null)
+const nipLookupSuccess = ref(false)
+
+const canLookupNip = computed(() => {
+  const digits = (form.tax_id || '').replace(/[^0-9]/g, '')
+  return digits.length === 10 && !isLookingUpNip.value
+})
+
+watch(() => form.tax_id, () => {
+  nipLookupError.value = null
+  nipLookupSuccess.value = false
+})
+
+async function triggerNipLookup() {
+  const digits = (form.tax_id || '').replace(/[^0-9]/g, '')
+  if (digits.length !== 10) {
+    nipLookupError.value = props.language === 'en'
+      ? 'NIP must be 10 digits'
+      : 'NIP musi mieć 10 cyfr'
+    return
+  }
+  await lookupNip(digits)
+}
+
+async function lookupNip(nip: string) {
+  if (typeof fetch === 'undefined') return
+  isLookingUpNip.value = true
+  nipLookupError.value = null
+  try {
+    const today = new Date().toISOString().slice(0, 10)
+    const res = await fetch(`https://wl-api.mf.gov.pl/api/search/nip/${nip}?date=${today}`)
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    const json = await res.json()
+    const subject = json?.result?.subject
+    if (!subject) {
+      nipLookupError.value = props.language === 'en'
+        ? 'Company not found in VAT registry'
+        : 'Nie znaleziono firmy w rejestrze VAT'
+      return
+    }
+    if (subject.name) form.company = subject.name
+    // Subject has workingAddress (operational) and residenceAddress (registered).
+    // Prefer working; fall back to residence. Both are flat strings like
+    // "ul. Marszałkowska 1, 00-001 Warszawa".
+    const addressStr = (subject.workingAddress || subject.residenceAddress || '').trim()
+    if (addressStr) {
+      const parsed = parsePolishAddress(addressStr)
+      if (parsed.street) form.billing_street = parsed.street
+      if (parsed.postal_code) form.billing_postal_code = parsed.postal_code
+      if (parsed.city) form.billing_city = parsed.city
+      form.billing_country = 'PL'
+      // Auto-uncheck "same as shipping" so the user sees what was prefilled.
+      form.billing_same = false
+    }
+    nipLookupSuccess.value = true
+  } catch (err: any) {
+    nipLookupError.value = props.language === 'en'
+      ? 'Could not reach VAT registry — fill manually'
+      : 'Nie udało się pobrać danych z rejestru VAT — wpisz ręcznie'
+  } finally {
+    isLookingUpNip.value = false
+  }
+}
+
+// Whitelist returns address as "ul. Marszałkowska 1, 00-001 Warszawa".
+// Cheap parser — fails over to the raw string when the format doesn't match.
+function parsePolishAddress(raw: string): { street: string; postal_code: string; city: string } {
+  const out = { street: '', postal_code: '', city: '' }
+  const parts = raw.split(',').map(s => s.trim())
+  if (parts.length >= 2) {
+    out.street = parts[0]
+    const tail = parts.slice(1).join(', ')
+    const m = tail.match(/(\d{2}-\d{3})\s+(.+)/)
+    if (m) {
+      out.postal_code = m[1]
+      out.city = m[2].trim()
+    } else {
+      out.city = tail
+    }
+  } else {
+    out.street = raw
+  }
+  return out
+}
+
 async function fetchSavedAddresses() {
   if (!client.value) return
   try {
@@ -350,6 +480,15 @@ function applySavedAddress(addr: StorefrontAddress) {
   form.shipping_country = addr.country || 'PL'
   if (addr.name) form.customer_name = addr.name
   if (addr.phone) form.customer_phone = addr.phone
+}
+
+function applyInvoiceAddress(addr: StorefrontAddress) {
+  if (!addr) return
+  selectedInvoiceAddressUuid.value = addr.uuid ?? null
+  form.billing_street = addr.street || ''
+  form.billing_city = addr.city || ''
+  form.billing_postal_code = addr.postal_code || ''
+  form.billing_country = addr.country || 'PL'
 }
 
 async function handleLogin() {
@@ -417,7 +556,108 @@ async function loadPaymentMethods() {
   }
 }
 
-onMounted(loadPaymentMethods)
+// Load shipping methods up-front so the picker is visible before postal code is entered.
+// Postal-code watcher later refines the list via /shipping/calculate (country filter, future per-weight quotes).
+async function loadShippingMethods() {
+  if (!client.value) return
+  isLoadingShipping.value = true
+  try {
+    const response = await client.value.getShippingMethods()
+    shippingMethods.value = response.data || []
+    if (shippingMethods.value.length > 0 && !form.shipping_method) {
+      form.shipping_method = shippingMethods.value[0].code
+    }
+  } catch {
+    shippingMethods.value = []
+  } finally {
+    isLoadingShipping.value = false
+  }
+}
+
+onMounted(() => {
+  loadPaymentMethods()
+  loadShippingMethods()
+  // Pick up addresses added in /konto since the last time this view mounted —
+  // the isAuthenticated watcher only fires on a flip, not on revisits.
+  if (customer.isAuthenticated.value) {
+    fetchSavedAddresses()
+  }
+})
+
+// --- InPost Geowidget (https://geowidget.easypack24.net) ---
+// Loads InPost's official paczkomat picker as a Web Component. Token comes
+// from widget settings (props.settings.inpost_geowidget_token) and is
+// optional — without it the widget runs in public/guest mode.
+const inpostWidgetRef = ref<HTMLElement | null>(null)
+const inpostGeowidgetToken = computed<string>(() =>
+  selectedShipping.value?.geowidget_config?.token
+  || (props.settings?.inpost_geowidget_token as string)
+  || (props.data?.inpost_geowidget_token as string)
+  || ''
+)
+const inpostGeowidgetEnvironment = computed<'sandbox' | 'production'>(() =>
+  selectedShipping.value?.geowidget_config?.environment || 'production'
+)
+const isInpostPickup = computed(() => {
+  const code = (selectedShipping.value?.code || '').toLowerCase()
+  const carrier = (selectedShipping.value?.carrier || '').toLowerCase()
+  return Boolean(selectedShipping.value?.requires_pickup_point)
+    && (carrier.includes('inpost') || code.includes('paczkomat') || code.includes('inpost'))
+})
+let inpostAssetsLoadedFor: string | null = null
+function ensureInpostAssets(environment: 'sandbox' | 'production') {
+  if (typeof document === 'undefined') return
+  if (inpostAssetsLoadedFor === environment) return
+  // InPost host changed in 2025: prod is now geowidget.inpost.pl (was easypack24.net),
+  // sandbox PL is sandbox-easy-geowidget-sdk.easypack24.net.
+  const baseUrl = environment === 'sandbox'
+    ? 'https://sandbox-easy-geowidget-sdk.easypack24.net'
+    : 'https://geowidget.inpost.pl'
+  // If a different environment was loaded earlier in this session, swap the
+  // tags out — InPost's customElements registration is idempotent but the
+  // script targets a specific env via its bundled API base.
+  document.querySelectorAll('link[data-inpost-geowidget-css],script[data-inpost-geowidget-js]')
+    .forEach(el => el.remove())
+  const link = document.createElement('link')
+  link.rel = 'stylesheet'
+  link.href = `${baseUrl}/inpost-geowidget.css`
+  link.setAttribute('data-inpost-geowidget-css', '')
+  document.head.appendChild(link)
+  const script = document.createElement('script')
+  script.src = `${baseUrl}/inpost-geowidget.js`
+  script.defer = true
+  script.setAttribute('data-inpost-geowidget-js', '')
+  document.head.appendChild(script)
+  inpostAssetsLoadedFor = environment
+}
+function onInpostPointSelected(event: Event) {
+  const detail = (event as CustomEvent).detail as any
+  // Geowidget v5 fires the point payload under `detail.point` (v4 used `detail`).
+  const p = detail?.point || detail
+  if (!p?.name) return
+  selectPickupPoint({
+    id: p.name,
+    name: p.address?.line1 || p.name,
+    address: [p.address?.line1, p.address?.line2].filter(Boolean).join(', ') || '',
+    city: p.address_details?.city || undefined,
+    postal_code: p.address_details?.post_code || undefined,
+    latitude: p.location?.latitude ?? null,
+    longitude: p.location?.longitude ?? null,
+    description: p.location_description || undefined,
+    opening_hours: p.location?.opening_hours,
+  } as StorefrontPickupPoint)
+}
+
+watch([isInpostPickup, inpostWidgetRef], async ([active, el]) => {
+  if (!active || !el) return
+  ensureInpostAssets(inpostGeowidgetEnvironment.value)
+  await nextTick()
+  el.addEventListener('onpoint', onInpostPointSelected as EventListener)
+}, { flush: 'post' })
+
+onBeforeUnmount(() => {
+  inpostWidgetRef.value?.removeEventListener('onpoint', onInpostPointSelected as EventListener)
+})
 
 // Auto-recalculate shipping when address changes
 watch(
@@ -515,6 +755,19 @@ function validate(): boolean {
     errors.pickup_point = t('requiredField')
   }
 
+  if (form.wants_invoice) {
+    if (!form.company.trim()) errors.company = t('requiredField')
+    if (!form.tax_id.trim()) errors.tax_id = t('requiredField')
+    if (!form.billing_same) {
+      if (!form.billing_street.trim()) errors.billing_street = t('requiredField')
+      if (!form.billing_city.trim()) errors.billing_city = t('requiredField')
+      if (!form.billing_postal_code.trim()) errors.billing_postal_code = t('requiredField')
+      else if (form.billing_country === 'PL' && !/^\d{2}-\d{3}$/.test(form.billing_postal_code)) {
+        errors.billing_postal_code = t('invalidPostalCode')
+      }
+    }
+  }
+
   return Object.keys(errors).length === 0
 }
 
@@ -562,12 +815,19 @@ async function handleSubmit() {
       },
     }
 
-    if (!form.billing_same) {
-      checkoutData.billing_address = {
-        street: form.billing_street,
-        city: form.billing_city,
-        postal_code: form.billing_postal_code,
-        country: form.billing_country,
+    if (form.wants_invoice) {
+      checkoutData.wants_invoice = true
+      checkoutData.invoice = {
+        company: form.company || undefined,
+        tax_id: form.tax_id || undefined,
+      }
+      if (!form.billing_same) {
+        checkoutData.billing_address = {
+          street: form.billing_street,
+          city: form.billing_city,
+          postal_code: form.billing_postal_code,
+          country: form.billing_country,
+        }
       }
     }
 
@@ -748,44 +1008,17 @@ async function handleSubmit() {
 
           <!-- Shipping -->
           <section class="lcms-checkout__section">
-            <h3 class="lcms-checkout__section-title">{{ t('shippingAddress') }}</h3>
-
-            <!-- Saved addresses picker (logged-in customers only) -->
-            <div v-if="savedAddresses.length > 0" class="lcms-checkout__saved-addresses">
-              <label class="lcms-checkout__label">{{ t('savedAddressesTitle') }}</label>
-              <div class="lcms-checkout__saved-addresses-list">
-                <label
-                  v-for="addr in savedAddresses"
-                  :key="addr.uuid"
-                  class="lcms-checkout__saved-address"
-                  :class="{ 'lcms-checkout__saved-address--selected': selectedSavedAddressUuid === addr.uuid }"
-                >
-                  <input
-                    type="radio"
-                    :value="addr.uuid"
-                    :checked="selectedSavedAddressUuid === addr.uuid"
-                    @change="applySavedAddress(addr)"
-                  />
-                  <span class="lcms-checkout__saved-address-body">
-                    <strong>{{ addr.name || addr.street }}</strong>
-                    <span>{{ addr.street }}, {{ addr.postal_code }} {{ addr.city }}</span>
-                  </span>
-                </label>
-                <label
-                  class="lcms-checkout__saved-address"
-                  :class="{ 'lcms-checkout__saved-address--selected': selectedSavedAddressUuid === null }"
-                >
-                  <input
-                    type="radio"
-                    :value="null"
-                    :checked="selectedSavedAddressUuid === null"
-                    @change="selectedSavedAddressUuid = null"
-                  />
-                  <span class="lcms-checkout__saved-address-body">
-                    <strong>{{ t('savedAddressNew') }}</strong>
-                  </span>
-                </label>
-              </div>
+            <div class="lcms-checkout__section-head">
+              <h3 class="lcms-checkout__section-title">{{ t('shippingAddress') }}</h3>
+              <button
+                v-if="customer.isAuthenticated.value"
+                type="button"
+                class="lcms-checkout__addressbook-btn"
+                @click="isShippingBookOpen = true"
+              >
+                <i class="bx bx-book-content" aria-hidden="true" />
+                <span>{{ props.language === 'en' ? 'Address book' : 'Książka adresowa' }}</span>
+              </button>
             </div>
 
             <div class="lcms-checkout__field">
@@ -829,12 +1062,119 @@ async function handleSubmit() {
 
             <div class="lcms-checkout__field">
               <label class="lcms-checkout__label">{{ t('country') }} *</label>
-              <select v-model="form.shipping_country" class="lcms-checkout__input">
-                <option value="PL">Polska</option>
-                <option value="DE">Deutschland</option>
-                <option value="GB">United Kingdom</option>
-                <option value="US">United States</option>
-              </select>
+              <LcmsCountrySelect
+                v-model="form.shipping_country"
+                :language="props.language"
+              />
+            </div>
+          </section>
+
+          <!-- Faktura VAT (opcjonalna) -->
+          <section class="lcms-checkout__section">
+            <label class="lcms-checkout__invoice-toggle">
+              <input v-model="form.wants_invoice" type="checkbox" />
+              <span>{{ props.language === 'en' ? 'I want a VAT invoice' : 'Chcę otrzymać fakturę VAT' }}</span>
+            </label>
+
+            <div v-if="form.wants_invoice" class="lcms-checkout__invoice-body">
+              <div class="lcms-checkout__field">
+                <label class="lcms-checkout__label">{{ props.language === 'en' ? 'Company name' : 'Nazwa firmy' }} *</label>
+                <input
+                  v-model="form.company"
+                  type="text"
+                  class="lcms-checkout__input"
+                  :class="{ 'lcms-checkout__input--error': errors.company }"
+                />
+                <span v-if="errors.company" class="lcms-checkout__error">{{ errors.company }}</span>
+              </div>
+
+              <div class="lcms-checkout__field">
+                <label class="lcms-checkout__label">NIP *</label>
+                <div class="lcms-checkout__nip-row">
+                  <input
+                    v-model="form.tax_id"
+                    type="text"
+                    placeholder="5521578980"
+                    class="lcms-checkout__input"
+                    :class="{ 'lcms-checkout__input--error': errors.tax_id }"
+                  />
+                  <button
+                    type="button"
+                    class="lcms-checkout__btn lcms-checkout__btn--ghost lcms-checkout__nip-btn"
+                    :disabled="!canLookupNip"
+                    @click="triggerNipLookup"
+                  >
+                    {{ isLookingUpNip
+                      ? (props.language === 'en' ? 'Loading…' : 'Pobieram…')
+                      : (props.language === 'en' ? 'Fetch invoice data' : 'Pobierz dane do faktury') }}
+                  </button>
+                </div>
+                <span v-if="nipLookupSuccess" class="lcms-checkout__hint lcms-checkout__hint--ok">
+                  {{ props.language === 'en' ? 'Company data filled from VAT registry' : 'Dane firmy uzupełnione z Białej Listy VAT' }}
+                </span>
+                <span v-else-if="nipLookupError" class="lcms-checkout__hint lcms-checkout__hint--warn">{{ nipLookupError }}</span>
+                <span v-else-if="errors.tax_id" class="lcms-checkout__error">{{ errors.tax_id }}</span>
+              </div>
+
+              <label class="lcms-checkout__invoice-toggle lcms-checkout__invoice-toggle--inner">
+                <input v-model="form.billing_same" type="checkbox" />
+                <span>{{ props.language === 'en' ? 'Invoice address same as shipping' : 'Adres faktury taki sam jak dostawa' }}</span>
+              </label>
+
+              <template v-if="!form.billing_same">
+                <!-- Saved addresses picker — same UX as shipping section -->
+                <div v-if="customer.isAuthenticated.value" class="lcms-checkout__invoice-addressbook">
+                  <button
+                    type="button"
+                    class="lcms-checkout__addressbook-btn"
+                    @click="isInvoiceBookOpen = true"
+                  >
+                    <i class="bx bx-book-content" aria-hidden="true" />
+                    <span>{{ props.language === 'en' ? 'Address book' : 'Książka adresowa' }}</span>
+                  </button>
+                </div>
+
+                <div class="lcms-checkout__field">
+                  <label class="lcms-checkout__label">{{ t('street') }} *</label>
+                  <input
+                    v-model="form.billing_street"
+                    type="text"
+                    class="lcms-checkout__input"
+                    :class="{ 'lcms-checkout__input--error': errors.billing_street }"
+                  />
+                  <span v-if="errors.billing_street" class="lcms-checkout__error">{{ errors.billing_street }}</span>
+                </div>
+                <div class="lcms-checkout__row">
+                  <div class="lcms-checkout__field">
+                    <label class="lcms-checkout__label">{{ t('postalCode') }} *</label>
+                    <input
+                      v-model="form.billing_postal_code"
+                      type="text"
+                      placeholder="00-000"
+                      class="lcms-checkout__input"
+                      :class="{ 'lcms-checkout__input--error': errors.billing_postal_code }"
+                    />
+                    <span v-if="errors.billing_postal_code" class="lcms-checkout__error">{{ errors.billing_postal_code }}</span>
+                  </div>
+                  <div class="lcms-checkout__field">
+                    <label class="lcms-checkout__label">{{ t('city') }} *</label>
+                    <input
+                      v-model="form.billing_city"
+                      type="text"
+                      class="lcms-checkout__input"
+                      :class="{ 'lcms-checkout__input--error': errors.billing_city }"
+                    />
+                    <span v-if="errors.billing_city" class="lcms-checkout__error">{{ errors.billing_city }}</span>
+                  </div>
+                </div>
+                <div class="lcms-checkout__field">
+                  <label class="lcms-checkout__label">{{ t('country') }} *</label>
+                  <LcmsCountrySelect
+                    v-model="form.billing_country"
+                    :language="props.language"
+                  />
+                </div>
+              </template>
             </div>
           </section>
 
@@ -842,34 +1182,39 @@ async function handleSubmit() {
           <section class="lcms-checkout__section">
             <h3 class="lcms-checkout__section-title">{{ t('shippingMethod') }}</h3>
 
-            <div v-if="isLoadingShipping" class="lcms-checkout__loading-text">
+            <div v-if="isLoadingShipping && shippingMethods.length === 0" class="lcms-checkout__loading-text">
               {{ props.language === 'en' ? 'Loading...' : 'Ładowanie...' }}
             </div>
 
             <div v-else-if="shippingMethods.length === 0" class="lcms-checkout__loading-text">
-              {{ props.language === 'en' ? 'Enter postal code first' : 'Wpisz najpierw kod pocztowy' }}
+              {{ props.language === 'en' ? 'No shipping methods configured' : 'Brak skonfigurowanych metod dostawy' }}
             </div>
 
-            <div v-else class="lcms-checkout__radio-list">
+            <div v-else class="lcms-checkout__tile-grid">
               <label
                 v-for="method in shippingMethods"
                 :key="method.code"
-                class="lcms-checkout__radio"
-                :class="{ 'lcms-checkout__radio--selected': form.shipping_method === method.code }"
+                class="lcms-checkout__tile"
+                :class="{ 'lcms-checkout__tile--selected': form.shipping_method === method.code }"
               >
                 <input
                   v-model="form.shipping_method"
                   type="radio"
                   :value="method.code"
                   name="shipping_method"
+                  class="lcms-checkout__tile-input"
                 />
-                <div class="lcms-checkout__radio-content">
-                  <div class="lcms-checkout__radio-name">{{ method.name }}</div>
-                  <div v-if="method.estimated_days" class="lcms-checkout__radio-desc">
+                <div class="lcms-checkout__tile-icon">
+                  <img v-if="method.logo_url" :src="method.logo_url" :alt="method.name" />
+                  <i v-else class="bx" :class="shippingIconClass(method)" />
+                </div>
+                <div class="lcms-checkout__tile-body">
+                  <div class="lcms-checkout__tile-name">{{ method.name }}</div>
+                  <div v-if="method.estimated_days" class="lcms-checkout__tile-desc">
                     {{ props.language === 'en' ? 'Delivery' : 'Dostawa' }}: {{ method.estimated_days }}
                   </div>
                 </div>
-                <div class="lcms-checkout__radio-price">{{ formatPrice(methodAmount(method), currency) }}</div>
+                <div class="lcms-checkout__tile-price">{{ formatPrice(methodAmount(method), currency) }}</div>
               </label>
             </div>
             <span v-if="errors.shipping_method" class="lcms-checkout__error">{{ errors.shipping_method }}</span>
@@ -885,6 +1230,20 @@ async function handleSubmit() {
                   ? `Found ${pickupPoints.length} pickup point${pickupPoints.length === 1 ? '' : 's'} near ${form.shipping_postal_code}`
                   : `Znaleziono ${pickupPoints.length} ${pickupPoints.length === 1 ? 'punkt' : 'punktów'} blisko ${form.shipping_postal_code}` }}
               </p>
+
+              <div v-if="isInpostPickup && inpostGeowidgetToken" class="lcms-checkout__pickup-map">
+                <inpost-geowidget
+                  ref="inpostWidgetRef"
+                  :token="inpostGeowidgetToken"
+                  :sandbox="inpostGeowidgetEnvironment === 'sandbox' ? 'true' : undefined"
+                  language="pl"
+                  config="parcelcollect"
+                  onpoint="onpointselect"
+                />
+              </div>
+              <div v-else-if="isInpostPickup" class="lcms-checkout__loading-text">
+                {{ props.language === 'en' ? 'Pickup point picker unavailable — InPost token missing in shop config' : 'Wybór punktu niedostępny — brak tokenu InPost w konfiguracji sklepu' }}
+              </div>
 
               <div v-if="pickupPoints.length > 5" class="lcms-checkout__field">
                 <input
@@ -970,21 +1329,26 @@ async function handleSubmit() {
           <section class="lcms-checkout__section">
             <h3 class="lcms-checkout__section-title">{{ t('paymentMethod') }}</h3>
 
-            <div class="lcms-checkout__radio-list">
+            <div class="lcms-checkout__tile-grid">
               <label
                 v-for="method in paymentMethods"
                 :key="method.code"
-                class="lcms-checkout__radio"
-                :class="{ 'lcms-checkout__radio--selected': form.payment_method === method.code }"
+                class="lcms-checkout__tile"
+                :class="{ 'lcms-checkout__tile--selected': form.payment_method === method.code }"
               >
                 <input
                   v-model="form.payment_method"
                   type="radio"
                   :value="method.code"
                   name="payment_method"
+                  class="lcms-checkout__tile-input"
                 />
-                <div class="lcms-checkout__radio-content">
-                  <div class="lcms-checkout__radio-name">{{ method.label }}</div>
+                <div class="lcms-checkout__tile-icon">
+                  <img v-if="method.logo_url" :src="method.logo_url" :alt="method.label" />
+                  <i v-else class="bx" :class="paymentIconClass(method.code)" />
+                </div>
+                <div class="lcms-checkout__tile-body">
+                  <div class="lcms-checkout__tile-name">{{ method.label }}</div>
                 </div>
               </label>
             </div>
@@ -1051,6 +1415,22 @@ async function handleSubmit() {
         </aside>
       </div>
     </form>
+
+    <LcmsAddressBookModal
+      v-model:is-open="isShippingBookOpen"
+      :language="props.language"
+      :selected-uuid="selectedSavedAddressUuid"
+      mode="pick"
+      @select="onShippingAddressPicked"
+    />
+
+    <LcmsAddressBookModal
+      v-model:is-open="isInvoiceBookOpen"
+      :language="props.language"
+      :selected-uuid="selectedInvoiceAddressUuid"
+      mode="pick"
+      @select="onInvoiceAddressPicked"
+    />
   </div>
 </template>
 
@@ -1353,11 +1733,321 @@ async function handleSubmit() {
   color: var(--lcms-color-primary, #3b82f6);
 }
 
+/* Tile grid for shipping / payment method pickers — styled to match the
+ * product-configurator radio pills (LcmsProductConfigurator.vue) but laid
+ * out in a 3-column responsive grid. */
+.lcms-checkout__tile-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+}
+
+@media (max-width: 640px) {
+  .lcms-checkout__tile-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 380px) {
+  .lcms-checkout__tile-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.lcms-checkout__tile {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.875rem 1rem;
+  border: 1px solid var(--lcms-color-border, #d1d5db);
+  background: transparent;
+  color: var(--lcms-color-text, #1f2937);
+  border-radius: 0.75rem;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.15s;
+}
+
+.lcms-checkout__tile:hover {
+  background: rgba(0, 0, 0, 0.02);
+  border-color: var(--lcms-color-primary, #3b82f6);
+}
+
+.lcms-checkout__tile--selected {
+  background: color-mix(in srgb, var(--lcms-color-primary, #3b82f6) 8%, transparent);
+  border-color: var(--lcms-color-primary, #3b82f6);
+  font-weight: 600;
+}
+
+.lcms-checkout__tile:focus-within {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--lcms-color-primary, #3b82f6) 22%, transparent);
+}
+
+/* Visually hide the native radio but keep it focusable for keyboard / a11y. */
+.lcms-checkout__tile-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  padding: 0;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.lcms-checkout__tile-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  flex-shrink: 0;
+  font-size: 1.25rem;
+  color: var(--lcms-color-primary, #3b82f6);
+}
+
+.lcms-checkout__tile-icon img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.lcms-checkout__tile-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.lcms-checkout__tile-name {
+  font-size: 0.9375rem;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lcms-checkout__tile-desc {
+  font-size: 0.75rem;
+  color: var(--lcms-color-muted, #6b7280);
+  font-weight: 400;
+}
+
+.lcms-checkout__tile-price {
+  font-weight: 600;
+  font-size: 0.9375rem;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
 .lcms-checkout__loading-text {
   text-align: center;
   padding: 1rem;
   color: var(--lcms-color-muted, #6b7280);
   font-size: 0.875rem;
+}
+
+/* Invoice toggle + collapsed form — custom-styled checkbox so it inherits
+ * the project palette instead of falling back to the browser default. */
+.lcms-checkout__invoice-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.625rem;
+  cursor: pointer;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  user-select: none;
+}
+
+.lcms-checkout__invoice-toggle input[type='checkbox'] {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
+}
+
+/* Visual box drawn next to the hidden native input. ::before is the box,
+ * ::after is the checkmark (shown only when :checked). */
+.lcms-checkout__invoice-toggle > span {
+  position: relative;
+  padding-left: 1.75rem;
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.25rem;
+}
+
+.lcms-checkout__invoice-toggle > span::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 1.25rem;
+  height: 1.25rem;
+  border: 1.5px solid var(--lcms-color-border, #d1d5db);
+  border-radius: 0.3125rem;
+  background: var(--lcms-color-background, #fff);
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.lcms-checkout__invoice-toggle:hover > span::before {
+  border-color: var(--lcms-color-primary, #3b82f6);
+}
+
+.lcms-checkout__invoice-toggle > span::after {
+  content: '';
+  position: absolute;
+  left: 0.4375rem;
+  top: 50%;
+  width: 0.4375rem;
+  height: 0.75rem;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: translateY(-65%) rotate(45deg);
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.lcms-checkout__invoice-toggle input[type='checkbox']:checked + span::before {
+  background: var(--lcms-color-primary, #3b82f6);
+  border-color: var(--lcms-color-primary, #3b82f6);
+}
+
+.lcms-checkout__invoice-toggle input[type='checkbox']:checked + span::after {
+  opacity: 1;
+}
+
+.lcms-checkout__invoice-toggle input[type='checkbox']:focus-visible + span::before {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--lcms-color-primary, #3b82f6) 22%, transparent);
+}
+
+.lcms-checkout__invoice-toggle--inner {
+  margin-top: 0.5rem;
+  font-weight: 400;
+  font-size: 0.875rem;
+  color: var(--lcms-color-text, #1f2937);
+}
+
+.lcms-checkout__invoice-body {
+  margin-top: 0.875rem;
+  padding: 1rem;
+  border: 1px solid var(--lcms-color-border, #e5e7eb);
+  border-radius: 0.75rem;
+  background: rgba(0, 0, 0, 0.015);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.lcms-checkout__hint {
+  font-size: 0.75rem;
+  color: var(--lcms-color-muted, #6b7280);
+}
+
+.lcms-checkout__section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.875rem;
+}
+
+.lcms-checkout__section-head .lcms-checkout__section-title {
+  margin: 0;
+}
+
+.lcms-checkout__addressbook-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4375rem;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  padding: 0.4375rem 0.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--lcms-color-border, #d1d5db);
+  background: transparent;
+  color: var(--lcms-color-text, #1f2937);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.lcms-checkout__addressbook-btn:hover {
+  background: color-mix(in srgb, var(--lcms-color-primary, #3b82f6) 6%, transparent);
+  border-color: var(--lcms-color-primary, #3b82f6);
+  color: var(--lcms-color-primary, #3b82f6);
+}
+
+.lcms-checkout__addressbook-btn .bx {
+  font-size: 1.125rem;
+  line-height: 1;
+}
+
+.lcms-checkout__invoice-addressbook {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 0.25rem;
+}
+
+.lcms-checkout__hint--warn {
+  color: #b45309;
+}
+
+.lcms-checkout__hint--ok {
+  color: #15803d;
+}
+
+.lcms-checkout__nip-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: stretch;
+}
+
+.lcms-checkout__nip-row > .lcms-checkout__input {
+  flex: 1;
+  min-width: 0;
+}
+
+.lcms-checkout__nip-btn {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+@media (max-width: 540px) {
+  .lcms-checkout__nip-row {
+    flex-direction: column;
+  }
+}
+
+.lcms-checkout__btn {
+  font: inherit;
+  cursor: pointer;
+  border: 1px solid transparent;
+  padding: 0.5rem 0.875rem;
+  border-radius: var(--lcms-border-radius, 0.5rem);
+  font-size: 0.875rem;
+  font-weight: 500;
+  background: transparent;
+  color: var(--lcms-color-text, #1f2937);
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.lcms-checkout__btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.lcms-checkout__btn--ghost {
+  border-color: var(--lcms-color-border, #d1d5db);
+}
+
+.lcms-checkout__btn--ghost:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--lcms-color-primary, #3b82f6) 8%, transparent);
+  border-color: var(--lcms-color-primary, #3b82f6);
+  color: var(--lcms-color-primary, #3b82f6);
 }
 
 /* Summary sidebar */
@@ -1552,6 +2242,22 @@ async function handleSubmit() {
   font-size: 0.8125rem;
   color: var(--lcms-color-muted, #6b7280);
   margin: 0 0 0.5rem;
+}
+
+.lcms-checkout__pickup-map {
+  width: 100%;
+  height: 460px;
+  border-radius: 0.75rem;
+  border: 1px solid var(--lcms-color-border, #e5e7eb);
+  overflow: hidden;
+  margin: 0.5rem 0 0.75rem;
+  background: #f3f4f6;
+}
+
+.lcms-checkout__pickup-map inpost-geowidget {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 
 .lcms-checkout__pickup-more {

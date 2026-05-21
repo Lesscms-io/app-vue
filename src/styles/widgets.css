@@ -3,9 +3,11 @@
  *
  * BEM-style CSS classes for all widgets.
  * These are minimal, "naked" styles meant to be customized.
+ *
+ * Note: boxicons is imported in renderer's nuxt.config.ts to avoid duplicate
+ * @font-face declarations. If you consume this stylesheet outside the renderer,
+ * import 'boxicons/css/boxicons.min.css' separately.
  */
-
-@import 'boxicons/css/boxicons.min.css';
 
 /* ==========================================================================
    Base Styles

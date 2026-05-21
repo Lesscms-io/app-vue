@@ -14,7 +14,9 @@ import { useToast } from '../../../composables/useToast'
 import { formatPrice } from '../../../utils/currency'
 import LcmsLoginForm from './LcmsLoginForm.vue'
 import LcmsRegisterForm from './LcmsRegisterForm.vue'
-import type { StorefrontOrder } from '../../../api/storefront'
+import type { StorefrontOrder, StorefrontAddress } from '../../../api/storefront'
+import { countriesFor } from '../../../data/countries'
+import LcmsCountrySelect from '../../common/LcmsCountrySelect.vue'
 import { defineAsyncComponent } from 'vue'
 import { useSlotEntries } from '../../../composables/usePluginExtensions'
 
@@ -139,6 +141,210 @@ const profileForm = ref({
   tax_id: '',
 })
 
+// --- Address book ---
+type AddressFormState = {
+  uuid: string | null
+  name: string
+  street: string
+  city: string
+  postal_code: string
+  country: string
+  phone: string
+  is_default: boolean
+}
+
+const countryOptions = computed(() => countriesFor(props.language))
+
+// --- Localised labels for status / method codes coming from BE ---
+// Values land in the API as machine codes (pending, inpost_courier, …);
+// the customer-facing screen should show them in the page language.
+const ORDER_STATUS_LABELS: Record<string, Record<string, string>> = {
+  pl: {
+    pending: 'Oczekuje',
+    processing: 'W realizacji',
+    shipped: 'Wysłane',
+    delivered: 'Dostarczone',
+    cancelled: 'Anulowane',
+  },
+  en: {
+    pending: 'Pending',
+    processing: 'Processing',
+    shipped: 'Shipped',
+    delivered: 'Delivered',
+    cancelled: 'Cancelled',
+  },
+}
+
+const PAYMENT_STATUS_LABELS: Record<string, Record<string, string>> = {
+  pl: {
+    pending: 'Oczekuje na płatność',
+    paid: 'Opłacone',
+    failed: 'Płatność nieudana',
+    refunded: 'Zwrot',
+  },
+  en: {
+    pending: 'Awaiting payment',
+    paid: 'Paid',
+    failed: 'Failed',
+    refunded: 'Refunded',
+  },
+}
+
+const PAYMENT_METHOD_LABELS: Record<string, string> = {
+  p24: 'Przelewy24',
+  przelewy24: 'Przelewy24',
+  stripe: 'Karta płatnicza',
+  cod: 'Płatność za pobraniem',
+  cash: 'Płatność za pobraniem',
+  bank_transfer: 'Przelew bankowy',
+}
+
+// Shipping codes get prettified — most carriers use `inpost_locker_s` style
+// machine codes. The label is the customer-facing name.
+const SHIPPING_METHOD_LABELS: Record<string, string> = {
+  inpost_locker: 'Paczkomat InPost',
+  inpost_locker_s: 'Paczkomat InPost (S)',
+  inpost_locker_m: 'Paczkomat InPost (M)',
+  inpost_locker_l: 'Paczkomat InPost (L)',
+  inpost_courier: 'Kurier InPost',
+  dpd_classic: 'Kurier DPD',
+  dpd_pickup: 'DPD Pickup',
+}
+
+function orderStatusLabel(status: string | null | undefined): string {
+  if (!status) return ''
+  const lang = props.language === 'en' ? 'en' : 'pl'
+  return ORDER_STATUS_LABELS[lang]?.[status] || status
+}
+
+function paymentStatusLabel(status: string | null | undefined): string {
+  if (!status) return ''
+  const lang = props.language === 'en' ? 'en' : 'pl'
+  return PAYMENT_STATUS_LABELS[lang]?.[status] || status
+}
+
+function paymentMethodLabel(code: string | null | undefined): string {
+  if (!code) return ''
+  return PAYMENT_METHOD_LABELS[code] || code
+}
+
+function shippingMethodLabel(code: string | null | undefined): string {
+  if (!code) return ''
+  return SHIPPING_METHOD_LABELS[code] || code
+}
+
+const emptyAddressForm = (): AddressFormState => ({
+  uuid: null,
+  name: '',
+  street: '',
+  city: '',
+  postal_code: '',
+  country: 'PL',
+  phone: '',
+  is_default: false,
+})
+
+const isAddressModalOpen = ref(false)
+const addressForm = ref<AddressFormState>(emptyAddressForm())
+const addressErrors = ref<Record<string, string>>({})
+const isSavingAddress = ref(false)
+const deletingAddressUuid = ref<string | null>(null)
+
+function openAddAddress() {
+  addressForm.value = emptyAddressForm()
+  addressErrors.value = {}
+  isAddressModalOpen.value = true
+}
+
+function openEditAddress(addr: StorefrontAddress) {
+  const isDefault = !!(customer.customer.value?.default_address
+    && (customer.customer.value.default_address.uuid === addr.uuid
+      || (!addr.uuid && customer.customer.value.default_address.street === addr.street)))
+  addressForm.value = {
+    uuid: addr.uuid ?? null,
+    name: addr.name ?? '',
+    street: addr.street ?? '',
+    city: addr.city ?? '',
+    postal_code: addr.postal_code ?? '',
+    country: addr.country ?? 'PL',
+    phone: addr.phone ?? '',
+    is_default: isDefault,
+  }
+  addressErrors.value = {}
+  isAddressModalOpen.value = true
+}
+
+function closeAddressModal() {
+  isAddressModalOpen.value = false
+}
+
+function validateAddressForm(): boolean {
+  const errs: Record<string, string> = {}
+  if (!addressForm.value.street.trim()) errs.street = t('requiredField')
+  if (!addressForm.value.city.trim()) errs.city = t('requiredField')
+  if (!addressForm.value.postal_code.trim()) errs.postal_code = t('requiredField')
+  else if (addressForm.value.country === 'PL' && !/^\d{2}-\d{3}$/.test(addressForm.value.postal_code)) {
+    errs.postal_code = t('invalidPostalCode')
+  }
+  addressErrors.value = errs
+  return Object.keys(errs).length === 0
+}
+
+async function saveAddress() {
+  if (!client.value) return
+  if (!validateAddressForm()) return
+  const { uuid, ...payload } = addressForm.value
+  isSavingAddress.value = true
+  try {
+    if (uuid) {
+      await client.value.updateAddress(uuid, payload as unknown as StorefrontAddress)
+    } else {
+      await client.value.addAddress(payload as unknown as StorefrontAddress)
+    }
+    await customer.refreshProfile()
+    toast.success(t('saved'))
+    isAddressModalOpen.value = false
+  } catch (err: any) {
+    toast.error(err?.message || t('saveError'))
+  } finally {
+    isSavingAddress.value = false
+  }
+}
+
+async function deleteAddress(addr: StorefrontAddress) {
+  if (!client.value || !addr.uuid) return
+  // eslint-disable-next-line no-alert
+  if (typeof window !== 'undefined' && !window.confirm(t('confirmDelete'))) return
+  deletingAddressUuid.value = addr.uuid
+  try {
+    await client.value.deleteAddress(addr.uuid)
+    await customer.refreshProfile()
+    toast.success(t('saved'))
+  } catch (err: any) {
+    toast.error(err?.message || t('saveError'))
+  } finally {
+    deletingAddressUuid.value = null
+  }
+}
+
+async function setDefaultAddress(addr: StorefrontAddress) {
+  if (!client.value || !addr.uuid) return
+  try {
+    await client.value.updateAddress(addr.uuid, { is_default: true } as unknown as Partial<StorefrontAddress>)
+    await customer.refreshProfile()
+    toast.success(t('saved'))
+  } catch (err: any) {
+    toast.error(err?.message || t('saveError'))
+  }
+}
+
+function isDefaultAddress(addr: StorefrontAddress): boolean {
+  const def = customer.customer.value?.default_address
+  if (!def) return false
+  if (addr.uuid && def.uuid) return addr.uuid === def.uuid
+  return def.street === addr.street && def.postal_code === addr.postal_code && def.city === addr.city
+}
+
 const t = (key: string) => {
   const lang = props.language || 'pl'
   const dict: Record<string, Record<string, string>> = {
@@ -175,6 +381,20 @@ const t = (key: string) => {
       loadingDetails: 'Ładowanie szczegółów...',
       noAddresses: 'Brak adresów',
       defaultAddress: 'Domyślny',
+      addAddress: 'Dodaj adres',
+      editAddress: 'Edytuj',
+      deleteAddress: 'Usuń',
+      setAsDefault: 'Ustaw jako domyślny',
+      addressLabel: 'Etykieta (np. „Dom", „Biuro")',
+      street: 'Ulica i numer',
+      postalCode: 'Kod pocztowy',
+      city: 'Miasto',
+      country: 'Kraj',
+      isDefault: 'Ustaw jako domyślny',
+      cancel: 'Anuluj',
+      confirmDelete: 'Usunąć ten adres?',
+      requiredField: 'To pole jest wymagane',
+      invalidPostalCode: 'Nieprawidłowy kod pocztowy (00-000)',
     },
     en: {
       profile: 'Profile',
@@ -209,6 +429,20 @@ const t = (key: string) => {
       loadingDetails: 'Loading details...',
       noAddresses: 'No addresses',
       defaultAddress: 'Default',
+      addAddress: 'Add address',
+      editAddress: 'Edit',
+      deleteAddress: 'Delete',
+      setAsDefault: 'Set as default',
+      addressLabel: 'Label (e.g. "Home", "Office")',
+      street: 'Street and number',
+      postalCode: 'Postal code',
+      city: 'City',
+      country: 'Country',
+      isDefault: 'Set as default',
+      cancel: 'Cancel',
+      confirmDelete: 'Delete this address?',
+      requiredField: 'This field is required',
+      invalidPostalCode: 'Invalid postal code',
     },
   }
   return dict[lang]?.[key] || dict.pl[key] || key
@@ -424,7 +658,7 @@ function formatDate(date: string) {
                   <div class="lcms-customer-account__order-date">{{ formatDate(order.created_at) }}</div>
                 </div>
                 <span class="lcms-customer-account__order-status" :class="`lcms-customer-account__order-status--${order.status}`">
-                  {{ order.status }}
+                  {{ orderStatusLabel(order.status) }}
                 </span>
                 <div class="lcms-customer-account__order-total">
                   {{ formatPrice(order.total, currency) }}
@@ -498,17 +732,17 @@ function formatDate(date: string) {
                 >
                   <div v-if="orderDetails[order.uuid].shipping_method">
                     <div class="lcms-customer-account__order-meta-label">{{ t('shippingMethod') }}</div>
-                    <div class="lcms-customer-account__order-meta-value">{{ orderDetails[order.uuid].shipping_method }}</div>
+                    <div class="lcms-customer-account__order-meta-value">{{ shippingMethodLabel(orderDetails[order.uuid].shipping_method) }}</div>
                   </div>
                   <div v-if="orderDetails[order.uuid].payment_method">
                     <div class="lcms-customer-account__order-meta-label">{{ t('paymentMethod') }}</div>
                     <div class="lcms-customer-account__order-meta-value">
-                      {{ orderDetails[order.uuid].payment_method }}
+                      {{ paymentMethodLabel(orderDetails[order.uuid].payment_method) }}
                       <span
                         v-if="orderDetails[order.uuid].payment_status"
                         class="lcms-customer-account__order-payment-status"
                       >
-                        ({{ orderDetails[order.uuid].payment_status }})
+                        ({{ paymentStatusLabel(orderDetails[order.uuid].payment_status) }})
                       </span>
                     </div>
                   </div>
@@ -558,6 +792,16 @@ function formatDate(date: string) {
 
       <!-- Addresses -->
       <div v-if="activeTab === 'addresses' && showAddresses" class="lcms-customer-account__panel">
+        <div class="lcms-customer-account__addresses-header">
+          <button
+            type="button"
+            class="lcms-customer-account__btn lcms-customer-account__btn--primary"
+            @click="openAddAddress"
+          >
+            + {{ t('addAddress') }}
+          </button>
+        </div>
+
         <div v-if="!customer.customer.value?.addresses?.length" class="lcms-customer-account__empty">
           {{ t('noAddresses') }}
         </div>
@@ -565,18 +809,137 @@ function formatDate(date: string) {
         <div v-else class="lcms-customer-account__addresses">
           <div
             v-for="(address, idx) in customer.customer.value.addresses"
-            :key="idx"
+            :key="address.uuid || idx"
             class="lcms-customer-account__address"
           >
-            <div>{{ address.street }}</div>
-            <div>{{ address.postal_code }} {{ address.city }}</div>
-            <div>{{ address.country }}</div>
-            <span
-              v-if="customer.customer.value.default_address?.street === address.street"
-              class="lcms-customer-account__default-badge"
-            >
-              {{ t('defaultAddress') }}
-            </span>
+            <div class="lcms-customer-account__address-body">
+              <div v-if="address.name" class="lcms-customer-account__address-name">{{ address.name }}</div>
+              <div>{{ address.street }}</div>
+              <div>{{ address.postal_code }} {{ address.city }}</div>
+              <div>{{ address.country }}</div>
+              <div v-if="address.phone" class="lcms-customer-account__address-phone">{{ address.phone }}</div>
+              <span
+                v-if="isDefaultAddress(address)"
+                class="lcms-customer-account__default-badge"
+              >
+                {{ t('defaultAddress') }}
+              </span>
+            </div>
+            <div class="lcms-customer-account__address-actions">
+              <button
+                v-if="!isDefaultAddress(address) && address.uuid"
+                type="button"
+                class="lcms-customer-account__btn lcms-customer-account__btn--ghost"
+                @click="setDefaultAddress(address)"
+              >
+                {{ t('setAsDefault') }}
+              </button>
+              <button
+                type="button"
+                class="lcms-customer-account__btn lcms-customer-account__btn--ghost"
+                @click="openEditAddress(address)"
+              >
+                {{ t('editAddress') }}
+              </button>
+              <button
+                type="button"
+                class="lcms-customer-account__btn lcms-customer-account__btn--danger"
+                :disabled="deletingAddressUuid === address.uuid"
+                @click="deleteAddress(address)"
+              >
+                {{ t('deleteAddress') }}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Add / edit modal -->
+        <div
+          v-if="isAddressModalOpen"
+          class="lcms-customer-account__modal-backdrop"
+          @click.self="closeAddressModal"
+        >
+          <div class="lcms-customer-account__modal">
+            <h3 class="lcms-customer-account__modal-title">
+              {{ addressForm.uuid ? t('editAddress') : t('addAddress') }}
+            </h3>
+
+            <div class="lcms-customer-account__field">
+              <label class="lcms-customer-account__label">{{ t('addressLabel') }}</label>
+              <input v-model="addressForm.name" type="text" class="lcms-customer-account__input" />
+            </div>
+
+            <div class="lcms-customer-account__field">
+              <label class="lcms-customer-account__label">{{ t('street') }} *</label>
+              <input
+                v-model="addressForm.street"
+                type="text"
+                class="lcms-customer-account__input"
+                :class="{ 'lcms-customer-account__input--error': addressErrors.street }"
+              />
+              <span v-if="addressErrors.street" class="lcms-customer-account__error">{{ addressErrors.street }}</span>
+            </div>
+
+            <div class="lcms-customer-account__row">
+              <div class="lcms-customer-account__field">
+                <label class="lcms-customer-account__label">{{ t('postalCode') }} *</label>
+                <input
+                  v-model="addressForm.postal_code"
+                  type="text"
+                  placeholder="00-000"
+                  class="lcms-customer-account__input"
+                  :class="{ 'lcms-customer-account__input--error': addressErrors.postal_code }"
+                />
+                <span v-if="addressErrors.postal_code" class="lcms-customer-account__error">{{ addressErrors.postal_code }}</span>
+              </div>
+              <div class="lcms-customer-account__field">
+                <label class="lcms-customer-account__label">{{ t('city') }} *</label>
+                <input
+                  v-model="addressForm.city"
+                  type="text"
+                  class="lcms-customer-account__input"
+                  :class="{ 'lcms-customer-account__input--error': addressErrors.city }"
+                />
+                <span v-if="addressErrors.city" class="lcms-customer-account__error">{{ addressErrors.city }}</span>
+              </div>
+            </div>
+
+            <div class="lcms-customer-account__field">
+              <label class="lcms-customer-account__label">{{ t('country') }} *</label>
+              <LcmsCountrySelect
+                v-model="addressForm.country"
+                :language="props.language"
+              />
+            </div>
+
+            <div class="lcms-customer-account__field">
+              <label class="lcms-customer-account__label">{{ t('phone') }}</label>
+              <input v-model="addressForm.phone" type="tel" class="lcms-customer-account__input" />
+            </div>
+
+            <label class="lcms-customer-account__checkbox">
+              <input v-model="addressForm.is_default" type="checkbox" />
+              <span>{{ t('isDefault') }}</span>
+            </label>
+
+            <div class="lcms-customer-account__modal-actions">
+              <button
+                type="button"
+                class="lcms-customer-account__btn lcms-customer-account__btn--ghost"
+                :disabled="isSavingAddress"
+                @click="closeAddressModal"
+              >
+                {{ t('cancel') }}
+              </button>
+              <button
+                type="button"
+                class="lcms-customer-account__btn lcms-customer-account__btn--primary"
+                :disabled="isSavingAddress"
+                @click="saveAddress"
+              >
+                {{ isSavingAddress ? t('saving') : t('save') }}
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -1018,6 +1381,172 @@ function formatDate(date: string) {
   border-radius: 9999px;
   font-weight: 600;
   text-transform: uppercase;
+}
+
+.lcms-customer-account__addresses-header {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 1rem;
+}
+
+.lcms-customer-account__address-body {
+  position: relative;
+}
+
+.lcms-customer-account__address-name {
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.lcms-customer-account__address-phone {
+  color: var(--lcms-color-muted, #6b7280);
+  font-size: 0.8125rem;
+  margin-top: 0.25rem;
+}
+
+.lcms-customer-account__address-actions {
+  display: flex;
+  gap: 0.375rem;
+  margin-top: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.lcms-customer-account__btn {
+  font: inherit;
+  cursor: pointer;
+  border: 1px solid transparent;
+  padding: 0.4375rem 0.875rem;
+  border-radius: var(--lcms-border-radius, 0.375rem);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  background: transparent;
+  color: var(--lcms-color-text, #1f2937);
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.lcms-customer-account__btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.lcms-customer-account__btn--primary {
+  background: var(--lcms-color-primary, #3b82f6);
+  color: var(--lcms-color-white, #fff);
+}
+
+.lcms-customer-account__btn--primary:hover:not(:disabled) {
+  filter: brightness(1.05);
+}
+
+.lcms-customer-account__btn--ghost {
+  border-color: var(--lcms-color-border, #e5e7eb);
+}
+
+.lcms-customer-account__btn--ghost:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.03);
+}
+
+.lcms-customer-account__btn--danger {
+  border-color: rgba(220, 38, 38, 0.4);
+  color: rgb(220, 38, 38);
+}
+
+.lcms-customer-account__btn--danger:hover:not(:disabled) {
+  background: rgba(220, 38, 38, 0.06);
+}
+
+/* Modal */
+.lcms-customer-account__modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1050;
+  padding: 1rem;
+}
+
+.lcms-customer-account__modal {
+  background: var(--lcms-color-background, #fff);
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  width: 100%;
+  max-width: 480px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.lcms-customer-account__modal-title {
+  margin: 0 0 0.5rem;
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.lcms-customer-account__row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.lcms-customer-account__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.lcms-customer-account__label {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--lcms-color-muted, #6b7280);
+}
+
+.lcms-customer-account__input {
+  font: inherit;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--lcms-color-border, #d1d5db);
+  border-radius: var(--lcms-border-radius, 0.375rem);
+  background: var(--lcms-color-background, #fff);
+  color: inherit;
+}
+
+.lcms-customer-account__input:focus {
+  outline: none;
+  border-color: var(--lcms-color-primary, #3b82f6);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--lcms-color-primary, #3b82f6) 18%, transparent);
+}
+
+.lcms-customer-account__input--error {
+  border-color: rgb(220, 38, 38);
+}
+
+.lcms-customer-account__error {
+  color: rgb(220, 38, 38);
+  font-size: 0.75rem;
+}
+
+.lcms-customer-account__checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.lcms-customer-account__checkbox input[type='checkbox'] {
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--lcms-color-primary, #3b82f6);
+}
+
+.lcms-customer-account__modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
 }
 
 </style>

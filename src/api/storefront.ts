@@ -267,6 +267,8 @@ export interface StorefrontShippingMethod {
   estimated_days?: string | number | null
   requires_pickup_point?: boolean
   shipx_service?: string | null
+  logo_url?: string | null
+  geowidget_config?: { token: string; environment: 'sandbox' | 'production' } | null
   // Legacy fields kept so older mocks/payloads don't crash; prefer `price`.
   cost?: number
   description?: string
@@ -440,7 +442,7 @@ export interface StorefrontClient {
 
   // Payments
   initPayment(orderUuid: string, method: string, returnUrl?: string): Promise<{ data: PaymentInitResponse }>
-  getPaymentMethods(): Promise<{ data: Array<{ code: string; name: string; sandbox?: boolean | null }> }>
+  getPaymentMethods(): Promise<{ data: Array<{ code: string; name: string; sandbox?: boolean | null; logo_url?: string | null }> }>
   getPaymentStatus(paymentId: string): Promise<{ data: { payment_id: string; status: string } }>
 
   // Customer token management
