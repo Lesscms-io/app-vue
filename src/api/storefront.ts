@@ -424,6 +424,13 @@ export interface StorefrontClient {
   getOrder(uuid: string): Promise<{ data: StorefrontOrder }>
   getOrderByNumber(orderNumber: string): Promise<{ data: StorefrontOrder }>
   getOrderTracking(uuid: string): Promise<{ data: any }>
+  reorderOrder(orderUuid: string): Promise<{
+    data: {
+      cart: StorefrontCart
+      added: Array<{ order_item_uuid: string; cart_item_uuid: string; product_name: string; sku: string | null; quantity: number }>
+      skipped: Array<{ order_item_uuid: string; product_name: string; sku: string | null; reason: string }>
+    }
+  }>
 
   // Shipping
   getShippingMethods(): Promise<{ data: StorefrontShippingMethod[] }>
@@ -441,9 +448,10 @@ export interface StorefrontClient {
   }): Promise<{ data: { postal_code: string; carrier: string; points: StorefrontPickupPoint[] } }>
 
   // Payments
-  initPayment(orderUuid: string, method: string, returnUrl?: string): Promise<{ data: PaymentInitResponse }>
+  initPayment(orderUuid: string, method: string, returnUrl?: string, blikCode?: string): Promise<{ data: PaymentInitResponse }>
   getPaymentMethods(): Promise<{ data: Array<{ code: string; name: string; sandbox?: boolean | null; logo_url?: string | null }> }>
-  getPaymentStatus(paymentId: string): Promise<{ data: { payment_id: string; status: string } }>
+  getPaymentStatus(paymentId: string): Promise<{ data: { payment_id: string; status: string; order_uuid?: string } }>
+  chargeBlik(paymentId: string, blikCode: string): Promise<{ data: { payment_uuid: string; status: string } }>
 
   // Customer token management
   setCustomerToken(token: string | null): void
@@ -650,6 +658,8 @@ export function createStorefrontClient(options: StorefrontClientOptions): Storef
     getOrder: (uuid) => request('GET', `/orders/${uuid}`),
     getOrderByNumber: (orderNumber) => request('GET', `/orders/by-number/${orderNumber}`),
     getOrderTracking: (uuid) => request('GET', `/orders/${uuid}/tracking`),
+    reorderOrder: (orderUuid) =>
+      request('POST', '/cart/reorder', { body: { order_uuid: orderUuid }, requireAuth: true }),
 
     // Shipping
     getShippingMethods: () => request('GET', '/shipping/methods'),
@@ -657,10 +667,19 @@ export function createStorefrontClient(options: StorefrontClientOptions): Storef
     getPickupPoints: (params) => request('GET', '/shipping/points', { params }),
 
     // Payments
-    initPayment: (orderUuid, method, returnUrl) =>
-      request('POST', '/payments/init', { body: { order_uuid: orderUuid, method, return_url: returnUrl } }),
+    initPayment: (orderUuid, method, returnUrl, blikCode) =>
+      request('POST', '/payments/init', {
+        body: {
+          order_uuid: orderUuid,
+          method,
+          return_url: returnUrl,
+          ...(blikCode ? { blik_code: blikCode } : {}),
+        },
+      }),
     getPaymentMethods: () => request('GET', '/payments/methods'),
     getPaymentStatus: (paymentId) => request('GET', `/payments/${paymentId}/status`),
+    chargeBlik: (paymentId, blikCode) =>
+      request('POST', `/payments/${paymentId}/blik-charge`, { body: { blik_code: blikCode } }),
 
     // Customer token management
     setCustomerToken(token: string | null) {

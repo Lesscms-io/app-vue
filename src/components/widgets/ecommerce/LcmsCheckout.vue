@@ -103,9 +103,18 @@ const t = (key: string) => {
       orderError: 'Nie udało się złożyć zamówienia',
       orderSuccess: 'Zamówienie zostało złożone',
       paymentP24: 'Przelewy24',
+      paymentBlik: 'BLIK',
       paymentStripe: 'Karta płatnicza',
       paymentCod: 'Płatność za pobraniem',
       paymentBankTransfer: 'Przelew bankowy',
+      blikCode: 'Kod BLIK',
+      blikCodeHint: 'Wpisz 6-cyfrowy kod z aplikacji bankowej',
+      blikCodeInvalid: 'Kod BLIK musi mieć 6 cyfr',
+      blikWaiting: 'Sprawdź aplikację bankową i potwierdź płatność',
+      blikWaitingHint: 'Czekamy na potwierdzenie z banku...',
+      blikTimedOut: 'Kod BLIK wygasł. Wygeneruj nowy w aplikacji i spróbuj ponownie.',
+      blikFailed: 'Płatność BLIK nie powiodła się',
+      blikRetry: 'Spróbuj ponownie',
     },
     en: {
       contactInfo: 'Contact information',
@@ -158,9 +167,18 @@ const t = (key: string) => {
       orderError: 'Failed to place order',
       orderSuccess: 'Order placed successfully',
       paymentP24: 'Przelewy24',
+      paymentBlik: 'BLIK',
       paymentStripe: 'Credit/Debit Card',
       paymentCod: 'Cash on Delivery',
       paymentBankTransfer: 'Bank Transfer',
+      blikCode: 'BLIK code',
+      blikCodeHint: 'Enter the 6-digit code from your banking app',
+      blikCodeInvalid: 'BLIK code must be 6 digits',
+      blikWaiting: 'Open your banking app and confirm the payment',
+      blikWaitingHint: 'Waiting for confirmation from the bank...',
+      blikTimedOut: 'BLIK code expired. Generate a new one and try again.',
+      blikFailed: 'BLIK payment failed',
+      blikRetry: 'Try again',
     },
   }
   return dict[lang]?.[key] || dict.pl[key] || key
@@ -185,6 +203,7 @@ const form = reactive({
   billing_country: 'PL',
   shipping_method: '',
   payment_method: '',
+  blik_code: '',
   notes: '',
 })
 
@@ -192,6 +211,13 @@ const errors = reactive<Record<string, string>>({})
 const isSubmitting = ref(false)
 const shippingMethods = ref<StorefrontShippingMethod[]>([])
 const isLoadingShipping = ref(false)
+
+// BLIK direct flow — once initPayment fires, the customer has ~60s to confirm
+// the push in their banking app. We poll status until it flips or we time out.
+const blikWaiting = ref(false)
+const blikTimedOut = ref(false)
+const blikPaymentUuid = ref<string | null>(null)
+const blikOrderNumber = ref<string | null>(null)
 
 // Account flow — the customer needs to decide up front how they want to pay:
 // as an existing customer (login), a new account (register), or as a guest.
@@ -280,6 +306,7 @@ const paymentLabelFor = (code: string, fallback: string) => {
     bank_transfer: 'paymentBankTransfer',
     p24: 'paymentP24',
     przelewy24: 'paymentP24',
+    blik: 'paymentBlik',
     stripe: 'paymentStripe',
   } as Record<string, string>)[code]
   return key ? t(key) : fallback
@@ -750,6 +777,9 @@ function validate(): boolean {
 
   if (!form.shipping_method) errors.shipping_method = t('requiredField')
   if (!form.payment_method) errors.payment_method = t('requiredField')
+  if (form.payment_method === 'blik' && !/^\d{6}$/.test(form.blik_code || '')) {
+    errors.blik_code = t('blikCodeInvalid')
+  }
 
   if (pickupPointRequired.value && !selectedPickupPoint.value) {
     errors.pickup_point = t('requiredField')
@@ -844,8 +874,19 @@ async function handleSubmit() {
         const paymentResponse = await client.value.initPayment(
           order.uuid,
           form.payment_method,
-          `${window.location.origin}${successRoute.value}?order=${order.order_number}`
+          `${window.location.origin}${successRoute.value}?order=${order.order_number}`,
+          form.payment_method === 'blik' ? form.blik_code : undefined,
         )
+
+        // BLIK direct: stay on this page and poll until the customer confirms
+        // the push in their banking app (or it times out).
+        if (form.payment_method === 'blik' && paymentResponse.data.payment_uuid) {
+          blikPaymentUuid.value = paymentResponse.data.payment_uuid
+          blikOrderNumber.value = order.order_number
+          await pollBlikStatus(paymentResponse.data.payment_uuid, order.order_number)
+          return
+        }
+
         if (paymentResponse.data.payment_url) {
           window.location.href = paymentResponse.data.payment_url
           return
@@ -861,6 +902,59 @@ async function handleSubmit() {
     toast.error(err.message || t('orderError'))
   } finally {
     isSubmitting.value = false
+  }
+}
+
+/**
+ * Poll the storefront payment-status endpoint every 3s. P24 BLIK gives the
+ * customer ~60s in their banking app; we wait up to 90s, then surface a retry.
+ */
+async function pollBlikStatus(paymentUuid: string, orderNumber: string) {
+  if (!client.value) return
+  blikWaiting.value = true
+  blikTimedOut.value = false
+  const start = Date.now()
+  const timeoutMs = 90_000
+  const intervalMs = 3_000
+
+  while (Date.now() - start < timeoutMs) {
+    await new Promise((r) => setTimeout(r, intervalMs))
+    try {
+      const s = await client.value.getPaymentStatus(paymentUuid)
+      const status = s.data.status
+      if (status === 'completed') {
+        blikWaiting.value = false
+        window.location.href = `${successRoute.value}?order=${orderNumber}`
+        return
+      }
+      if (status === 'failed' || status === 'cancelled') {
+        blikWaiting.value = false
+        toast.error(t('blikFailed'))
+        return
+      }
+    } catch (err) {
+      // Transient — keep polling.
+    }
+  }
+
+  blikWaiting.value = false
+  blikTimedOut.value = true
+}
+
+async function retryBlik() {
+  if (!blikPaymentUuid.value || !client.value) return
+  if (!/^\d{6}$/.test(form.blik_code || '')) {
+    errors.blik_code = t('blikCodeInvalid')
+    return
+  }
+  errors.blik_code = ''
+  try {
+    await client.value.chargeBlik(blikPaymentUuid.value, form.blik_code)
+    if (blikOrderNumber.value) {
+      await pollBlikStatus(blikPaymentUuid.value, blikOrderNumber.value)
+    }
+  } catch (err: any) {
+    toast.error(err.message || t('blikFailed'))
   }
 }
 </script>
@@ -1352,6 +1446,24 @@ async function handleSubmit() {
                 </div>
               </label>
             </div>
+
+            <!-- BLIK 6-digit code — direct flow without redirect -->
+            <div v-if="form.payment_method === 'blik'" class="lcms-checkout__blik-input">
+              <label class="lcms-checkout__label" for="lcms-blik-code">{{ t('blikCode') }}</label>
+              <input
+                id="lcms-blik-code"
+                v-model="form.blik_code"
+                name="blik_code"
+                class="lcms-checkout__input lcms-checkout__input--blik"
+                inputmode="numeric"
+                pattern="\d{6}"
+                maxlength="6"
+                autocomplete="off"
+                :placeholder="'••••••'"
+              />
+              <span class="lcms-checkout__hint">{{ t('blikCodeHint') }}</span>
+              <span v-if="errors.blik_code" class="lcms-checkout__error">{{ errors.blik_code }}</span>
+            </div>
           </section>
 
           <!-- Notes -->
@@ -1431,6 +1543,33 @@ async function handleSubmit() {
       mode="pick"
       @select="onInvoiceAddressPicked"
     />
+
+    <!-- BLIK confirmation overlay: blocks the page while we wait for the
+         banking-app push. Falls back to a retry input when the code expires. -->
+    <div v-if="blikWaiting || blikTimedOut" class="lcms-checkout__blik-overlay">
+      <div class="lcms-checkout__blik-modal">
+        <template v-if="blikWaiting">
+          <div class="lcms-checkout__spinner" aria-hidden="true" />
+          <h3>{{ t('blikWaiting') }}</h3>
+          <p class="lcms-checkout__hint">{{ t('blikWaitingHint') }}</p>
+        </template>
+        <template v-else>
+          <h3>{{ t('blikTimedOut') }}</h3>
+          <input
+            v-model="form.blik_code"
+            class="lcms-checkout__input lcms-checkout__input--blik"
+            inputmode="numeric"
+            pattern="\d{6}"
+            maxlength="6"
+            :placeholder="'••••••'"
+          />
+          <span v-if="errors.blik_code" class="lcms-checkout__error">{{ errors.blik_code }}</span>
+          <button type="button" class="lcms-checkout__btn lcms-checkout__btn--primary" @click="retryBlik">
+            {{ t('blikRetry') }}
+          </button>
+        </template>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -1662,6 +1801,44 @@ async function handleSubmit() {
 
 .lcms-checkout__input::placeholder {
   color: var(--lcms-input-placeholder-color, var(--lcms-color-muted, #9ca3af));
+}
+
+.lcms-checkout__input--blik {
+  letter-spacing: 0.4em;
+  font-family: var(--lcms-font-monospace, monospace);
+  font-size: 1.4rem;
+  text-align: center;
+  max-width: 240px;
+}
+
+.lcms-checkout__blik-input {
+  margin-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.lcms-checkout__blik-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.lcms-checkout__blik-modal {
+  background: var(--lcms-color-background, #fff);
+  border-radius: var(--lcms-card-border-radius, 0.5rem);
+  padding: 2rem;
+  text-align: center;
+  max-width: 380px;
+  width: calc(100% - 2rem);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  align-items: center;
 }
 
 .lcms-checkout__input--error {

@@ -10,6 +10,7 @@ import { computed, ref, onMounted, watch, inject, type Ref } from 'vue'
 import { useLanguage } from '../../../composables/useLanguage'
 import { useCustomer } from '../../../composables/useCustomer'
 import { useStorefront } from '../../../composables/useStorefront'
+import { useCart } from '../../../composables/useCart'
 import { useToast } from '../../../composables/useToast'
 import { formatPrice } from '../../../utils/currency'
 import LcmsLoginForm from './LcmsLoginForm.vue'
@@ -45,6 +46,10 @@ const showOrders = computed(() => config.value.show_orders !== false)
 const showAddresses = computed(() => config.value.show_addresses !== false)
 const showProfile = computed(() => config.value.show_profile !== false)
 const showLogout = computed(() => config.value.show_logout !== false)
+const showReorder = computed(() => config.value.show_reorder !== false)
+
+const cart = useCart()
+const reorderingOrderUuid = ref<string | null>(null)
 
 const currency = computed(() => projectConfig?.value?.commerce?.currency || 'PLN')
 
@@ -106,6 +111,35 @@ async function toggleOrderExpand(order: StorefrontOrder) {
     } finally {
       loadingOrderUuid.value = null
     }
+  }
+}
+
+async function handleReorder(orderUuid: string) {
+  if (reorderingOrderUuid.value || !client.value) return
+  reorderingOrderUuid.value = orderUuid
+  try {
+    const response = await client.value.reorderOrder(orderUuid)
+    const added = response.data.added ?? []
+    const skipped = response.data.skipped ?? []
+
+    await cart.loadCart()
+
+    if (added.length > 0) {
+      toast.success(t('reorderSuccess').replace('{added}', String(added.length)))
+    }
+    if (skipped.length > 0) {
+      const names = skipped
+        .map((s) => `${s.product_name || s.sku || '?'} (${t('reason_' + s.reason) || s.reason})`)
+        .join(', ')
+      toast.warning(t('reorderSkipped').replace('{names}', names), 6000)
+    }
+    if (added.length === 0 && skipped.length === 0) {
+      toast.warning(t('reorderEmpty'))
+    }
+  } catch (err: any) {
+    toast.error(err?.message || t('reorderFailed'))
+  } finally {
+    reorderingOrderUuid.value = null
   }
 }
 
@@ -193,6 +227,7 @@ const PAYMENT_STATUS_LABELS: Record<string, Record<string, string>> = {
 const PAYMENT_METHOD_LABELS: Record<string, string> = {
   p24: 'Przelewy24',
   przelewy24: 'Przelewy24',
+  blik: 'BLIK',
   stripe: 'Karta płatnicza',
   cod: 'Płatność za pobraniem',
   cash: 'Płatność za pobraniem',
@@ -395,6 +430,15 @@ const t = (key: string) => {
       confirmDelete: 'Usunąć ten adres?',
       requiredField: 'To pole jest wymagane',
       invalidPostalCode: 'Nieprawidłowy kod pocztowy (00-000)',
+      reorder: 'Zamów ponownie',
+      reordering: 'Dodaję do koszyka...',
+      reorderSuccess: 'Dodano {added} pozycji do koszyka',
+      reorderSkipped: 'Pominięto: {names}',
+      reorderEmpty: 'Brak pozycji do dodania',
+      reorderFailed: 'Nie udało się zamówić ponownie',
+      reason_product_deleted: 'produkt niedostępny',
+      reason_out_of_stock: 'brak w magazynie',
+      reason_invalid: 'nieprawidłowa pozycja',
     },
     en: {
       profile: 'Profile',
@@ -443,6 +487,15 @@ const t = (key: string) => {
       confirmDelete: 'Delete this address?',
       requiredField: 'This field is required',
       invalidPostalCode: 'Invalid postal code',
+      reorder: 'Reorder',
+      reordering: 'Adding to cart...',
+      reorderSuccess: 'Added {added} items to cart',
+      reorderSkipped: 'Skipped: {names}',
+      reorderEmpty: 'No items to add',
+      reorderFailed: 'Reorder failed',
+      reason_product_deleted: 'product unavailable',
+      reason_out_of_stock: 'out of stock',
+      reason_invalid: 'invalid item',
     },
   }
   return dict[lang]?.[key] || dict.pl[key] || key
@@ -703,6 +756,18 @@ function formatDate(date: string) {
                       </div>
                     </div>
                   </div>
+                </div>
+
+                <!-- Reorder action -->
+                <div v-if="showReorder" class="lcms-customer-account__order-actions">
+                  <button
+                    type="button"
+                    class="lcms-customer-account__reorder-btn"
+                    :disabled="reorderingOrderUuid === order.uuid"
+                    @click.stop="handleReorder(order.uuid)"
+                  >
+                    {{ reorderingOrderUuid === order.uuid ? t('reordering') : t('reorder') }}
+                  </button>
                 </div>
 
                 <!-- Totals breakdown -->
@@ -1259,6 +1324,34 @@ function formatDate(date: string) {
 .lcms-customer-account__order-item-subtotal {
   font-weight: 600;
   white-space: nowrap;
+}
+
+.lcms-customer-account__order-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin: 0.75rem 0;
+}
+
+.lcms-customer-account__reorder-btn {
+  padding: 0.5rem 1.1rem;
+  border-radius: var(--lcms-btn-border-radius, 0.375rem);
+  background: var(--lcms-color-primary, #3b82f6);
+  color: var(--lcms-color-white, #fff);
+  font-weight: var(--lcms-btn-font-weight, 600);
+  font-size: 0.9rem;
+  border: none;
+  cursor: pointer;
+  font-family: var(--lcms-font-button, var(--lcms-font-body));
+  transition: opacity 0.15s ease;
+}
+
+.lcms-customer-account__reorder-btn:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.lcms-customer-account__reorder-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .lcms-customer-account__order-totals {
