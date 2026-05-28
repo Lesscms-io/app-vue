@@ -31,6 +31,7 @@ import LcmsTable from './text/LcmsTable.vue'
 import LcmsImage from './media/LcmsImage.vue'
 import LcmsGallery from './media/LcmsGallery.vue'
 import LcmsVideo from './media/LcmsVideo.vue'
+import LcmsAudio from './media/LcmsAudio.vue'
 import LcmsPdfViewer from './media/LcmsPdfViewer.vue'
 import LcmsGoogleMaps from './media/LcmsGoogleMaps.vue'
 import LcmsOpenStreetMap from './media/LcmsOpenStreetMap.vue'
@@ -130,6 +131,7 @@ export const widgetComponents: Record<string, Component> = {
   image: LcmsImage,
   gallery: LcmsGallery,
   video: LcmsVideo,
+  audio: LcmsAudio,
   'pdf-viewer': LcmsPdfViewer,
   'google-maps': LcmsGoogleMaps,
   openstreetmap: LcmsOpenStreetMap,
@@ -247,6 +249,7 @@ export {
   LcmsImage,
   LcmsGallery,
   LcmsVideo,
+  LcmsAudio,
   LcmsPdfViewer,
   LcmsGoogleMaps,
   LcmsOpenStreetMap,

@@ -173,6 +173,18 @@ export interface VideoWidgetData extends BaseWidgetData {
   muted?: boolean
 }
 
+export interface AudioTrack {
+  url: string
+  title?: string
+}
+
+export interface AudioWidgetData extends BaseWidgetData {
+  tracks: (string | AudioTrack)[]
+  show_playlist?: boolean
+  autoplay?: boolean
+  loop?: boolean
+}
+
 export interface ImageCarouselWidgetData extends BaseWidgetData {
   images: (string | GalleryImage)[]
   autoplay?: boolean
@@ -454,6 +466,7 @@ export type WidgetData =
   | ImageWidgetData
   | GalleryWidgetData
   | VideoWidgetData
+  | AudioWidgetData
   | ImageCarouselWidgetData
   | HeroWidgetData
   | ToggleWidgetData
