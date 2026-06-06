@@ -365,6 +365,32 @@ function getImage(entry: CollectionEntry): string {
   return single
 }
 
+// The image proxy passes video bytes through unchanged, so a card whose
+// "image" is an mp4 must use a <video> (preload=metadata → first frame only)
+// instead of a background-image, which would eagerly download the whole file
+// on every tile. Video plays on hover and pauses on leave.
+function isVideoUrl(url: string): boolean {
+  return /\.(mp4|webm|mov|m4v|ogv)(\?|$)/i.test(url)
+}
+
+function isVideoEntry(entry: CollectionEntry): boolean {
+  const url = getImage(entry)
+  return !!url && isVideoUrl(url)
+}
+
+function onCardEnter(event: MouseEvent) {
+  const video = (event.currentTarget as HTMLElement)?.querySelector<HTMLVideoElement>('video.lcms-collection-grid__bg-video')
+  video?.play().catch(() => { /* autoplay/gesture policies — ignore */ })
+}
+
+function onCardLeave(event: MouseEvent) {
+  const video = (event.currentTarget as HTMLElement)?.querySelector<HTMLVideoElement>('video.lcms-collection-grid__bg-video')
+  if (video) {
+    video.pause()
+    video.currentTime = 0
+  }
+}
+
 function getDate(entry: CollectionEntry): string {
   const dateValue = dateField.value ? getFieldValue(entry, dateField.value) : entry.metadata?.created_at
   if (!dateValue) return ''
@@ -508,9 +534,20 @@ const responsiveCss = computed(() => {
         class="lcms-collection-grid__item"
         :style="{
           ...cardStyle,
-          backgroundImage: showImage && imageField && getImage(entry) ? `url('${contentImage(getImage(entry)).src}')` : undefined,
+          backgroundImage: showImage && imageField && getImage(entry) && !isVideoEntry(entry) ? `url('${contentImage(getImage(entry)).src}')` : undefined,
         }"
+        @mouseenter="onCardEnter"
+        @mouseleave="onCardLeave"
       >
+        <video
+          v-if="showImage && imageField && isVideoEntry(entry)"
+          class="lcms-collection-grid__bg-video"
+          :src="getImage(entry)"
+          preload="metadata"
+          muted
+          loop
+          playsinline
+        />
         <div class="lcms-collection-grid__overlay-gradient" />
         <div class="lcms-collection-grid__content" :style="{ gap: contentGapPx }">
           <template v-for="field in fieldOrder" :key="field">

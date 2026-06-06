@@ -1840,6 +1840,15 @@
   flex-direction: column;
   justify-content: flex-end;
 }
+.lcms-collection-grid--style-overlay .lcms-collection-grid__bg-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0;
+  pointer-events: none;
+}
 .lcms-collection-grid--style-overlay .lcms-collection-grid__overlay-gradient {
   position: absolute;
   inset: 0;

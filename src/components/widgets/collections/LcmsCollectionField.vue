@@ -222,15 +222,31 @@ function isGalleryType(type: string): boolean {
   return type === 'gallery'
 }
 
-// Get gallery images from value
-const galleryImages = computed(() => {
+// Detect video files by extension (the image proxy passes video bytes
+// through unchanged, so an mp4 in an <img> would force a full multi-MB
+// download — we render those as <video> with a poster frame instead).
+function isVideoUrl(url: string): boolean {
+  return /\.(mp4|webm|mov|m4v|ogv)(\?|$)/i.test(url)
+}
+
+// Get gallery items from value — keeps the media type so videos can render
+// as a first-frame <video> tile rather than a download-everything <img>.
+const galleryItems = computed(() => {
   const val = fieldValue.value
   if (!val || !Array.isArray(val)) return []
   return val.map((item: any) => {
-    if (typeof item === 'string') return item
-    if (typeof item === 'object' && item.url) return item.url
-    return null
-  }).filter(Boolean)
+    let url = ''
+    let poster = ''
+    if (typeof item === 'string') {
+      url = item
+    } else if (item && typeof item === 'object' && item.url) {
+      url = item.url
+      poster = item.poster || ''
+    }
+    if (!url) return null
+    const type = (item?.type === 'video' || isVideoUrl(url)) ? 'video' : 'image'
+    return { url, type, poster }
+  }).filter(Boolean) as Array<{ url: string; type: string; poster: string }>
 })
 
 // Format value based on field type
@@ -245,7 +261,7 @@ const formattedValue = computed(() => {
     case 'image':
       return typeof val === 'object' && val.url ? val.url : val
     case 'gallery':
-      return '' // Handled by galleryImages computed
+      return '' // Handled by galleryItems computed
     case 'boolean':
       return val ? 'Yes' : 'No'
     case 'select':
@@ -365,11 +381,11 @@ function closeLightbox() {
 }
 
 function lightboxNext() {
-  lightboxIndex.value = (lightboxIndex.value + 1) % galleryImages.value.length
+  lightboxIndex.value = (lightboxIndex.value + 1) % galleryItems.value.length
 }
 
 function lightboxPrev() {
-  lightboxIndex.value = (lightboxIndex.value - 1 + galleryImages.value.length) % galleryImages.value.length
+  lightboxIndex.value = (lightboxIndex.value - 1 + galleryItems.value.length) % galleryItems.value.length
 }
 
 function onLightboxKeydown(e: KeyboardEvent) {
@@ -409,7 +425,7 @@ onUnmounted(() => {
   document.body.style.overflow = ''
 })
 
-const lightboxImage = computed(() => galleryImages.value[lightboxIndex.value] || null)
+const lightboxImage = computed(() => galleryItems.value[lightboxIndex.value] || null)
 </script>
 
 <template>
@@ -472,22 +488,42 @@ const lightboxImage = computed(() => galleryImages.value[lightboxIndex.value] ||
 
       <!-- Gallery display -->
       <div
-        v-else-if="isGalleryType(fieldType) && galleryImages.length"
+        v-else-if="isGalleryType(fieldType) && galleryItems.length"
         class="lcms-collection-field__gallery"
       >
-        <img
-          v-for="(img, idx) in galleryImages"
-          :key="idx"
-          :src="contentImage(img).src"
-          :srcset="contentImage(img).srcset"
-          :sizes="contentImage(img).sizes"
-          :alt="`${label || fieldCode} ${idx + 1}`"
-          loading="lazy"
-          decoding="async"
-          class="lcms-collection-field__gallery-image"
-          style="cursor: pointer"
-          @click="openLightbox(idx)"
-        />
+        <template v-for="(item, idx) in galleryItems" :key="idx">
+          <!-- Video: first frame only (preload=metadata), plays in lightbox -->
+          <div
+            v-if="item.type === 'video'"
+            class="lcms-collection-field__gallery-video"
+            style="cursor: pointer"
+            @click="openLightbox(idx)"
+          >
+            <video
+              :src="item.url"
+              :poster="item.poster || undefined"
+              preload="metadata"
+              muted
+              playsinline
+              class="lcms-collection-field__gallery-image"
+            />
+            <span class="lcms-collection-field__gallery-play" aria-hidden="true">
+              <i class="fa-solid fa-play" />
+            </span>
+          </div>
+          <img
+            v-else
+            :src="contentImage(item.url).src"
+            :srcset="contentImage(item.url).srcset"
+            :sizes="contentImage(item.url).sizes"
+            :alt="`${label || fieldCode} ${idx + 1}`"
+            loading="lazy"
+            decoding="async"
+            class="lcms-collection-field__gallery-image"
+            style="cursor: pointer"
+            @click="openLightbox(idx)"
+          >
+        </template>
       </div>
 
       <!-- Image display (displayAs=image or fieldType=image) -->
@@ -541,11 +577,11 @@ const lightboxImage = computed(() => galleryImages.value[lightboxIndex.value] ||
           </button>
 
           <div class="lcms-lightbox__counter">
-            {{ lightboxIndex + 1 }} / {{ galleryImages.length }}
+            {{ lightboxIndex + 1 }} / {{ galleryItems.length }}
           </div>
 
           <button
-            v-if="galleryImages.length > 1"
+            v-if="galleryItems.length > 1"
             class="lcms-lightbox__arrow lcms-lightbox__arrow--prev"
             type="button"
             @click.stop="lightboxPrev"
@@ -554,8 +590,20 @@ const lightboxImage = computed(() => galleryImages.value[lightboxIndex.value] ||
           </button>
 
           <div class="lcms-lightbox__image-wrapper">
+            <video
+              v-if="lightboxImage.type === 'video'"
+              :key="lightboxIndex"
+              :src="lightboxImage.url"
+              :poster="lightboxImage.poster || undefined"
+              class="lcms-lightbox__video"
+              controls
+              autoplay
+              playsinline
+              @click.stop
+            />
             <img
-              :src="lightboxImage"
+              v-else
+              :src="lightboxImage.url"
               :alt="`${label || fieldCode} ${lightboxIndex + 1}`"
               class="lcms-lightbox__image"
               @click.stop
@@ -563,7 +611,7 @@ const lightboxImage = computed(() => galleryImages.value[lightboxIndex.value] ||
           </div>
 
           <button
-            v-if="galleryImages.length > 1"
+            v-if="galleryItems.length > 1"
             class="lcms-lightbox__arrow lcms-lightbox__arrow--next"
             type="button"
             @click.stop="lightboxNext"
@@ -648,5 +696,45 @@ a.lcms-collection-field__value-wrapper--linked:hover {
   height: 150px;
   object-fit: cover;
   border-radius: 4px;
+}
+
+.lcms-collection-field__gallery-video {
+  position: relative;
+  width: 100%;
+  height: 150px;
+}
+
+.lcms-collection-field__gallery-video video.lcms-collection-field__gallery-image {
+  display: block;
+}
+
+.lcms-collection-field__gallery-play {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  padding-left: 3px;
+  pointer-events: none;
+  transition: background 200ms, transform 200ms;
+}
+
+.lcms-collection-field__gallery-video:hover .lcms-collection-field__gallery-play {
+  background: rgba(0, 0, 0, 0.75);
+  transform: translate(-50%, -50%) scale(1.08);
+}
+
+.lcms-lightbox__video {
+  max-width: 90vw;
+  max-height: 90vh;
+  display: block;
 }
 </style>

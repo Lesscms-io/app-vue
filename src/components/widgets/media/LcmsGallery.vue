@@ -10,6 +10,7 @@
 import { computed, ref, onMounted, onUnmounted, Teleport, watch } from 'vue'
 import { contentImage } from '@/composables/useImageOptimization'
 import type { GalleryWidgetData, GalleryImage } from '@/types/widgets'
+import GalleryTile from './GalleryTile.vue'
 
 defineOptions({
   inheritAttrs: false
@@ -30,10 +31,14 @@ const images = computed(() => {
   const imgs = config.value.images || props.data.images || []
   return imgs.map((img: any) => {
     if (typeof img === 'string') {
-      return { url: img, alt: '', ...contentImage(img) }
+      return { url: img, type: 'image', alt: '', ...contentImage(img) }
     }
     const url = img.url || img.src || ''
-    return { url, alt: img.alt || '', ...contentImage(url) }
+    // Videos are served as-is (no image optimization / srcset).
+    if (img.type === 'video') {
+      return { url, type: 'video', alt: img.alt || '', poster: img.poster || '', src: url, srcset: '', sizes: '' }
+    }
+    return { url, type: 'image', alt: img.alt || '', ...contentImage(url) }
   })
 })
 
@@ -142,8 +147,14 @@ function stopAutoplay() {
 const lightboxOpen = ref(false)
 const lightboxIndex = ref(0)
 
+// A tile is clickable when the lightbox is enabled, OR when it's a video
+// (videos always open in the lightbox to play, regardless of the setting).
+function isClickable(image: any): boolean {
+  return enableLightbox.value || image?.type === 'video'
+}
+
 function openLightbox(index: number) {
-  if (!enableLightbox.value) return
+  if (!isClickable(images.value[index])) return
   lightboxIndex.value = index
   lightboxOpen.value = true
 }
@@ -248,18 +259,10 @@ const lightboxImage = computed(() => images.value[lightboxIndex.value])
         :key="index"
         class="lcms-gallery__item"
         :class="aspectClass"
-        :style="enableLightbox ? { cursor: 'pointer' } : undefined"
+        :style="isClickable(image) ? { cursor: 'pointer' } : undefined"
         @click="openLightbox(index)"
       >
-        <img
-          :src="image.src"
-          :srcset="image.srcset"
-          :sizes="image.sizes"
-          :alt="image.alt || ''"
-          loading="lazy"
-          decoding="async"
-          class="lcms-gallery__img"
-        >
+        <GalleryTile :item="image" img-class="lcms-gallery__img" />
       </div>
     </div>
 
@@ -274,10 +277,10 @@ const lightboxImage = computed(() => images.value[lightboxIndex.value])
         :key="index"
         class="lcms-gallery__mosaic-item"
         :class="{ 'lcms-gallery__mosaic-item--large': index === 0 }"
-        :style="enableLightbox ? { cursor: 'pointer' } : undefined"
+        :style="isClickable(image) ? { cursor: 'pointer' } : undefined"
         @click="openLightbox(index)"
       >
-        <img :src="image.src" :srcset="image.srcset" :sizes="image.sizes" :alt="image.alt || ''" loading="lazy" decoding="async" class="lcms-gallery__img">
+        <GalleryTile :item="image" img-class="lcms-gallery__img" />
       </div>
     </div>
 
@@ -292,10 +295,10 @@ const lightboxImage = computed(() => images.value[lightboxIndex.value])
         :key="index"
         class="lcms-gallery__mosaic-item"
         :class="{ 'lcms-gallery__mosaic-item--wide': index % 3 === 0 }"
-        :style="enableLightbox ? { cursor: 'pointer' } : undefined"
+        :style="isClickable(image) ? { cursor: 'pointer' } : undefined"
         @click="openLightbox(index)"
       >
-        <img :src="image.src" :srcset="image.srcset" :sizes="image.sizes" :alt="image.alt || ''" loading="lazy" decoding="async" class="lcms-gallery__img">
+        <GalleryTile :item="image" img-class="lcms-gallery__img" />
       </div>
     </div>
 
@@ -309,10 +312,10 @@ const lightboxImage = computed(() => images.value[lightboxIndex.value])
         v-for="(image, index) in images"
         :key="index"
         class="lcms-gallery__masonry-item"
-        :style="{ marginBottom: `${gap}px`, cursor: enableLightbox ? 'pointer' : undefined }"
+        :style="{ marginBottom: `${gap}px`, cursor: isClickable(image) ? 'pointer' : undefined }"
         @click="openLightbox(index)"
       >
-        <img :src="image.src" :srcset="image.srcset" :sizes="image.sizes" :alt="image.alt || ''" loading="lazy" decoding="async" class="lcms-gallery__img">
+        <GalleryTile :item="image" img-class="lcms-gallery__img" />
       </div>
     </div>
 
@@ -324,20 +327,20 @@ const lightboxImage = computed(() => images.value[lightboxIndex.value])
       <div
         v-if="images.length > 0"
         class="lcms-gallery__collage-main"
-        :style="enableLightbox ? { cursor: 'pointer' } : undefined"
+        :style="isClickable(images[0]) ? { cursor: 'pointer' } : undefined"
         @click="openLightbox(0)"
       >
-        <img :src="images[0].src" :srcset="images[0].srcset" :sizes="images[0].sizes" :alt="images[0].alt || ''" loading="lazy" decoding="async" class="lcms-gallery__img">
+        <GalleryTile :item="images[0]" img-class="lcms-gallery__img" />
       </div>
       <div
         v-for="(image, index) in images.slice(1, 5)"
         :key="index + 1"
         class="lcms-gallery__collage-overlay"
         :class="`lcms-gallery__collage-overlay--pos-${index}`"
-        :style="enableLightbox ? { cursor: 'pointer' } : undefined"
+        :style="isClickable(image) ? { cursor: 'pointer' } : undefined"
         @click="openLightbox(index + 1)"
       >
-        <img :src="image.src" :srcset="image.srcset" :sizes="image.sizes" :alt="image.alt || ''" loading="lazy" decoding="async" class="lcms-gallery__img">
+        <GalleryTile :item="image" img-class="lcms-gallery__img" />
       </div>
     </div>
 
@@ -354,18 +357,15 @@ const lightboxImage = computed(() => images.value[lightboxIndex.value])
           :key="index"
           class="lcms-gallery__slide"
           :class="{ 'lcms-gallery__slide--active': index === currentSlide }"
-          :style="enableLightbox ? { cursor: 'pointer' } : undefined"
+          :style="isClickable(image) ? { cursor: 'pointer' } : undefined"
           @click="openLightbox(index)"
         >
-          <img
-            :src="image.url"
-            :srcset="image.srcset"
+          <GalleryTile
+            :item="image"
+            img-class="lcms-gallery__img"
             sizes="100vw"
-            :alt="image.alt || ''"
-            loading="lazy"
-            decoding="async"
-            class="lcms-gallery__img"
-          >
+            prefer-full
+          />
         </div>
       </div>
 
@@ -425,17 +425,14 @@ const lightboxImage = computed(() => images.value[lightboxIndex.value])
           :style="{
             zIndex: 10 - Math.abs(getSlideOffset(index))
           }"
-          @click="enableLightbox && getSlideOffset(index) === 0 ? openLightbox(index) : goToSlide(index)"
+          @click="isClickable(image) && getSlideOffset(index) === 0 ? openLightbox(index) : goToSlide(index)"
         >
-          <img
-            :src="image.url"
-            :srcset="image.srcset"
+          <GalleryTile
+            :item="image"
+            img-class="lcms-gallery__img"
             sizes="100vw"
-            :alt="image.alt || ''"
-            loading="lazy"
-            decoding="async"
-            class="lcms-gallery__img"
-          >
+            prefer-full
+          />
         </div>
       </div>
 
@@ -506,9 +503,21 @@ const lightboxImage = computed(() => images.value[lightboxIndex.value])
             <i class="fa-solid fa-chevron-left" />
           </button>
 
-          <!-- Current image -->
+          <!-- Current image / video -->
           <div class="lcms-lightbox__image-wrapper">
+            <video
+              v-if="lightboxImage.type === 'video'"
+              :key="lightboxIndex"
+              :src="lightboxImage.url"
+              :poster="lightboxImage.poster || undefined"
+              class="lcms-lightbox__video"
+              controls
+              autoplay
+              playsinline
+              @click.stop
+            />
             <img
+              v-else
               :src="lightboxImage.url"
               :alt="lightboxImage.alt || ''"
               class="lcms-lightbox__image"
@@ -540,6 +549,19 @@ const lightboxImage = computed(() => images.value[lightboxIndex.value])
 .lcms-gallery__item--portrait { aspect-ratio: 3/4; }
 .lcms-gallery__item--auto { }
 .lcms-gallery__img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* Video tiles (first frame + play overlay) */
+.lcms-gallery__video { position: relative; width: 100%; height: 100%; }
+.lcms-gallery__video video.lcms-gallery__img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.lcms-gallery__play {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  width: 56px; height: 56px; border-radius: 50%;
+  background: rgba(0,0,0,0.55); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px; padding-left: 4px; pointer-events: none;
+  transition: background 200ms, transform 200ms;
+}
+.lcms-gallery__video:hover .lcms-gallery__play { background: rgba(0,0,0,0.75); transform: translate(-50%, -50%) scale(1.08); }
 
 /* Mosaic - Featured */
 .lcms-gallery__mosaic--featured {
@@ -657,6 +679,7 @@ const lightboxImage = computed(() => images.value[lightboxIndex.value])
 }
 .lcms-lightbox__image-wrapper { max-width: 90vw; max-height: 85vh; }
 .lcms-lightbox__image { max-width: 100%; max-height: 85vh; object-fit: contain; border-radius: 4px; }
+.lcms-lightbox__video { max-width: 90vw; max-height: 85vh; border-radius: 4px; background: #000; display: block; }
 .lcms-lightbox__close {
   position: absolute; top: 16px; right: 16px; background: none; border: none;
   color: #fff; font-size: 24px; cursor: pointer; z-index: 10;

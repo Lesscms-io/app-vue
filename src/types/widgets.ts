@@ -148,6 +148,10 @@ export interface ImageWidgetData extends BaseWidgetData {
 export interface GalleryImage {
   url: string
   alt?: string
+  /** 'image' (default) or 'video' — videos render as <video> with a play overlay. */
+  type?: 'image' | 'video'
+  /** Optional poster image for video items. */
+  poster?: string
 }
 
 export interface GalleryWidgetData extends BaseWidgetData {
