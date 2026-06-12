@@ -50,6 +50,8 @@ export interface StorefrontProductOptionGroup {
   numeric_max: number | null
   numeric_step: number | null
   price_per_unit: number | null
+  /** Numeric: jednostki wliczone w cenę bazową. Per-unit liczymy od (value - price_free_units). */
+  price_free_units?: number | null
   /** Conditional per-unit overrides for numeric groups. First match wins. */
   price_per_unit_overrides?: StorefrontPriceOverride[] | null
   /** display_type='file' only: per-group upload constraints. */

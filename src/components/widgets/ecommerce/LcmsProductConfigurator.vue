@@ -830,6 +830,20 @@ function effectivePricePerUnit(group: StorefrontProductOptionGroup): number {
   return 0
 }
 
+// Numeric: ile jednostek faktycznie naliczamy. Pierwsze `price_free_units`
+// są wliczone w cenę bazową (gratis); płatna jest tylko nadwyżka.
+// Brak/0 = naliczaj od pierwszej jednostki (zachowanie sprzed progu).
+function billableQty(group: StorefrontProductOptionGroup, qty: number): number {
+  const free = Math.max(0, Number(group.price_free_units ?? 0) || 0)
+  return Math.max(0, qty - free)
+}
+
+// Krótka adnotacja „N w cenie" przy stawce, gdy część jednostek jest gratis.
+function freeUnitsHint(group: StorefrontProductOptionGroup): string {
+  const free = Math.max(0, Number(group.price_free_units ?? 0) || 0)
+  return free > 0 ? `${free} w cenie` : ''
+}
+
 // First override row whose `when.and_groups` matches the current selection.
 // Empty conditions count as a match (acts as the catch-all / "always" rule).
 // Returns the matched override row, or null when none of the rules match.
@@ -877,7 +891,8 @@ function subtotalExcludingCheckbox(excludeUuid: string): number {
     if (g.display_type === 'numeric') {
       const qty = Number(customValues.value[g.uuid] ?? 0)
       const rate = effectivePricePerUnit(g)
-      if (qty > 0 && rate) total += qty * rate
+      const billable = billableQty(g, qty)
+      if (billable > 0 && rate) total += billable * rate
       continue
     }
     if (g.display_type === 'text' || g.display_type === 'file') continue
@@ -917,8 +932,9 @@ const totalPrice = computed(() => {
     if (group.display_type === 'numeric') {
       const qty = Number(customValues.value[group.uuid] ?? 0)
       const rate = effectivePricePerUnit(group)
-      if (qty > 0 && rate) {
-        total += qty * rate
+      const billable = billableQty(group, qty)
+      if (billable > 0 && rate) {
+        total += billable * rate
       }
       continue
     }
@@ -1523,13 +1539,19 @@ const cssVars = computed(() => {
           class="lcms-product-configurator__group"
           :class="`lcms-product-configurator__group--swatch-${swatchSize}`"
         >
-          <div class="lcms-product-configurator__group-label">
-            <span class="lcms-product-configurator__group-name">{{ group.name }}</span>
-            <span
-              v-if="showRequiredBadge && group.is_required"
-              class="lcms-product-configurator__required"
-              :aria-label="'wymagane'"
-            >{{ t('required') }}</span>
+          <div class="lcms-product-configurator__group-head">
+            <div class="lcms-product-configurator__group-label">
+              <span class="lcms-product-configurator__group-name">{{ group.name }}</span>
+              <span
+                v-if="showRequiredBadge && group.is_required"
+                class="lcms-product-configurator__required"
+                :aria-label="'wymagane'"
+              >{{ t('required') }}</span>
+            </div>
+            <div
+              v-if="group.description"
+              class="lcms-product-configurator__group-description"
+            >{{ group.description }}</div>
           </div>
 
           <!-- select display -->
@@ -1705,7 +1727,10 @@ const cssVars = computed(() => {
             <span
               v-if="effectivePricePerUnit(group)"
               class="lcms-product-configurator__numeric-rate"
-            >× {{ formatPrice(effectivePricePerUnit(group), currency) }}</span>
+            >× {{ formatPrice(effectivePricePerUnit(group), currency) }}<span
+              v-if="freeUnitsHint(group)"
+              class="lcms-product-configurator__numeric-free"
+            > · {{ freeUnitsHint(group) }}</span></span>
           </div>
 
           <!-- checkbox (yes/no toggle with optional price modifier + preview image) -->
@@ -1988,10 +2013,19 @@ const cssVars = computed(() => {
   color: var(--lcms-pc-group-label-color, var(--lcms-color-text, #1f2937));
 }
 
+/* Opcjonalny podpis pod etykietą grupy (np. wyjaśnienie wymiarów albumu). */
+.lcms-product-configurator__group-description {
+  font-size: 0.8125rem;
+  font-weight: 400;
+  line-height: 1.45;
+  margin-top: 0.25rem;
+  color: var(--lcms-color-text-muted, #6b7280);
+}
+
 /* Flat mode: drop group headings so all groups read as one continuous list.
    Group order (and option order within each) stays as the configurator
    defined it; only the visual section separator is suppressed. */
-.lcms-product-configurator__groups--flat .lcms-product-configurator__group-label {
+.lcms-product-configurator__groups--flat .lcms-product-configurator__group-head {
   display: none;
 }
 
@@ -2342,6 +2376,11 @@ const cssVars = computed(() => {
 .lcms-product-configurator__numeric-rate {
   font-size: 0.875rem;
   color: var(--lcms-color-muted, #6b7280);
+}
+
+.lcms-product-configurator__numeric-free {
+  font-size: 0.8125rem;
+  opacity: 0.85;
 }
 
 .lcms-product-configurator__summary {
