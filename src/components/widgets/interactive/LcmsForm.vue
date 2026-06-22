@@ -360,6 +360,19 @@ async function handleSubmit() {
     await api.post(`/forms/${formUuid.value}/submit`, payload)
     submitStatus.value = 'success'
     initFormData()
+    // Tracking: the form submits over AJAX with no thank-you-page navigation,
+    // so GTM / Google Ads have nothing to hook onto. Push an explicit event to
+    // dataLayer; in GTM create a Custom Event trigger on `lcms_form_submit` and
+    // fire the conversion tag from there.
+    if (typeof window !== 'undefined') {
+      const w = window as any
+      w.dataLayer = w.dataLayer || []
+      w.dataLayer.push({
+        event: 'lcms_form_submit',
+        form_code: config.value.form_code || '',
+        form_uuid: formUuid.value,
+      })
+    }
   } catch {
     submitStatus.value = 'error'
   } finally {
