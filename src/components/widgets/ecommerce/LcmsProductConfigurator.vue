@@ -23,6 +23,7 @@ import type {
   StorefrontProductOptionGroup,
   StorefrontProductOption,
   StorefrontPluginBehavior,
+  StorefrontProductFlow,
   StorefrontOptionUpload,
 } from '../../../api/storefront'
 
@@ -1000,6 +1001,39 @@ const activeBehavior = computed<StorefrontPluginBehavior | null>(() => {
 
 const behaviorButtonText = computed(() => activeBehavior.value?.cta.label || '')
 
+// Plugin flow CTA — a plugin's product.render hook (e.g. photo-albums
+// print-studio) marks the product with a `flow` block whose `url` points at
+// the plugin's bridge page. Unlike plugin_behaviors (bound to a selected
+// option), the flow CTA applies to the whole product: purchase happens on
+// the bridge page (photo upload / external designer), so it replaces the
+// add-to-cart button entirely. An option-bound behavior, when active,
+// still wins — it's the more specific instruction.
+const productFlow = computed<StorefrontProductFlow | null>(() => {
+  const flow = effectiveProduct.value?.flow
+  if (!flow?.url || !flow?.button_label) return null
+  return flow
+})
+
+const canRunFlow = computed(() => {
+  if (!productFlow.value) return false
+  if (isAdding.value) return false
+  return !missingRequired.value
+})
+
+function handleFlowAction() {
+  const flow = productFlow.value
+  if (!flow?.url) return
+  if (missingRequired.value) {
+    toast.error(t('fillRequired'))
+    return
+  }
+  // Plain navigation — the bridge page owns auth-gating (redirects to the
+  // login page with ?return=<bridge> itself), token exchange and embedding.
+  if (typeof window !== 'undefined') {
+    window.location.href = flow.url
+  }
+}
+
 const canRunBehavior = computed(() => {
   if (!activeBehavior.value) return false
   if (isAdding.value) return false
@@ -1452,7 +1486,10 @@ const cssVars = computed(() => {
         {{ headingText }}
       </component>
 
-      <div v-if="allGroups.length === 0" class="lcms-product-configurator__empty">
+      <!-- Flow products (external designer/uploader) legitimately have no
+           option groups — the flow CTA + description below explain what to
+           do, so the "no options" note would only read as an error. -->
+      <div v-if="allGroups.length === 0 && !productFlow" class="lcms-product-configurator__empty">
         {{ t('noOptions') }}
       </div>
 
@@ -1870,9 +1907,12 @@ const cssVars = computed(() => {
 
       <!-- Price summary: always shown when enabled. In wizard mode the live
            total updates as the user steps through, so they always see how
-           their selections affect the price. -->
+           their selections affect the price. Hidden for flow products —
+           their price is determined inside the external flow (per-photo
+           formats etc.), so the configurator's total would be a misleading
+           "0,00 zł". -->
       <div
-        v-if="showPriceSummary"
+        v-if="showPriceSummary && !productFlow"
         class="lcms-product-configurator__summary"
       >
         <span class="lcms-product-configurator__summary-label">{{ totalLabelText }}</span>
@@ -1904,12 +1944,14 @@ const cssVars = computed(() => {
         </button>
       </div>
 
-      <!-- Add-to-cart / plugin-behavior button. In wizard mode shown only
-           on the summary step. On summary the "Back" button sits in the
-           same row so the two visually match the wizard's prev/next pair
-           on earlier steps rather than a small floating link above a
-           giant full-width CTA. -->
-      <template v-if="!wizardMode || showSummary">
+      <!-- Add-to-cart / plugin-behavior / plugin-flow button. In wizard mode
+           shown only on the summary step — except when the product has no
+           option groups at all: there are no steps then, so the summary
+           never arrives and without this carve-out the CTA would never
+           render. On summary the "Back" button sits in the same row so the
+           two visually match the wizard's prev/next pair on earlier steps
+           rather than a small floating link above a giant full-width CTA. -->
+      <template v-if="!wizardMode || showSummary || allGroups.length === 0">
         <div
           :class="{ 'lcms-product-configurator__summary-actions': wizardMode && showSummary }"
         >
@@ -1934,6 +1976,17 @@ const cssVars = computed(() => {
             {{ behaviorButtonText }}
           </button>
           <button
+            v-else-if="productFlow"
+            type="button"
+            :class="buttonClass"
+            :style="buttonInlineStyle"
+            :disabled="!canRunFlow"
+            @click="handleFlowAction"
+          >
+            <span v-if="isAdding" class="lcms-product-configurator__spinner" />
+            {{ productFlow.button_label }}
+          </button>
+          <button
             v-else
             type="button"
             :class="buttonClass"
@@ -1947,6 +2000,12 @@ const cssVars = computed(() => {
             <i v-if="buttonIcon && buttonIconPosition === 'right'" :class="buttonIcon" style="margin-left: 6px;" />
           </button>
         </div>
+        <p
+          v-if="!activeBehavior && productFlow?.description"
+          class="lcms-product-configurator__flow-description"
+        >
+          {{ productFlow.description }}
+        </p>
       </template>
     </template>
   </div>
@@ -1963,6 +2022,12 @@ const cssVars = computed(() => {
   text-align: center;
   padding: 2rem 1rem;
   color: var(--lcms-color-muted, #6b7280);
+}
+
+.lcms-product-configurator__flow-description {
+  margin: 0.75rem 0 0;
+  color: var(--lcms-color-muted, #6b7280);
+  font-size: 0.9rem;
 }
 
 .lcms-product-configurator__heading {

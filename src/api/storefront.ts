@@ -90,6 +90,22 @@ export interface StorefrontPluginBehavior {
   cta: StorefrontPluginBehaviorCta
 }
 
+/**
+ * Plugin-injected flow block (product.render hook). Marks a product whose
+ * purchase happens through an external designer/uploader (e.g. photo-albums
+ * print-studio) instead of a plain add-to-cart. When `url` is present the
+ * ProductConfigurator renders a flow CTA navigating there in place of the
+ * add-to-cart button; without `url` the block is informational only.
+ */
+export interface StorefrontProductFlow {
+  plugin_id: string
+  type: string
+  button_label?: string | null
+  description?: string | null
+  url?: string | null
+  [key: string]: unknown
+}
+
 export interface StorefrontProductChild {
   uuid: string
   sku: string
@@ -127,6 +143,7 @@ export interface StorefrontProduct {
   product_type?: 'simple' | 'configurable'
   option_groups?: StorefrontProductOptionGroup[]
   plugin_behaviors?: StorefrontPluginBehavior[]
+  flow?: StorefrontProductFlow | null
   children?: StorefrontProductChild[]
   parent_product_uuid?: string | null
   variant_binding_values?: Record<string, unknown> | null
