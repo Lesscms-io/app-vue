@@ -462,7 +462,7 @@ watch(
     for (const group of groups) {
       if (group.display_type === 'numeric') {
         nextCustom[group.uuid] = group.numeric_min ?? 0
-      } else if (group.display_type === 'text') {
+      } else if (isTextType(group)) {
         nextCustom[group.uuid] = ''
       } else if (group.display_type === 'checkbox') {
         nextCustom[group.uuid] = false
@@ -576,7 +576,7 @@ function syntheticVisibilityIdFor(group: StorefrontProductOptionGroup): string |
     const v = Number(customValues.value[group.uuid] ?? NaN)
     return `${group.uuid}__${Number.isFinite(v) && v !== 0 ? 'set' : 'unset'}`
   }
-  if (group.display_type === 'text' || group.display_type === 'file') {
+  if (isTextType(group) || group.display_type === 'file') {
     const filled = !!String(customValues.value[group.uuid] ?? '').trim()
     return `${group.uuid}__${filled ? 'set' : 'unset'}`
   }
@@ -679,7 +679,7 @@ watch(effectiveSteps, (steps) => {
 
 function isGroupValid(g: StorefrontProductOptionGroup): boolean {
   if (!g.is_required) return true
-  if (g.display_type === 'text') {
+  if (isTextType(g)) {
     return !!String(customValues.value[g.uuid] ?? '').trim()
   }
   if (g.display_type === 'numeric') {
@@ -733,7 +733,7 @@ const groupsToShow = computed<StorefrontProductOptionGroup[]>(() => {
 // Returns null for non-visual or unselected groups so the template falls back
 // to plain text rendering.
 function groupSummaryVisual(g: StorefrontProductOptionGroup): { thumbnail: string | null; color_hex: string | null; name: string } | null {
-  if (g.display_type === 'text' || g.display_type === 'numeric' || g.display_type === 'checkbox' || g.display_type === 'file') {
+  if (isTextType(g) || g.display_type === 'numeric' || g.display_type === 'checkbox' || g.display_type === 'file') {
     return null
   }
   const sel = selectedOptions.value[g.uuid]
@@ -754,7 +754,7 @@ function closeLightbox() { lightbox.value = null }
 // Resolves the human-readable summary text for a group based on current state.
 // Used by the wizard summary list.
 function groupSummaryValue(g: StorefrontProductOptionGroup): string {
-  if (g.display_type === 'text') return String(customValues.value[g.uuid] ?? '') || '—'
+  if (isTextType(g)) return String(customValues.value[g.uuid] ?? '') || '—'
   if (g.display_type === 'numeric') {
     const v = customValues.value[g.uuid]
     return v === undefined || v === null || v === '' ? '—' : String(v)
@@ -910,7 +910,7 @@ function subtotalExcludingCheckbox(excludeUuid: string): number {
       if (billable > 0 && rate) total += billable * rate
       continue
     }
-    if (g.display_type === 'text' || g.display_type === 'file') continue
+    if (isTextType(g) || g.display_type === 'file') continue
     if (g.display_type === 'checkbox') {
       if (customValues.value[g.uuid] === true) total += staticCheckboxModifier(g)
       continue
@@ -953,7 +953,7 @@ const totalPrice = computed(() => {
       }
       continue
     }
-    if (group.display_type === 'text') continue
+    if (isTextType(group)) continue
     if (group.display_type === 'file') continue
     if (group.display_type === 'checkbox') {
       if (customValues.value[group.uuid] === true) {
@@ -973,7 +973,7 @@ const totalPrice = computed(() => {
 // All required groups must have a valid value before add-to-cart enables
 const missingRequired = computed(() =>
   visibleGroups.value.filter((g) => g.is_required).some((g) => {
-    if (g.display_type === 'text') {
+    if (isTextType(g)) {
       return !String(customValues.value[g.uuid] ?? '').trim()
     }
     if (g.display_type === 'numeric') {
@@ -1168,11 +1168,26 @@ async function handleBehaviorAction() {
 }
 
 function selectOption(groupUuid: string, optionUuid: string) {
-  selectedOptions.value = { ...selectedOptions.value, [groupUuid]: optionUuid }
+  const next = { ...selectedOptions.value }
+  if (next[groupUuid] === optionUuid) {
+    // Click on the already-selected swatch/chip deselects it. Only reachable
+    // from @click handlers — a checked radio / same <select> value never
+    // re-fires @change, so those keep native single-select semantics.
+    delete next[groupUuid]
+  } else {
+    next[groupUuid] = optionUuid
+  }
+  selectedOptions.value = next
 }
 
 function setCustomValue(groupUuid: string, value: string | number | boolean) {
   customValues.value = { ...customValues.value, [groupUuid]: value }
+}
+
+// 'textarea' is 'text' with a multiline input — identical value/validation
+// semantics everywhere except the rendered control.
+function isTextType(g: StorefrontProductOptionGroup): boolean {
+  return g.display_type === 'text' || g.display_type === 'textarea'
 }
 
 // Numeric stepper helpers — clamp to numeric_min/numeric_max bounds, fall back
@@ -1344,7 +1359,7 @@ async function fetchProduct() {
 function buildConfiguredCartMetadata(): { configured_options: Array<Record<string, unknown>>; configured_total: number } {
   const configuredOptions: Array<Record<string, unknown>> = []
   for (const g of visibleGroups.value) {
-    if (g.display_type === 'text') {
+    if (isTextType(g)) {
       const value = String(customValues.value[g.uuid] ?? '').trim()
       if (!value) continue
       configuredOptions.push({
@@ -1739,8 +1754,31 @@ const cssVars = computed(() => {
             :style="inputInlineStyle"
             :value="customValues[group.uuid] || ''"
             :placeholder="group.name"
+            :maxlength="group.text_max_length || undefined"
             @input="setCustomValue(group.uuid, ($event.target as HTMLInputElement).value)"
           />
+
+          <!-- multiline text display (plain textarea, no markup) -->
+          <div
+            v-else-if="group.display_type === 'textarea'"
+            class="lcms-product-configurator__textarea-wrap"
+          >
+            <textarea
+              class="lcms-product-configurator__text-input lcms-product-configurator__textarea"
+              :style="inputInlineStyle"
+              :value="String(customValues[group.uuid] || '')"
+              :placeholder="group.name"
+              :rows="group.text_rows || 4"
+              :maxlength="group.text_max_length || undefined"
+              @input="setCustomValue(group.uuid, ($event.target as HTMLTextAreaElement).value)"
+            />
+            <div
+              v-if="group.text_max_length"
+              class="lcms-product-configurator__char-counter"
+            >
+              {{ String(customValues[group.uuid] || '').length }} / {{ group.text_max_length }}
+            </div>
+          </div>
 
           <!-- numeric input display — stepper with explicit -/+ buttons.
                Native browser spinners are tiny on most stylesheets; users on
@@ -2389,6 +2427,25 @@ const cssVars = computed(() => {
   color: var(--lcms-pc-input-placeholder, var(--lcms-color-muted, #9ca3af));
 }
 
+.lcms-product-configurator__textarea-wrap {
+  width: 100%;
+}
+
+.lcms-product-configurator__textarea {
+  display: block;
+  font-family: inherit;
+  line-height: 1.5;
+  resize: vertical;
+  min-height: 2.5rem;
+}
+
+.lcms-product-configurator__char-counter {
+  margin-top: 0.25rem;
+  text-align: right;
+  font-size: 0.75rem;
+  color: var(--lcms-pc-input-placeholder, var(--lcms-color-muted, #9ca3af));
+}
+
 .lcms-product-configurator__numeric {
   display: flex;
   align-items: center;
@@ -2616,6 +2673,7 @@ const cssVars = computed(() => {
 .lcms-product-configurator__summary-list li {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   gap: 0.75rem;
   padding-bottom: 0.5rem;
   border-bottom: 1px dashed var(--lcms-color-border, #e5e7eb);
@@ -2629,6 +2687,8 @@ const cssVars = computed(() => {
   display: inline-flex;
   align-items: center;
   gap: 0.625rem;
+  /* Match the 32px thumbnail height so text-only rows are just as tall */
+  min-height: 32px;
   text-align: right;
 }
 

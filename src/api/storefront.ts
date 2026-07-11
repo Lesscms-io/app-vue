@@ -10,7 +10,7 @@
 // Types — mirror Storefront API response shapes
 // ============================================================================
 
-export type StorefrontOptionDisplayType = 'select' | 'radio' | 'image_swatches' | 'color_swatches' | 'numeric' | 'text' | 'file' | 'checkbox'
+export type StorefrontOptionDisplayType = 'select' | 'radio' | 'image_swatches' | 'color_swatches' | 'numeric' | 'text' | 'textarea' | 'file' | 'checkbox'
 
 export interface StorefrontVisibilityRule {
   mode?: 'show_when' | 'hide_when'
@@ -68,6 +68,10 @@ export interface StorefrontProductOptionGroup {
   checkbox_image?: string | null
   /** Conditional surcharge overrides for checkbox groups. First match wins. */
   checkbox_price_overrides?: StorefrontPriceOverride[] | null
+  /** display_type='text'/'textarea': max input length in characters. */
+  text_max_length?: number | null
+  /** display_type='textarea' only: visible rows of the input. */
+  text_rows?: number | null
   options: StorefrontProductOption[]
 }
 
