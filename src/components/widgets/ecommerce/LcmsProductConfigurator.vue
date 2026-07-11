@@ -772,11 +772,25 @@ function groupSummaryValue(g: StorefrontProductOptionGroup): string {
   return g.options.find((o) => o.uuid === sel)?.name || '—'
 }
 
-// Price calculation — base + sum of modifiers from selected options.
-// `price_modifier_type` was dropped in BE migration 2026_05_05; now the value
-// alone is additive (negative = subtract). Older renderers gated on the type
-// existing and silently returned 0, which is why prices stopped showing.
-function applyModifier(_base: number, option: StorefrontProductOption): number {
+// Per-option surcharge — walk price_modifier_overrides top-to-bottom, first
+// whose `when` matches the current selection wins (empty conditions / empty
+// AND row = always matches). When no rule matches, the scalar
+// price_modifier_value applies as the default — that's the contract promised
+// by the admin UI ("first matching rule wins, otherwise the default").
+// Percent rules resolve against the product base price.
+// (`price_modifier_type` was dropped in BE migration 2026_05_05; the scalar
+// value alone is additive, negative = subtract.)
+function effectiveOptionModifier(option: StorefrontProductOption): number {
+  const overrides = option.price_modifier_overrides || []
+  const sel = selectedSet.value
+  for (const ov of overrides) {
+    const andGroups = ov?.when?.and_groups || []
+    const matches = andGroups.length === 0
+      ? true
+      : andGroups.every((row) => row.length === 0 || row.some((uuid) => sel.has(uuid)))
+    if (!matches) continue
+    return applyOverride(0, Number(ov.value) || 0, ov.type, basePrice.value)
+  }
   const v = option.price_modifier_value
   if (v === null || v === undefined) return 0
   return Number(v) || 0
@@ -905,7 +919,7 @@ function subtotalExcludingCheckbox(excludeUuid: string): number {
     if (!selectedUuid) continue
     const option = g.options.find((o) => o.uuid === selectedUuid)
     if (!option) continue
-    total += applyModifier(basePrice.value, option)
+    total += effectiveOptionModifier(option)
   }
   return total
 }
@@ -951,7 +965,7 @@ const totalPrice = computed(() => {
     if (!selectedUuid) continue
     const option = group.options.find((o) => o.uuid === selectedUuid)
     if (!option) continue
-    total += applyModifier(basePrice.value, option)
+    total += effectiveOptionModifier(option)
   }
   return total
 })
@@ -1283,7 +1297,7 @@ function imageSwatchGridStyle(group: StorefrontProductOptionGroup): Record<strin
 }
 
 function optionPriceDeltaText(option: StorefrontProductOption): string {
-  const delta = applyModifier(basePrice.value, option)
+  const delta = effectiveOptionModifier(option)
   if (!delta) return ''
   const sign = delta > 0 ? '+' : '−'
   return `${sign}${formatPrice(Math.abs(delta), currency.value)}`
@@ -1390,7 +1404,7 @@ function buildConfiguredCartMetadata(): { configured_options: Array<Record<strin
         type: 'option',
         option_uuid: opt.uuid,
         option_name: opt.name,
-        price_delta: applyModifier(basePrice.value, opt),
+        price_delta: effectiveOptionModifier(opt),
       })
     }
   }

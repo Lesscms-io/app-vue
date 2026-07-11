@@ -30,6 +30,9 @@ export interface StorefrontProductOption {
   /** Additive price delta vs base. Negative = subtract. Type column was
    *  dropped in BE migration 2026_05_05 — value alone now drives modifier. */
   price_modifier_value: number | null
+  /** Conditional price rules for this option. First match wins; when no rule
+   *  matches, price_modifier_value applies as the default. */
+  price_modifier_overrides?: StorefrontPriceOverride[] | null
   color_hex: string | null
   thumbnail: string | null
   is_default: boolean
