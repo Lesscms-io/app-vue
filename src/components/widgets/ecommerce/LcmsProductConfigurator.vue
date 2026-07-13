@@ -258,7 +258,6 @@ const t = (key: string, params?: Record<string, string | number>) => {
     pl: {
       loading: 'Ładowanie...',
       notFound: 'Produkt nie znaleziony',
-      noOptions: 'Ten produkt nie ma opcji do skonfigurowania.',
       required: '*',
       selectPlaceholder: 'Wybierz...',
       addedToCart: 'Dodano do koszyka',
@@ -285,7 +284,6 @@ const t = (key: string, params?: Record<string, string | number>) => {
     en: {
       loading: 'Loading...',
       notFound: 'Product not found',
-      noOptions: 'This product has no configurable options.',
       required: '*',
       selectPlaceholder: 'Select...',
       addedToCart: 'Added to cart',
@@ -747,7 +745,11 @@ function groupSummaryVisual(g: StorefrontProductOptionGroup): { thumbnail: strin
 // Lightbox state for summary thumbnails. Holds either a thumbnail URL or a
 // `color:#hex` sentinel — the overlay template branches on the prefix.
 const lightbox = ref<string | null>(null)
-function openLightboxImage(url: string) { lightbox.value = url }
+// Thumbnails come through the image-proxy as ?w=200 — swap to the w=1200
+// preset for the lightbox so the enlarged image is sharp, not an upscale.
+function openLightboxImage(url: string) {
+  lightbox.value = url.replace(/([?&])w=\d+/, '$1w=1200')
+}
 function openLightboxColor(hex: string) { lightbox.value = `color:${hex}` }
 function closeLightbox() { lightbox.value = null }
 
@@ -1515,16 +1517,12 @@ const cssVars = computed(() => {
         {{ headingText }}
       </component>
 
-      <!-- Flow products (external designer/uploader) legitimately have no
-           option groups — the flow CTA + description below explain what to
-           do, so the "no options" note would only read as an error. -->
-      <div v-if="allGroups.length === 0 && !productFlow" class="lcms-product-configurator__empty">
-        {{ t('noOptions') }}
-      </div>
+      <!-- Products without option groups render no empty-state note — the
+           price row + add-to-cart below are all the user needs. -->
 
       <!-- Wizard progress bar -->
       <div
-        v-else-if="wizardMode && showProgress && totalSteps > 0"
+        v-if="wizardMode && showProgress && totalSteps > 0"
         class="lcms-product-configurator__progress"
       >
         <div class="lcms-product-configurator__progress-bar">
@@ -1722,6 +1720,20 @@ const cssVars = computed(() => {
                   @click="selectOption(group.uuid, opt.uuid)"
                 >
                   <img :src="opt.thumbnail" :alt="opt.name" :style="swatchImgStyle" />
+                </button>
+                <button
+                  type="button"
+                  class="lcms-product-configurator__swatch-zoom"
+                  :title="t('zoomThumb')"
+                  :aria-label="t('zoomThumb')"
+                  @click.stop="openLightboxImage(opt.thumbnail!)"
+                >
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <circle cx="11" cy="11" r="7" />
+                    <line x1="21" y1="21" x2="16" y2="16" />
+                    <line x1="11" y1="8" x2="11" y2="14" />
+                    <line x1="8" y1="11" x2="14" y2="11" />
+                  </svg>
                 </button>
                 <span
                   v-if="showOptionPrices"
@@ -2069,8 +2081,7 @@ const cssVars = computed(() => {
   color: var(--lcms-color-text, #1f2937);
 }
 
-.lcms-product-configurator__status,
-.lcms-product-configurator__empty {
+.lcms-product-configurator__status {
   text-align: center;
   padding: 2rem 1rem;
   color: var(--lcms-color-muted, #6b7280);
@@ -2273,12 +2284,40 @@ const cssVars = computed(() => {
  * sits below the swatch. Cells centre horizontally so the swatch + label sit
  * in the middle of their grid track regardless of column width. */
 .lcms-product-configurator__swatch-cell {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 0.5rem;
   font-size: 0.8125rem;
   text-align: center;
+}
+
+/* Magnifier in the swatch corner — opens the option image in the lightbox
+   without selecting the option. Always visible (touch has no hover), but
+   subtle until hovered. */
+.lcms-product-configurator__swatch-zoom {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.85);
+  color: var(--lcms-pc-option-text, var(--lcms-color-text, #1f2937));
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  cursor: zoom-in;
+  opacity: 0.75;
+  z-index: 1;
+}
+
+.lcms-product-configurator__swatch-zoom:hover {
+  opacity: 1;
 }
 
 .lcms-product-configurator__swatch {
