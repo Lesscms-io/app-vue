@@ -32,6 +32,10 @@ const subtitleText = computed(() => extractValue(props.data?.subtitle?.text) || 
 const seeAllText = computed(() => extractValue(props.data?.see_all?.text) || '')
 const seeAllUrl = computed(() => props.data?.see_all?.url || '')
 const showSeeAll = computed(() => !!(seeAllUrl.value && seeAllText.value))
+// Kafel "wszystkie produkty" na końcu siatki; URL spada na link z "Zobacz wszystkie"
+const allTileUrl = computed(() => props.data?.all_tile?.url || seeAllUrl.value || '')
+const allTileText = computed(() => extractValue(props.data?.all_tile?.text) || t('allProducts'))
+const showAllTile = computed(() => props.data?.all_tile?.enabled === true && !!allTileUrl.value)
 const showDiscountFallback = computed(() => config.value.show_discount_badge !== false)
 
 const source = computed(() => config.value.source || 'latest')
@@ -177,12 +181,14 @@ const t = (key: string) => {
       empty: 'Brak produktów',
       error: 'Nie udało się załadować produktów',
       from: 'od',
+      allProducts: 'Wszystkie produkty',
     },
     en: {
       loading: 'Loading products...',
       empty: 'No products',
       error: 'Failed to load products',
       from: 'from',
+      allProducts: 'All products',
     },
   }
   return dict[lang]?.[key] || dict.pl[key] || key
@@ -289,6 +295,23 @@ const t = (key: string) => {
             <span class="lcms-product-card__price">{{ formatPrice(getField(product, fieldPrice), currency) }}</span>
           </div>
         </div>
+      </a>
+
+      <a
+        v-if="showAllTile"
+        :href="allTileUrl"
+        class="lcms-product-card lcms-product-card--all"
+      >
+        <span class="lcms-product-card__all-text">{{ allTileText }}</span>
+        <svg
+          class="lcms-product-card__all-arrow"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path d="M5 12h14M13 6l6 6-6 6" />
+        </svg>
       </a>
     </div>
   </div>
@@ -412,6 +435,33 @@ const t = (key: string) => {
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
   border-color: var(--lcms-color-border-strong, #d1d5db);
   transform: translateY(-2px);
+}
+
+.lcms-product-card--all {
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  min-height: 220px;
+  background: var(--lcms-color-surface, #f9fafb);
+  border-style: dashed;
+  font-weight: 600;
+  color: var(--lcms-color-primary, #3b82f6);
+}
+
+.lcms-product-card--all:hover .lcms-product-card__all-arrow {
+  transform: translateX(4px);
+}
+
+.lcms-product-card__all-text {
+  font-size: 1rem;
+  text-align: center;
+  padding: 0 1rem;
+}
+
+.lcms-product-card__all-arrow {
+  width: 24px;
+  height: 24px;
+  transition: transform 0.2s ease;
 }
 
 .lcms-product-card__image-wrap {

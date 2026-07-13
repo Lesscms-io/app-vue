@@ -80,6 +80,7 @@ import LcmsMiniCart from './ecommerce/LcmsMiniCart.vue'
 import LcmsAccountIcon from './ecommerce/LcmsAccountIcon.vue'
 import LcmsProductGrid from './ecommerce/LcmsProductGrid.vue'
 import LcmsCategoryGrid from './ecommerce/LcmsCategoryGrid.vue'
+import LcmsCategoryTree from './ecommerce/LcmsCategoryTree.vue'
 import LcmsSearchBar from './ecommerce/LcmsSearchBar.vue'
 import LcmsSearchIcon from './ecommerce/LcmsSearchIcon.vue'
 import LcmsEcommerceIcons from './ecommerce/LcmsEcommerceIcons.vue'
@@ -180,6 +181,7 @@ export const widgetComponents: Record<string, Component> = {
   'account-icon': LcmsAccountIcon,
   'product-grid': LcmsProductGrid,
   'category-grid': LcmsCategoryGrid,
+  'category-tree': LcmsCategoryTree,
   'search-bar': LcmsSearchBar,
   'search-icon': LcmsSearchIcon,
   'ecommerce-icons': LcmsEcommerceIcons,
@@ -291,6 +293,7 @@ export {
   LcmsAccountIcon,
   LcmsProductGrid,
   LcmsCategoryGrid,
+  LcmsCategoryTree,
   LcmsSearchBar,
   LcmsSearchIcon,
   LcmsEcommerceIcons,
