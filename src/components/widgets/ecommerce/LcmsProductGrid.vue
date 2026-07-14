@@ -25,6 +25,9 @@ const props = defineProps<Props>()
 const { extractValue } = useLanguage(props.language)
 const { client, isAvailable } = useStorefront()
 const projectConfig = inject<Ref<any> | null>('lesscms-project-config', null)
+// SSR-safe route params from the renderer — window is unavailable on the
+// server, so URL-driven category resolution must go through this first.
+const resolvedRoute = inject<Ref<{ params?: Record<string, string> } | null> | null>('routeParams', null)
 
 const config = computed(() => props.data?.config || props.data || {})
 const headingText = computed(() => extractValue(props.data?.heading?.text) || '')
@@ -43,6 +46,8 @@ const categorySourceMode = computed(() => config.value.category_source || 'stati
 const categoryUrlSegment = computed(() => Number(config.value.category_url_segment ?? 1))
 const resolvedCategorySlug = computed(() => {
   if (categorySourceMode.value === 'url') {
+    const routeVal = resolvedRoute?.value
+    if (routeVal?.params?.slug) return routeVal.params.slug
     if (typeof window === 'undefined') return ''
     const segments = window.location.pathname.split('/').filter(Boolean)
     return segments[categoryUrlSegment.value] || ''
@@ -137,7 +142,14 @@ async function fetchProducts() {
         )
         products.value = results.filter((p): p is StorefrontProduct => p !== null)
       }
-    } else if (source.value === 'category' && resolvedCategorySlug.value) {
+    } else if (source.value === 'category') {
+      // No resolvable category (e.g. slug missing from the URL) renders an
+      // empty grid — silently falling back to "latest" masked misconfigured
+      // category pages with unrelated products.
+      if (!resolvedCategorySlug.value) {
+        products.value = []
+        return
+      }
       const response = await client.value.getCategoryProducts(resolvedCategorySlug.value, { per_page: limit.value })
       products.value = response.data || []
     } else {
