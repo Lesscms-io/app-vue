@@ -28,6 +28,8 @@ const projectConfig = inject<Ref<any> | null>('lesscms-project-config', null)
 // SSR-safe route params from the renderer — window is unavailable on the
 // server, so URL-driven category resolution must go through this first.
 const resolvedRoute = inject<Ref<{ params?: Record<string, string> } | null> | null>('routeParams', null)
+// Query string from the renderer (?page=N) — same SSR reasoning as above.
+const routeQuery = inject<Ref<Record<string, any>> | null>('routeQuery', null)
 
 const config = computed(() => props.data?.config || props.data || {})
 const headingText = computed(() => extractValue(props.data?.heading?.text) || '')
@@ -62,6 +64,36 @@ const productSlugs = computed(() => {
     .filter(Boolean)
 })
 const limit = computed(() => Number(config.value.limit) || 8)
+const enablePagination = computed(() => config.value.enable_pagination === true && source.value !== 'manual')
+
+const currentPage = computed(() => {
+  let raw = routeQuery?.value?.page
+  if (raw === undefined && typeof window !== 'undefined') {
+    raw = new URLSearchParams(window.location.search).get('page') ?? undefined
+  }
+  const n = Number(Array.isArray(raw) ? raw[0] : raw)
+  return Number.isFinite(n) && n >= 1 ? Math.floor(n) : 1
+})
+
+const paginationMeta = ref<{ current_page: number; last_page: number; total: number } | null>(null)
+
+// Windowed page list: 1 … (p-1) p (p+1) … last, null = ellipsis.
+const pageItems = computed<(number | null)[]>(() => {
+  const last = paginationMeta.value?.last_page || 1
+  const cur = Math.min(currentPage.value, last)
+  const pages = new Set<number>([1, last, cur - 1, cur, cur + 1].filter((p) => p >= 1 && p <= last))
+  const sorted = [...pages].sort((a, b) => a - b)
+  const items: (number | null)[] = []
+  let prev = 0
+  for (const p of sorted) {
+    if (prev && p - prev > 1) items.push(null)
+    items.push(p)
+    prev = p
+  }
+  return items
+})
+
+const pageUrl = (page: number) => (page <= 1 ? '?' : `?page=${page}`)
 const columns = computed(() => Number(config.value.columns) || 4)
 const columnsTablet = computed(() => Number(config.value.columns_tablet) || 2)
 const columnsMobile = computed(() => Number(config.value.columns_mobile) || 1)
@@ -148,14 +180,24 @@ async function fetchProducts() {
       // category pages with unrelated products.
       if (!resolvedCategorySlug.value) {
         products.value = []
+        paginationMeta.value = null
         return
       }
-      const response = await client.value.getCategoryProducts(resolvedCategorySlug.value, { per_page: limit.value })
+      const response = await client.value.getCategoryProducts(resolvedCategorySlug.value, {
+        per_page: limit.value,
+        ...(enablePagination.value ? { page: currentPage.value } : {}),
+      })
       products.value = response.data || []
+      paginationMeta.value = response.pagination || null
     } else {
       const sortBy = source.value === 'featured' ? 'newest' : 'newest'
-      const response = await client.value.getProducts({ per_page: limit.value, sort_by: sortBy })
+      const response = await client.value.getProducts({
+        per_page: limit.value,
+        sort_by: sortBy,
+        ...(enablePagination.value ? { page: currentPage.value } : {}),
+      })
       products.value = response.data || []
+      paginationMeta.value = response.pagination || null
     }
   } catch (err: any) {
     error.value = err.message || (props.language === 'en' ? 'Failed to load products' : 'Nie udało się załadować produktów')
@@ -179,7 +221,7 @@ onMounted(() => {
   }
 })
 
-watch([source, resolvedCategorySlug, productSlugs, limit, isAvailable], () => {
+watch([source, resolvedCategorySlug, productSlugs, limit, isAvailable, currentPage], () => {
   if (isAvailable.value) {
     fetchProducts()
   }
@@ -194,6 +236,8 @@ const t = (key: string) => {
       error: 'Nie udało się załadować produktów',
       from: 'od',
       allProducts: 'Wszystkie produkty',
+      prevPage: 'Poprzednia strona',
+      nextPage: 'Następna strona',
     },
     en: {
       loading: 'Loading products...',
@@ -201,6 +245,8 @@ const t = (key: string) => {
       error: 'Failed to load products',
       from: 'from',
       allProducts: 'All products',
+      prevPage: 'Previous page',
+      nextPage: 'Next page',
     },
   }
   return dict[lang]?.[key] || dict.pl[key] || key
@@ -326,6 +372,37 @@ const t = (key: string) => {
         </svg>
       </a>
     </div>
+
+    <!-- Pagination — plain ?page=N links so every page is SSR-rendered
+         (and CF-cacheable per URL). Hidden when everything fits one page. -->
+    <nav
+      v-if="enablePagination && paginationMeta && paginationMeta.last_page > 1"
+      class="lcms-product-grid__pagination"
+      aria-label="Pagination"
+    >
+      <a
+        v-if="currentPage > 1"
+        :href="pageUrl(currentPage - 1)"
+        class="lcms-product-grid__page lcms-product-grid__page--nav"
+        :aria-label="t('prevPage')"
+      >‹</a>
+      <template v-for="(item, idx) in pageItems" :key="idx">
+        <span v-if="item === null" class="lcms-product-grid__page-ellipsis">…</span>
+        <a
+          v-else
+          :href="pageUrl(item)"
+          class="lcms-product-grid__page"
+          :class="{ 'lcms-product-grid__page--current': item === Math.min(currentPage, paginationMeta.last_page) }"
+          :aria-current="item === currentPage ? 'page' : undefined"
+        >{{ item }}</a>
+      </template>
+      <a
+        v-if="currentPage < paginationMeta.last_page"
+        :href="pageUrl(currentPage + 1)"
+        class="lcms-product-grid__page lcms-product-grid__page--nav"
+        :aria-label="t('nextPage')"
+      >›</a>
+    </nav>
   </div>
 </template>
 
@@ -382,6 +459,47 @@ const t = (key: string) => {
 .lcms-product-grid__see-all:hover {
   background: var(--lcms-color-background-alt, #f9fafb);
   border-color: var(--lcms-color-text, #1f2937);
+}
+
+.lcms-product-grid__pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.375rem;
+  margin-top: var(--lcms-section-gap, 1.5rem);
+  flex-wrap: wrap;
+}
+
+.lcms-product-grid__page {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.25rem;
+  height: 2.25rem;
+  padding: 0 0.5rem;
+  border: 1px solid var(--lcms-color-border, #e5e7eb);
+  border-radius: var(--lcms-btn-border-radius, var(--lcms-border-radius, 0.375rem));
+  color: var(--lcms-color-text, #1f2937);
+  font-size: 0.9375rem;
+  text-decoration: none;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.lcms-product-grid__page:hover {
+  background: var(--lcms-color-background-alt, #f9fafb);
+  border-color: var(--lcms-color-text, #1f2937);
+}
+
+.lcms-product-grid__page--current {
+  background: var(--lcms-color-primary, #3b82f6);
+  border-color: var(--lcms-color-primary, #3b82f6);
+  color: var(--lcms-color-white, #fff);
+  pointer-events: none;
+}
+
+.lcms-product-grid__page-ellipsis {
+  color: var(--lcms-color-muted, #6b7280);
+  padding: 0 0.25rem;
 }
 
 @media (max-width: 640px) {
