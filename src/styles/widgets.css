@@ -1518,6 +1518,14 @@
   padding-left: var(--lcms-menu-items-indent, 0);
 }
 
+/* Vertical (footer-style) menus: row spacing comes ONLY from the configurable
+   items gap — the 8px top/bottom link padding of horizontal menus doubled the
+   visual distance between rows. */
+.lcms-menu--vertical .lcms-menu__link {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
 .lcms-menu__item {
   position: relative;
 }
