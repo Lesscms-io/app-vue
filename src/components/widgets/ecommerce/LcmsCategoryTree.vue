@@ -37,6 +37,9 @@ const categories = ref<StorefrontCategory[]>([])
 const isLoading = ref(false)
 const error = ref<string | null>(null)
 const expanded = ref<Set<string>>(new Set())
+// Flat root level (no expandable nodes) drops the chevron column so labels
+// align with the heading instead of looking indented for no reason.
+const rootLevelHasChildren = computed(() => categories.value.some((c) => (c.children || []).length > 0))
 
 const categoryUrl = (slug: string | null) => {
   if (!slug) return '#'
@@ -174,6 +177,7 @@ const t = (key: string) => {
           :active-slug="activeSlug"
           :category-url="categoryUrl"
           :toggle="toggle"
+          :level-has-children="rootLevelHasChildren"
         />
       </template>
     </ul>
@@ -197,6 +201,10 @@ const CategoryTreeNode = defineComponent({
     activeSlug: { type: String, default: '' },
     categoryUrl: { type: Function as PropType<(slug: string | null) => string>, required: true },
     toggle: { type: Function as PropType<(uuid: string) => void>, required: true },
+    // Whether ANY sibling at this level has children — a flat list drops the
+    // chevron column entirely instead of indenting every label with an empty
+    // 22px spacer.
+    levelHasChildren: { type: Boolean, default: false },
   },
   setup(props) {
     return () => {
@@ -216,16 +224,20 @@ const CategoryTreeNode = defineComponent({
                 h('path', { d: 'M9 6l6 6-6 6' }),
               ]),
             ])
-          : h('span', { class: 'lcms-category-tree__chevron lcms-category-tree__chevron--spacer' }),
+          : (props.levelHasChildren
+              ? h('span', { class: 'lcms-category-tree__chevron lcms-category-tree__chevron--spacer' })
+              : null),
         h('a', {
           href: props.categoryUrl(props.node.slug),
           class: ['lcms-category-tree__link', { 'lcms-category-tree__link--active': isActive }],
         }, props.node.name),
       ])
 
+      const childNodes = props.node.children || []
+      const childLevelHasChildren = childNodes.some((c) => (c.children || []).length > 0)
       const children = hasChildren && isOpen
         ? h('ul', { class: 'lcms-category-tree__list lcms-category-tree__list--nested' },
-            (props.node.children || []).map((child) =>
+            childNodes.map((child) =>
               h(CategoryTreeNode, {
                 key: child.uuid,
                 node: child,
@@ -234,6 +246,7 @@ const CategoryTreeNode = defineComponent({
                 activeSlug: props.activeSlug,
                 categoryUrl: props.categoryUrl,
                 toggle: props.toggle,
+                levelHasChildren: childLevelHasChildren,
               })
             ))
         : null

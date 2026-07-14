@@ -65,6 +65,9 @@ const productSlugs = computed(() => {
 })
 const limit = computed(() => Number(config.value.limit) || 8)
 const enablePagination = computed(() => config.value.enable_pagination === true && source.value !== 'manual')
+// Sort key for latest/category sources — 'manual' honors products.sort_order
+// set in the PIM (unpositioned products sort last).
+const sortBy = computed(() => config.value.sort_by || 'newest')
 
 const currentPage = computed(() => {
   let raw = routeQuery?.value?.page
@@ -185,15 +188,15 @@ async function fetchProducts() {
       }
       const response = await client.value.getCategoryProducts(resolvedCategorySlug.value, {
         per_page: limit.value,
+        sort_by: sortBy.value as any,
         ...(enablePagination.value ? { page: currentPage.value } : {}),
       })
       products.value = response.data || []
       paginationMeta.value = response.pagination || null
     } else {
-      const sortBy = source.value === 'featured' ? 'newest' : 'newest'
       const response = await client.value.getProducts({
         per_page: limit.value,
-        sort_by: sortBy,
+        sort_by: sortBy.value as any,
         ...(enablePagination.value ? { page: currentPage.value } : {}),
       })
       products.value = response.data || []
@@ -221,7 +224,7 @@ onMounted(() => {
   }
 })
 
-watch([source, resolvedCategorySlug, productSlugs, limit, isAvailable, currentPage], () => {
+watch([source, resolvedCategorySlug, productSlugs, limit, isAvailable, currentPage, sortBy], () => {
   if (isAvailable.value) {
     fetchProducts()
   }

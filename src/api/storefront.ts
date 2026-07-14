@@ -141,7 +141,11 @@ export interface StorefrontProduct {
   stock: number
   track_stock: boolean
   status: 'active' | 'inactive' | 'draft'
+  /** Manual merchandising order (sort_by=manual); null/absent sorts last. */
+  sort_order?: number | null
   category_uuid: string | null
+  /** All category assignments (category_product pivot + legacy column). */
+  category_uuids?: string[]
   category: { uuid: string; name: string; slug: string } | null
   images: string[]
   image: string | null
@@ -403,7 +407,7 @@ export interface StorefrontClient {
     min_price?: number
     max_price?: number
     in_stock?: boolean
-    sort_by?: 'price_asc' | 'price_desc' | 'name_asc' | 'name_desc' | 'newest' | 'oldest'
+    sort_by?: 'manual' | 'price_asc' | 'price_desc' | 'name_asc' | 'name_desc' | 'newest' | 'oldest'
     page?: number
     per_page?: number
   }): Promise<StorefrontPaginated<StorefrontProduct>>
@@ -415,7 +419,7 @@ export interface StorefrontClient {
   getCategory(slug: string): Promise<{ data: StorefrontCategory }>
   getCategoryProducts(
     slug: string,
-    params?: { page?: number; per_page?: number }
+    params?: { page?: number; per_page?: number; sort_by?: 'manual' | 'price_asc' | 'price_desc' | 'name_asc' | 'name_desc' | 'newest' | 'oldest' }
   ): Promise<StorefrontPaginated<StorefrontProduct>>
 
   // Cart
