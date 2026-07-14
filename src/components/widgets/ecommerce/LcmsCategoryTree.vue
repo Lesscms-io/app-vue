@@ -159,14 +159,12 @@ const t = (key: string) => {
 
     <ul v-else class="lcms-category-tree__list">
       <li v-if="showAllLink" class="lcms-category-tree__item">
-        <div class="lcms-category-tree__row">
-          <a
-            :href="allLinkUrl"
-            class="lcms-category-tree__link lcms-category-tree__link--all"
-          >
-            {{ t('allProducts') }}
-          </a>
-        </div>
+        <a
+          :href="allLinkUrl"
+          class="lcms-category-tree__all-btn"
+        >
+          {{ t('allProducts') }}
+        </a>
       </li>
       <template v-for="category in categories" :key="category.uuid">
         <CategoryTreeNode
@@ -341,8 +339,27 @@ export default { components: { CategoryTreeNode } }
   background: var(--lcms-color-surface, #f3f4f6);
 }
 
-.lcms-category-tree__link--all {
-  font-weight: 600;
+/* "Wszystkie produkty" — themed primary button, same conventions as the
+   add-to-cart button (project button settings + primary color). */
+.lcms-category-tree__all-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 0 0.75rem;
+  background: var(--lcms-color-primary, #3b82f6);
+  color: var(--lcms-color-white, #fff);
+  padding: var(--lcms-btn-padding, 0.5rem 1rem);
+  border-radius: var(--lcms-btn-border-radius, var(--lcms-border-radius, 0.375rem));
+  font-size: var(--lcms-btn-font-size, 0.9375rem);
+  font-weight: var(--lcms-btn-font-weight, 600);
+  font-family: var(--lcms-font-button, var(--lcms-font-body));
+  text-decoration: none;
+  transition: opacity 0.2s;
+}
+
+.lcms-category-tree__all-btn:hover {
+  opacity: 0.9;
+  text-decoration: none;
 }
 
 .lcms-category-tree__empty,
