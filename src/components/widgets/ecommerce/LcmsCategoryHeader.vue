@@ -6,11 +6,15 @@
  * Slug source: from URL path or static config.
  */
 
-import { computed, ref, onMounted, watch, inject, type Ref } from 'vue'
+import { computed, ref, onMounted, onServerPrefetch, watch, inject, type Ref } from 'vue'
 import { useStorefront } from '../../../composables/useStorefront'
 import type { StorefrontCategory } from '../../../api/storefront'
 
 defineOptions({ inheritAttrs: false })
+
+interface ResolvedRoute {
+  params?: Record<string, string>
+}
 
 interface Props {
   data: Record<string, any>
@@ -33,16 +37,42 @@ const slugUrlSegment = computed(() => Number(config.value.slug_url_segment ?? 1)
 const staticSlug = computed(() => config.value.slug || '')
 
 const category = ref<StorefrontCategory | null>(null)
+// Ancestor chain (root → parent) for the breadcrumb trail, excluding the
+// category itself — built from the category tree in one request.
+const ancestors = ref<StorefrontCategory[]>([])
 const productCount = ref<number>(0)
 const isLoading = ref(false)
 const error = ref<string | null>(null)
 
+// SSR-safe slug resolution, same contract as product-detail: static config →
+// route params provided by the renderer → window pathname (client fallback).
+const resolvedRoute = inject<Ref<ResolvedRoute | null> | null>('routeParams', null)
+
 const resolvedSlug = computed(() => {
   if (slugSource.value === 'static') return staticSlug.value
+  const routeVal = resolvedRoute?.value
+  if (routeVal?.params?.slug) return routeVal.params.slug
   if (typeof window === 'undefined') return ''
   const segments = window.location.pathname.split('/').filter(Boolean)
   return segments[slugUrlSegment.value] || ''
 })
+
+const categoryUrl = (slug: string | null) => {
+  if (!slug) return '#'
+  const route = projectConfig?.value?.commerce?.routes?.category || '/kategoria/:slug'
+  return route.replace(':slug', slug)
+}
+
+// Root → target path in the nested tree; null when the slug is absent.
+function pathToCategory(nodes: StorefrontCategory[], slug: string, trail: StorefrontCategory[] = []): StorefrontCategory[] | null {
+  for (const node of nodes) {
+    const next = [...trail, node]
+    if (node.slug === slug) return next
+    const found = pathToCategory(node.children || [], slug, next)
+    if (found) return found
+  }
+  return null
+}
 
 const homeUrl = '/'
 
@@ -62,8 +92,12 @@ async function fetchCategory() {
   error.value = null
 
   try {
-    const response = await client.value.getCategory(resolvedSlug.value)
-    category.value = response.data || null
+    // Full tree in one request — gives the category AND its ancestor chain
+    // for the breadcrumb trail.
+    const response = await client.value.getCategories()
+    const path = pathToCategory(response.data || [], resolvedSlug.value)
+    category.value = path ? path[path.length - 1] : null
+    ancestors.value = path ? path.slice(0, -1) : []
 
     if (showProductCount.value && category.value) {
       const productsRes = await client.value.getCategoryProducts(resolvedSlug.value, { per_page: 1 })
@@ -72,13 +106,20 @@ async function fetchCategory() {
   } catch (err: any) {
     error.value = err.message || 'Failed to load category'
     category.value = null
+    ancestors.value = []
   } finally {
     isLoading.value = false
   }
 }
 
+// SSR: resolve before render so the header (name/description/breadcrumbs)
+// is part of the initial HTML — also matters for SEO on category pages.
+onServerPrefetch(async () => {
+  if (isAvailable.value) await fetchCategory()
+})
+
 onMounted(() => {
-  if (isAvailable.value) fetchCategory()
+  if (isAvailable.value && !category.value) fetchCategory()
 })
 
 watch([resolvedSlug, isAvailable], () => {
@@ -90,8 +131,14 @@ watch([resolvedSlug, isAvailable], () => {
   <div class="lcms-category-header" v-if="!isLoading || category">
     <nav v-if="showBreadcrumbs" class="lcms-category-header__breadcrumbs" aria-label="Breadcrumb">
       <a :href="homeUrl">{{ t('home') }}</a>
-      <span class="lcms-category-header__breadcrumb-separator">/</span>
-      <span v-if="category">{{ category.name }}</span>
+      <template v-for="crumb in ancestors" :key="crumb.uuid">
+        <span class="lcms-category-header__breadcrumb-separator">/</span>
+        <a :href="categoryUrl(crumb.slug)">{{ crumb.name }}</a>
+      </template>
+      <template v-if="category">
+        <span class="lcms-category-header__breadcrumb-separator">/</span>
+        <span>{{ category.name }}</span>
+      </template>
     </nav>
 
     <div v-if="category" class="lcms-category-header__content">
