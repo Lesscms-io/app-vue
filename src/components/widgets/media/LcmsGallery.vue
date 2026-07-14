@@ -80,6 +80,24 @@ const enableLightbox = computed(() =>
   config.value.enable_lightbox || config.value.enableLightbox || props.data.enable_lightbox
 )
 
+// Captions: 'none' | 'alt' | 'filename' — shown as a bottom overlay on tiles
+// and under the lightbox image.
+const captionsMode = computed(() => config.value.captions || props.data.captions || 'none')
+
+function captionFor(image: any): string {
+  if (captionsMode.value === 'alt') return image?.alt || ''
+  if (captionsMode.value === 'filename') {
+    const url = String(image?.url || '')
+    const base = url.split('?')[0].split('/').pop() || ''
+    try {
+      return decodeURIComponent(base).replace(/\.[a-z0-9]{2,5}$/i, '')
+    } catch {
+      return base.replace(/\.[a-z0-9]{2,5}$/i, '')
+    }
+  }
+  return ''
+}
+
 // Dynamic content source settings (for future dynamic mode)
 const contentSource = computed(() => config.value.content_source || 'static')
 const collectionCode = computed(() => config.value.collection_code || null)
@@ -262,7 +280,7 @@ const lightboxImage = computed(() => images.value[lightboxIndex.value])
         :style="isClickable(image) ? { cursor: 'pointer' } : undefined"
         @click="openLightbox(index)"
       >
-        <GalleryTile :item="image" img-class="lcms-gallery__img" />
+        <GalleryTile :item="image" img-class="lcms-gallery__img" :caption="captionFor(image)" />
       </div>
     </div>
 
@@ -280,7 +298,7 @@ const lightboxImage = computed(() => images.value[lightboxIndex.value])
         :style="isClickable(image) ? { cursor: 'pointer' } : undefined"
         @click="openLightbox(index)"
       >
-        <GalleryTile :item="image" img-class="lcms-gallery__img" />
+        <GalleryTile :item="image" img-class="lcms-gallery__img" :caption="captionFor(image)" />
       </div>
     </div>
 
@@ -298,7 +316,7 @@ const lightboxImage = computed(() => images.value[lightboxIndex.value])
         :style="isClickable(image) ? { cursor: 'pointer' } : undefined"
         @click="openLightbox(index)"
       >
-        <GalleryTile :item="image" img-class="lcms-gallery__img" />
+        <GalleryTile :item="image" img-class="lcms-gallery__img" :caption="captionFor(image)" />
       </div>
     </div>
 
@@ -315,7 +333,7 @@ const lightboxImage = computed(() => images.value[lightboxIndex.value])
         :style="{ marginBottom: `${gap}px`, cursor: isClickable(image) ? 'pointer' : undefined }"
         @click="openLightbox(index)"
       >
-        <GalleryTile :item="image" img-class="lcms-gallery__img" />
+        <GalleryTile :item="image" img-class="lcms-gallery__img" :caption="captionFor(image)" />
       </div>
     </div>
 
@@ -330,7 +348,7 @@ const lightboxImage = computed(() => images.value[lightboxIndex.value])
         :style="isClickable(images[0]) ? { cursor: 'pointer' } : undefined"
         @click="openLightbox(0)"
       >
-        <GalleryTile :item="images[0]" img-class="lcms-gallery__img" />
+        <GalleryTile :item="images[0]" img-class="lcms-gallery__img" :caption="captionFor(images[0])" />
       </div>
       <div
         v-for="(image, index) in images.slice(1, 5)"
@@ -340,7 +358,7 @@ const lightboxImage = computed(() => images.value[lightboxIndex.value])
         :style="isClickable(image) ? { cursor: 'pointer' } : undefined"
         @click="openLightbox(index + 1)"
       >
-        <GalleryTile :item="image" img-class="lcms-gallery__img" />
+        <GalleryTile :item="image" img-class="lcms-gallery__img" :caption="captionFor(image)" />
       </div>
     </div>
 
@@ -365,6 +383,7 @@ const lightboxImage = computed(() => images.value[lightboxIndex.value])
             img-class="lcms-gallery__img"
             sizes="100vw"
             prefer-full
+            :caption="captionFor(image)"
           />
         </div>
       </div>
@@ -432,6 +451,7 @@ const lightboxImage = computed(() => images.value[lightboxIndex.value])
             img-class="lcms-gallery__img"
             sizes="100vw"
             prefer-full
+            :caption="captionFor(image)"
           />
         </div>
       </div>
@@ -524,6 +544,13 @@ const lightboxImage = computed(() => images.value[lightboxIndex.value])
               decoding="async"
               @click.stop
             >
+            <div
+              v-if="captionFor(lightboxImage)"
+              class="lcms-lightbox__caption"
+              @click.stop
+            >
+              {{ captionFor(lightboxImage) }}
+            </div>
           </div>
 
           <!-- Next arrow -->
@@ -687,6 +714,13 @@ const lightboxImage = computed(() => images.value[lightboxIndex.value])
 .lcms-lightbox__counter {
   position: absolute; top: 16px; left: 50%; transform: translateX(-50%);
   color: #fff; font-size: 14px;
+}
+.lcms-lightbox__caption {
+  margin-top: 12px;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 14px;
+  text-align: center;
+  max-width: 80vw;
 }
 .lcms-lightbox__arrow {
   position: absolute; top: 50%; transform: translateY(-50%);
