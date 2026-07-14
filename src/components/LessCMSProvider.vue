@@ -350,11 +350,20 @@ function applyStyleVariables(styles: Record<string, any>) {
   if (styles.muted_color) root.style.setProperty('--lcms-color-muted', styles.muted_color)
   if (styles.border_color) root.style.setProperty('--lcms-color-border', styles.border_color)
 
-  // Custom colors
+  // Custom colors. Codes colliding with built-in palette vars are skipped —
+  // otherwise a custom color named e.g. "accent" silently overrides the theme
+  // accent on the storefront while the builder still resolves the built-in
+  // one (editor/site mismatch).
+  const RESERVED_COLOR_CODES = new Set([
+    'primary', 'secondary', 'accent', 'success', 'danger', 'warning', 'info',
+    'light', 'dark', 'white', 'black', 'text', 'background', 'background-alt',
+    'link', 'muted', 'border',
+  ])
   if (Array.isArray(styles.custom_colors)) {
     for (const cc of styles.custom_colors) {
       if (cc.name && cc.color) {
         const code = cc.name.toLowerCase().replace(/\s+/g, '-')
+        if (RESERVED_COLOR_CODES.has(code)) continue
         root.style.setProperty(`--lcms-color-${code}`, cc.color)
       }
     }
