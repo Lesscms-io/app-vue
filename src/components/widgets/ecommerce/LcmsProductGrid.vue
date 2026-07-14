@@ -30,6 +30,8 @@ const projectConfig = inject<Ref<any> | null>('lesscms-project-config', null)
 const resolvedRoute = inject<Ref<{ params?: Record<string, string> } | null> | null>('routeParams', null)
 // Query string from the renderer (?page=N) — same SSR reasoning as above.
 const routeQuery = inject<Ref<Record<string, any>> | null>('routeQuery', null)
+// Current path from the renderer (SSR-safe) — used for category-page context.
+const routePath = inject<Ref<string> | null>('routePath', null)
 
 const config = computed(() => props.data?.config || props.data || {})
 const headingText = computed(() => extractValue(props.data?.heading?.text) || '')
@@ -43,10 +45,40 @@ const allTileText = computed(() => extractValue(props.data?.all_tile?.text) || t
 const showAllTile = computed(() => props.data?.all_tile?.enabled === true && !!allTileUrl.value)
 const showDiscountFallback = computed(() => config.value.show_discount_badge !== false)
 
-const source = computed(() => config.value.source || 'latest')
+// Category-page context: current path matches the project's category route
+// (e.g. /kategoria/:slug). A grid WITHOUT an explicit source on such a page
+// defaults to listing that category — this survives builder saves that strip
+// widget config (the recurring "albums on a category page" failure mode).
+const currentPath = computed(() => {
+  const injected = routePath?.value
+  if (injected) return injected
+  if (typeof window === 'undefined') return ''
+  return window.location.pathname
+})
+
+const categoryRoutePrefix = computed(() => {
+  const route = projectConfig?.value?.commerce?.routes?.category || '/kategoria/:slug'
+  return route.split(':slug')[0]
+})
+
+const categoryPageSlug = computed(() => {
+  const prefix = categoryRoutePrefix.value
+  const path = currentPath.value
+  if (!prefix || !path.startsWith(prefix)) return ''
+  return decodeURIComponent(path.slice(prefix.length).split('/')[0] || '')
+})
+
+const source = computed(() => {
+  if (config.value.source) return config.value.source
+  return categoryPageSlug.value ? 'category' : 'latest'
+})
+// True when 'category' came from page context, not explicit config — slug
+// resolution then ignores category_source (which defaults to 'static').
+const contextCategoryDefault = computed(() => !config.value.source && !!categoryPageSlug.value)
 const categorySourceMode = computed(() => config.value.category_source || 'static')
 const categoryUrlSegment = computed(() => Number(config.value.category_url_segment ?? 1))
 const resolvedCategorySlug = computed(() => {
+  if (contextCategoryDefault.value) return categoryPageSlug.value
   if (categorySourceMode.value === 'url') {
     const routeVal = resolvedRoute?.value
     if (routeVal?.params?.slug) return routeVal.params.slug
