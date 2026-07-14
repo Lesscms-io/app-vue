@@ -248,7 +248,12 @@ const CategoryTreeNode = defineComponent({
 export default { components: { CategoryTreeNode } }
 </script>
 
-<style scoped>
+<!-- NOT scoped on purpose: tree nodes render through a render-function child
+     component (CategoryTreeNode), which never receives the parent's data-v
+     scope attribute — scoped selectors silently miss every node and links
+     fall back to browser defaults. All classes are lcms-category-tree__*
+     namespaced, so global is safe. -->
+<style>
 .lcms-category-tree {
   font-family: var(--lcms-font-body, system-ui, sans-serif);
   color: var(--lcms-color-text, #1f2937);
@@ -316,8 +321,9 @@ export default { components: { CategoryTreeNode } }
   display: block;
   padding: 0.375rem 0.5rem;
   border-radius: 6px;
-  text-decoration: none;
-  color: inherit;
+  /* Project-level link settings (Ustawienia → Linki) with quiet-nav fallbacks. */
+  text-decoration: var(--lcms-link-text-decoration, none);
+  color: var(--lcms-color-link, inherit);
   font-size: 0.9375rem;
   flex: 1;
   transition: background-color 0.15s ease, color 0.15s ease;
@@ -325,6 +331,8 @@ export default { components: { CategoryTreeNode } }
 
 .lcms-category-tree__link:hover {
   background: var(--lcms-color-surface, #f3f4f6);
+  color: var(--lcms-link-hover-color, var(--lcms-color-link, inherit));
+  text-decoration: var(--lcms-link-hover-text-decoration, var(--lcms-link-text-decoration, none));
 }
 
 .lcms-category-tree__link--active {
