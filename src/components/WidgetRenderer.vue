@@ -304,6 +304,10 @@ const widgetStyle = computed(() => {
   else if (hAlign === 'left') style.textAlign = 'left'
   if (s.auto_width || (hAlign !== 'stretch' && !s.width)) {
     style.width = 'fit-content'
+    // fit-content resolves to max-content when the content has intrinsic
+    // width (e.g. gallery grid summing native image widths) — cap it so the
+    // widget never overflows its column. Explicit s.max_width below wins.
+    style.maxWidth = '100%'
     // Use auto margins for alignment since fit-content + justify-content is conflicting
     if (hAlign === 'center') {
       style.marginLeft = style.marginLeft || 'auto'

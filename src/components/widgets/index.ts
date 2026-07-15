@@ -29,6 +29,7 @@ import LcmsTable from './text/LcmsTable.vue'
 
 // Media widgets
 import LcmsImage from './media/LcmsImage.vue'
+import LcmsIcon from './media/LcmsIcon.vue'
 import LcmsGallery from './media/LcmsGallery.vue'
 import LcmsVideo from './media/LcmsVideo.vue'
 import LcmsAudio from './media/LcmsAudio.vue'
@@ -131,6 +132,7 @@ export const widgetComponents: Record<string, Component> = {
 
   // Media
   image: LcmsImage,
+  icon: LcmsIcon,
   gallery: LcmsGallery,
   video: LcmsVideo,
   audio: LcmsAudio,
@@ -251,6 +253,7 @@ export {
   LcmsTable,
   // Media
   LcmsImage,
+  LcmsIcon,
   LcmsGallery,
   LcmsVideo,
   LcmsAudio,

@@ -2,10 +2,10 @@
 /**
  * Image Widget
  *
- * Renders a single image.
+ * Renders a single image, optionally clickable into a fullscreen lightbox.
  */
 
-import { computed } from 'vue'
+import { computed, ref, onUnmounted, watch, Teleport } from 'vue'
 import { useLanguage } from '@/composables/useLanguage'
 import { contentImage } from '@/composables/useImageOptimization'
 import type { ImageWidgetData } from '@/types/widgets'
@@ -46,7 +46,40 @@ const imageStylePresets: Record<string, Record<string, string>> = {
 
 const imageStyle = computed(() => {
   const style = config.value.image_style || 'none'
-  return imageStylePresets[style] || {}
+  const base = imageStylePresets[style] || {}
+  return lightboxEnabled.value ? { ...base, cursor: 'zoom-in' } : base
+})
+
+// Lightbox — same behavior as the gallery widget, single image
+const lightboxEnabled = computed(() =>
+  config.value.enable_lightbox === true || config.value.enableLightbox === true
+)
+const lightboxOpen = ref(false)
+
+function openLightbox() {
+  if (!lightboxEnabled.value) return
+  lightboxOpen.value = true
+}
+
+function closeLightbox() {
+  lightboxOpen.value = false
+}
+
+function onLightboxKeydown(e: KeyboardEvent) {
+  if (lightboxOpen.value && e.key === 'Escape') closeLightbox()
+}
+
+watch(lightboxOpen, (open) => {
+  if (typeof document === 'undefined') return
+  document.body.style.overflow = open ? 'hidden' : ''
+  if (open) document.addEventListener('keydown', onLightboxKeydown)
+  else document.removeEventListener('keydown', onLightboxKeydown)
+})
+
+onUnmounted(() => {
+  if (typeof document === 'undefined') return
+  document.removeEventListener('keydown', onLightboxKeydown)
+  document.body.style.overflow = ''
 })
 </script>
 
@@ -62,6 +95,7 @@ const imageStyle = computed(() => {
       decoding="async"
       class="lcms-image__img"
       :style="imageStyle"
+      @click="openLightbox"
     >
     <div
       v-else
@@ -69,6 +103,39 @@ const imageStyle = computed(() => {
     >
       <i class="fa-solid fa-image" />
     </div>
+
+    <!-- Lightbox Overlay -->
+    <Teleport to="body">
+      <Transition name="lcms-lightbox">
+        <div
+          v-if="lightboxOpen && imageUrl"
+          class="lcms-lightbox__backdrop"
+          @click.self="closeLightbox"
+        >
+          <button
+            class="lcms-lightbox__close"
+            type="button"
+            @click="closeLightbox"
+          >
+            <i class="fa-solid fa-xmark" />
+          </button>
+          <div class="lcms-lightbox__image-wrapper">
+            <img
+              :src="imageUrl"
+              :alt="altText"
+              class="lcms-lightbox__image"
+              decoding="async"
+            >
+            <div
+              v-if="altText"
+              class="lcms-lightbox__caption"
+            >
+              {{ altText }}
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
   </figure>
 </template>
 
@@ -104,4 +171,25 @@ const imageStyle = computed(() => {
   color: var(--lcms-color-muted, #adb5bd);
   font-size: 32px;
 }
+
+/* Lightbox — mirrors LcmsGallery */
+.lcms-lightbox__backdrop {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.9);
+  z-index: 9999; display: flex; align-items: center; justify-content: center;
+}
+.lcms-lightbox__image-wrapper { max-width: 90vw; max-height: 85vh; }
+.lcms-lightbox__image { max-width: 100%; max-height: 85vh; object-fit: contain; border-radius: 4px; }
+.lcms-lightbox__close {
+  position: absolute; top: 16px; right: 16px; background: none; border: none;
+  color: #fff; font-size: 24px; cursor: pointer; z-index: 10;
+}
+.lcms-lightbox__caption {
+  margin-top: 12px;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 14px;
+  text-align: center;
+  max-width: 80vw;
+}
+.lcms-lightbox-enter-active, .lcms-lightbox-leave-active { transition: opacity 200ms; }
+.lcms-lightbox-enter-from, .lcms-lightbox-leave-to { opacity: 0; }
 </style>
