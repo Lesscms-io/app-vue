@@ -110,6 +110,17 @@ const currentPage = computed(() => {
   return Number.isFinite(n) && n >= 1 ? Math.floor(n) : 1
 })
 
+// Search mode (source === 'search'): query text from ?q= — the URL the
+// search-bar widget navigates to. Same route/window fallback as `page`.
+const searchQuery = computed(() => {
+  let raw = routeQuery?.value?.q
+  if (raw === undefined && typeof window !== 'undefined') {
+    raw = new URLSearchParams(window.location.search).get('q') ?? undefined
+  }
+  const v = Array.isArray(raw) ? raw[0] : raw
+  return typeof v === 'string' ? v.trim() : ''
+})
+
 const paginationMeta = ref<{ current_page: number; last_page: number; total: number } | null>(null)
 
 // Windowed page list: 1 … (p-1) p (p+1) … last, null = ellipsis.
@@ -209,6 +220,20 @@ async function fetchProducts() {
         )
         products.value = results.filter((p): p is StorefrontProduct => p !== null)
       }
+    } else if (source.value === 'search') {
+      // Search-results mode: no query → empty grid (the page renders its own
+      // "type something" state), non-empty → storefront full-text search.
+      if (!searchQuery.value) {
+        products.value = []
+        paginationMeta.value = null
+        return
+      }
+      const response = await client.value.searchProducts(searchQuery.value, {
+        per_page: limit.value,
+        ...(enablePagination.value ? { page: currentPage.value } : {}),
+      })
+      products.value = response.data || []
+      paginationMeta.value = response.pagination || null
     } else if (source.value === 'category') {
       // No resolvable category (e.g. slug missing from the URL) renders an
       // empty grid — silently falling back to "latest" masked misconfigured
@@ -256,7 +281,7 @@ onMounted(() => {
   }
 })
 
-watch([source, resolvedCategorySlug, productSlugs, limit, isAvailable, currentPage, sortBy], () => {
+watch([source, resolvedCategorySlug, productSlugs, limit, isAvailable, currentPage, sortBy, searchQuery], () => {
   if (isAvailable.value) {
     fetchProducts()
   }
@@ -273,6 +298,9 @@ const t = (key: string) => {
       allProducts: 'Wszystkie produkty',
       prevPage: 'Poprzednia strona',
       nextPage: 'Następna strona',
+      searchPrompt: 'Wpisz szukaną frazę w wyszukiwarce',
+      searchEmpty: 'Brak wyników dla',
+      searchResults: 'Wyniki wyszukiwania dla',
     },
     en: {
       loading: 'Loading products...',
@@ -282,6 +310,9 @@ const t = (key: string) => {
       allProducts: 'All products',
       prevPage: 'Previous page',
       nextPage: 'Next page',
+      searchPrompt: 'Type a phrase in the search bar',
+      searchEmpty: 'No results for',
+      searchResults: 'Search results for',
     },
   }
   return dict[lang]?.[key] || dict.pl[key] || key
@@ -307,6 +338,15 @@ const t = (key: string) => {
       </a>
     </div>
 
+    <!-- Search mode: query + result count line above the grid -->
+    <p
+      v-if="source === 'search' && searchQuery && !isLoading && products.length > 0"
+      class="lcms-product-grid__search-summary"
+    >
+      {{ t('searchResults') }} „{{ searchQuery }}"
+      <span v-if="paginationMeta?.total"> ({{ paginationMeta.total }})</span>
+    </p>
+
     <div v-if="isLoading" class="lcms-product-grid__loading">
       <div v-for="i in limit" :key="i" class="lcms-product-card lcms-product-card--skeleton">
         <div class="lcms-product-card__skeleton-image" />
@@ -320,7 +360,12 @@ const t = (key: string) => {
     </div>
 
     <div v-else-if="products.length === 0" class="lcms-product-grid__empty">
-      {{ t('empty') }}
+      <template v-if="source === 'search'">
+        {{ searchQuery ? `${t('searchEmpty')} „${searchQuery}"` : t('searchPrompt') }}
+      </template>
+      <template v-else>
+        {{ t('empty') }}
+      </template>
     </div>
 
     <div v-else class="lcms-product-grid__grid" :style="gridStyle">
@@ -581,6 +626,12 @@ const t = (key: string) => {
 
 .lcms-product-grid__error {
   color: var(--lcms-color-danger, #ef4444);
+}
+
+.lcms-product-grid__search-summary {
+  margin: 0 0 1rem;
+  color: var(--lcms-color-muted, #6b7280);
+  font-size: var(--lcms-font-size-sm, 0.875rem);
 }
 
 /* Product card */
