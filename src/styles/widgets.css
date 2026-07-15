@@ -167,7 +167,23 @@
 .lcms-section__column--align-end .lcms-widget--grid,
 .lcms-section__column--align-center .lcms-widget--image,
 .lcms-section__column--align-start .lcms-widget--image,
-.lcms-section__column--align-end .lcms-widget--image {
+.lcms-section__column--align-end .lcms-widget--image,
+/* Embed widgets (iframe inside) have no intrinsic width — width:auto collapses
+ * them to whatever the aspect-ratio derives from the row height. They fill
+ * their slot like image; explicit widget width/auto_width still wins because
+ * WidgetRenderer applies those as inline styles. */
+.lcms-section__column--align-center .lcms-widget--video,
+.lcms-section__column--align-start .lcms-widget--video,
+.lcms-section__column--align-end .lcms-widget--video,
+.lcms-section__column--align-center .lcms-widget--google-maps,
+.lcms-section__column--align-start .lcms-widget--google-maps,
+.lcms-section__column--align-end .lcms-widget--google-maps,
+.lcms-section__column--align-center .lcms-widget--openstreetmap,
+.lcms-section__column--align-start .lcms-widget--openstreetmap,
+.lcms-section__column--align-end .lcms-widget--openstreetmap,
+.lcms-section__column--align-center .lcms-widget--pdf-viewer,
+.lcms-section__column--align-start .lcms-widget--pdf-viewer,
+.lcms-section__column--align-end .lcms-widget--pdf-viewer {
   width: 100%;
 }
 
