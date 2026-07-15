@@ -171,9 +171,14 @@ function radioGridStyle(group: StorefrontProductOptionGroup): Record<string, str
   const visible = visibleOptionsOf(group, selectedSet.value).length
   if (visible <= 1 || radioColumns.value <= 1) return {}
   const cols = Math.max(1, Math.min(radioColumns.value, visible))
+  // minmax(0, 1fr): plain 1fr has min = content width, so an unbreakable chip
+  // ("30×20 pionowy +51 zł") pushes the whole grid past the viewport on
+  // mobile. The column COUNT goes through a CSS var so the ≤640px media query
+  // below can cap it — a media query can't beat an inline template otherwise.
   return {
     display: 'grid',
-    gridTemplateColumns: `repeat(${cols}, 1fr)`,
+    '--lcms-pc-grid-cols': String(cols),
+    gridTemplateColumns: 'repeat(var(--lcms-pc-grid-cols), minmax(0, 1fr))',
   }
 }
 // Display mode = single source of truth for how the configurator paints groups:
@@ -1307,9 +1312,12 @@ function imageSwatchGridStyle(group: StorefrontProductOptionGroup): Record<strin
   const visibleImages = opts.filter((o) => !!o.thumbnail).length
   if (visibleImages === 0) return {}
   const cols = Math.max(1, Math.min(swatchColumns.value, visibleImages))
+  // Same contract as radioGridStyle: minmax(0, 1fr) so captions can't blow
+  // the track past the viewport, CSS var so mobile caps the column count.
   return {
     display: 'grid',
-    gridTemplateColumns: `repeat(${cols}, 1fr)`,
+    '--lcms-pc-grid-cols': String(cols),
+    gridTemplateColumns: 'repeat(var(--lcms-pc-grid-cols), minmax(0, 1fr))',
   }
 }
 
@@ -2203,6 +2211,18 @@ const cssVars = computed(() => {
 /* Grid mode kicks in via inline style from radioGridStyle(group) when
  * radio_columns > 1. The flex-column above is the "stacked full-width"
  * fallback (radio_columns=1 default). */
+
+/* Mobile: cap option grids at 2 columns regardless of the configured count.
+ * The inline template reads the count from --lcms-pc-grid-cols, and
+ * !important on a custom property is the only thing that outranks an inline
+ * style — plain media-query rules would lose. Groups without grid mode have
+ * no inline template, so the var is inert there. */
+@media (max-width: 640px) {
+  .lcms-product-configurator__radio-group,
+  .lcms-product-configurator__swatches--grid {
+    --lcms-pc-grid-cols: 2 !important;
+  }
+}
 
 .lcms-product-configurator__radio {
   position: relative;
