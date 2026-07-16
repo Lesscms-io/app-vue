@@ -2883,3 +2883,10 @@
     font-size: var(--lcms-font-size-sm);
   }
 }
+
+/* Images inserted into rich text content via the builder's WYSIWYG editor
+   (text widget, accordion items, etc. — rendered through v-html). */
+img.lcms-rich-img {
+  max-width: 100%;
+  height: auto;
+}
