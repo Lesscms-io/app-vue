@@ -2890,3 +2890,12 @@ img.lcms-rich-img {
   max-width: 100%;
   height: auto;
 }
+
+/* Empty paragraphs in rich text content (blank lines typed in the builder's
+   WYSIWYG) — render as a blank line instead of collapsing to zero height. */
+.lcms-text p:empty::before,
+.lcms-accordion__content p:empty::before,
+.lcms-icon-box__content p:empty::before,
+.lcms-numbered-box__content p:empty::before {
+  content: "\00a0";
+}
