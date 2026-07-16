@@ -59,11 +59,22 @@ const itemsGroup = computed(() => {
 const allowMultiple = computed(() => configGroup.value.allow_multiple || false)
 const firstOpen = computed(() => configGroup.value.first_open ?? true)
 
+// Legacy items stored content as plain text; wrap it in paragraphs so
+// v-html keeps the line breaks. New content arrives as HTML (WYSIWYG).
+function contentAsHtml(raw: string): string {
+  if (!raw) return ''
+  if (/<[a-z][\s\S]*>/i.test(raw)) return raw
+  return raw
+    .split('\n')
+    .map(line => `<p>${line.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>`)
+    .join('')
+}
+
 // Items with extracted multilang values
 const renderedItems = computed(() => {
   return itemsGroup.value.map((item: any) => ({
     title: extractValue(item.title_html || item.title),
-    content: extractValue(item.html || item.content)
+    content: contentAsHtml(extractValue(item.html || item.content))
   }))
 })
 
@@ -239,7 +250,17 @@ function contentStyle() {
 }
 
 .lcms-accordion__content :deep(p) {
+  margin: 0 0 0.5em 0;
+}
+
+.lcms-accordion__content :deep(p:last-child) {
   margin: 0;
+}
+
+.lcms-accordion__content :deep(ul),
+.lcms-accordion__content :deep(ol) {
+  padding-left: 1.5em;
+  margin: 0 0 0.5em 0;
 }
 
 /* Hover styles */
