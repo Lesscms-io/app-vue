@@ -100,6 +100,7 @@ const t = (key: string) => {
       requiredField: 'To pole jest wymagane',
       invalidEmail: 'Nieprawidłowy email',
       invalidPostalCode: 'Format: XX-XXX',
+      formIncomplete: 'Uzupełnij zaznaczone pola, aby złożyć zamówienie',
       orderError: 'Nie udało się złożyć zamówienia',
       orderSuccess: 'Zamówienie zostało złożone',
       paymentP24: 'Przelewy24',
@@ -164,6 +165,7 @@ const t = (key: string) => {
       requiredField: 'This field is required',
       invalidEmail: 'Invalid email',
       invalidPostalCode: 'Format: XX-XXX',
+      formIncomplete: 'Fill in the highlighted fields to place your order',
       orderError: 'Failed to place order',
       orderSuccess: 'Order placed successfully',
       paymentP24: 'Przelewy24',
@@ -803,6 +805,7 @@ function validate(): boolean {
 
 async function handleSubmit() {
   if (!validate()) {
+    toast.error(t('formIncomplete'))
     const firstError = Object.keys(errors)[0]
     if (firstError) {
       const el = document.querySelector(`[name="${firstError}"]`) as HTMLElement
