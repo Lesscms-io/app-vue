@@ -2899,3 +2899,22 @@ img.lcms-rich-img {
 .lcms-numbered-box__content p:empty::before {
   content: "\00a0";
 }
+
+/* Tables from the builder's rich text editor (rendered through v-html). */
+.tiptap-table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1em 0;
+  table-layout: fixed;
+}
+.tiptap-table td,
+.tiptap-table th {
+  border: 1px solid #dee2e6;
+  padding: 8px 12px;
+  vertical-align: top;
+  min-width: 50px;
+}
+.tiptap-table th {
+  background: rgba(0, 0, 0, 0.04);
+  font-weight: 600;
+}
