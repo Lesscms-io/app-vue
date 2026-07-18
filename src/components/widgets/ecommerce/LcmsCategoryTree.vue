@@ -37,6 +37,10 @@ const categories = ref<StorefrontCategory[]>([])
 const isLoading = ref(false)
 const error = ref<string | null>(null)
 const expanded = ref<Set<string>>(new Set())
+// Mobile-only accordion state — on narrow screens the sidebar tree stacks above
+// the product grid, so it starts collapsed behind a toggle instead of pushing
+// products below the fold. Desktop ignores this entirely (CSS-driven).
+const mobileOpen = ref(false)
 // Flat root level (no expandable nodes) drops the chevron column so labels
 // align with the heading instead of looking indented for no reason.
 const rootLevelHasChildren = computed(() => categories.value.some((c) => (c.children || []).length > 0))
@@ -139,16 +143,29 @@ watch([isAvailable], () => {
 const t = (key: string) => {
   const lang = props.language || 'pl'
   const dict: Record<string, Record<string, string>> = {
-    pl: { empty: 'Brak kategorii', allProducts: 'Wszystkie produkty' },
-    en: { empty: 'No categories', allProducts: 'All products' },
+    pl: { empty: 'Brak kategorii', allProducts: 'Wszystkie produkty', categories: 'Kategorie' },
+    en: { empty: 'No categories', allProducts: 'All products', categories: 'Categories' },
   }
   return dict[lang]?.[key] || dict.pl[key] || key
 }
 </script>
 
 <template>
-  <div class="lcms-category-tree">
+  <div class="lcms-category-tree" :class="{ 'lcms-category-tree--mobile-open': mobileOpen }">
     <h3 v-if="headingText" class="lcms-category-tree__heading">{{ headingText }}</h3>
+
+    <!-- Mobile-only accordion toggle; replaces the heading below the breakpoint -->
+    <button
+      type="button"
+      class="lcms-category-tree__mobile-toggle"
+      :aria-expanded="mobileOpen ? 'true' : 'false'"
+      @click="mobileOpen = !mobileOpen"
+    >
+      <span>{{ headingText || t('categories') }}</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M6 9l6 6 6-6" />
+      </svg>
+    </button>
 
     <div v-if="isLoading" class="lcms-category-tree__loading">
       <div v-for="i in 5" :key="i" class="lcms-category-tree__skeleton" />
@@ -373,6 +390,65 @@ export default { components: { CategoryTreeNode } }
 .lcms-category-tree__all-btn:hover {
   opacity: 0.9;
   text-decoration: none;
+}
+
+/* Mobile accordion — hidden on desktop, replaces the plain heading on small
+   screens. Collapsed by default so the tree (stacked above the product grid)
+   doesn't push products below the fold. */
+.lcms-category-tree__mobile-toggle {
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.625rem 0.875rem;
+  background: var(--lcms-color-background, #fff);
+  color: var(--lcms-color-text, #1f2937);
+  border: 1px solid var(--lcms-color-border, #d1d5db);
+  border-radius: var(--lcms-border-radius, 0.375rem);
+  font-family: var(--lcms-font-heading, inherit);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+}
+
+.lcms-category-tree__mobile-toggle svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  color: var(--lcms-color-muted, #6b7280);
+  transition: transform 0.2s ease;
+}
+
+.lcms-category-tree--mobile-open .lcms-category-tree__mobile-toggle svg {
+  transform: rotate(180deg);
+}
+
+@media (max-width: 768px) {
+  .lcms-category-tree__heading {
+    display: none;
+  }
+
+  .lcms-category-tree__mobile-toggle {
+    display: flex;
+  }
+
+  /* Direct children only — nested lists inside an expanded tree stay intact */
+  .lcms-category-tree > .lcms-category-tree__list,
+  .lcms-category-tree > .lcms-category-tree__loading,
+  .lcms-category-tree > .lcms-category-tree__empty,
+  .lcms-category-tree > .lcms-category-tree__error {
+    display: none;
+  }
+
+  .lcms-category-tree--mobile-open > .lcms-category-tree__list,
+  .lcms-category-tree--mobile-open > .lcms-category-tree__loading,
+  .lcms-category-tree--mobile-open > .lcms-category-tree__empty,
+  .lcms-category-tree--mobile-open > .lcms-category-tree__error {
+    display: block;
+    margin-top: 0.625rem;
+  }
 }
 
 .lcms-category-tree__empty,

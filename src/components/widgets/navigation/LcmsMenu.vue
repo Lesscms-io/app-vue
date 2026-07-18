@@ -975,19 +975,23 @@ function getItemTarget(item: MenuItem): string | undefined {
   background: var(--lcms-color-white, #fff);
   z-index: 9999;
   transform: translateX(100%);
-  transition: transform 0.35s cubic-bezier(0.32, 0.72, 0, 1);
+  transition: transform 0.35s cubic-bezier(0.32, 0.72, 0, 1), box-shadow 0.35s ease;
   overflow-y: auto;
   overflow-x: hidden;
   overscroll-behavior: contain;
   padding: 0;
   box-sizing: border-box;
-  box-shadow: -8px 0 30px rgba(0, 0, 0, 0.12);
+  /* Shadow only when open — a closed drawer sits just off-screen at right:0,
+     so a permanent shadow bleeds ~30px into the viewport and washes out
+     borders of content near the right edge on every mobile page. */
+  box-shadow: none;
   display: flex;
   flex-direction: column;
 }
 
 .lcms-menu--hamburger .lcms-menu__panel--open {
   transform: translateX(0);
+  box-shadow: -8px 0 30px rgba(0, 0, 0, 0.12);
 }
 
 /* Drawer header */
