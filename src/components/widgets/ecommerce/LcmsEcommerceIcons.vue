@@ -124,14 +124,18 @@ const dropdownPos = ref<{ top?: number; bottom?: number; right: number } | null>
 const dropdownStyle = computed<Record<string, string>>(() => {
   const pos = dropdownPos.value
   if (!pos) return {}
-  const style: Record<string, string> = { position: 'fixed', right: pos.right + 'px' }
+  const style: Record<string, string> = { position: 'fixed' }
   if (pos.bottom != null) {
+    // Docked mode: panels open ABOVE the bottom bar and span the full
+    // viewport width (anchoring to the icon clipped them off-screen).
     style.bottom = pos.bottom + 'px'
-    // The stylesheet pins dropdowns with `top: calc(100% + .5rem)` — without
-    // neutralising it the panel lands BELOW the viewport in docked mode.
     style.top = 'auto'
+    style.left = '8px'
+    style.right = '8px'
+    style.width = 'auto'
   } else {
     style.top = (pos.top ?? 0) + 'px'
+    style.right = pos.right + 'px'
   }
   return style
 })

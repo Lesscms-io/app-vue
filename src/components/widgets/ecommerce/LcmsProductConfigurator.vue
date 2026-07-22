@@ -10,7 +10,7 @@
  * - add-to-cart with selected options stored in cart item metadata
  */
 
-import { computed, ref, onMounted, watch, inject, type Ref } from 'vue'
+import { computed, ref, onMounted, watch, inject, nextTick, type Ref } from 'vue'
 import { useLanguage } from '../../../composables/useLanguage'
 import { useStorefront } from '../../../composables/useStorefront'
 import { useCart } from '../../../composables/useCart'
@@ -698,6 +698,23 @@ function isGroupValid(g: StorefrontProductOptionGroup): boolean {
   return !!selectedOptions.value[g.uuid]
 }
 
+// After a step change the viewport can be left far below the (now shorter)
+// step — mostly on mobile, where a long step pushes "Dalej" way down. Snap
+// back to the top of the configurator, but only when it's scrolled out of
+// view so desktop users mid-viewport don't get yanked around.
+const rootEl = ref<HTMLElement | null>(null)
+
+function scrollToConfiguratorTop() {
+  if (typeof window === 'undefined') return
+  nextTick(() => {
+    const el = rootEl.value
+    if (!el) return
+    if (el.getBoundingClientRect().top < 0) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  })
+}
+
 function goNextStep() {
   for (const g of currentStepGroups.value) {
     if (!isGroupValid(g)) {
@@ -707,17 +724,23 @@ function goNextStep() {
   }
   if (isLastStep.value) {
     showSummary.value = true
+    scrollToConfiguratorTop()
     return
   }
   currentStep.value += 1
+  scrollToConfiguratorTop()
 }
 
 function goPrevStep() {
   if (showSummary.value) {
     showSummary.value = false
+    scrollToConfiguratorTop()
     return
   }
-  if (currentStep.value > 0) currentStep.value -= 1
+  if (currentStep.value > 0) {
+    currentStep.value -= 1
+    scrollToConfiguratorTop()
+  }
 }
 
 // What the loop renders. Wizard step view shows the current step's groups;
@@ -1507,7 +1530,7 @@ const cssVars = computed(() => {
 </script>
 
 <template>
-  <div class="lcms-product-configurator" :style="[cssVars, inputFocusVars]">
+  <div ref="rootEl" class="lcms-product-configurator" :style="[cssVars, inputFocusVars]">
     <div v-if="isLoading && !effectiveProduct" class="lcms-product-configurator__status">
       {{ t('loading') }}
     </div>
@@ -2087,6 +2110,8 @@ const cssVars = computed(() => {
 .lcms-product-configurator {
   font-family: var(--lcms-font-body, system-ui, sans-serif);
   color: var(--lcms-color-text, #1f2937);
+  /* Keep the wizard's scroll-anchor below any sticky shop header. */
+  scroll-margin-top: 90px;
 }
 
 .lcms-product-configurator__status {
