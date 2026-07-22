@@ -258,10 +258,29 @@ const selectedPickupPoint = ref<StorefrontPickupPoint | null>(null)
 const pickupPointsVisible = ref(20)
 const pickupSearchTerm = ref('')
 
+// Points are fetched once for the whole network (no postal filter) — the
+// typed postal code only reorders the list: exact match first, then same
+// 2-digit region, then the rest.
+const prioritizedPickupPoints = computed(() => {
+  const digits = (form.shipping_postal_code || '').replace(/\D/g, '')
+  if (digits.length !== 5) return pickupPoints.value
+  const prefix = digits.slice(0, 2)
+  const exact: StorefrontPickupPoint[] = []
+  const region: StorefrontPickupPoint[] = []
+  const rest: StorefrontPickupPoint[] = []
+  for (const p of pickupPoints.value) {
+    const pDigits = (p.postal_code || '').replace(/\D/g, '')
+    if (pDigits === digits) exact.push(p)
+    else if (pDigits.startsWith(prefix)) region.push(p)
+    else rest.push(p)
+  }
+  return [...exact, ...region, ...rest]
+})
+
 const filteredPickupPoints = computed(() => {
   const term = pickupSearchTerm.value.trim().toLowerCase()
-  if (!term) return pickupPoints.value
-  return pickupPoints.value.filter(p => {
+  if (!term) return prioritizedPickupPoints.value
+  return prioritizedPickupPoints.value.filter(p => {
     const haystack = `${p.name} ${p.address ?? ''} ${p.city ?? ''} ${p.postal_code ?? ''} ${p.description ?? ''}`.toLowerCase()
     return haystack.includes(term)
   })
@@ -688,6 +707,148 @@ onBeforeUnmount(() => {
   inpostWidgetRef.value?.removeEventListener('onpoint', onInpostPointSelected as EventListener)
 })
 
+// --- Pickup-point map for carriers without their own widget (Apaczka) ---
+// Leaflet loaded from CDN (same pattern as LcmsOpenStreetMap); the whole
+// network is drawn as canvas circle markers, clicking one selects it.
+const pickupMapRef = ref<HTMLElement | null>(null)
+const showPickupMap = computed(() =>
+  pickupPointRequired.value
+  && !isInpostPickup.value
+  && pickupPoints.value.some(p => p.latitude != null && p.longitude != null)
+)
+let pickupMap: any = null
+let pickupMarkersLayer: any = null
+const pickupMarkersById = new Map<string, any>()
+let lastSelectedMarkerId: string | null = null
+
+const PICKUP_MARKER_BASE = { radius: 6, weight: 1, color: '#ffffff', fillColor: '#374151', fillOpacity: 0.85 }
+const PICKUP_MARKER_SELECTED = { radius: 9, weight: 2, color: '#ffffff', fillColor: '#111827', fillOpacity: 1 }
+
+function loadLeaflet(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if ((window as any).L) { resolve(); return }
+    if (!document.querySelector('link[href*="leaflet"]')) {
+      const css = document.createElement('link')
+      css.rel = 'stylesheet'
+      css.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'
+      document.head.appendChild(css)
+    }
+    if (!document.querySelector('script[src*="leaflet"]')) {
+      const script = document.createElement('script')
+      script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'
+      script.onload = () => resolve()
+      script.onerror = () => reject(new Error('Failed to load Leaflet'))
+      document.head.appendChild(script)
+    } else {
+      const check = setInterval(() => {
+        if ((window as any).L) { clearInterval(check); resolve() }
+      }, 100)
+      setTimeout(() => { clearInterval(check); (window as any).L ? resolve() : reject(new Error('Leaflet load timeout')) }, 10000)
+    }
+  })
+}
+
+function destroyPickupMap() {
+  if (pickupMap) {
+    pickupMap.remove()
+    pickupMap = null
+    pickupMarkersLayer = null
+    pickupMarkersById.clear()
+    lastSelectedMarkerId = null
+  }
+}
+
+function renderPickupMarkers() {
+  const L = (window as any).L
+  if (!pickupMap || !L) return
+  if (pickupMarkersLayer) pickupMap.removeLayer(pickupMarkersLayer)
+  pickupMarkersById.clear()
+  lastSelectedMarkerId = null
+
+  const markers: any[] = []
+  for (const p of pickupPoints.value) {
+    if (p.latitude == null || p.longitude == null) continue
+    const isSelected = selectedPickupPoint.value?.id === p.id
+    const marker = L.circleMarker(
+      [p.latitude, p.longitude],
+      isSelected ? PICKUP_MARKER_SELECTED : PICKUP_MARKER_BASE
+    )
+    marker.bindTooltip(`${p.name}${p.address ? ' — ' + p.address : ''}`, { direction: 'top' })
+    marker.on('click', () => selectPickupPoint(p))
+    pickupMarkersById.set(String(p.id), marker)
+    if (isSelected) lastSelectedMarkerId = String(p.id)
+    markers.push(marker)
+  }
+  pickupMarkersLayer = L.layerGroup(markers).addTo(pickupMap)
+}
+
+// Center on the typed postal code's neighbourhood when we have one
+// (exact postal → same 2-digit region → whole network).
+function focusPickupMap() {
+  const L = (window as any).L
+  if (!pickupMap || !L) return
+  const withCoords = pickupPoints.value.filter(p => p.latitude != null && p.longitude != null)
+  if (!withCoords.length) return
+
+  const digits = (form.shipping_postal_code || '').replace(/\D/g, '')
+  let candidates = withCoords
+  let hasPostalFocus = false
+  if (digits.length === 5) {
+    const prefix = digits.slice(0, 2)
+    const exact = withCoords.filter(p => (p.postal_code || '').replace(/\D/g, '') === digits)
+    const region = withCoords.filter(p => (p.postal_code || '').replace(/\D/g, '').startsWith(prefix))
+    if (exact.length) { candidates = exact; hasPostalFocus = true }
+    else if (region.length) { candidates = region; hasPostalFocus = true }
+  }
+
+  const bounds = L.latLngBounds(candidates.map(p => [p.latitude, p.longitude]))
+  if (bounds.isValid()) {
+    pickupMap.fitBounds(bounds, { padding: [24, 24], maxZoom: hasPostalFocus ? 13 : 7 })
+  }
+}
+
+watch([showPickupMap, pickupMapRef], async ([show, el]) => {
+  if (typeof window === 'undefined') return
+  if (!show || !el) { destroyPickupMap(); return }
+  if (pickupMap) return
+  try { await loadLeaflet() } catch { return }
+  const L = (window as any).L
+  pickupMap = L.map(el, { preferCanvas: true, scrollWheelZoom: false })
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    maxZoom: 19,
+  }).addTo(pickupMap)
+  renderPickupMarkers()
+  focusPickupMap()
+}, { flush: 'post' })
+
+watch(pickupPoints, () => {
+  if (!pickupMap) return
+  renderPickupMarkers()
+  focusPickupMap()
+})
+
+// Restyle only the previously- and newly-selected markers (the network can
+// hold thousands of points — no full repaint on every click).
+watch(selectedPickupPoint, (sel) => {
+  if (!pickupMap) return
+  if (lastSelectedMarkerId) {
+    pickupMarkersById.get(lastSelectedMarkerId)?.setStyle(PICKUP_MARKER_BASE)
+    lastSelectedMarkerId = null
+  }
+  if (!sel) return
+  const marker = pickupMarkersById.get(String(sel.id))
+  if (marker) {
+    marker.setStyle(PICKUP_MARKER_SELECTED)
+    lastSelectedMarkerId = String(sel.id)
+  }
+  if (sel.latitude != null && sel.longitude != null) {
+    pickupMap.setView([sel.latitude, sel.longitude], Math.max(pickupMap.getZoom(), 13))
+  }
+})
+
+onBeforeUnmount(destroyPickupMap)
+
 // Auto-recalculate shipping when address changes
 watch(
   () => [form.shipping_postal_code, form.shipping_country],
@@ -715,21 +876,29 @@ watch(
 
 async function loadPickupPoints() {
   if (!client.value || !selectedShipping.value) return
-  if (!form.shipping_postal_code || form.shipping_postal_code.length < 5) return
+
+  // InPost search stays postal-relative (ShipX API) — the Geowidget is the
+  // map there. Other carriers (Apaczka networks) fetch the whole
+  // server-cached network once; the typed postal code only reorders the
+  // list and centers our own map.
+  const params: { carrier?: string; postal_code?: string; radius?: number } = {
+    carrier: selectedShipping.value.carrier,
+  }
+  if (isInpostPickup.value) {
+    if (!form.shipping_postal_code || form.shipping_postal_code.length < 5) return
+    params.postal_code = form.shipping_postal_code
+    params.radius = 10
+  }
 
   isLoadingPickupPoints.value = true
   pickupPointsVisible.value = 20
   pickupSearchTerm.value = ''
   try {
-    const response = await client.value.getPickupPoints({
-      postal_code: form.shipping_postal_code,
-      carrier: selectedShipping.value.carrier,
-      radius: 10,
-    })
+    const response = await client.value.getPickupPoints(params)
     pickupPoints.value = response.data.points || []
 
     // If the previously-selected point is no longer in the results (e.g.
-    // postcode changed), drop it so checkout doesn't submit a stale id.
+    // carrier changed), drop it so checkout doesn't submit a stale id.
     if (selectedPickupPoint.value) {
       const stillThere = pickupPoints.value.some(p => p.id === selectedPickupPoint.value!.id)
       if (!stillThere) selectedPickupPoint.value = null
@@ -754,11 +923,17 @@ watch(pickupPointRequired, async (required) => {
   await loadPickupPoints()
 })
 
+// Postal-code changes: InPost still refetches (ShipX search is
+// postal-relative); other carriers only reorder the already-loaded network
+// (prioritizedPickupPoints) and recenter the map.
 watch(
   () => form.shipping_postal_code,
   async () => {
-    if (pickupPointRequired.value) {
+    if (!pickupPointRequired.value) return
+    if (isInpostPickup.value) {
       await loadPickupPoints()
+    } else {
+      focusPickupMap()
     }
   }
 )
@@ -1324,8 +1499,8 @@ async function retryBlik() {
 
               <p v-if="!isLoadingPickupPoints && pickupPoints.length > 0" class="lcms-checkout__pickup-hint">
                 {{ props.language === 'en'
-                  ? `Found ${pickupPoints.length} pickup point${pickupPoints.length === 1 ? '' : 's'} near ${form.shipping_postal_code}`
-                  : `Znaleziono ${pickupPoints.length} ${pickupPoints.length === 1 ? 'punkt' : 'punktów'} blisko ${form.shipping_postal_code}` }}
+                  ? `Pick one of ${pickupPoints.length} pickup point${pickupPoints.length === 1 ? '' : 's'} on the map or from the list`
+                  : `Wybierz jeden z ${pickupPoints.length} ${pickupPoints.length === 1 ? 'punktu' : 'punktów'} na mapie lub z listy` }}
               </p>
 
               <div v-if="isInpostPickup && inpostGeowidgetToken" class="lcms-checkout__pickup-map">
@@ -1341,6 +1516,11 @@ async function retryBlik() {
               <div v-else-if="isInpostPickup" class="lcms-checkout__loading-text">
                 {{ props.language === 'en' ? 'Pickup point picker unavailable — InPost token missing in shop config' : 'Wybór punktu niedostępny — brak tokenu InPost w konfiguracji sklepu' }}
               </div>
+              <div
+                v-else-if="showPickupMap"
+                ref="pickupMapRef"
+                class="lcms-checkout__pickup-map"
+              />
 
               <div v-if="pickupPoints.length > 5" class="lcms-checkout__field">
                 <input
@@ -1355,10 +1535,10 @@ async function retryBlik() {
                 {{ props.language === 'en' ? 'Loading points...' : 'Ładowanie punktów...' }}
               </div>
               <div
-                v-else-if="pickupPoints.length === 0"
+                v-else-if="pickupPoints.length === 0 && !(isInpostPickup && inpostGeowidgetToken)"
                 class="lcms-checkout__loading-text"
               >
-                {{ props.language === 'en' ? 'No pickup points nearby — try a different postal code' : 'Brak punktów w pobliżu — sprawdź kod pocztowy' }}
+                {{ props.language === 'en' ? 'No pickup points available for this shipping method' : 'Brak punktów odbioru dla tej metody dostawy' }}
               </div>
               <div
                 v-else-if="filteredPickupPoints.length === 0"

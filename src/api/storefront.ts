@@ -472,7 +472,7 @@ export interface StorefrontClient {
     cart_uuid?: string
   }): Promise<{ data: { postal_code: string; country: string; methods: StorefrontShippingMethod[] } }>
   getPickupPoints(params: {
-    postal_code: string
+    postal_code?: string
     carrier?: string
     radius?: number
   }): Promise<{ data: { postal_code: string; carrier: string; points: StorefrontPickupPoint[] } }>
