@@ -53,6 +53,10 @@ const items = computed<Item[]>(() => {
 
 const size = computed(() => Number(config.value.size) || 20)
 const gap = computed(() => Number(config.value.gap) || 16)
+// Docked mode: on mobile the whole icon group becomes a fixed bar glued to
+// the bottom of the viewport (app-like tab bar) instead of wrapping under
+// the logo inside the header.
+const mobileDock = computed(() => config.value.mobile_dock === true)
 
 const currency = computed(() => projectConfig?.value?.commerce?.currency || 'PLN')
 const cartUrl = computed(() => projectConfig?.value?.commerce?.routes?.cart || '/koszyk')
@@ -115,12 +119,25 @@ const cssVars = computed(() => {
 const openIndex = ref<number | null>(null)
 const containerEl = ref<HTMLDivElement | null>(null)
 const triggerEls = ref<HTMLButtonElement[]>([])
-const dropdownPos = ref<{ top: number; right: number } | null>(null)
+const dropdownPos = ref<{ top?: number; bottom?: number; right: number } | null>(null)
+
+const dropdownStyle = computed<Record<string, string>>(() => {
+  const pos = dropdownPos.value
+  if (!pos) return {}
+  const style: Record<string, string> = { position: 'fixed', right: pos.right + 'px' }
+  if (pos.bottom != null) style.bottom = pos.bottom + 'px'
+  else style.top = (pos.top ?? 0) + 'px'
+  return style
+})
 
 function computeDropdownPos(index: number) {
   const btn = triggerEls.value[index]
   if (!btn) return null
   const r = btn.getBoundingClientRect()
+  // Docked bar sits at the viewport bottom — panels open UPWARD from it.
+  if (mobileDock.value && typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches) {
+    return { bottom: window.innerHeight - r.top + 8, right: Math.max(8, window.innerWidth - r.right) }
+  }
   return { top: r.bottom + 8, right: window.innerWidth - r.right }
 }
 
@@ -220,7 +237,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div ref="containerEl" class="lcms-ei" :style="cssVars">
+  <div ref="containerEl" class="lcms-ei" :class="{ 'lcms-ei--dock': mobileDock }" :style="cssVars">
     <div
       v-for="(item, index) in items"
       :key="index"
@@ -246,7 +263,7 @@ onUnmounted(() => {
       <div
         v-if="item.type === 'cart' && openIndex === index && dropdownPos"
         class="lcms-ei__dropdown lcms-ei__dropdown--cart"
-        :style="{ position: 'fixed', top: dropdownPos.top + 'px', right: dropdownPos.right + 'px' }"
+        :style="dropdownStyle"
         @click.stop
       >
         <div v-if="cart.isEmpty.value" class="lcms-ei__empty">
@@ -290,7 +307,7 @@ onUnmounted(() => {
       <div
         v-if="item.type === 'search' && openIndex === index && dropdownPos"
         class="lcms-ei__dropdown lcms-ei__dropdown--search"
-        :style="{ position: 'fixed', top: dropdownPos.top + 'px', right: dropdownPos.right + 'px' }"
+        :style="dropdownStyle"
         @click.stop
       >
         <form class="lcms-ei__search-form" @submit="handleSearchSubmit">
@@ -338,6 +355,25 @@ onUnmounted(() => {
   max-width: 100%;
   min-width: 0;
   box-sizing: border-box;
+}
+
+/* Docked mode: fixed bottom tab-bar on mobile. Desktop is untouched. */
+@media (max-width: 767px) {
+  .lcms-ei--dock {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1200;
+    display: flex;
+    flex-wrap: nowrap;
+    justify-content: space-around;
+    padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px));
+    margin: 0;
+    background: var(--lcms-color-background, #fff);
+    border-top: 1px solid color-mix(in srgb, var(--lcms-color-text, #1f2937) 12%, transparent);
+    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.08);
+  }
 }
 
 .lcms-ei *,
