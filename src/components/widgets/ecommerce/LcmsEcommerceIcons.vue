@@ -125,8 +125,14 @@ const dropdownStyle = computed<Record<string, string>>(() => {
   const pos = dropdownPos.value
   if (!pos) return {}
   const style: Record<string, string> = { position: 'fixed', right: pos.right + 'px' }
-  if (pos.bottom != null) style.bottom = pos.bottom + 'px'
-  else style.top = (pos.top ?? 0) + 'px'
+  if (pos.bottom != null) {
+    style.bottom = pos.bottom + 'px'
+    // The stylesheet pins dropdowns with `top: calc(100% + .5rem)` — without
+    // neutralising it the panel lands BELOW the viewport in docked mode.
+    style.top = 'auto'
+  } else {
+    style.top = (pos.top ?? 0) + 'px'
+  }
   return style
 })
 
@@ -440,6 +446,7 @@ onUnmounted(() => {
   position: absolute;
   top: calc(100% + 0.5rem);
   right: 0;
+  max-width: calc(100vw - 16px);
   background: var(--lcms-color-background, #ffffff);
   border: 1px solid var(--lcms-color-border, #e5e7eb);
   border-radius: var(--lcms-border-radius, 0.5rem);
