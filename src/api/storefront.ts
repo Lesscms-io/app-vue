@@ -477,6 +477,8 @@ export interface StorefrontClient {
     radius?: number
     /** Map viewport "swLat,swLng,neLat,neLng" — returns only points in view. */
     bbox?: string
+    /** Free-text locate query (town / street / postal code). */
+    search?: string
   }): Promise<{ data: { postal_code: string; carrier: string; points: StorefrontPickupPoint[] } }>
 
   // Payments

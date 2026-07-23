@@ -257,6 +257,7 @@ const isLoadingPickupPoints = ref(false)
 const selectedPickupPoint = ref<StorefrontPickupPoint | null>(null)
 const pickupPointsVisible = ref(20)
 const pickupSearchTerm = ref('')
+const pickupSearchError = ref(false)
 
 // Points are fetched once for the whole network (no postal filter) — the
 // typed postal code only reorders the list: exact match first, then same
@@ -767,12 +768,53 @@ function destroyPickupMap() {
   }
 }
 
+// Set while we programmatically move the map to search results, so the
+// moveend those movements fire doesn't immediately replace the results with
+// a viewport fetch.
+let suppressNextBoundsFetch = false
+
 // Fetch the points inside the map's current rectangle. Debounced so a
 // pan/zoom gesture fires one request, and sequence-guarded so a slow
 // response can't overwrite a newer one.
 function scheduleBoundsFetch() {
+  if (suppressNextBoundsFetch) { suppressNextBoundsFetch = false; return }
   if (boundsFetchTimer) clearTimeout(boundsFetchTimer)
   boundsFetchTimer = setTimeout(fetchPointsInBounds, 350)
+}
+
+// Free-text locate: search the whole carrier network (via the API) and fly
+// the map to the matches. Unlike the list filter, this is not limited to the
+// points currently in view.
+async function runPickupSearch() {
+  const term = pickupSearchTerm.value.trim()
+  pickupSearchError.value = false
+  if (!client.value || !selectedShipping.value) return
+  if (term.length < 2) return
+
+  const seq = ++boundsFetchSeq
+  isLoadingPickupPoints.value = true
+  try {
+    const response = await client.value.getPickupPoints({
+      carrier: selectedShipping.value.carrier,
+      search: term,
+    })
+    if (seq !== boundsFetchSeq) return
+    const points = response.data.points || []
+    pickupPoints.value = points
+    pickupSearchError.value = points.length === 0
+    // Fly the map to the results without letting the ensuing moveend wipe them.
+    const L = (window as any).L
+    const withCoords = points.filter(p => p.latitude != null && p.longitude != null)
+    if (pickupMap && L && withCoords.length) {
+      suppressNextBoundsFetch = true
+      const bounds = L.latLngBounds(withCoords.map(p => [p.latitude, p.longitude]))
+      if (bounds.isValid()) pickupMap.fitBounds(bounds, { padding: [24, 24], maxZoom: 15 })
+    }
+  } catch {
+    if (seq === boundsFetchSeq) { pickupPoints.value = []; pickupSearchError.value = true }
+  } finally {
+    if (seq === boundsFetchSeq) isLoadingPickupPoints.value = false
+  }
 }
 
 async function fetchPointsInBounds() {
@@ -1571,13 +1613,29 @@ async function retryBlik() {
                 class="lcms-checkout__pickup-map"
               />
 
-              <div v-if="pickupPoints.length > 5" class="lcms-checkout__field">
+              <!-- Locate box: type a town/street and jump the map there (searches
+                   the whole carrier network via the API, not just what's loaded). -->
+              <div v-if="showPickupMap || pickupPoints.length > 5" class="lcms-checkout__field lcms-checkout__pickup-search">
                 <input
                   v-model="pickupSearchTerm"
                   type="search"
                   class="lcms-checkout__input"
-                  :placeholder="props.language === 'en' ? 'Search by name, street or city' : 'Szukaj po nazwie, ulicy lub mieście'"
+                  :placeholder="props.language === 'en' ? 'Find a point — town, street or postal code' : 'Znajdź punkt — miejscowość, ulica lub kod'"
+                  @input="pickupSearchError = false"
+                  @keyup.enter="runPickupSearch"
                 />
+                <button
+                  v-if="showPickupMap"
+                  type="button"
+                  class="lcms-checkout__btn lcms-checkout__btn--ghost lcms-checkout__pickup-search-btn"
+                  :disabled="isLoadingPickupPoints"
+                  @click="runPickupSearch"
+                >
+                  {{ props.language === 'en' ? 'Search' : 'Szukaj' }}
+                </button>
+              </div>
+              <div v-if="pickupSearchError" class="lcms-checkout__loading-text">
+                {{ props.language === 'en' ? 'Nothing found for that search' : 'Nic nie znaleziono dla tej frazy' }}
               </div>
 
               <div v-if="isLoadingPickupPoints" class="lcms-checkout__loading-text">
@@ -2678,6 +2736,23 @@ async function retryBlik() {
 .lcms-checkout__pickup-more {
   margin-top: 0.5rem;
   width: 100%;
+  padding: 0.625rem 1rem;
+}
+
+.lcms-checkout__pickup-search {
+  display: flex;
+  gap: 0.5rem;
+  align-items: stretch;
+}
+
+.lcms-checkout__pickup-search .lcms-checkout__input {
+  flex: 1;
+  min-width: 0;
+}
+
+.lcms-checkout__pickup-search-btn {
+  flex: 0 0 auto;
+  white-space: nowrap;
   padding: 0.625rem 1rem;
 }
 
