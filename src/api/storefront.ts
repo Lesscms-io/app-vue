@@ -278,11 +278,15 @@ export interface StorefrontOrder {
   items: Array<{
     uuid: string
     product_uuid: string
-    name: string
+    // The internal order serializer returns `product_name`; `name` kept
+    // optional for any legacy payloads.
+    product_name?: string
+    name?: string
     sku: string
     quantity: number
     unit_price: number
     subtotal: number
+    product?: { uuid: string; name: string; slug: string | null; image: string | null } | null
   }>
   created_at: string
   updated_at: string

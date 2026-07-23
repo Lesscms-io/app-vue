@@ -71,6 +71,9 @@ const t = (key: string) => {
       statusCancelled: 'Anulowana',
       statusRefunded: 'Zwrócona',
       qty: 'szt.',
+      paymentSection: 'Płatność',
+      paymentMethod: 'Metoda płatności',
+      itemFallbackName: 'Produkt',
     },
     en: {
       heading: 'Thank you for your order!',
@@ -95,6 +98,9 @@ const t = (key: string) => {
       statusCancelled: 'Cancelled',
       statusRefunded: 'Refunded',
       qty: 'pcs',
+      paymentSection: 'Payment',
+      paymentMethod: 'Payment method',
+      itemFallbackName: 'Product',
     },
   }
   return dict[lang]?.[key] || dict.pl[key] || key
@@ -132,6 +138,30 @@ const paymentStatusLabel = computed(() => {
     refunded: 'statusRefunded',
   }
   return t(map[s] || s)
+})
+
+// Item name comes back as `product_name` from the order serializer; `name`
+// is a legacy fallback. Never render an empty cell.
+function itemName(item: any): string {
+  return item?.product_name || item?.name || t('itemFallbackName')
+}
+function itemImage(item: any): string | null {
+  return item?.product?.image || null
+}
+
+// Prettify the payment method code for the summary card.
+const PAYMENT_METHOD_LABELS: Record<string, string> = {
+  przelewy24: 'Przelewy24',
+  p24: 'Przelewy24',
+  stripe: props.language === 'en' ? 'Card (Stripe)' : 'Karta (Stripe)',
+  blik: 'BLIK',
+  cod: props.language === 'en' ? 'Cash on delivery' : 'Za pobraniem',
+  transfer: props.language === 'en' ? 'Bank transfer' : 'Przelew bankowy',
+}
+const paymentMethodLabel = computed(() => {
+  const m = order.value?.payment_method
+  if (!m) return null
+  return PAYMENT_METHOD_LABELS[m] || m
 })
 
 function stopPolling() {
@@ -225,22 +255,24 @@ function formatOrderPrice(value: number | null | undefined): string {
     <div v-else-if="order" class="lcms-order-success__content">
       <p class="lcms-order-success__message">{{ thankYouMessageText }}</p>
 
-      <dl class="lcms-order-success__meta">
-        <template v-if="showOrderNumber">
-          <dt>{{ t('orderNumber') }}</dt>
-          <dd>{{ order.order_number }}</dd>
-        </template>
-        <template v-if="showPaymentStatus">
-          <dt>{{ t('paymentStatus') }}</dt>
-          <dd>{{ paymentStatusLabel }}</dd>
-        </template>
+      <dl v-if="showOrderNumber" class="lcms-order-success__meta">
+        <dt>{{ t('orderNumber') }}</dt>
+        <dd>{{ order.order_number }}</dd>
       </dl>
 
       <section v-if="showItems && order.items?.length" class="lcms-order-success__items">
         <h3>{{ t('orderItems') }}</h3>
         <ul>
           <li v-for="item in order.items" :key="item.uuid">
-            <span class="lcms-order-success__item-name">{{ item.name }}</span>
+            <div class="lcms-order-success__item-thumb">
+              <img
+                v-if="itemImage(item)"
+                :src="itemImage(item)!"
+                :alt="itemName(item)"
+              >
+              <span v-else class="lcms-order-success__item-thumb-ph">◵</span>
+            </div>
+            <span class="lcms-order-success__item-name">{{ itemName(item) }}</span>
             <span class="lcms-order-success__item-qty">{{ item.quantity }} {{ t('qty') }}</span>
             <span class="lcms-order-success__item-price">{{ formatOrderPrice(item.subtotal) }}</span>
           </li>
@@ -254,22 +286,42 @@ function formatOrderPrice(value: number | null | undefined): string {
         <div class="lcms-order-success__total"><span>{{ t('total') }}</span><span>{{ formatOrderPrice(order.total) }}</span></div>
       </section>
 
-      <section
-        v-if="showShippingAddress && order.shipping_address"
-        class="lcms-order-success__address"
-      >
-        <h3>{{ t('shippingAddress') }}</h3>
-        <p>
-          {{ order.customer_name }}<br>
-          {{ order.shipping_address.street }}<br>
-          {{ order.shipping_address.postal_code }} {{ order.shipping_address.city }}<br>
-          {{ order.shipping_address.country }}
-        </p>
-      </section>
+      <!-- Two clean cards: shipping address + payment -->
+      <div class="lcms-order-success__cards">
+        <section
+          v-if="showShippingAddress && order.shipping_address"
+          class="lcms-order-success__card"
+        >
+          <h3>{{ t('shippingAddress') }}</h3>
+          <p>
+            {{ order.customer_name }}<br>
+            {{ order.shipping_address.street }}<br>
+            {{ order.shipping_address.postal_code }} {{ order.shipping_address.city }}<br>
+            {{ order.shipping_address.country }}
+          </p>
+        </section>
 
-      <a :href="continueShoppingHref" class="lcms-order-success__btn">
-        {{ continueShoppingText }}
-      </a>
+        <section
+          v-if="showPaymentStatus"
+          class="lcms-order-success__card"
+        >
+          <h3>{{ t('paymentSection') }}</h3>
+          <dl class="lcms-order-success__card-list">
+            <dt>{{ t('paymentStatus') }}</dt>
+            <dd>{{ paymentStatusLabel }}</dd>
+            <template v-if="paymentMethodLabel">
+              <dt>{{ t('paymentMethod') }}</dt>
+              <dd>{{ paymentMethodLabel }}</dd>
+            </template>
+          </dl>
+        </section>
+      </div>
+
+      <div class="lcms-order-success__actions">
+        <a :href="continueShoppingHref" class="lcms-order-success__btn">
+          {{ continueShoppingText }}
+        </a>
+      </div>
     </div>
   </div>
 </template>
@@ -314,10 +366,51 @@ function formatOrderPrice(value: number | null | undefined): string {
 
 .lcms-order-success__items li {
   display: grid;
-  grid-template-columns: 1fr auto auto;
+  grid-template-columns: 48px 1fr auto auto;
+  align-items: center;
   gap: 1rem;
-  padding: 0.5rem 0;
+  padding: 0.6rem 0;
   border-bottom: 1px solid var(--lcms-color-border, #eee);
+}
+
+.lcms-order-success__item-thumb {
+  width: 48px;
+  height: 48px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--lcms-color-background-alt, #f1f3f5);
+  border: 1px solid var(--lcms-color-border, #e9ecef);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lcms-order-success__item-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.lcms-order-success__item-thumb-ph {
+  color: var(--lcms-color-muted, #adb5bd);
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.lcms-order-success__item-name {
+  font-weight: 600;
+  min-width: 0;
+}
+
+.lcms-order-success__item-qty {
+  color: var(--lcms-color-muted, #6b7280);
+  white-space: nowrap;
+}
+
+.lcms-order-success__item-price {
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 .lcms-order-success__totals {
@@ -338,9 +431,61 @@ function formatOrderPrice(value: number | null | undefined): string {
   margin-top: 0.5rem;
 }
 
+/* Two clean cards: shipping address + payment */
+.lcms-order-success__cards {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  margin: 1.5rem 0;
+}
+
+@media (max-width: 560px) {
+  .lcms-order-success__cards {
+    grid-template-columns: 1fr;
+  }
+}
+
+.lcms-order-success__card {
+  background: var(--lcms-color-background-alt, #f8f9fa);
+  border: 1px solid var(--lcms-color-border, #eee);
+  border-radius: 8px;
+  padding: 1.1rem 1.25rem;
+}
+
+.lcms-order-success__card h3 {
+  margin: 0 0 0.6rem;
+  font-size: 1rem;
+}
+
+.lcms-order-success__card p {
+  margin: 0;
+  line-height: 1.6;
+}
+
+.lcms-order-success__card-list {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.25rem 0.75rem;
+  margin: 0;
+}
+
+.lcms-order-success__card-list dt {
+  color: var(--lcms-color-muted, #6b7280);
+  font-weight: 500;
+}
+
+.lcms-order-success__card-list dd {
+  margin: 0;
+  font-weight: 600;
+}
+
+.lcms-order-success__actions {
+  text-align: center;
+  margin-top: 2rem;
+}
+
 .lcms-order-success__btn {
   display: inline-block;
-  margin-top: 2rem;
   padding: 0.75rem 1.5rem;
   background: var(--lcms-color-primary, #3d2b1f);
   color: var(--lcms-color-white, #fff);
