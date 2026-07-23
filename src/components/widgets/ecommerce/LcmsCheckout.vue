@@ -76,6 +76,8 @@ const t = (key: string) => {
       notesPlaceholder: 'Dodatkowe informacje do zamówienia...',
       placeOrder: 'Złóż zamówienie',
       processing: 'Przetwarzanie...',
+      redirectingToPayment: 'Zamówienie złożone — przekierowujemy do płatności...',
+      paymentInitFailed: 'Nie udało się rozpocząć płatności. Sprawdź status zamówienia lub spróbuj ponownie.',
       emptyCart: 'Twój koszyk jest pusty',
       goToCart: 'Wróć do koszyka',
       loginRequired: 'Aby kontynuować zaloguj się',
@@ -141,6 +143,8 @@ const t = (key: string) => {
       notesPlaceholder: 'Additional order information...',
       placeOrder: 'Place order',
       processing: 'Processing...',
+      redirectingToPayment: 'Order placed — redirecting to payment...',
+      paymentInitFailed: 'Could not start the payment. Check your order status or try again.',
       emptyCart: 'Your cart is empty',
       goToCart: 'Back to cart',
       loginRequired: 'Please log in to continue',
@@ -211,6 +215,10 @@ const form = reactive({
 
 const errors = reactive<Record<string, string>>({})
 const isSubmitting = ref(false)
+// True from the moment checkout() clears the cart until we navigate away
+// (to the payment gateway or the success page). Without this the widget would
+// flash "your cart is empty" during the async payment-init round-trip.
+const isFinalizing = ref(false)
 const shippingMethods = ref<StorefrontShippingMethod[]>([])
 const isLoadingShipping = ref(false)
 
@@ -1161,6 +1169,9 @@ async function handleSubmit() {
     }
 
     const order = await cart.checkout(checkoutData)
+    // Cart is now empty — hold the "finalizing" screen so the widget doesn't
+    // flash "your cart is empty" while payment init / redirect is in flight.
+    isFinalizing.value = true
     toast.success(t('orderSuccess'))
 
     // Init payment if not COD
@@ -1176,6 +1187,7 @@ async function handleSubmit() {
         // BLIK direct: stay on this page and poll until the customer confirms
         // the push in their banking app (or it times out).
         if (form.payment_method === 'blik' && paymentResponse.data.payment_uuid) {
+          isFinalizing.value = false // BLIK has its own in-page waiting UI
           blikPaymentUuid.value = paymentResponse.data.payment_uuid
           blikOrderNumber.value = order.order_number
           await pollBlikStatus(paymentResponse.data.payment_uuid, order.order_number)
@@ -1186,14 +1198,25 @@ async function handleSubmit() {
           window.location.href = paymentResponse.data.payment_url
           return
         }
+
+        // Online method but no gateway URL came back — treat as a payment
+        // failure rather than pretending the order is done. Send the customer
+        // to the success page where the (pending/failed) payment state shows,
+        // instead of silently stranding them on an empty cart.
+        console.error('Payment init returned no redirect URL', paymentResponse.data)
+        toast.error(t('paymentInitFailed'))
       } catch (err: any) {
         console.error('Payment init failed:', err)
+        toast.error(t('paymentInitFailed'))
       }
     }
 
-    // Default (COD/bank transfer): redirect straight to success page
+    // COD / bank transfer, or online payment that couldn't start: land on the
+    // success page (it reads the order + payment status and shows the right
+    // message). Either way we navigate away, so keep the finalizing screen up.
     window.location.href = `${successRoute.value}?order=${order.order_number}`
   } catch (err: any) {
+    isFinalizing.value = false
     toast.error(err.message || t('orderError'))
   } finally {
     isSubmitting.value = false
@@ -1258,8 +1281,16 @@ async function retryBlik() {
   <div class="lcms-checkout">
     <h2 class="lcms-checkout__heading">{{ headingText }}</h2>
 
+    <!-- Finalizing: order placed, redirecting to payment / success. Shown
+         before the empty-cart branch so clearing the cart doesn't flash the
+         "your cart is empty" message mid-checkout. -->
+    <div v-if="isFinalizing" class="lcms-checkout__loading">
+      <div class="lcms-checkout__spinner" aria-hidden="true" />
+      <p>{{ t('redirectingToPayment') }}</p>
+    </div>
+
     <!-- Initial fetch — don't flash "cart is empty" before the real state. -->
-    <div v-if="!cart.hasInitialized.value || cart.isLoading.value" class="lcms-checkout__loading">
+    <div v-else-if="!cart.hasInitialized.value || cart.isLoading.value" class="lcms-checkout__loading">
       <div class="lcms-checkout__spinner" aria-hidden="true" />
     </div>
 
