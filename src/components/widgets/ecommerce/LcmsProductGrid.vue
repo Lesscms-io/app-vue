@@ -191,10 +191,18 @@ const categoryUrl = (slug: string) => {
   return route.replace(':slug', slug)
 }
 
+// Gap between tiles (px). Defaults to 12 (the old hard-coded 0.75rem) so
+// existing grids look identical until the merchant changes it.
+const gap = computed(() => {
+  const g = Number(config.value.gap)
+  return Number.isFinite(g) && g >= 0 ? g : 12
+})
+
 const gridStyle = computed(() => ({
   '--lcms-grid-cols-desktop': columns.value,
   '--lcms-grid-cols-tablet': columnsTablet.value,
   '--lcms-grid-cols-mobile': columnsMobile.value,
+  '--lcms-grid-gap': `${gap.value}px`,
 } as any))
 
 async function fetchProducts() {
@@ -595,7 +603,7 @@ const t = (key: string) => {
 .lcms-product-grid__grid {
   display: grid;
   grid-template-columns: repeat(var(--lcms-grid-cols-desktop, 4), 1fr);
-  gap: 0.75rem;
+  gap: var(--lcms-grid-gap, 0.75rem);
 }
 
 @media (max-width: 1024px) {
@@ -613,7 +621,7 @@ const t = (key: string) => {
 .lcms-product-grid__loading {
   display: grid;
   grid-template-columns: repeat(var(--lcms-grid-cols-desktop, 4), 1fr);
-  gap: 0.75rem;
+  gap: var(--lcms-grid-gap, 0.75rem);
 }
 
 .lcms-product-grid__empty,
