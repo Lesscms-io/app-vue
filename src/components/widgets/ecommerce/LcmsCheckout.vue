@@ -2215,13 +2215,9 @@ async function retryBlik() {
   gap: 0.5rem;
 }
 
+/* On phones the tile label ("Kurier (Apaczka) 14,99 zł") is wider than a
+   half-column, so stack the tiles full-width, one per row. */
 @media (max-width: 640px) {
-  .lcms-checkout__tile-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (max-width: 380px) {
   .lcms-checkout__tile-grid {
     grid-template-columns: 1fr;
   }
