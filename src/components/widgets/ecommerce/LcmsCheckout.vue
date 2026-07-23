@@ -255,6 +255,10 @@ function onInvoiceAddressPicked(addr: StorefrontAddress) {
 const pickupPoints = ref<StorefrontPickupPoint[]>([])
 const isLoadingPickupPoints = ref(false)
 const selectedPickupPoint = ref<StorefrontPickupPoint | null>(null)
+// Once a point is chosen the picker collapses to a compact summary (with a
+// "Zmień" button). Re-opening the list flips this back on.
+const pickupChanging = ref(false)
+const pickupListCollapsed = computed(() => !!selectedPickupPoint.value && !pickupChanging.value)
 const pickupPointsVisible = ref(20)
 const pickupSearchTerm = ref('')
 const pickupSearchError = ref(false)
@@ -777,6 +781,9 @@ let suppressNextBoundsFetch = false
 // pan/zoom gesture fires one request, and sequence-guarded so a slow
 // response can't overwrite a newer one.
 function scheduleBoundsFetch() {
+  // Collapsed picker: the map is just showing the chosen point — don't
+  // refetch the network as the user pans/zooms it for context.
+  if (pickupListCollapsed.value) return
   if (suppressNextBoundsFetch) { suppressNextBoundsFetch = false; return }
   if (boundsFetchTimer) clearTimeout(boundsFetchTimer)
   boundsFetchTimer = setTimeout(fetchPointsInBounds, 350)
@@ -849,10 +856,16 @@ function renderPickupMarkers() {
   pickupMarkersById.clear()
   lastSelectedMarkerId = null
 
+  // Collapsed (a point is chosen, not re-picking): draw ONLY the selected
+  // marker — sourced from selectedPickupPoint directly so a viewport refetch
+  // that dropped it from pickupPoints can't make it vanish.
+  const sel = selectedPickupPoint.value
+  const source = (pickupListCollapsed.value && sel) ? [sel] : pickupPoints.value
+
   const markers: any[] = []
-  for (const p of pickupPoints.value) {
+  for (const p of source) {
     if (p.latitude == null || p.longitude == null) continue
-    const isSelected = selectedPickupPoint.value?.id === p.id
+    const isSelected = sel?.id === p.id
     const marker = L.circleMarker(
       [p.latitude, p.longitude],
       isSelected ? PICKUP_MARKER_SELECTED : PICKUP_MARKER_BASE
@@ -934,6 +947,10 @@ watch(selectedPickupPoint, (sel) => {
   }
 })
 
+// Collapse/expand repaint: hide every marker but the chosen one when the
+// picker collapses; bring the whole viewport back when "Zmień" reopens it.
+watch(pickupListCollapsed, () => renderPickupMarkers())
+
 onBeforeUnmount(destroyPickupMap)
 
 // Auto-recalculate shipping when address changes
@@ -1007,6 +1024,15 @@ async function loadPickupPoints() {
 
 function selectPickupPoint(point: StorefrontPickupPoint) {
   selectedPickupPoint.value = point
+  // Collapse the list on pick; the selected-point summary + "Zmień" take over.
+  pickupChanging.value = false
+}
+
+// "Zmień" — reopen the picker: show the list/search again and pull fresh
+// points for the current viewport (the collapse watcher repaints the map).
+function changePickupPoint() {
+  pickupChanging.value = true
+  scheduleBoundsFetch()
 }
 
 watch(pickupPointRequired, async (required) => {
@@ -1608,6 +1634,9 @@ async function retryBlik() {
                 class="lcms-checkout__pickup-map"
               />
 
+              <!-- Search + list collapse away once a point is chosen; the
+                   compact summary below (with "Zmień") drives re-selection. -->
+              <template v-if="!pickupListCollapsed">
               <!-- Locate box: type a town/street and jump the map there (searches
                    the whole carrier network via the API, not just what's loaded). -->
               <div v-if="showPickupMap || pickupPoints.length > 5" class="lcms-checkout__field lcms-checkout__pickup-search">
@@ -1694,10 +1723,20 @@ async function retryBlik() {
                   ? `Show more (${filteredPickupPoints.length - visiblePickupPoints.length} left)`
                   : `Pokaż więcej (${filteredPickupPoints.length - visiblePickupPoints.length} pozostało)` }}
               </button>
+              </template>
 
               <div v-if="selectedPickupPoint" class="lcms-checkout__pickup-selected">
-                <div class="lcms-checkout__pickup-selected-label">
-                  {{ props.language === 'en' ? 'Selected pickup point' : 'Wybrany punkt' }}
+                <div class="lcms-checkout__pickup-selected-head">
+                  <div class="lcms-checkout__pickup-selected-label">
+                    {{ props.language === 'en' ? 'Selected pickup point' : 'Wybrany punkt' }}
+                  </div>
+                  <button
+                    type="button"
+                    class="lcms-checkout__pickup-change"
+                    @click="changePickupPoint"
+                  >
+                    {{ props.language === 'en' ? 'Change' : 'Zmień' }}
+                  </button>
                 </div>
                 <strong>{{ selectedPickupPoint.name }}</strong>
                 <span>
@@ -2759,10 +2798,34 @@ async function retryBlik() {
   font-size: 0.9375rem;
 }
 
+.lcms-checkout__pickup-selected-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
 .lcms-checkout__pickup-selected-label {
   font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--lcms-color-muted, #6b7280);
+}
+
+.lcms-checkout__pickup-change {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--lcms-color-primary, #3b82f6);
+  text-decoration: underline;
+}
+
+.lcms-checkout__pickup-change:hover {
+  opacity: 0.8;
 }
 </style>
