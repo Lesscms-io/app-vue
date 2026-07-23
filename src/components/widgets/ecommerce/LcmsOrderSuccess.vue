@@ -255,10 +255,10 @@ function formatOrderPrice(value: number | null | undefined): string {
     <div v-else-if="order" class="lcms-order-success__content">
       <p class="lcms-order-success__message">{{ thankYouMessageText }}</p>
 
-      <dl v-if="showOrderNumber" class="lcms-order-success__meta">
-        <dt>{{ t('orderNumber') }}</dt>
-        <dd>{{ order.order_number }}</dd>
-      </dl>
+      <div v-if="showOrderNumber" class="lcms-order-success__ordernum">
+        <span class="lcms-order-success__ordernum-label">{{ t('orderNumber') }}</span>
+        <span class="lcms-order-success__ordernum-badge">{{ order.order_number }}</span>
+      </div>
 
       <section v-if="showItems && order.items?.length" class="lcms-order-success__items">
         <h3>{{ t('orderItems') }}</h3>
@@ -343,19 +343,41 @@ function formatOrderPrice(value: number | null | undefined): string {
   margin-bottom: 2rem;
 }
 
-.lcms-order-success__meta {
-  display: grid;
-  grid-template-columns: max-content 1fr;
-  gap: 0.5rem 1.5rem;
-  margin: 1.5rem 0;
+/* Order number — centered, larger, in a pill badge */
+.lcms-order-success__ordernum {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 2rem 0 3rem;
 }
 
-.lcms-order-success__meta dt {
-  font-weight: 600;
+.lcms-order-success__ordernum-label {
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--lcms-color-muted, #6b7280);
 }
 
-.lcms-order-success__meta dd {
-  margin: 0;
+.lcms-order-success__ordernum-badge {
+  display: inline-block;
+  padding: 0.45rem 1.25rem;
+  border-radius: 999px;
+  background: var(--lcms-color-background-alt, #f1f3f5);
+  border: 1px solid var(--lcms-color-border, #e9ecef);
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--lcms-color-text, #1f2937);
+}
+
+/* Generous breathing room around the items block */
+.lcms-order-success__items {
+  margin-bottom: 3rem;
+}
+
+.lcms-order-success__items h3 {
+  margin-bottom: 1rem;
 }
 
 .lcms-order-success__items ul {
@@ -435,8 +457,8 @@ function formatOrderPrice(value: number | null | undefined): string {
 .lcms-order-success__cards {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 1rem;
-  margin: 1.5rem 0;
+  gap: 1.25rem;
+  margin: 2rem 0 0;
 }
 
 @media (max-width: 560px) {
@@ -481,7 +503,7 @@ function formatOrderPrice(value: number | null | undefined): string {
 
 .lcms-order-success__actions {
   text-align: center;
-  margin-top: 2rem;
+  margin-top: 3.5rem;
 }
 
 .lcms-order-success__btn {
