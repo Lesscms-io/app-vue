@@ -22,6 +22,7 @@ const props = defineProps<Props>()
 const { extractValue } = useLanguage(props.language)
 
 const product = inject<Ref<any> | null>('lcms-product', null)
+const projectConfig = inject<Ref<any> | null>('lesscms-project-config', null)
 const cart = useCart()
 const toast = useToast()
 
@@ -89,7 +90,12 @@ async function handleAddToCart() {
   isAdding.value = true
   try {
     await cart.addItem(p.uuid, quantity.value)
-    toast.success(props.language === 'en' ? 'Added to cart' : 'Dodano do koszyka')
+    toast.success(props.language === 'en' ? 'Added to cart' : 'Dodano do koszyka', {
+      action: {
+        label: props.language === 'en' ? 'View cart' : 'Zobacz koszyk',
+        href: projectConfig?.value?.commerce?.routes?.cart || '/koszyk',
+      },
+    })
   } catch (err: any) {
     toast.error(err.message || (props.language === 'en' ? 'Failed to add to cart' : 'Nie udało się dodać'))
   } finally {

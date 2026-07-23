@@ -210,7 +210,12 @@ async function handleAddToCart() {
   isAdding.value = true
   try {
     await cart.addItem(effectiveProduct.value.uuid, quantity.value)
-    toast.success(t('addedToCart'))
+    toast.success(t('addedToCart'), {
+      action: {
+        label: props.language === 'en' ? 'View cart' : 'Zobacz koszyk',
+        href: projectConfig?.value?.commerce?.routes?.cart || '/koszyk',
+      },
+    })
   } catch (err: any) {
     toast.error(err.message || t('addError'))
   } finally {
