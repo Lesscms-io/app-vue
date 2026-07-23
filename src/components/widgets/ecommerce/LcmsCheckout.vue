@@ -1588,11 +1588,6 @@ async function retryBlik() {
                 {{ props.language === 'en' ? 'Pickup point' : 'Wybierz punkt odbioru' }}
               </h4>
 
-              <p v-if="!isLoadingPickupPoints && pickupPoints.length > 0" class="lcms-checkout__pickup-hint">
-                {{ props.language === 'en'
-                  ? `Pick one of ${pickupPoints.length} pickup point${pickupPoints.length === 1 ? '' : 's'} on the map or from the list`
-                  : `Wybierz jeden z ${pickupPoints.length} ${pickupPoints.length === 1 ? 'punktu' : 'punktów'} na mapie lub z listy` }}
-              </p>
 
               <div v-if="isInpostPickup && inpostGeowidgetToken" class="lcms-checkout__pickup-map">
                 <inpost-geowidget
