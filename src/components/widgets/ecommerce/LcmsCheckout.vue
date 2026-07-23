@@ -708,18 +708,26 @@ onBeforeUnmount(() => {
 })
 
 // --- Pickup-point map for carriers without their own widget (Apaczka) ---
-// Leaflet loaded from CDN (same pattern as LcmsOpenStreetMap); the whole
-// network is drawn as canvas circle markers, clicking one selects it.
+// Leaflet loaded from CDN (same pattern as LcmsOpenStreetMap). The carrier's
+// network is huge (~32k InPost lockers via Apaczka), so we NEVER load it all:
+// the map requests only the points inside its current viewport (bbox) and
+// refetches as the user pans/zooms. Markers are canvas circle markers.
 const pickupMapRef = ref<HTMLElement | null>(null)
+// Map carriers get a map whenever a pickup method is selected — it doesn't
+// wait for points, because the map itself is how points get loaded.
 const showPickupMap = computed(() =>
-  pickupPointRequired.value
-  && !isInpostPickup.value
-  && pickupPoints.value.some(p => p.latitude != null && p.longitude != null)
+  pickupPointRequired.value && !isInpostPickup.value
 )
 let pickupMap: any = null
 let pickupMarkersLayer: any = null
 const pickupMarkersById = new Map<string, any>()
 let lastSelectedMarkerId: string | null = null
+let boundsFetchTimer: ReturnType<typeof setTimeout> | null = null
+let boundsFetchSeq = 0
+
+// Poland-wide fallback view when we have no postal code to center on.
+const POLAND_CENTER: [number, number] = [52.0, 19.2]
+const POLAND_ZOOM = 6
 
 const PICKUP_MARKER_BASE = { radius: 6, weight: 1, color: '#ffffff', fillColor: '#374151', fillOpacity: 0.85 }
 const PICKUP_MARKER_SELECTED = { radius: 9, weight: 2, color: '#ffffff', fillColor: '#111827', fillOpacity: 1 }
@@ -749,12 +757,46 @@ function loadLeaflet(): Promise<void> {
 }
 
 function destroyPickupMap() {
+  if (boundsFetchTimer) { clearTimeout(boundsFetchTimer); boundsFetchTimer = null }
   if (pickupMap) {
     pickupMap.remove()
     pickupMap = null
     pickupMarkersLayer = null
     pickupMarkersById.clear()
     lastSelectedMarkerId = null
+  }
+}
+
+// Fetch the points inside the map's current rectangle. Debounced so a
+// pan/zoom gesture fires one request, and sequence-guarded so a slow
+// response can't overwrite a newer one.
+function scheduleBoundsFetch() {
+  if (boundsFetchTimer) clearTimeout(boundsFetchTimer)
+  boundsFetchTimer = setTimeout(fetchPointsInBounds, 350)
+}
+
+async function fetchPointsInBounds() {
+  if (!client.value || !selectedShipping.value || !pickupMap) return
+  const b = pickupMap.getBounds()
+  const bbox = [b.getSouth(), b.getWest(), b.getNorth(), b.getEast()]
+    .map((n: number) => n.toFixed(6)).join(',')
+  const seq = ++boundsFetchSeq
+  isLoadingPickupPoints.value = true
+  try {
+    const response = await client.value.getPickupPoints({
+      carrier: selectedShipping.value.carrier,
+      bbox,
+    })
+    if (seq !== boundsFetchSeq) return // a newer fetch superseded this one
+    pickupPoints.value = response.data.points || []
+    if (selectedPickupPoint.value) {
+      const stillThere = pickupPoints.value.some(p => p.id === selectedPickupPoint.value!.id)
+      if (!stillThere) selectedPickupPoint.value = null
+    }
+  } catch {
+    if (seq === boundsFetchSeq) pickupPoints.value = []
+  } finally {
+    if (seq === boundsFetchSeq) isLoadingPickupPoints.value = false
   }
 }
 
@@ -782,29 +824,28 @@ function renderPickupMarkers() {
   pickupMarkersLayer = L.layerGroup(markers).addTo(pickupMap)
 }
 
-// Center on the typed postal code's neighbourhood when we have one
-// (exact postal → same 2-digit region → whole network).
-function focusPickupMap() {
+// Center the map on the customer's postal code when they've typed one, so it
+// opens on their neighbourhood instead of the whole country. We already hold
+// postal-seeded points (fetched by loadPickupPoints); fit to them. No postal
+// → Poland-wide view and the user pans to their area.
+function centerPickupMap() {
   const L = (window as any).L
   if (!pickupMap || !L) return
   const withCoords = pickupPoints.value.filter(p => p.latitude != null && p.longitude != null)
-  if (!withCoords.length) return
-
   const digits = (form.shipping_postal_code || '').replace(/\D/g, '')
-  let candidates = withCoords
-  let hasPostalFocus = false
-  if (digits.length === 5) {
+
+  if (digits.length === 5 && withCoords.length) {
     const prefix = digits.slice(0, 2)
     const exact = withCoords.filter(p => (p.postal_code || '').replace(/\D/g, '') === digits)
     const region = withCoords.filter(p => (p.postal_code || '').replace(/\D/g, '').startsWith(prefix))
-    if (exact.length) { candidates = exact; hasPostalFocus = true }
-    else if (region.length) { candidates = region; hasPostalFocus = true }
+    const candidates = exact.length ? exact : (region.length ? region : withCoords)
+    const bounds = L.latLngBounds(candidates.map(p => [p.latitude, p.longitude]))
+    if (bounds.isValid()) {
+      pickupMap.fitBounds(bounds, { padding: [24, 24], maxZoom: 13 })
+      return
+    }
   }
-
-  const bounds = L.latLngBounds(candidates.map(p => [p.latitude, p.longitude]))
-  if (bounds.isValid()) {
-    pickupMap.fitBounds(bounds, { padding: [24, 24], maxZoom: hasPostalFocus ? 13 : 7 })
-  }
+  pickupMap.setView(POLAND_CENTER, POLAND_ZOOM)
 }
 
 watch([showPickupMap, pickupMapRef], async ([show, el]) => {
@@ -819,13 +860,17 @@ watch([showPickupMap, pickupMapRef], async ([show, el]) => {
     maxZoom: 19,
   }).addTo(pickupMap)
   renderPickupMarkers()
-  focusPickupMap()
+  centerPickupMap()
+  // Attach the viewport fetcher only after the initial center, so we don't
+  // fire a request for Leaflet's transient [0,0] view.
+  pickupMap.on('moveend', scheduleBoundsFetch)
+  // Kick off the first load for whatever the initial view is.
+  fetchPointsInBounds()
 }, { flush: 'post' })
 
 watch(pickupPoints, () => {
   if (!pickupMap) return
   renderPickupMarkers()
-  focusPickupMap()
 })
 
 // Restyle only the previously- and newly-selected markers (the network can
@@ -877,17 +922,23 @@ watch(
 async function loadPickupPoints() {
   if (!client.value || !selectedShipping.value) return
 
-  // InPost search stays postal-relative (ShipX API) — the Geowidget is the
-  // map there. Other carriers (Apaczka networks) fetch the whole
-  // server-cached network once; the typed postal code only reorders the
-  // list and centers our own map.
+  // Two carrier families, two strategies:
+  //  - InPost: postal-relative ShipX search (also feeds the geowidget).
+  //  - Map carriers (Apaczka): the network is ~32k points, so we never load
+  //    it wholesale. If the customer already typed a postal code we seed the
+  //    picker with the nearby points (and the map centers on them); otherwise
+  //    the map's viewport drives loading via fetchPointsInBounds().
+  const isPostalSearch = isInpostPickup.value || !!(form.shipping_postal_code && form.shipping_postal_code.length >= 5)
+  if (!isPostalSearch) {
+    // No postal yet — clear stale list; the map will fetch by viewport.
+    pickupSearchTerm.value = ''
+    return
+  }
+
   const params: { carrier?: string; postal_code?: string; radius?: number } = {
     carrier: selectedShipping.value.carrier,
-  }
-  if (isInpostPickup.value) {
-    if (!form.shipping_postal_code || form.shipping_postal_code.length < 5) return
-    params.postal_code = form.shipping_postal_code
-    params.radius = 10
+    postal_code: form.shipping_postal_code,
+    radius: 10,
   }
 
   isLoadingPickupPoints.value = true
@@ -903,6 +954,8 @@ async function loadPickupPoints() {
       const stillThere = pickupPoints.value.some(p => p.id === selectedPickupPoint.value!.id)
       if (!stillThere) selectedPickupPoint.value = null
     }
+    // Recenter the (already-mounted) map on the freshly seeded points.
+    if (pickupMap && !isInpostPickup.value) centerPickupMap()
   } catch {
     pickupPoints.value = []
   } finally {
@@ -923,18 +976,14 @@ watch(pickupPointRequired, async (required) => {
   await loadPickupPoints()
 })
 
-// Postal-code changes: InPost still refetches (ShipX search is
-// postal-relative); other carriers only reorder the already-loaded network
-// (prioritizedPickupPoints) and recenter the map.
+// Postal-code changes: both families re-seed by postal. For map carriers
+// loadPickupPoints() also recenters the map on the new neighbourhood, after
+// which the viewport fetcher takes over.
 watch(
   () => form.shipping_postal_code,
   async () => {
     if (!pickupPointRequired.value) return
-    if (isInpostPickup.value) {
-      await loadPickupPoints()
-    } else {
-      focusPickupMap()
-    }
+    await loadPickupPoints()
   }
 )
 
@@ -1533,6 +1582,12 @@ async function retryBlik() {
 
               <div v-if="isLoadingPickupPoints" class="lcms-checkout__loading-text">
                 {{ props.language === 'en' ? 'Loading points...' : 'Ładowanie punktów...' }}
+              </div>
+              <div
+                v-else-if="pickupPoints.length === 0 && showPickupMap"
+                class="lcms-checkout__loading-text"
+              >
+                {{ props.language === 'en' ? 'No points in this map area — pan or zoom out to find one' : 'Brak punktów w tym obszarze — przesuń lub oddal mapę' }}
               </div>
               <div
                 v-else-if="pickupPoints.length === 0 && !(isInpostPickup && inpostGeowidgetToken)"
