@@ -1746,31 +1746,33 @@ const cssVars = computed(() => {
                 v-if="opt.thumbnail"
                 class="lcms-product-configurator__swatch-cell"
               >
-                <button
-                  type="button"
-                  class="lcms-product-configurator__swatch lcms-product-configurator__swatch--image"
-                  :class="{ 'lcms-product-configurator__swatch--selected': selectedOptions[group.uuid] === opt.uuid }"
-                  :style="swatchImgButtonStyle"
-                  :title="opt.name + (optionPriceDeltaText(opt) ? ` (${optionPriceDeltaText(opt)})` : '')"
-                  :aria-label="opt.name"
-                  @click="selectOption(group.uuid, opt.uuid)"
-                >
-                  <img :src="opt.thumbnail" :alt="opt.name" :style="swatchImgStyle" />
-                </button>
-                <button
-                  type="button"
-                  class="lcms-product-configurator__swatch-zoom"
-                  :title="t('zoomThumb')"
-                  :aria-label="t('zoomThumb')"
-                  @click.stop="openLightboxImage(opt.thumbnail!)"
-                >
-                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <circle cx="11" cy="11" r="7" />
-                    <line x1="21" y1="21" x2="16" y2="16" />
-                    <line x1="11" y1="8" x2="11" y2="14" />
-                    <line x1="8" y1="11" x2="14" y2="11" />
-                  </svg>
-                </button>
+                <div class="lcms-product-configurator__swatch-imgwrap">
+                  <button
+                    type="button"
+                    class="lcms-product-configurator__swatch lcms-product-configurator__swatch--image"
+                    :class="{ 'lcms-product-configurator__swatch--selected': selectedOptions[group.uuid] === opt.uuid }"
+                    :style="swatchImgButtonStyle"
+                    :title="opt.name + (optionPriceDeltaText(opt) ? ` (${optionPriceDeltaText(opt)})` : '')"
+                    :aria-label="opt.name"
+                    @click="selectOption(group.uuid, opt.uuid)"
+                  >
+                    <img :src="opt.thumbnail" :alt="opt.name" :style="swatchImgStyle" />
+                  </button>
+                  <button
+                    type="button"
+                    class="lcms-product-configurator__swatch-zoom"
+                    :title="t('zoomThumb')"
+                    :aria-label="t('zoomThumb')"
+                    @click.stop="openLightboxImage(opt.thumbnail!)"
+                  >
+                    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <circle cx="11" cy="11" r="7" />
+                      <line x1="21" y1="21" x2="16" y2="16" />
+                      <line x1="11" y1="8" x2="11" y2="14" />
+                      <line x1="8" y1="11" x2="14" y2="11" />
+                    </svg>
+                  </button>
+                </div>
                 <span
                   v-if="showOptionPrices"
                   class="lcms-product-configurator__swatch-caption"
@@ -2343,31 +2345,50 @@ const cssVars = computed(() => {
   text-align: center;
 }
 
-/* Magnifier in the swatch corner — opens the option image in the lightbox
-   without selecting the option. Always visible (touch has no hover), but
-   subtle until hovered. */
+/* Wrapper sized to the swatch image so the magnifier anchors to the IMAGE
+   corner, not the (wider, centered) grid cell — otherwise it floats out in
+   the margin next to the swatch. */
+.lcms-product-configurator__swatch-imgwrap {
+  position: relative;
+  display: inline-block;
+  line-height: 0;
+}
+
+/* Magnifier tucked into the swatch's top-right corner. Hidden until the
+   swatch is hovered (desktop); on touch it stays faintly visible so the
+   zoom is still reachable. Opens the option image in the lightbox without
+   selecting the option. */
 .lcms-product-configurator__swatch-zoom {
   position: absolute;
-  top: 4px;
-  right: 4px;
+  top: 5px;
+  right: 5px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 26px;
+  width: 22px;
+  height: 22px;
   padding: 0;
   border: none;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.92);
   color: var(--lcms-pc-option-text, var(--lcms-color-text, #1f2937));
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
   cursor: zoom-in;
-  opacity: 0.75;
+  opacity: 0;
+  transition: opacity 0.12s ease;
   z-index: 1;
 }
 
-.lcms-product-configurator__swatch-zoom:hover {
+.lcms-product-configurator__swatch-imgwrap:hover .lcms-product-configurator__swatch-zoom,
+.lcms-product-configurator__swatch-zoom:focus-visible {
   opacity: 1;
+}
+
+/* Touch devices have no hover — keep the magnifier faintly visible there. */
+@media (hover: none) {
+  .lcms-product-configurator__swatch-zoom {
+    opacity: 0.7;
+  }
 }
 
 .lcms-product-configurator__swatch {
