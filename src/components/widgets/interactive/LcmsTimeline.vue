@@ -9,6 +9,12 @@
 import { computed } from 'vue'
 import { useLanguage } from '@/composables/useLanguage'
 import { resolveColor } from '@/utils/resolveColor'
+import {
+  formatDateLabel,
+  humanizeRelative,
+  humanizeDuration,
+  durationLabel
+} from '@/utils/dateDuration'
 
 defineOptions({
   inheritAttrs: false
@@ -30,14 +36,28 @@ const dotGroup = computed(() => props.data.dot || {})
 const configGroup = computed(() => props.data.config || {})
 const itemsGroup = computed(() => props.data.items || [])
 
+const lang = computed(() => props.language || 'pl')
+const showRelative = computed(() => !!configGroup.value.show_relative)
+const showDuration = computed(() => !!configGroup.value.show_duration)
+const durationPrefix = computed(() => durationLabel(lang.value))
+
 const items = computed(() => {
   const raw = itemsGroup.value
   if (!Array.isArray(raw)) return []
-  return raw.map(item => ({
-    date: extractValue(item.date_html || item.date),
-    title: extractValue(item.title_html || item.title),
-    content: extractValue(item.html || item.content)
-  }))
+  return raw.map(item => {
+    const dateFrom = item.date_from || ''
+    const dateTo = item.date_to || ''
+    // `date` (a.k.a. date_html) is now an optional custom label; when empty we
+    // auto-format the header from the structured date(s).
+    const customLabel = extractValue(item.date_html || item.date)
+    return {
+      date: customLabel || formatDateLabel(dateFrom, dateTo, lang.value),
+      title: extractValue(item.title_html || item.title),
+      content: extractValue(item.html || item.content),
+      relative: showRelative.value ? humanizeRelative(dateFrom, lang.value) : '',
+      duration: showDuration.value ? humanizeDuration(dateFrom, dateTo, lang.value) : ''
+    }
+  })
 })
 
 const layout = computed(() => configGroup.value.layout || 'left')
@@ -85,6 +105,13 @@ const timelineContainerStyle = computed(() => {
         <div v-if="item.date" class="lcms-timeline__date" v-html="item.date" />
         <h4 v-if="item.title" class="lcms-timeline__title" v-html="item.title" />
         <div v-if="item.content" class="lcms-timeline__content" v-html="item.content" />
+        <div
+          v-if="item.relative || item.duration"
+          class="lcms-timeline__meta"
+        >
+          <span v-if="item.relative" class="lcms-timeline__relative">{{ item.relative }}</span>
+          <span v-if="item.duration" class="lcms-timeline__duration">{{ durationPrefix }}: {{ item.duration }}</span>
+        </div>
       </div>
     </div>
   </div>
@@ -202,5 +229,24 @@ const timelineContainerStyle = computed(() => {
   margin: 4px 0 0;
   font-size: 0.95em;
   color: var(--lcms-color-text, #495057);
+}
+
+.lcms-timeline__meta {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  font-size: 0.8em;
+  color: var(--lcms-color-muted, #6c757d);
+}
+
+.lcms-timeline__relative,
+.lcms-timeline__duration {
+  display: inline-flex;
+  align-items: center;
+}
+
+.lcms-timeline__duration {
+  font-style: italic;
 }
 </style>

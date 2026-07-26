@@ -344,7 +344,13 @@ export interface FeatureListWidgetData extends BaseWidgetData {
 }
 
 export interface TimelineItem {
+  /** Optional custom label (multilingual). When empty the header is
+   *  auto-formatted from date_from/date_to. */
   date: MultilingualValue
+  /** Structured event date / range start, ISO 'YYYY-MM-DD'. */
+  date_from?: string
+  /** Optional range end, ISO 'YYYY-MM-DD'. */
+  date_to?: string
   title: MultilingualValue
   content: MultilingualValue
 }
@@ -352,6 +358,10 @@ export interface TimelineItem {
 export interface TimelineWidgetData extends BaseWidgetData {
   items: TimelineItem[]
   layout?: 'left' | 'right' | 'alternate'
+  /** Show "how long ago" relative to now, computed from date_from. */
+  show_relative?: boolean
+  /** Show "how long it lasted" for items that have a date range. */
+  show_duration?: boolean
   line_color?: string
   dot_color?: string
 }
