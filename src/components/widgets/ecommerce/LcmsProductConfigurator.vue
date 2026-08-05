@@ -1982,30 +1982,38 @@ const cssVars = computed(() => {
 
       <!-- Lightbox overlay for summary thumbnails. Sits outside the
            summary/groups v-if/v-else-if chain so it can open over either.
-           Click outside the image (or press Esc) closes. -->
-      <div
-        v-if="lightbox"
-        class="lcms-product-configurator__lightbox"
-        role="dialog"
-        aria-modal="true"
-        tabindex="-1"
-        @click="closeLightbox"
-        @keydown.esc="closeLightbox"
-      >
-        <img
-          v-if="!lightbox.startsWith('color:')"
-          :src="lightbox"
-          alt=""
-          class="lcms-product-configurator__lightbox-image"
-          @click.stop
-        >
+           Click outside the image (or press Esc) closes.
+
+           Teleported to <body> like every other overlay widget: the section
+           grid it would otherwise render into sets `position: relative;
+           z-index: 1`, which opens a stacking context the lightbox can never
+           escape — no z-index on a descendant can lift it above the menu or
+           the sticky navbar, both of which live outside the sections. -->
+      <Teleport to="body">
         <div
-          v-else
-          class="lcms-product-configurator__lightbox-color"
-          :style="{ backgroundColor: lightbox.slice(6) }"
-          @click.stop
-        />
-      </div>
+          v-if="lightbox"
+          class="lcms-product-configurator__lightbox"
+          role="dialog"
+          aria-modal="true"
+          tabindex="-1"
+          @click="closeLightbox"
+          @keydown.esc="closeLightbox"
+        >
+          <img
+            v-if="!lightbox.startsWith('color:')"
+            :src="lightbox"
+            alt=""
+            class="lcms-product-configurator__lightbox-image"
+            @click.stop
+          >
+          <div
+            v-else
+            class="lcms-product-configurator__lightbox-color"
+            :style="{ backgroundColor: lightbox.slice(6) }"
+            @click.stop
+          />
+        </div>
+      </Teleport>
 
       <!-- Price summary: always shown when enabled. In wizard mode the live
            total updates as the user steps through, so they always see how
@@ -2838,7 +2846,9 @@ const cssVars = computed(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 9999;
+  /* Same layer as .lcms-lightbox__backdrop (widgets.css) — lightboxes sit
+     above the 9999 tier used by the menu drawer and the sticky navbar. */
+  z-index: 99999;
   padding: 2rem;
   cursor: zoom-out;
 }

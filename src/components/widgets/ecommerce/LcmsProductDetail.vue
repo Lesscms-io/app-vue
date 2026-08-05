@@ -10,7 +10,7 @@ import { useLanguage } from '../../../composables/useLanguage'
 import { useStorefront } from '../../../composables/useStorefront'
 import { useCart } from '../../../composables/useCart'
 import { useToast } from '../../../composables/useToast'
-import { formatPrice, calculateDiscount } from '../../../utils/currency'
+import { formatPrice, calculateDiscount, hasDisplayablePrice } from '../../../utils/currency'
 import type { StorefrontProduct } from '../../../api/storefront'
 
 interface ResolvedRoute {
@@ -81,8 +81,12 @@ const resolvedSlug = computed(() => {
   return segments[slugUrlSegment.value] || ''
 })
 
+// Base price 0 = product priced by the configurator — hide the price block
+// (and any discount derived from it) instead of showing "0,00 zł".
+const showPrice = computed(() => hasDisplayablePrice(effectiveProduct.value?.price))
+
 const hasDiscount = computed(() =>
-  effectiveProduct.value?.compare_at_price && effectiveProduct.value.compare_at_price > effectiveProduct.value.price
+  showPrice.value && effectiveProduct.value?.compare_at_price && effectiveProduct.value.compare_at_price > effectiveProduct.value.price
 )
 
 const discountPercent = computed(() => {
@@ -297,7 +301,7 @@ watch([resolvedSlug, isAvailable], () => {
 
         <div class="lcms-product-detail__sku">{{ t('sku') }}: {{ effectiveProduct.sku }}</div>
 
-        <div class="lcms-product-detail__price-wrap">
+        <div v-if="showPrice" class="lcms-product-detail__price-wrap">
           <span v-if="hasDiscount" class="lcms-product-detail__price-original">
             {{ formatPrice(effectiveProduct.compare_at_price, currency) }}
           </span>

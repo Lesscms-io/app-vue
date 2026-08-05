@@ -7,7 +7,7 @@
 
 import { computed, inject, type Ref } from 'vue'
 import { getProductField } from '../../../utils/productField'
-import { formatPrice, calculateDiscount } from '../../../utils/currency'
+import { formatPrice, calculateDiscount, hasDisplayablePrice } from '../../../utils/currency'
 import { resolveColor } from '../../../utils/resolveColor'
 
 defineOptions({ inheritAttrs: false })
@@ -39,8 +39,11 @@ const comparePrice = computed(() => {
   return val != null ? Number(val) : null
 })
 
+// Base price 0 = product priced by the configurator — nothing to show yet.
+const showPrice = computed(() => hasDisplayablePrice(price.value))
+
 const hasDiscount = computed(() =>
-  comparePrice.value != null && comparePrice.value > (price.value || 0)
+  showPrice.value && comparePrice.value != null && comparePrice.value > (price.value || 0)
 )
 
 const discountPercent = computed(() => {
@@ -78,7 +81,7 @@ const badgeStyle = computed(() => {
 </script>
 
 <template>
-  <div v-if="price != null" class="lcms-product-price">
+  <div v-if="showPrice" class="lcms-product-price">
     <span v-if="hasDiscount" class="lcms-product-price__original" :style="compareStyle">
       {{ formatPrice(comparePrice!, currency) }}
     </span>

@@ -2,7 +2,7 @@
 import { computed, ref, onMounted, onServerPrefetch, watch, inject, type Ref } from 'vue'
 import { useLanguage } from '../../../composables/useLanguage'
 import { useStorefront } from '../../../composables/useStorefront'
-import { formatPrice, calculateDiscount } from '../../../utils/currency'
+import { formatPrice, calculateDiscount, hasDisplayablePrice } from '../../../utils/currency'
 import type { StorefrontProduct } from '../../../api/storefront'
 
 defineOptions({ inheritAttrs: false })
@@ -41,6 +41,12 @@ const showPrice = computed(() => config.value.show_price !== false)
 const showCategory = computed(() => config.value.show_category === true)
 
 const currency = computed(() => projectConfig?.value?.commerce?.currency || 'PLN')
+
+// Base price 0 = product priced by the configurator — hide the price (and any
+// discount derived from it) instead of showing "0,00 zł".
+function hasDiscount(product: any): boolean {
+  return hasDisplayablePrice(product.price) && !!product.compare_at_price && product.compare_at_price > product.price
+}
 
 const resolvedSlug = computed(() => {
   if (slugSource.value === 'static') return staticSlug.value
@@ -198,7 +204,7 @@ const t = (key: string) => {
             </svg>
           </div>
           <span
-            v-if="product.compare_at_price && product.compare_at_price > product.price"
+            v-if="hasDiscount(product)"
             class="lcms-related-card__discount"
           >
             -{{ calculateDiscount(product.compare_at_price, product.price) }}%
@@ -209,9 +215,9 @@ const t = (key: string) => {
             {{ product.category.name }}
           </span>
           <h4 class="lcms-related-card__name">{{ product.name }}</h4>
-          <div v-if="showPrice" class="lcms-related-card__price-wrap">
+          <div v-if="showPrice && hasDisplayablePrice(product.price)" class="lcms-related-card__price-wrap">
             <span
-              v-if="product.compare_at_price && product.compare_at_price > product.price"
+              v-if="hasDiscount(product)"
               class="lcms-related-card__price-original"
             >
               {{ formatPrice(product.compare_at_price, currency) }}

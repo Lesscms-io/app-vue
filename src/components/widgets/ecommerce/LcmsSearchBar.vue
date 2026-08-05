@@ -8,7 +8,7 @@
 import { computed, ref, watch, inject, onMounted, onUnmounted, type Ref } from 'vue'
 import { useLanguage } from '../../../composables/useLanguage'
 import { useStorefront } from '../../../composables/useStorefront'
-import { formatPrice } from '../../../utils/currency'
+import { formatPrice, hasDisplayablePrice } from '../../../utils/currency'
 import type { StorefrontProduct } from '../../../api/storefront'
 
 defineOptions({ inheritAttrs: false })
@@ -133,7 +133,7 @@ onUnmounted(() => {
         <img v-if="product.image" :src="product.image" :alt="product.name" class="lcms-search-bar__result-image" />
         <div class="lcms-search-bar__result-info">
           <div class="lcms-search-bar__result-name">{{ product.name }}</div>
-          <div class="lcms-search-bar__result-price">{{ formatPrice(product.price, currency) }}</div>
+          <div v-if="hasDisplayablePrice(product.price)" class="lcms-search-bar__result-price">{{ formatPrice(product.price, currency) }}</div>
         </div>
       </a>
     </div>

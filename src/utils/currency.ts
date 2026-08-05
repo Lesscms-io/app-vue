@@ -36,6 +36,19 @@ export function formatPrice(amount: number | string | null | undefined, currency
 }
 
 /**
+ * Should a price be shown to the customer at all?
+ *
+ * Products priced entirely by the configurator have a base price of 0 — showing
+ * "0,00 zł" reads as "free", so storefront widgets hide the price instead.
+ * @example hasDisplayablePrice(0) → false
+ */
+export function hasDisplayablePrice(amount: number | string | null | undefined): boolean {
+  const num = typeof amount === 'string' ? parseFloat(amount) : amount
+  if (num === null || num === undefined || isNaN(num as number)) return false
+  return (num as number) > 0
+}
+
+/**
  * Calculate discount percentage between two prices.
  * @example calculateDiscount(100, 80) → 20
  */

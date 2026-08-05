@@ -8,7 +8,7 @@
 import { computed, ref, onMounted, onServerPrefetch, watch, inject, onUnmounted, type Ref } from 'vue'
 import { useLanguage } from '../../../composables/useLanguage'
 import { useStorefront } from '../../../composables/useStorefront'
-import { formatPrice } from '../../../utils/currency'
+import { formatPrice, hasDisplayablePrice } from '../../../utils/currency'
 import type { StorefrontProduct } from '../../../api/storefront'
 
 defineOptions({ inheritAttrs: false })
@@ -225,7 +225,7 @@ watch([source, resolvedCategorySlug, productSlugs, isAvailable], () => {
         </div>
         <div class="lcms-product-carousel__card-body">
           <div class="lcms-product-carousel__card-name">{{ product.name }}</div>
-          <div v-if="showPrice" class="lcms-product-carousel__card-price">
+          <div v-if="showPrice && hasDisplayablePrice(product.price)" class="lcms-product-carousel__card-price">
             {{ formatPrice(product.price, currency) }}
           </div>
         </div>

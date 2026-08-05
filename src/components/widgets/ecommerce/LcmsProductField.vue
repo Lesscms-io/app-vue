@@ -9,7 +9,7 @@
 import { computed, inject, type Ref } from 'vue'
 import { useLanguage } from '../../../composables/useLanguage'
 import { getProductField, getProductFieldRaw, formatAttributeValue } from '../../../utils/productField'
-import { formatPrice } from '../../../utils/currency'
+import { formatPrice, hasDisplayablePrice } from '../../../utils/currency'
 import { resolveColor } from '../../../utils/resolveColor'
 
 defineOptions({ inheritAttrs: false })
@@ -70,6 +70,9 @@ const formattedValue = computed(() => {
 })
 
 const isVisible = computed(() => {
+  // A price of 0 = product priced by the configurator; "0,00 zł" would read as
+  // "free", so the field (label included) stays hidden.
+  if (displayAs.value === 'price' && !hasDisplayablePrice(rawValue.value as any)) return false
   if (!hideWhenEmpty.value) return true
   return rawValue.value != null && rawValue.value !== '' && rawValue.value !== false
 })

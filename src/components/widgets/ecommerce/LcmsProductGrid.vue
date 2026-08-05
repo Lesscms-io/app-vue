@@ -9,7 +9,7 @@
 import { computed, ref, onMounted, onServerPrefetch, watch, inject, type Ref } from 'vue'
 import { useLanguage } from '../../../composables/useLanguage'
 import { useStorefront } from '../../../composables/useStorefront'
-import { formatPrice, calculateDiscount } from '../../../utils/currency'
+import { formatPrice, calculateDiscount, hasDisplayablePrice } from '../../../utils/currency'
 import type { StorefrontProduct } from '../../../api/storefront'
 
 defineOptions({ inheritAttrs: false })
@@ -159,6 +159,21 @@ function getField(product: any, path: string): any {
   if (!path) return null
   const val = path.split('.').reduce((obj: any, key: string) => obj?.[key], product)
   return Array.isArray(val) ? val[0] ?? null : val
+}
+
+// Base price 0 = product priced by the configurator — hide the price (and any
+// discount derived from it) instead of showing "0,00 zł".
+//
+// Same treatment for a grouped tile whose variants disagree on price: the
+// container's own price would quote one arbitrary variant, so we show nothing
+// and let the product page state the real figure per variant.
+function hasPrice(product: any): boolean {
+  if (product?.price_varies === true) return false
+  return hasDisplayablePrice(getField(product, fieldPrice.value))
+}
+
+function hasDiscount(product: any): boolean {
+  return hasPrice(product) && !!product.compare_at_price && product.compare_at_price > product.price
 }
 
 function labelText(label: any): string {
@@ -399,7 +414,7 @@ const t = (key: string) => {
             </svg>
           </div>
           <div
-            v-if="(product.marketing_labels && product.marketing_labels.length) || (showDiscountFallback && product.compare_at_price && product.compare_at_price > product.price)"
+            v-if="(product.marketing_labels && product.marketing_labels.length) || (showDiscountFallback && hasDiscount(product))"
             class="lcms-product-card__labels"
           >
             <span
@@ -411,7 +426,7 @@ const t = (key: string) => {
               {{ labelText(label) }}
             </span>
             <span
-              v-if="(!product.marketing_labels || product.marketing_labels.length === 0) && showDiscountFallback && product.compare_at_price && product.compare_at_price > product.price"
+              v-if="(!product.marketing_labels || product.marketing_labels.length === 0) && showDiscountFallback && hasDiscount(product)"
               class="lcms-product-card__label lcms-product-card__label--discount"
             >
               -{{ calculateDiscount(product.compare_at_price, product.price) }}%
@@ -431,9 +446,9 @@ const t = (key: string) => {
           <p v-if="fieldDescription && getField(product, fieldDescription)" class="lcms-product-card__description">
             {{ getField(product, fieldDescription) }}
           </p>
-          <div v-if="showPrice && getField(product, fieldPrice) != null" class="lcms-product-card__price-wrap">
+          <div v-if="showPrice && hasPrice(product)" class="lcms-product-card__price-wrap">
             <span
-              v-if="product.compare_at_price && product.compare_at_price > product.price"
+              v-if="hasDiscount(product)"
               class="lcms-product-card__price-original"
             >
               {{ formatPrice(product.compare_at_price, currency) }}
