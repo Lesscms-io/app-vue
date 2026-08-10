@@ -41,10 +41,17 @@ function extractText(v: any): string {
 
 const headingText = computed(() => extractText(data.value?.heading?.text))
 
+// A family member is a family member — the picker has to work the same
+// whether you landed on the parent or on one of the variants. A variant's own
+// `children` is empty by definition, so fall back to `siblings` (the parent's
+// children, current one included so it can be marked as selected).
 const variants = computed<any[]>(() => {
   const p = product?.value
   if (!p) return []
-  return Array.isArray(p.children) ? p.children.filter((c: any) => c.status !== 'inactive') : []
+  const family = Array.isArray(p.children) && p.children.length
+    ? p.children
+    : (Array.isArray(p.siblings) ? p.siblings : [])
+  return family.filter((c: any) => c.status !== 'inactive')
 })
 
 const templateAttributes = computed<any[]>(() => {
@@ -77,7 +84,20 @@ function variantLabel(variant: any): string {
     const option = (attr.options || []).find((o: any) => o.code === optionCode)
     parts.push(option?.value || optionCode)
   }
-  return parts.join(' / ') || variant?.name || ''
+  if (parts.length) return parts.join(' / ')
+
+  // No template attribute is flagged `is_variant` — which is the norm for
+  // families built by grouping existing products rather than generated from
+  // a template. The binding itself already holds readable values
+  // ({kolor: "skóra naturalna ecru"}), so use them instead of falling all the
+  // way back to the full product name: repeating "Album Exclusive – … 33x33cm
+  // /50 kart" on every option hides the one thing that actually differs.
+  const rawValues = Object.values(binding)
+    .map((v: any) => extractText(Array.isArray(v) ? v[0] : v))
+    .filter(Boolean)
+  if (rawValues.length) return rawValues.join(' / ')
+
+  return variant?.name || ''
 }
 
 function variantSwatchColor(variant: any): string | null {
@@ -110,10 +130,15 @@ const shouldRender = computed(() => {
   return true
 })
 
-// Group label text — first binding attribute's name, else generic fallback
+// Group label text — first binding attribute's name, else the binding key
+// itself ("kolor" → "Kolor"), else a generic fallback.
 const groupLabel = computed(() => {
   if (bindingAttributes.value.length) {
     return bindingAttributes.value[0]?.name || ''
+  }
+  const firstKey = Object.keys(variants.value[0]?.variant_binding_values || {})[0]
+  if (firstKey) {
+    return firstKey.charAt(0).toUpperCase() + firstKey.slice(1).replace(/_/g, ' ')
   }
   return lang.value === 'en' ? 'Variant' : 'Wariant'
 })
@@ -216,6 +241,33 @@ function isSelected(variant: any): boolean {
     </div>
 
     <div
+      v-else-if="displayType === 'thumbnails'"
+      class="lcms-product-variants__thumbs"
+    >
+      <a
+        v-for="variant in variants"
+        :key="variant.uuid"
+        :href="variantUrl(variant)"
+        class="lcms-product-variants__thumb"
+        :class="{ 'lcms-product-variants__thumb--selected': isSelected(variant) }"
+      >
+        <img
+          v-if="variantSwatchImage(variant)"
+          :src="variantSwatchImage(variant)!"
+          :alt="variantLabel(variant)"
+          loading="lazy"
+          class="lcms-product-variants__thumb-img"
+        >
+        <span
+          v-else
+          class="lcms-product-variants__thumb-img lcms-product-variants__thumb-img--empty"
+          :style="{ background: variantSwatchColor(variant) || undefined }"
+        />
+        <span class="lcms-product-variants__thumb-label">{{ variantLabel(variant) }}</span>
+      </a>
+    </div>
+
+    <div
       v-else
       class="lcms-product-variants__buttons"
     >
@@ -291,6 +343,55 @@ function isSelected(variant: any): boolean {
   background: var(--pv-selected-bg);
   color: var(--pv-selected-fg);
   border-color: var(--pv-selected-border);
+}
+
+.lcms-product-variants__thumbs {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
+  gap: 0.75rem;
+}
+
+.lcms-product-variants__thumb {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  text-decoration: none;
+  color: var(--pv-option-fg);
+  border: 1px solid var(--pv-option-border);
+  border-radius: 6px;
+  padding: 0.375rem;
+  background: var(--pv-option-bg);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.lcms-product-variants__thumb:hover {
+  border-color: var(--pv-selected-border);
+}
+
+.lcms-product-variants__thumb--selected {
+  border-color: var(--pv-selected-border);
+  box-shadow: 0 0 0 2px rgba(80, 165, 241, 0.25);
+}
+
+.lcms-product-variants__thumb-img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  border-radius: 4px;
+  background: var(--lcms-color-background-alt, #f3f4f6);
+}
+
+.lcms-product-variants__thumb-label {
+  font-size: 0.75rem;
+  line-height: 1.3;
+  text-align: center;
+  /* Colour names run long ("skóra naturalna ecru Modern Wave") — cap at two
+     lines so one verbose variant can't stretch the whole grid row. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .lcms-product-variants__swatches {
