@@ -3,7 +3,10 @@
  * CTA Box Widget
  *
  * Renders a call-to-action box with title, subtitle and button.
- * Element-group structure: heading + subtitle + button + config
+ * Element-group structure: heading + subtitle + button + config + link
+ *
+ * The button renders as <a> when a link is configured and falls back to <span>
+ * when it is not — an unlinked CTA button is still a valid design choice.
  */
 
 import { computed, inject } from 'vue'
@@ -24,6 +27,9 @@ const props = defineProps<Props>()
 
 const { extractValue } = useLanguage(props.language)
 
+const resolvePageUrl = inject<(code: string | null, uuid: string | null) => string>('lesscms-resolve-page-url', () => '#')
+const resolveCollectionUrl = inject<(collectionCode: string, entryId: string) => string>('lesscms-resolve-collection-url', () => '#')
+
 // Border radius mapping (matches FE useButtonStyles)
 const RADIUS_MAP: Record<string, string> = { none: '0', sm: '4px', md: '8px', lg: '12px', pill: '50px' }
 
@@ -34,6 +40,23 @@ const headingGroup = computed(() => config.value.heading || {})
 const subtitleGroup = computed(() => config.value.subtitle || {})
 const buttonGroup = computed(() => config.value.button || {})
 const configGroup = computed(() => config.value.config || {})
+// The link has been saved in three shapes over time: on the button group itself
+// (`button.url`, what live content uses), as a dedicated `link` group, and as
+// flat `button_*` keys — CtaBoxSettings drives LinkSelector with
+// field-prefix="button_". Normalise all three into the shape LcmsButton reads.
+// None of these keys collide with the button's styling keys.
+const LINK_KEYS = ['url', 'link_type', 'page_id', 'page_code', 'collection_code',
+                   'entry_id', 'entry_code', 'route_uuid', 'target_blank'] as const
+
+const linkGroup = computed<Record<string, any>>(() => {
+  const merged: Record<string, any> = { ...(config.value.link || buttonGroup.value.link || {}) }
+  for (const key of LINK_KEYS) {
+    if (merged[key] !== undefined) continue
+    if (buttonGroup.value[key] !== undefined) merged[key] = buttonGroup.value[key]
+    else if (config.value[`button_${key}`] !== undefined) merged[key] = config.value[`button_${key}`]
+  }
+  return merged
+})
 
 // Content values
 const title = computed(() => extractValue(headingGroup.value.html || headingGroup.value.content) || '')
@@ -56,6 +79,49 @@ const buttonColor = computed(() => buttonGroup.value.color || null)
 
 // Show button if there's text
 const showButton = computed(() => !!buttonText.value)
+
+// Link resolution — mirrors LcmsButton so both widgets accept the same data.
+const linkType = computed(() => linkGroup.value.link_type || 'custom')
+const rawUrl = computed(() => linkGroup.value.url || '')
+const targetBlank = computed(() => !!linkGroup.value.target_blank)
+
+const resolvedUrl = computed(() => {
+  const lt = linkType.value
+
+  if (lt === 'page') {
+    if (rawUrl.value && rawUrl.value !== '#') return rawUrl.value
+    const code = linkGroup.value.page_code || ''
+    const uuid = linkGroup.value.page_id || ''
+    if (code || uuid) {
+      const clientResolved = resolvePageUrl(code || null, uuid || null)
+      if (clientResolved && clientResolved !== '#') return clientResolved
+    }
+    return rawUrl.value
+  }
+
+  if (lt === 'route' && linkGroup.value.route_uuid) {
+    return resolvePageUrl(null, linkGroup.value.route_uuid)
+  }
+
+  if (lt === 'entry') {
+    if (rawUrl.value && rawUrl.value !== '#') return rawUrl.value
+    const collection = linkGroup.value.collection_code || ''
+    const entry = linkGroup.value.entry_id || linkGroup.value.entry_code || ''
+    if (collection && entry) {
+      const clientResolved = resolveCollectionUrl(collection, entry)
+      if (clientResolved && clientResolved !== '#') return clientResolved
+    }
+    return rawUrl.value
+  }
+
+  return rawUrl.value
+})
+
+// Without a usable target the button stays a <span> — never emit href="#".
+const buttonHref = computed(() => {
+  const url = resolvedUrl.value
+  return url && url !== '#' ? url : ''
+})
 
 // Determine contrast text color for solid backgrounds
 function getContrastColor(bgColor: string): string {
@@ -133,16 +199,20 @@ const boxStyle = computed(() => {
   >
     <h3 v-if="title" class="lcms-cta-box__title">{{ title }}</h3>
     <p v-if="subtitle" class="lcms-cta-box__subtitle">{{ subtitle }}</p>
-    <span
+    <component
+      :is="buttonHref ? 'a' : 'span'"
       v-if="showButton"
+      :href="buttonHref || undefined"
       class="lcms-cta-box__button"
       :class="buttonSizeClass"
       :style="buttonInlineStyle"
+      :target="buttonHref && targetBlank ? '_blank' : undefined"
+      :rel="buttonHref && targetBlank ? 'noopener noreferrer' : undefined"
     >
       <i v-if="buttonIcon && buttonIconPosition === 'left'" :class="buttonIcon" style="margin-right: 6px;" />
       {{ buttonText }}
       <i v-if="buttonIcon && buttonIconPosition === 'right'" :class="buttonIcon" style="margin-left: 6px;" />
-    </span>
+    </component>
   </div>
 </template>
 
