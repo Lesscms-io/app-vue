@@ -536,7 +536,33 @@ onMounted(() => {
   if (showOrders.value && customer.isAuthenticated.value) {
     fetchOrders()
   }
+  openTabFromUrl()
 })
+
+/**
+ * Open the tab named in `?tab=` (e.g. `/konto?tab=albumy`).
+ *
+ * Without this the account always lands on the profile, so anything linking
+ * back "to my account" — a plugin page, an e-mail — can only drop the customer
+ * one click short of what they were looking at. Plugin tabs are resolved from
+ * the registry, so an unknown or not-installed key simply leaves the default
+ * alone instead of showing an empty panel.
+ */
+function openTabFromUrl() {
+  if (typeof window === 'undefined') return
+
+  const requested = new URLSearchParams(window.location.search).get('tab')
+  if (!requested) return
+
+  const builtIn = ['profile']
+  if (showOrders.value) builtIn.push('orders')
+  if (showAddresses.value) builtIn.push('addresses')
+
+  const known = builtIn.includes(requested)
+    || pluginTabs.value.some((tab) => tab.key === requested)
+
+  if (known) activeTab.value = requested
+}
 
 async function handleSaveProfile() {
   try {
