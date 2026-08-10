@@ -364,14 +364,23 @@ async function handleSubmit() {
     // so GTM / Google Ads have nothing to hook onto. Push an explicit event to
     // dataLayer; in GTM create a Custom Event trigger on `lcms_form_submit` and
     // fire the conversion tag from there.
+    //
+    // That push alone never reaches GA4: gtag ignores GTM-shaped dataLayer
+    // events, and GA4's enhanced-measurement `form_submit` only fires on a
+    // native submit, which an AJAX form never triggers. GA4 was therefore
+    // recording form_start with a permanent zero for form_submit, so emit it.
     if (typeof window !== 'undefined') {
       const w = window as any
+      const formCode = config.value.form_code || ''
       w.dataLayer = w.dataLayer || []
       w.dataLayer.push({
         event: 'lcms_form_submit',
-        form_code: config.value.form_code || '',
+        form_code: formCode,
         form_uuid: formUuid.value,
       })
+      if (typeof w.gtag === 'function') {
+        w.gtag('event', 'form_submit', { form_code: formCode, form_uuid: formUuid.value })
+      }
     }
   } catch {
     submitStatus.value = 'error'
