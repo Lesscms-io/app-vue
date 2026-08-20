@@ -417,6 +417,14 @@ export interface StorefrontClient {
   }): Promise<StorefrontPaginated<StorefrontProduct>>
   getProduct(slug: string): Promise<{ data: StorefrontProduct }>
   searchProducts(q: string, params?: { page?: number; per_page?: number }): Promise<StorefrontPaginated<StorefrontProduct>>
+  /**
+   * Produkty powiązane wyliczone przez reguły sklepu (ustawienia → Produkty powiązane).
+   * `set` wybiera zestaw reguł, `limit` nadpisuje limit z konfiguracji.
+   */
+  getRelatedProducts(
+    slug: string,
+    params?: { set?: string; limit?: number }
+  ): Promise<{ data: StorefrontProduct[]; meta?: { set: string | null; name: string | null; limit: number; total: number } }>
 
   // Categories
   getCategories(): Promise<{ data: StorefrontCategory[] }>
@@ -648,6 +656,8 @@ export function createStorefrontClient(options: StorefrontClientOptions): Storef
     getProducts: (params) => request('GET', '/products', { params }),
     getProduct: (slug) => request('GET', `/products/${encodeURIComponent(slug)}`),
     searchProducts: (q, params) => request('GET', '/products/search', { params: { q, ...params } }),
+    getRelatedProducts: (slug, params) =>
+      request('GET', `/products/${encodeURIComponent(slug)}/related`, { params }),
 
     // Categories
     getCategories: () => request('GET', '/categories'),

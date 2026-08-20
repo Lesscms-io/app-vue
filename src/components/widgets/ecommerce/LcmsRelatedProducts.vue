@@ -29,7 +29,13 @@ const injectedProduct = inject<Ref<any> | null>('lcms-product', null)
 const config = computed(() => props.data?.config || props.data || {})
 const headingText = computed(() => extractValue(props.data?.heading?.text) || '')
 
-const basis = computed(() => config.value.basis === 'template' ? 'template' : 'category')
+const basis = computed(() => {
+  const value = config.value.basis
+  if (value === 'rules' || value === 'template') return value
+  return 'category'
+})
+// Który zestaw reguł ze sklepu wykonać; puste = pierwszy aktywny.
+const relatedSet = computed(() => config.value.related_set || '')
 const slugSource = computed(() => config.value.slug_source || 'url')
 const slugUrlSegment = computed(() => Number(config.value.slug_url_segment ?? 1))
 const staticSlug = computed(() => config.value.slug || '')
@@ -102,6 +108,26 @@ async function fetchRelated() {
       return
     }
 
+    // Reguły sklepu (Ustawienia → Produkty powiązane) są źródłem pierwszego
+    // wyboru: obsługują ręczne wskazania, rodzinę wariantów, atrybuty, nazwę
+    // i cenę, czego dwa tryby `basis` poniżej nigdy nie umiały.
+    if (basis.value === 'rules' && base.slug) {
+      try {
+        const related = await client.value.getRelatedProducts(base.slug, {
+          ...(relatedSet.value ? { set: relatedSet.value } : {}),
+          limit: limit.value,
+        })
+        if (related.data && related.data.length) {
+          products.value = related.data
+          return
+        }
+        // Pusty wynik = sklep nie ma jeszcze reguł albo nic nie pasuje.
+        // Spadamy do starego zachowania, żeby istniejące strony nie zgasły.
+      } catch {
+        // Starszy storefront bez /related — również spadamy niżej.
+      }
+    }
+
     let candidates: StorefrontProduct[] = []
 
     if (basis.value === 'template' && base.template_uuid) {
@@ -143,7 +169,7 @@ onMounted(() => {
   }
 })
 
-watch([basis, resolvedSlug, limit, isAvailable], () => {
+watch([basis, resolvedSlug, limit, isAvailable, relatedSet], () => {
   if (isAvailable.value) {
     fetchRelated()
   }

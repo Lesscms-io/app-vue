@@ -72,6 +72,24 @@ const source = computed(() => {
   if (config.value.source) return config.value.source
   return categoryPageSlug.value ? 'category' : 'latest'
 })
+
+// ── source = 'related' ──────────────────────────────────────────────────
+// Siatka powiązanych stoi na karcie produktu, więc musi wiedzieć, KTÓRY to
+// produkt. Kolejność jak w LcmsProductDetail: wstrzyknięty produkt (renderer
+// wypełnia go przy SSR), potem parametr trasy, na końcu segment URL-a.
+const injectedProduct = inject<Ref<any> | null>('lcms-product', null)
+const relatedSet = computed(() => config.value.related_set || '')
+const relatedSlugUrlSegment = computed(() => Number(config.value.related_slug_url_segment ?? 1))
+const relatedSourceSlug = computed(() => {
+  const injected = injectedProduct?.value
+  if (injected?.slug) return injected.slug
+
+  const routeVal = resolvedRoute?.value
+  if (routeVal?.params?.slug) return routeVal.params.slug
+
+  const segments = currentPath.value.split('/').filter(Boolean)
+  return decodeURIComponent(segments[relatedSlugUrlSegment.value - 1] || '')
+})
 // True when 'category' came from page context, not explicit config — slug
 // resolution then ignores category_source (which defaults to 'static').
 const contextCategoryDefault = computed(() => !config.value.source && !!categoryPageSlug.value)
@@ -96,7 +114,7 @@ const productSlugs = computed(() => {
     .filter(Boolean)
 })
 const limit = computed(() => Number(config.value.limit) || 8)
-const enablePagination = computed(() => config.value.enable_pagination === true && source.value !== 'manual')
+const enablePagination = computed(() => config.value.enable_pagination === true && source.value !== 'manual' && source.value !== 'related')
 // Sort key for latest/category sources — 'manual' honors products.sort_order
 // set in the PIM (unpositioned products sort last).
 const sortBy = computed(() => config.value.sort_by || 'newest')
@@ -257,6 +275,21 @@ async function fetchProducts() {
       })
       products.value = response.data || []
       paginationMeta.value = response.pagination || null
+    } else if (source.value === 'related') {
+      // Brak produktu w kontekście = pusta siatka. Cichy fallback na „latest"
+      // pokazywałby przypadkowe produkty pod nagłówkiem „Podobne", co jest
+      // gorsze niż brak sekcji.
+      if (!relatedSourceSlug.value) {
+        products.value = []
+        paginationMeta.value = null
+        return
+      }
+      const response = await client.value.getRelatedProducts(relatedSourceSlug.value, {
+        ...(relatedSet.value ? { set: relatedSet.value } : {}),
+        limit: limit.value,
+      })
+      products.value = response.data || []
+      paginationMeta.value = null
     } else if (source.value === 'category') {
       // No resolvable category (e.g. slug missing from the URL) renders an
       // empty grid — silently falling back to "latest" masked misconfigured
@@ -304,7 +337,7 @@ onMounted(() => {
   }
 })
 
-watch([source, resolvedCategorySlug, productSlugs, limit, isAvailable, currentPage, sortBy, searchQuery], () => {
+watch([source, resolvedCategorySlug, productSlugs, limit, isAvailable, currentPage, sortBy, searchQuery, relatedSourceSlug, relatedSet], () => {
   if (isAvailable.value) {
     fetchProducts()
   }
