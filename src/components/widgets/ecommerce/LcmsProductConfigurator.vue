@@ -382,6 +382,48 @@ const currentStep = ref(0)
 const showSummary = ref(false)
 const quantity = ref(1)
 
+// Everything below is touched by the hydration watcher, which runs with
+// `immediate: true` — i.e. during setup, before any `const` declared further
+// down exists. Declaring these next to the watcher's other state is not a
+// style choice: a `const` defined later throws "cannot access before
+// initialization" on the server and takes the whole page down with it.
+
+// Image-swatch groups collapse to the chosen swatch once the customer picks
+// one — a wall of thirty engraving patterns is useful while deciding and pure
+// noise afterwards. Only a real pick collapses a group: a default selection
+// applied on load would otherwise hide the whole choice before the customer
+// ever saw it.
+const pickedSwatchGroups = reactive<Record<string, boolean>>({})
+
+// A resume can fire several times while the product hydrates, so we track what
+// is in flight / already done rather than dropping the URL marker up front — a
+// failed resume has to stay reloadable, otherwise the customer is left with an
+// album the cart line will never reference.
+const resumeInFlight = ref(false)
+const resumeHandledMarker = ref<string | null>(null)
+
+// Same for loading a cart line into the form: the watcher can fire before the
+// option groups arrive, so the marker is only consumed once there is something
+// to prefill into.
+const editLoadInFlight = ref(false)
+
+// Plugin behaviors let LessCommerce plugins (e.g. photo-albums) replace the
+// default "Add to cart" button with a plugin-driven CTA when the customer
+// selects a specific option combination. Matched by (group_uuid, option_uuid).
+const pluginBehaviors = computed<StorefrontPluginBehavior[]>(() =>
+  effectiveProduct.value?.plugin_behaviors ?? []
+)
+
+const activeBehavior = computed<StorefrontPluginBehavior | null>(() => {
+  if (!pluginBehaviors.value.length) return null
+  for (const behavior of pluginBehaviors.value) {
+    if (selectedOptions.value[behavior.group_uuid] === behavior.option_uuid) {
+      return behavior
+    }
+  }
+  return null
+})
+
 // State handed back by a plugin's `cta.resume_url` after the customer
 // returns from its external service. Core stores it verbatim — which groups
 // to render read-only, what to annotate them with, and what to merge into
@@ -868,13 +910,6 @@ function groupSummaryVisual(g: StorefrontProductOptionGroup): { thumbnail: strin
 
 // Lightbox state for summary thumbnails. Holds either a thumbnail URL or a
 // `color:#hex` sentinel — the overlay template branches on the prefix.
-// Image-swatch groups collapse to the chosen swatch once the customer picks
-// one — a wall of thirty engraving patterns is useful while deciding and pure
-// noise afterwards. Only a real pick collapses a group: a default selection
-// applied on load would otherwise hide the whole choice before the customer
-// ever saw it.
-const pickedSwatchGroups = reactive<Record<string, boolean>>({})
-
 function isSwatchGroupCollapsed(group: StorefrontProductOptionGroup): boolean {
   if (group.display_type !== 'image_swatches') return false
   if (!pickedSwatchGroups[group.uuid]) return false
@@ -1174,23 +1209,6 @@ const canAddToCart = computed(() => {
   return !missingRequired.value
 })
 
-// Plugin behaviors let LessCommerce plugins (e.g. photo-albums) replace the
-// default "Add to cart" button with a plugin-driven CTA when the customer
-// selects a specific option combination. Matched by (group_uuid, option_uuid).
-const pluginBehaviors = computed<StorefrontPluginBehavior[]>(() =>
-  effectiveProduct.value?.plugin_behaviors ?? []
-)
-
-const activeBehavior = computed<StorefrontPluginBehavior | null>(() => {
-  if (!pluginBehaviors.value.length) return null
-  for (const behavior of pluginBehaviors.value) {
-    if (selectedOptions.value[behavior.group_uuid] === behavior.option_uuid) {
-      return behavior
-    }
-  }
-  return null
-})
-
 // Placement — the plugin decides, core just obeys. `placement: 'step'` moves
 // the CTA into the wizard step that owns its bound option, so the flow behind
 // it can run before the rest of the configuration exists. Everything else
@@ -1418,11 +1436,6 @@ function dismissEditItemMarker() {
   }
 }
 
-// The hydration watcher fires more than once (and can fire before the option
-// groups arrive), so the marker is only consumed once there is something to
-// prefill into.
-const editLoadInFlight = ref(false)
-
 async function loadCartLineForEditing() {
   const itemUuid = readEditItemMarker()
   const product = effectiveProduct.value
@@ -1544,13 +1557,6 @@ function dismissResumeMarker() {
     /* noop */
   }
 }
-
-// The watcher that calls us can fire several times while the product hydrates,
-// so we track what's in flight / already done rather than dropping the marker
-// up front — a failed resume has to stay reloadable, otherwise the customer is
-// left with an album the cart line will never reference.
-const resumeInFlight = ref(false)
-const resumeHandledMarker = ref<string | null>(null)
 
 async function resumeFromPluginFlow() {
   const marker = readResumeMarker()
