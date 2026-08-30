@@ -76,7 +76,14 @@ export interface StorefrontProductOptionGroup {
 }
 
 export interface StorefrontPluginBehaviorCta {
-  type: 'create_album_flow' | 'link'
+  /**
+   * `start_plugin_flow` posts the configurator snapshot to `post_url` and
+   * navigates to the `redirect_url` the plugin answers with — the generic
+   * "hand the customer over to this plugin" action. `create_album_flow` is
+   * the original, photo-albums-shaped name for the same behavior, kept so
+   * older plugin builds keep working.
+   */
+  type: 'start_plugin_flow' | 'create_album_flow' | 'link'
   label: string
   post_url?: string
   url?: string
@@ -88,6 +95,71 @@ export interface StorefrontPluginBehaviorCta {
    * need to know which plugin set the flag.
    */
   requires_auth?: boolean
+  /**
+   * Where the CTA renders in wizard mode. 'summary' (default) keeps the
+   * historical behavior — the button lives in the action row under the
+   * wizard summary. 'step' asks the widget to render it inline, in the step
+   * that owns the bound option, so the flow can run before the rest of the
+   * configuration is filled in. Core does not decide this — the plugin does.
+   */
+  placement?: 'summary' | 'step'
+  /**
+   * Which groups must be valid before the CTA can run. 'all' (default) =
+   * every visible required group. 'step' = only the required groups up to
+   * and including the current wizard step — the natural scope for a CTA
+   * placed mid-wizard.
+   */
+  validate?: 'all' | 'step'
+  /**
+   * GET endpoint the widget calls when the customer comes back from the
+   * plugin's external service (`?lcms_resume=<plugin_id>:<ref>` on the URL).
+   * `{ref}` is replaced with the reference from that marker. The response
+   * shape is StorefrontPluginResume — a generic instruction set the widget
+   * applies without knowing anything about the plugin's domain.
+   */
+  resume_url?: string
+  /**
+   * POST endpoint the widget calls with the final configurator snapshot
+   * (`configured_options` + `configured_total`) right before add-to-cart,
+   * so the plugin can replace the partial snapshot it stored when the flow
+   * started. `{ref}` is replaced like in `resume_url`.
+   */
+  sync_url?: string
+  /**
+   * Shown next to the price total while this CTA is pending — the total is
+   * not final yet because the flow behind the CTA still has to run.
+   */
+  pending_price_note?: string
+}
+
+/**
+ * One value the plugin wants pre-filled in the configurator after the
+ * customer returns from its external service (e.g. the page count that
+ * resulted from designing an album). `value` is an option uuid for
+ * select/radio/swatch groups, and the raw value for numeric/text/checkbox.
+ */
+export interface StorefrontPluginResumePrefill {
+  group_uuid: string
+  value: string | number | boolean
+  /** Render the group read-only — the value came from the external flow. */
+  locked?: boolean
+  /** Short annotation rendered under the group, e.g. "z Twojego projektu". */
+  note?: string
+}
+
+/**
+ * Generic "resume the configuration" instruction set returned by a plugin's
+ * `cta.resume_url`. Every field is optional; the widget applies whatever it
+ * gets and stays entirely plugin-agnostic.
+ */
+export interface StorefrontPluginResume {
+  prefill?: StorefrontPluginResumePrefill[]
+  /** Extra groups to render read-only (beyond those marked in `prefill`). */
+  lock_groups?: string[]
+  /** Continue the wizard on the step right after the step owning this group. */
+  goto_step_after_group?: string | null
+  /** Merged into the cart-line metadata on the final add-to-cart. */
+  cart_metadata?: Record<string, unknown>
 }
 
 export interface StorefrontPluginBehavior {
@@ -438,7 +510,17 @@ export interface StorefrontClient {
   createCart(): Promise<{ data: StorefrontCart }>
   getCart(uuid: string): Promise<{ data: StorefrontCart }>
   addToCart(uuid: string, productUuid: string, quantity: number, metadata?: Record<string, unknown>): Promise<{ data: StorefrontCart }>
-  updateCartItem(uuid: string, itemId: string, quantity: number): Promise<{ data: StorefrontCart }>
+  /**
+   * `metadata` replaces the line's stored configuration — sent when the
+   * customer edited a configured item in the configurator. Omit it for a
+   * plain quantity change and the stored configuration stays untouched.
+   */
+  updateCartItem(
+    uuid: string,
+    itemId: string,
+    quantity: number,
+    metadata?: Record<string, unknown>
+  ): Promise<{ data: StorefrontCart }>
   removeFromCart(uuid: string, itemId: string): Promise<{ data: StorefrontCart }>
   clearCart(uuid: string): Promise<{ data: StorefrontCart }>
   validateCart(uuid: string): Promise<{ data: any }>
@@ -670,8 +752,10 @@ export function createStorefrontClient(options: StorefrontClientOptions): Storef
     getCart: (uuid) => request('GET', `/cart/${uuid}`),
     addToCart: (uuid, productUuid, quantity, metadata) =>
       request('POST', `/cart/${uuid}/items`, { body: { product_uuid: productUuid, quantity, metadata } }),
-    updateCartItem: (uuid, itemId, quantity) =>
-      request('PATCH', `/cart/${uuid}/items/${itemId}`, { body: { quantity } }),
+    updateCartItem: (uuid, itemId, quantity, metadata) =>
+      request('PATCH', `/cart/${uuid}/items/${itemId}`, {
+        body: metadata ? { quantity, metadata } : { quantity },
+      }),
     removeFromCart: (uuid, itemId) => request('DELETE', `/cart/${uuid}/items/${itemId}`),
     clearCart: (uuid) => request('DELETE', `/cart/${uuid}`),
     validateCart: (uuid) => request('GET', `/cart/${uuid}/validate`),

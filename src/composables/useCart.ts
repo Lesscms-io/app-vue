@@ -46,6 +46,11 @@ export interface CartStore {
   ensureCart(): Promise<string>
   addItem(productUuid: string, quantity?: number, metadata?: Record<string, unknown>): Promise<void>
   updateItem(itemUuid: string, quantity: number): Promise<void>
+  updateItemConfiguration(
+    itemUuid: string,
+    metadata: Record<string, unknown>,
+    quantity?: number
+  ): Promise<void>
   removeItem(itemUuid: string): Promise<void>
   clearCart(): Promise<void>
   checkout(data: any): Promise<any>
@@ -165,6 +170,40 @@ function createCartStore(): CartStore {
     }
   }
 
+  /**
+   * Replace a line's configuration in place — the customer re-opened the
+   * configurator from the cart and saved different options. In place rather
+   * than remove-and-add so the line keeps its uuid: plugin records point at
+   * `cart_item_id`, and option uploads are bound to it.
+   */
+  async function updateItemConfiguration(
+    itemUuid: string,
+    metadata: Record<string, unknown>,
+    quantity?: number,
+  ) {
+    if (!client.value || !cartUuid.value) return
+
+    const item = cart.value?.items.find((i) => i.uuid === itemUuid)
+    const nextQuantity = quantity ?? item?.quantity ?? 1
+
+    isLoading.value = true
+    error.value = null
+    try {
+      const response = await client.value.updateCartItem(
+        cartUuid.value,
+        itemUuid,
+        nextQuantity,
+        metadata,
+      )
+      cart.value = response.data
+    } catch (err: any) {
+      error.value = err.message || 'Failed to update item configuration'
+      throw err
+    } finally {
+      isLoading.value = false
+    }
+  }
+
   async function removeItem(itemUuid: string) {
     if (!client.value || !cartUuid.value) return
 
@@ -242,6 +281,7 @@ function createCartStore(): CartStore {
     ensureCart,
     addItem,
     updateItem,
+    updateItemConfiguration,
     removeItem,
     clearCart,
     checkout,

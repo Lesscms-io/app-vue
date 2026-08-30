@@ -47,6 +47,18 @@ const productUrl = (slug: string) => {
   return route.replace(':slug', slug)
 }
 
+/**
+ * Back to the configurator with this line loaded for editing. Without this a
+ * customer who wants a different cover colour has to delete the line and click
+ * through thirty option groups again — which is what "nie da się edytować
+ * koszyka" actually meant.
+ */
+const editConfigurationUrl = (slug: string, itemUuid: string) => {
+  const base = productUrl(slug)
+  const sep = base.includes('?') ? '&' : '?'
+  return `${base}${sep}lcms_edit_item=${encodeURIComponent(itemUuid)}`
+}
+
 const checkoutUrl = computed(() => projectConfig?.value?.commerce?.routes?.checkout || '/zamowienie')
 const continueUrl = computed(() => props.data?.config?.empty_redirect || '/')
 
@@ -67,6 +79,7 @@ const t = (key: string) => {
       removed: 'Usunięto z koszyka',
       showOptions: 'Pokaż opcje',
       hideOptions: 'Ukryj opcje',
+      editConfiguration: 'Edytuj konfigurację',
     },
     en: {
       summary: 'Summary',
@@ -82,6 +95,7 @@ const t = (key: string) => {
       removed: 'Removed from cart',
       showOptions: 'Show options',
       hideOptions: 'Hide options',
+      editConfiguration: 'Edit configuration',
     },
   }
   return dict[lang]?.[key] || dict.pl[key] || key
@@ -215,6 +229,11 @@ function handleCheckout() {
                 ({{ normalizedConfiguredOptions(item.metadata).length }})
               </span>
             </button>
+            <a
+              v-if="item.product.slug && normalizedConfiguredOptions(item.metadata).length > 0"
+              :href="editConfigurationUrl(item.product.slug, item.uuid)"
+              class="lcms-cart__item-edit"
+            >{{ t('editConfiguration') }}</a>
             <ul
               v-if="expandedOptions[item.uuid] && normalizedConfiguredOptions(item.metadata).length > 0"
               class="lcms-cart__item-options"
@@ -494,6 +513,14 @@ function handleCheckout() {
 .lcms-cart__item-options-count {
   color: var(--lcms-color-muted, #6b7280);
   text-decoration: none;
+}
+
+.lcms-cart__item-edit {
+  display: inline-block;
+  margin-top: 0.25rem;
+  font-size: 0.8125rem;
+  color: var(--lcms-color-primary, #2563eb);
+  text-decoration: underline;
 }
 
 .lcms-cart__item-options {

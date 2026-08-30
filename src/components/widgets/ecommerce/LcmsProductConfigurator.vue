@@ -10,7 +10,7 @@
  * - add-to-cart with selected options stored in cart item metadata
  */
 
-import { computed, ref, onMounted, watch, inject, nextTick, type Ref } from 'vue'
+import { computed, reactive, ref, onMounted, onBeforeUnmount, watch, inject, nextTick, type Ref } from 'vue'
 import { useLanguage } from '../../../composables/useLanguage'
 import { useStorefront } from '../../../composables/useStorefront'
 import { useCart } from '../../../composables/useCart'
@@ -23,6 +23,7 @@ import type {
   StorefrontProductOptionGroup,
   StorefrontProductOption,
   StorefrontPluginBehavior,
+  StorefrontPluginResume,
   StorefrontProductFlow,
   StorefrontOptionUpload,
 } from '../../../api/storefront'
@@ -119,6 +120,9 @@ const showHeading = computed(() => config.value.show_heading !== false)
 const showPriceSummary = computed(() => config.value.show_price_summary !== false)
 const showRequiredBadge = computed(() => config.value.show_required_badge !== false)
 const showOptionPrices = computed(() => config.value.show_option_prices !== false)
+// Ordering five identical boxes shouldn't mean five trips through the
+// configurator; the quantity was only editable in the cart.
+const showQuantity = computed(() => config.value.show_quantity !== false)
 const swatchSize = computed<'sm' | 'md' | 'lg'>(() => {
   const s = config.value.swatch_size
   return s === 'sm' || s === 'lg' ? s : 'md'
@@ -267,6 +271,9 @@ const t = (key: string, params?: Record<string, string | number>) => {
       selectPlaceholder: 'Wybierz...',
       addedToCart: 'Dodano do koszyka',
       addError: 'Nie udało się dodać do koszyka',
+      saveConfiguration: 'Zapisz zmiany',
+      configurationSaved: 'Zapisano zmiany w koszyku',
+      editingCartLine: 'Edytujesz pozycję, która jest już w koszyku — zapisanie podmieni ją, nie doda drugiej.',
       defaultHeading: 'Skonfiguruj produkt',
       defaultButton: 'Dodaj do koszyka',
       defaultTotal: 'Razem:',
@@ -285,6 +292,13 @@ const t = (key: string, params?: Record<string, string | number>) => {
       step: 'Krok',
       of: 'z',
       zoomThumb: 'Kliknij, aby powiększyć',
+      changeSelection: 'Zmień',
+      quantity: 'Ilość',
+      addedTitle: 'Produkt dodany do koszyka',
+      goToCart: 'Idź do koszyka',
+      continueShopping: 'Kontynuuj zakupy',
+      quantityDecrease: 'Mniej',
+      quantityIncrease: 'Więcej',
     },
     en: {
       loading: 'Loading...',
@@ -293,6 +307,9 @@ const t = (key: string, params?: Record<string, string | number>) => {
       selectPlaceholder: 'Select...',
       addedToCart: 'Added to cart',
       addError: 'Failed to add to cart',
+      saveConfiguration: 'Save changes',
+      configurationSaved: 'Cart updated',
+      editingCartLine: 'You are editing an item already in your cart — saving replaces it instead of adding another.',
       defaultHeading: 'Configure your product',
       defaultButton: 'Add to cart',
       defaultTotal: 'Total:',
@@ -311,6 +328,13 @@ const t = (key: string, params?: Record<string, string | number>) => {
       step: 'Step',
       of: 'of',
       zoomThumb: 'Click to zoom',
+      changeSelection: 'Change',
+      quantity: 'Quantity',
+      addedTitle: 'Added to your cart',
+      goToCart: 'Go to cart',
+      continueShopping: 'Continue shopping',
+      quantityDecrease: 'Fewer',
+      quantityIncrease: 'More',
     },
   }
   let value = dict[lang]?.[key] || dict.pl[key] || key
@@ -327,7 +351,9 @@ const headingText = computed(() =>
 )
 const headingTag = computed(() => heading.value.tag || 'h3')
 const buttonText = computed(() =>
-  extractValue(addToCartButton.value.text) || t('defaultButton')
+  editingCartItemUuid.value
+    ? t('saveConfiguration')
+    : extractValue(addToCartButton.value.text) || t('defaultButton')
 )
 const totalLabelText = computed(() =>
   extractValue(priceSummary.value.label_text) || t('defaultTotal')
@@ -354,12 +380,51 @@ const fileUploadStatus = ref<Record<string, { uploading: boolean; error: string 
 // upload/customValue state shapes — wizard just paginates over visibleGroups.
 const currentStep = ref(0)
 const showSummary = ref(false)
+const quantity = ref(1)
+
+// State handed back by a plugin's `cta.resume_url` after the customer
+// returns from its external service. Core stores it verbatim — which groups
+// to render read-only, what to annotate them with, and what to merge into
+// the cart metadata — without interpreting any of it.
+interface ResumeContext {
+  /** `<plugin_id>:<ref>` marker the customer came back with. */
+  marker: string
+  lockedGroups: string[]
+  notes: Record<string, string>
+  cartMetadata: Record<string, unknown>
+  syncUrl: string | null
+}
+const resumeContext = ref<ResumeContext | null>(null)
+
+// Set when the customer arrived from the cart with `?lcms_edit_item=<uuid>` to
+// change an already-added line. Saving then replaces that line instead of
+// adding a second one.
+const editingCartItemUuid = ref<string | null>(null)
+// The line's original metadata. Saving must not drop what plugins put there
+// (photo-albums keeps `album_id` on the line) just because the configurator
+// only knows about its own two keys.
+const editingCartItemMetadata = ref<Record<string, unknown>>({})
+const lockedGroupUuids = computed(
+  () => new Set(resumeContext.value?.lockedGroups ?? [])
+)
+function isGroupLocked(g: StorefrontProductOptionGroup): boolean {
+  return lockedGroupUuids.value.has(g.uuid)
+}
+function groupResumeNote(g: StorefrontProductOptionGroup): string {
+  return resumeContext.value?.notes?.[g.uuid] || ''
+}
 
 // Persisted-state TTL: long enough to survive an auth round-trip (register
 // flow can take several minutes if the user fumbles email confirmation,
 // password rules, etc.) but short enough that returning to the page hours
 // later doesn't surprise the user with stale selections.
 const PERSISTED_STATE_TTL_MS = 30 * 60 * 1000
+// A round-trip through a plugin's external service (designing an album,
+// uploading photos) is not an auth detour — it can legitimately take days,
+// and losing the configuration on the way back is the whole bug we're
+// fixing. Saved with an explicit TTL so the 30-minute default stays the
+// rule for everything else.
+const EXTERNAL_FLOW_TTL_MS = 7 * 24 * 60 * 60 * 1000
 function persistedStateKey(productUuid: string) {
   return `lcms-pc-state:${productUuid}`
 }
@@ -369,6 +434,8 @@ function loadPersistedState(productUuid: string): {
   customValues: Record<string, string | number | boolean>
   fileUploads: Record<string, StorefrontOptionUpload[]>
   pendingBehavior: boolean
+  resumeContext: ResumeContext | null
+  currentStep: number | null
 } | null {
   if (typeof window === 'undefined') return null
   try {
@@ -376,7 +443,8 @@ function loadPersistedState(productUuid: string): {
     if (!raw) return null
     const parsed = JSON.parse(raw)
     if (!parsed || typeof parsed !== 'object') return null
-    if (typeof parsed.savedAt !== 'number' || Date.now() - parsed.savedAt > PERSISTED_STATE_TTL_MS) {
+    const ttl = typeof parsed.ttlMs === 'number' ? parsed.ttlMs : PERSISTED_STATE_TTL_MS
+    if (typeof parsed.savedAt !== 'number' || Date.now() - parsed.savedAt > ttl) {
       window.localStorage.removeItem(persistedStateKey(productUuid))
       return null
     }
@@ -385,6 +453,8 @@ function loadPersistedState(productUuid: string): {
       customValues: parsed.customValues || {},
       fileUploads: parsed.fileUploads || {},
       pendingBehavior: !!parsed.pendingBehavior,
+      resumeContext: parsed.resumeContext || null,
+      currentStep: typeof parsed.currentStep === 'number' ? parsed.currentStep : null,
     }
   } catch {
     return null
@@ -394,15 +464,24 @@ function loadPersistedState(productUuid: string): {
 // pendingBehavior signals "user clicked the behavior CTA but got bounced to
 // login first" — after login + state restore the configurator should fire
 // the CTA again automatically instead of forcing the user to click twice.
-function savePersistedState(productUuid: string, options: { pendingBehavior?: boolean } = {}) {
+function savePersistedState(
+  productUuid: string,
+  options: { pendingBehavior?: boolean; ttlMs?: number } = {},
+) {
   if (typeof window === 'undefined') return
   try {
     window.localStorage.setItem(persistedStateKey(productUuid), JSON.stringify({
       savedAt: Date.now(),
+      ttlMs: options.ttlMs ?? PERSISTED_STATE_TTL_MS,
       selectedOptions: selectedOptions.value,
       customValues: customValues.value,
       fileUploads: fileUploads.value,
       pendingBehavior: !!options.pendingBehavior,
+      // Survives a reload after the customer came back from a plugin flow —
+      // without it a refresh would unlock the prefilled groups and drop the
+      // cart metadata (e.g. the album id) from the eventual cart line.
+      resumeContext: resumeContext.value,
+      currentStep: currentStep.value,
     }))
   } catch {
     /* quota exceeded or storage disabled — silent fail, user just loses state */
@@ -506,7 +585,15 @@ watch(
     selectedOptions.value = nextSelected
     customValues.value = nextCustom
     fileUploads.value = nextFiles
-    currentStep.value = 0
+    // Collapsed-swatch state belongs to the product that was on screen.
+    for (const key of Object.keys(pickedSwatchGroups)) delete pickedSwatchGroups[key]
+    // A restored plugin-flow context keeps its locks, notes and cart metadata
+    // (and the step the customer had reached) — otherwise a plain reload after
+    // returning from the flow would silently unlock the prefilled groups.
+    resumeContext.value = persisted?.resumeContext ?? null
+    currentStep.value = resumeContext.value && persisted?.currentStep != null
+      ? persisted.currentStep
+      : 0
     showSummary.value = false
     // Only lock the watcher to this productUuid once the product is fully
     // loaded (has option groups). An early fire with `{uuid, option_groups: []}`
@@ -542,6 +629,12 @@ watch(
       // (stale tab, manual refresh after the overlay was dismissed once,
       // etc.), drop it so the overlay disappears immediately.
       dismissPendingActionMarker()
+      // Coming back from a plugin's external service: ask the plugin what to
+      // pre-fill and where to continue. Runs after the restore above so the
+      // plugin's values win over the customer's earlier picks.
+      void resumeFromPluginFlow()
+      // Arriving from the cart to change an existing line.
+      void loadCartLineForEditing()
     }
   },
   { immediate: true }
@@ -716,6 +809,8 @@ function scrollToConfiguratorTop() {
 }
 
 function goNextStep() {
+  // The hovered swatch is about to unmount; mouseleave isn't guaranteed then.
+  hideHoverPreview()
   for (const g of currentStepGroups.value) {
     if (!isGroupValid(g)) {
       toast.error(t('fillRequired'))
@@ -732,6 +827,7 @@ function goNextStep() {
 }
 
 function goPrevStep() {
+  hideHoverPreview()
   if (showSummary.value) {
     showSummary.value = false
     scrollToConfiguratorTop()
@@ -772,6 +868,70 @@ function groupSummaryVisual(g: StorefrontProductOptionGroup): { thumbnail: strin
 
 // Lightbox state for summary thumbnails. Holds either a thumbnail URL or a
 // `color:#hex` sentinel — the overlay template branches on the prefix.
+// Image-swatch groups collapse to the chosen swatch once the customer picks
+// one — a wall of thirty engraving patterns is useful while deciding and pure
+// noise afterwards. Only a real pick collapses a group: a default selection
+// applied on load would otherwise hide the whole choice before the customer
+// ever saw it.
+const pickedSwatchGroups = reactive<Record<string, boolean>>({})
+
+function isSwatchGroupCollapsed(group: StorefrontProductOptionGroup): boolean {
+  if (group.display_type !== 'image_swatches') return false
+  if (!pickedSwatchGroups[group.uuid]) return false
+  return !!selectedOptions.value[group.uuid]
+}
+
+function expandSwatchGroup(groupUuid: string) {
+  pickedSwatchGroups[groupUuid] = false
+}
+
+function selectedOptionOf(group: StorefrontProductOptionGroup): StorefrontProductOption | null {
+  const uuid = selectedOptions.value[group.uuid]
+  if (!uuid) return null
+  return group.options.find((o) => o.uuid === uuid) || null
+}
+
+// Hover preview — replaces the per-swatch magnifier on pointer devices. The
+// magnifier stays for touch (there is no hover there), so a phone can still
+// enlarge a pattern. Teleported and fixed-positioned so no ancestor's overflow
+// can clip it — same reasoning as the lightbox.
+const hoverPreview = ref<{ url: string; name: string; top: number; left: number } | null>(null)
+const HOVER_PREVIEW_SIZE = 320
+
+function canHover(): boolean {
+  if (typeof window === 'undefined' || !window.matchMedia) return false
+  return window.matchMedia('(hover: hover) and (pointer: fine)').matches
+}
+
+function showHoverPreview(event: MouseEvent, opt: StorefrontProductOption) {
+  if (!opt.thumbnail || !canHover()) return
+  const target = event.currentTarget as HTMLElement | null
+  if (!target) return
+
+  const rect = target.getBoundingClientRect()
+  const margin = 12
+  // Centre it over the swatch, then keep it inside the viewport.
+  let left = rect.left + rect.width / 2 - HOVER_PREVIEW_SIZE / 2
+  left = Math.max(margin, Math.min(left, window.innerWidth - HOVER_PREVIEW_SIZE - margin))
+  // Above the swatch when there's room, below it otherwise.
+  const top = rect.top - HOVER_PREVIEW_SIZE - margin >= 0
+    ? rect.top - HOVER_PREVIEW_SIZE - margin
+    : Math.min(rect.bottom + margin, window.innerHeight - HOVER_PREVIEW_SIZE - margin)
+
+  hoverPreview.value = { url: opt.thumbnail, name: opt.name, top, left }
+}
+
+function hideHoverPreview() {
+  hoverPreview.value = null
+}
+
+// The preview is fixed-positioned against the swatch's rect at hover time, so
+// any scroll leaves it floating next to nothing.
+if (typeof window !== 'undefined') {
+  window.addEventListener('scroll', hideHoverPreview, { passive: true })
+  onBeforeUnmount(() => window.removeEventListener('scroll', hideHoverPreview))
+}
+
 const lightbox = ref<string | null>(null)
 // Thumbnails come through the image-proxy as ?w=200 — swap to the w=1200
 // preset for the lightbox so the enlarged image is sharp, not an upscale.
@@ -1000,25 +1160,13 @@ const totalPrice = computed(() => {
   return total
 })
 
-// All required groups must have a valid value before add-to-cart enables
-const missingRequired = computed(() =>
-  visibleGroups.value.filter((g) => g.is_required).some((g) => {
-    if (isTextType(g)) {
-      return !String(customValues.value[g.uuid] ?? '').trim()
-    }
-    if (g.display_type === 'numeric') {
-      const v = Number(customValues.value[g.uuid] ?? NaN)
-      return isNaN(v) || (g.numeric_min != null && v < g.numeric_min)
-    }
-    if (g.display_type === 'file') {
-      return (fileUploads.value[g.uuid] || []).length === 0
-    }
-    if (g.display_type === 'checkbox') {
-      return customValues.value[g.uuid] !== true
-    }
-    return !selectedOptions.value[g.uuid]
-  })
-)
+// All required groups must have a valid value before add-to-cart enables.
+// The scoped variant backs plugin CTAs that run mid-wizard (`cta.validate:
+// 'step'`), where the groups of later steps aren't filled in yet by design.
+function missingRequiredIn(groups: StorefrontProductOptionGroup[]): boolean {
+  return groups.some((g) => !isGroupValid(g))
+}
+const missingRequired = computed(() => missingRequiredIn(visibleGroups.value))
 
 const canAddToCart = computed(() => {
   if (!effectiveProduct.value) return false
@@ -1043,7 +1191,48 @@ const activeBehavior = computed<StorefrontPluginBehavior | null>(() => {
   return null
 })
 
+// Placement — the plugin decides, core just obeys. `placement: 'step'` moves
+// the CTA into the wizard step that owns its bound option, so the flow behind
+// it can run before the rest of the configuration exists. Everything else
+// keeps the historical summary slot.
+// A resume context from this plugin means its flow already ran — offering the
+// CTA again would send the customer back out and start a second flow (a second
+// album), silently orphaning the first.
+function behaviorFlowCompleted(behavior: StorefrontPluginBehavior): boolean {
+  return !!resumeContext.value?.marker.startsWith(`${behavior.plugin_id}:`)
+}
+
+const inlineBehavior = computed<StorefrontPluginBehavior | null>(() => {
+  const behavior = activeBehavior.value
+  if (!behavior || behavior.cta.placement !== 'step') return null
+  if (editingCartItemUuid.value) return null
+  if (!wizardMode.value || showSummary.value) return null
+  if (behaviorFlowCompleted(behavior)) return null
+  return currentStepGroups.value.some((g) => g.uuid === behavior.group_uuid) ? behavior : null
+})
+
+// Same on the summary: once the flow is done the summary's job is the regular
+// add-to-cart, not another trip to the external service.
+const summaryBehavior = computed<StorefrontPluginBehavior | null>(() => {
+  const behavior = activeBehavior.value
+  if (!behavior) return null
+  if (editingCartItemUuid.value) return null
+  if (behaviorFlowCompleted(behavior)) return null
+  return behavior
+})
+
 const behaviorButtonText = computed(() => activeBehavior.value?.cta.label || '')
+
+// Groups a behavior's CTA is allowed to demand before it runs.
+function behaviorBlocked(behavior: StorefrontPluginBehavior): boolean {
+  if (behavior.cta.validate === 'step' && wizardMode.value && !showSummary.value) {
+    const scoped = effectiveSteps.value
+      .slice(0, currentStep.value + 1)
+      .flatMap((step) => step.groups)
+    return missingRequiredIn(scoped)
+  }
+  return missingRequired.value
+}
 
 // Plugin flow CTA — a plugin's product.render hook (e.g. photo-albums
 // print-studio) marks the product with a `flow` block whose `url` points at
@@ -1079,16 +1268,17 @@ function handleFlowAction() {
 }
 
 const canRunBehavior = computed(() => {
-  if (!activeBehavior.value) return false
+  const behavior = activeBehavior.value
+  if (!behavior) return false
   if (isAdding.value) return false
-  return !missingRequired.value
+  return !behaviorBlocked(behavior)
 })
 
 async function handleBehaviorAction() {
   const behavior = activeBehavior.value
   const p = effectiveProduct.value
   if (!behavior || !p) return
-  if (missingRequired.value) {
+  if (behaviorBlocked(behavior)) {
     toast.error(t('fillRequired'))
     return
   }
@@ -1135,12 +1325,17 @@ async function handleBehaviorAction() {
     return
   }
 
-  if (cta.type === 'create_album_flow') {
+  if (cta.type === 'start_plugin_flow' || cta.type === 'create_album_flow') {
     if (!cta.post_url || !client.value) return
-    if (missingRequired.value) {
+    if (behaviorBlocked(behavior)) {
       toast.error(t('fillRequired'))
       return
     }
+    // The customer is about to leave the site for the plugin's external
+    // service. Keep the configuration alive for the whole round trip (days,
+    // not the 30-minute auth-detour default) so the wizard picks up exactly
+    // where they left it when the plugin sends them back.
+    savePersistedState(p.uuid, { ttlMs: EXTERNAL_FLOW_TTL_MS })
     isAdding.value = true
     try {
       // No cart.addItem here. The plugin's own return page
@@ -1153,30 +1348,29 @@ async function handleBehaviorAction() {
       // option (cover material, color, finish, engraving, …). Without this the
       // plugin only sees pages_count + page size from album.studio and the cart
       // falls back to product->price = 0.00 zł for configurator parents.
+      //
+      // Which group means "pages" or "size" is the plugin's business — it has
+      // its own configured group codes. Core used to guess with a regex over
+      // group names; that hardcode is gone.
       const snapshot = buildConfiguredCartMetadata()
-      // Hint which group is "ilość stron / rozkładówek" (pages) and which is
-      // "rozmiar" so the reconciliation can compare album.studio's actual
-      // pages/size to what the customer picked and flag mismatches.
-      const pagesGroup = visibleGroups.value.find((g) =>
-        g.display_type === 'numeric' && /stron|rozkładówek|rozkladow/i.test(`${g.code} ${g.name}`)
-      ) || visibleGroups.value.find((g) =>
-        /stron|liczba-stron|rozkładówek|rozkladow/i.test(`${g.code} ${g.name}`)
-      )
-      const sizeGroup = visibleGroups.value.find((g) =>
-        /rozmiar/i.test(g.code) || /rozmiar/i.test(g.name)
-      )
       const response = await client.value.callPluginEndpoint<{
         data?: { redirect_url?: string; designer_url?: string }
         designer_url?: string
         redirect_url?: string
       }>(cta.post_url, {
+        // A CTA that declared `requires_auth: false` is reachable by guests —
+        // the client would otherwise refuse to send the request without a
+        // customer token. Anything that didn't declare it keeps the old
+        // authenticated-only behavior.
+        requireAuth: cta.requires_auth !== false,
         body: {
           product_id: p.uuid,
           return_url: returnUrl,
+          // Where to send the customer back to so they can finish configuring.
+          // The plugin validates the host before honoring it.
+          resume_url: resumeUrlForFlow(),
           configured_options: snapshot.configured_options,
           configured_total: snapshot.configured_total,
-          configured_pages_group_uuid: pagesGroup?.uuid,
-          configured_size_group_uuid: sizeGroup?.uuid,
         },
       })
       const redirect =
@@ -1197,7 +1391,268 @@ async function handleBehaviorAction() {
   }
 }
 
+// --- Editing a line that's already in the cart --------------------------------
+// The cart's "Edytuj konfigurację" link comes back here with the line's uuid.
+// We reload its saved selections into the widget and switch the primary action
+// from "add" to "save", so changing one option doesn't mean re-picking thirty.
+const EDIT_ITEM_PARAM = 'lcms_edit_item'
+
+function readEditItemMarker(): string | null {
+  if (typeof window === 'undefined') return null
+  try {
+    return new URL(window.location.href).searchParams.get(EDIT_ITEM_PARAM)
+  } catch {
+    return null
+  }
+}
+
+function dismissEditItemMarker() {
+  if (typeof window === 'undefined') return
+  try {
+    const url = new URL(window.location.href)
+    if (!url.searchParams.has(EDIT_ITEM_PARAM)) return
+    url.searchParams.delete(EDIT_ITEM_PARAM)
+    window.history.replaceState({}, '', url.toString())
+  } catch {
+    /* noop */
+  }
+}
+
+// The hydration watcher fires more than once (and can fire before the option
+// groups arrive), so the marker is only consumed once there is something to
+// prefill into.
+const editLoadInFlight = ref(false)
+
+async function loadCartLineForEditing() {
+  const itemUuid = readEditItemMarker()
+  const product = effectiveProduct.value
+  if (!itemUuid || !product) return
+  if (editLoadInFlight.value || editingCartItemUuid.value) return
+  if (allGroups.value.length === 0) return
+
+  editLoadInFlight.value = true
+  try {
+    await applyCartLineForEditing(itemUuid, product.uuid)
+  } finally {
+    editLoadInFlight.value = false
+  }
+}
+
+async function applyCartLineForEditing(itemUuid: string, productUuid: string) {
+  await cart.init()
+
+  const item = cart.cart.value?.items.find((i) => i.uuid === itemUuid)
+  // A line from a different product would prefill groups this product doesn't
+  // have; a stale link (line already removed) has nothing to edit.
+  if (!item || (item.product_uuid || item.product?.uuid) !== productUuid) {
+    dismissEditItemMarker()
+    return
+  }
+
+  const configured = (item.metadata as Record<string, unknown> | null)?.configured_options
+  if (Array.isArray(configured)) {
+    applyConfiguredOptions(configured as Array<Record<string, unknown>>)
+  }
+
+  editingCartItemUuid.value = itemUuid
+  editingCartItemMetadata.value = { ...((item.metadata as Record<string, unknown> | null) ?? {}) }
+  setQuantity(item.quantity)
+  dismissEditItemMarker()
+}
+
+/**
+ * Load a `configured_options` snapshot (the shape
+ * buildConfiguredCartMetadata emits) back into the widget's state.
+ */
+function applyConfiguredOptions(entries: Array<Record<string, unknown>>) {
+  const byUuid = new Map(allGroups.value.map((g) => [g.uuid, g]))
+  const nextSelected = { ...selectedOptions.value }
+  const nextCustom = { ...customValues.value }
+  const nextFiles = { ...fileUploads.value }
+
+  for (const entry of entries) {
+    const group = byUuid.get(String(entry.group_uuid ?? ''))
+    if (!group) continue
+
+    if (group.display_type === 'numeric') {
+      const value = Number(entry.value)
+      if (!isNaN(value)) nextCustom[group.uuid] = value
+    } else if (group.display_type === 'checkbox') {
+      nextCustom[group.uuid] = entry.value === true
+    } else if (isTextType(group)) {
+      nextCustom[group.uuid] = String(entry.value ?? '')
+    } else if (group.display_type === 'file') {
+      // files_meta carries what the cart row displayed; the uuids are what
+      // matters on save — the uploads are already bound to this cart.
+      const meta = Array.isArray(entry.files_meta) ? entry.files_meta : []
+      nextFiles[group.uuid] = meta.map((file: any) => ({
+        uuid: String(file.uuid ?? ''),
+        original_filename: String(file.name ?? ''),
+        extension: String(file.name ?? '').split('.').pop() || '',
+        mime_type: '',
+        size: Number(file.size ?? 0),
+        public_url: file.url ?? null,
+      }))
+    } else if (entry.option_uuid) {
+      nextSelected[group.uuid] = String(entry.option_uuid)
+    }
+  }
+
+  selectedOptions.value = nextSelected
+  customValues.value = nextCustom
+  fileUploads.value = nextFiles
+}
+
+// --- Plugin flow resume ------------------------------------------------------
+// A plugin that sends the customer to an external service brings them back
+// with `?lcms_resume=<plugin_id>:<ref>` on the product URL. Core then asks
+// that plugin — through the `resume_url` it declared on its CTA — what to
+// pre-fill, what to render read-only and where to continue the wizard, and
+// applies the answer verbatim. No plugin domain knowledge lives here.
+const RESUME_PARAM = 'lcms_resume'
+
+/** Product URL to come back to, stripped of our own transient markers. */
+function resumeUrlForFlow(): string {
+  if (typeof window === 'undefined') return ''
+  try {
+    const url = new URL(window.location.href)
+    url.searchParams.delete(RESUME_PARAM)
+    url.searchParams.delete('lcms_pending_action')
+    return url.toString()
+  } catch {
+    return window.location.href
+  }
+}
+
+function readResumeMarker(): string | null {
+  if (typeof window === 'undefined') return null
+  try {
+    return new URL(window.location.href).searchParams.get(RESUME_PARAM)
+  } catch {
+    return null
+  }
+}
+
+function dismissResumeMarker() {
+  if (typeof window === 'undefined') return
+  try {
+    const url = new URL(window.location.href)
+    if (!url.searchParams.has(RESUME_PARAM)) return
+    url.searchParams.delete(RESUME_PARAM)
+    window.history.replaceState({}, '', url.toString())
+  } catch {
+    /* noop */
+  }
+}
+
+// The watcher that calls us can fire several times while the product hydrates,
+// so we track what's in flight / already done rather than dropping the marker
+// up front — a failed resume has to stay reloadable, otherwise the customer is
+// left with an album the cart line will never reference.
+const resumeInFlight = ref(false)
+const resumeHandledMarker = ref<string | null>(null)
+
+async function resumeFromPluginFlow() {
+  const marker = readResumeMarker()
+  if (!marker || !client.value) return
+  if (resumeInFlight.value || resumeHandledMarker.value === marker) return
+  const sep = marker.indexOf(':')
+  if (sep <= 0) return
+  const pluginId = marker.slice(0, sep)
+  const flowRef = marker.slice(sep + 1)
+  if (!flowRef) return
+  const behavior = pluginBehaviors.value.find(
+    (b) => b.plugin_id === pluginId && b.cta.resume_url,
+  )
+  if (!behavior?.cta.resume_url) return
+
+  resumeInFlight.value = true
+  try {
+    const response = await client.value.callPluginEndpoint<
+      StorefrontPluginResume & { data?: StorefrontPluginResume }
+    >(behavior.cta.resume_url.replace('{ref}', encodeURIComponent(flowRef)), {
+      method: 'GET',
+    })
+    applyPluginResume(response?.data ?? response, behavior, marker, flowRef)
+    resumeHandledMarker.value = marker
+    dismissResumeMarker()
+  } catch (err: any) {
+    toast.error(err?.message || t('addError'))
+  } finally {
+    resumeInFlight.value = false
+  }
+}
+
+function applyPluginResume(
+  payload: StorefrontPluginResume | null | undefined,
+  behavior: StorefrontPluginBehavior,
+  marker: string,
+  flowRef: string,
+) {
+  if (!payload) return
+  const byUuid = new Map(allGroups.value.map((g) => [g.uuid, g]))
+  const locked = new Set<string>(
+    (payload.lock_groups ?? []).filter((uuid) => byUuid.has(uuid)),
+  )
+  const notes: Record<string, string> = {}
+  const nextSelected = { ...selectedOptions.value }
+  const nextCustom = { ...customValues.value }
+
+  for (const entry of payload.prefill ?? []) {
+    const group = byUuid.get(entry.group_uuid)
+    if (!group) continue
+    if (group.display_type === 'numeric') {
+      let value = Number(entry.value)
+      if (isNaN(value)) continue
+      if (group.numeric_min != null) value = Math.max(Number(group.numeric_min), value)
+      if (group.numeric_max != null) value = Math.min(Number(group.numeric_max), value)
+      nextCustom[group.uuid] = value
+    } else if (group.display_type === 'checkbox') {
+      nextCustom[group.uuid] = entry.value === true
+    } else if (isTextType(group)) {
+      nextCustom[group.uuid] = String(entry.value)
+    } else if (typeof entry.value === 'string') {
+      // select / radio / swatches — the value is an option uuid.
+      nextSelected[group.uuid] = entry.value
+    }
+    if (entry.locked) locked.add(group.uuid)
+    if (entry.note) notes[group.uuid] = entry.note
+  }
+
+  selectedOptions.value = nextSelected
+  customValues.value = nextCustom
+  resumeContext.value = {
+    marker,
+    lockedGroups: [...locked],
+    notes,
+    cartMetadata: payload.cart_metadata ?? {},
+    syncUrl: behavior.cta.sync_url
+      ? behavior.cta.sync_url.replace('{ref}', encodeURIComponent(flowRef))
+      : null,
+  }
+
+  // Wait for visibility + step recomputation before jumping — the prefilled
+  // values can reveal or hide groups, which reshuffles the step list.
+  nextTick(() => {
+    const anchor = payload.goto_step_after_group
+    if (wizardMode.value && anchor) {
+      const idx = effectiveSteps.value.findIndex(
+        (step) => step.groups.some((g) => g.uuid === anchor),
+      )
+      if (idx >= 0) {
+        currentStep.value = Math.min(idx + 1, Math.max(0, totalSteps.value - 1))
+      }
+    }
+    const productUuid = effectiveProduct.value?.uuid
+    if (productUuid) savePersistedState(productUuid, { ttlMs: EXTERNAL_FLOW_TTL_MS })
+  })
+}
+
 function selectOption(groupUuid: string, optionUuid: string) {
+  // Groups the plugin locked hold values produced by its external flow —
+  // editing them here would silently desync the two.
+  if (lockedGroupUuids.value.has(groupUuid)) return
+  hideHoverPreview()
   const next = { ...selectedOptions.value }
   if (next[groupUuid] === optionUuid) {
     // Click on the already-selected swatch/chip deselects it. Only reachable
@@ -1207,10 +1662,14 @@ function selectOption(groupUuid: string, optionUuid: string) {
   } else {
     next[groupUuid] = optionUuid
   }
+  // A deselect (clicking the chosen swatch again) has to reopen the list —
+  // otherwise the group would collapse onto nothing.
+  pickedSwatchGroups[groupUuid] = next[groupUuid] !== undefined
   selectedOptions.value = next
 }
 
 function setCustomValue(groupUuid: string, value: string | number | boolean) {
+  if (lockedGroupUuids.value.has(groupUuid)) return
   customValues.value = { ...customValues.value, [groupUuid]: value }
 }
 
@@ -1463,6 +1922,26 @@ function buildConfiguredCartMetadata(): { configured_options: Array<Record<strin
   }
 }
 
+// After adding, the customer has exactly two sensible next moves. A toast with
+// one link made "keep shopping" the invisible default and buried the cart.
+const addedDialog = ref<{ name: string; quantity: number } | null>(null)
+
+const cartUrl = computed(
+  () => projectConfig?.value?.commerce?.routes?.cart || '/koszyk'
+)
+
+function goToCart() {
+  if (typeof window !== 'undefined') window.location.href = cartUrl.value
+}
+
+function continueShopping() {
+  addedDialog.value = null
+}
+
+function setQuantity(value: number) {
+  quantity.value = Math.max(1, Math.min(999, Math.floor(value) || 1))
+}
+
 async function handleAddToCart() {
   const p = effectiveProduct.value
   if (!p) return
@@ -1471,19 +1950,72 @@ async function handleAddToCart() {
     return
   }
 
+  if (editingCartItemUuid.value) {
+    await saveEditedCartLine()
+    return
+  }
+
   const metadata = buildConfiguredCartMetadata()
+  const resume = resumeContext.value
+  // Plugin-supplied cart metadata (e.g. the id of the album the customer
+  // designed) rides along with the configurator's own snapshot.
+  const payload = resume ? { ...metadata, ...resume.cartMetadata } : metadata
 
   isAdding.value = true
   try {
-    await cart.addItem(p.uuid, 1, metadata)
-    toast.success(t('addedToCart'), {
-      action: {
-        label: props.language === 'en' ? 'View cart' : 'Zobacz koszyk',
-        href: projectConfig?.value?.commerce?.routes?.cart || '/koszyk',
-      },
-    })
+    // The plugin only saw a partial snapshot when its flow started mid-wizard.
+    // Hand it the finished configuration before the line lands, so its own
+    // views (order detail, customer account) don't keep quoting a stale total.
+    // Non-fatal: the cart line already carries the authoritative snapshot.
+    if (resume?.syncUrl && client.value) {
+      try {
+        await client.value.callPluginEndpoint(resume.syncUrl, {
+          body: {
+            configured_options: metadata.configured_options,
+            configured_total: metadata.configured_total,
+          },
+        })
+      } catch {
+        /* keep going — the cart line is the source of truth for pricing */
+      }
+    }
+    await cart.addItem(p.uuid, quantity.value, payload)
+    resumeContext.value = null
+    clearPersistedState(p.uuid)
+    addedDialog.value = { name: p.name, quantity: quantity.value }
   } catch (err: any) {
     toast.error(err.message || t('addError'))
+  } finally {
+    isAdding.value = false
+  }
+}
+
+/**
+ * Save an edited line back onto the same cart row and return the customer to
+ * the cart they came from.
+ */
+async function saveEditedCartLine() {
+  const itemUuid = editingCartItemUuid.value
+  if (!itemUuid) return
+
+  isAdding.value = true
+  try {
+    await cart.updateItemConfiguration(
+      itemUuid,
+      {
+        ...editingCartItemMetadata.value,
+        ...buildConfiguredCartMetadata(),
+      },
+      quantity.value,
+    )
+    editingCartItemUuid.value = null
+    editingCartItemMetadata.value = {}
+    toast.success(t('configurationSaved'))
+    if (typeof window !== 'undefined') {
+      window.location.href = projectConfig?.value?.commerce?.routes?.cart || '/koszyk'
+    }
+  } catch (err: any) {
+    toast.error(err?.message || t('addError'))
   } finally {
     isAdding.value = false
   }
@@ -1552,6 +2084,12 @@ const cssVars = computed(() => {
       >
         {{ headingText }}
       </component>
+
+      <!-- Editing a line that's already in the cart: say so, because the
+           primary button now replaces that line instead of adding one. -->
+      <p v-if="editingCartItemUuid" class="lcms-product-configurator__editing-note">
+        {{ t('editingCartLine') }}
+      </p>
 
       <!-- Products without option groups render no empty-state note — the
            price row + add-to-cart below are all the user needs. -->
@@ -1637,7 +2175,11 @@ const cssVars = computed(() => {
           v-for="group in groupsToShow"
           :key="group.uuid"
           class="lcms-product-configurator__group"
-          :class="`lcms-product-configurator__group--swatch-${swatchSize}`"
+          :class="[
+            `lcms-product-configurator__group--swatch-${swatchSize}`,
+            { 'lcms-product-configurator__group--locked': isGroupLocked(group) },
+          ]"
+          :aria-disabled="isGroupLocked(group) || undefined"
         >
           <div class="lcms-product-configurator__group-head">
             <div class="lcms-product-configurator__group-label">
@@ -1653,6 +2195,13 @@ const cssVars = computed(() => {
               class="lcms-product-configurator__group-description"
             >{{ group.description }}</div>
           </div>
+
+          <!-- Annotation for a value that came back from a plugin's external
+               flow (and is therefore rendered read-only). -->
+          <div
+            v-if="groupResumeNote(group)"
+            class="lcms-product-configurator__group-note"
+          >{{ groupResumeNote(group) }}</div>
 
           <!-- select display -->
           <select
@@ -1708,6 +2257,7 @@ const cssVars = computed(() => {
               <div
                 v-if="opt.color_hex"
                 class="lcms-product-configurator__swatch-cell"
+                :class="{ 'lcms-product-configurator__swatch-cell--selected': selectedOptions[group.uuid] === opt.uuid }"
               >
                 <button
                   type="button"
@@ -1735,18 +2285,68 @@ const cssVars = computed(() => {
             </template>
           </div>
 
-          <!-- image swatches display -->
-          <div
-            v-else-if="group.display_type === 'image_swatches'"
-            class="lcms-product-configurator__swatches lcms-product-configurator__swatches--grid"
-            :style="imageSwatchGridStyle(group)"
-          >
+          <!-- image swatches display. Once the customer has picked, the grid
+               collapses to the chosen swatch — see isSwatchGroupCollapsed. -->
+          <div v-else-if="group.display_type === 'image_swatches'">
+            <div
+              v-if="isSwatchGroupCollapsed(group)"
+              class="lcms-product-configurator__swatch-chosen"
+            >
+              <div
+                v-if="selectedOptionOf(group)?.thumbnail"
+                class="lcms-product-configurator__swatch-chosen-img"
+                @mouseenter="showHoverPreview($event, selectedOptionOf(group)!)"
+                @mouseleave="hideHoverPreview"
+              >
+                <img :src="selectedOptionOf(group)!.thumbnail!" :alt="selectedOptionOf(group)!.name" />
+                <button
+                  type="button"
+                  class="lcms-product-configurator__swatch-zoom"
+                  :title="t('zoomThumb')"
+                  :aria-label="t('zoomThumb')"
+                  @click.stop="openLightboxImage(selectedOptionOf(group)!.thumbnail!)"
+                >
+                  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <circle cx="11" cy="11" r="7" />
+                    <line x1="21" y1="21" x2="16" y2="16" />
+                    <line x1="11" y1="8" x2="11" y2="14" />
+                    <line x1="8" y1="11" x2="14" y2="11" />
+                  </svg>
+                </button>
+              </div>
+              <div class="lcms-product-configurator__swatch-chosen-body">
+                <span class="lcms-product-configurator__swatch-chosen-name">
+                  {{ selectedOptionOf(group)?.name }}
+                </span>
+                <span
+                  v-if="showOptionPrices && selectedOptionOf(group) && optionPriceDeltaText(selectedOptionOf(group)!)"
+                  class="lcms-product-configurator__swatch-price"
+                >{{ optionPriceDeltaText(selectedOptionOf(group)!) }}</span>
+                <button
+                  v-if="!isGroupLocked(group)"
+                  type="button"
+                  class="lcms-product-configurator__swatch-change"
+                  @click="expandSwatchGroup(group.uuid)"
+                >{{ t('changeSelection') }}</button>
+              </div>
+            </div>
+
+            <div
+              v-else
+              class="lcms-product-configurator__swatches lcms-product-configurator__swatches--grid"
+              :style="imageSwatchGridStyle(group)"
+            >
             <template v-for="opt in visibleOptionsOf(group, selectedSet)" :key="opt.uuid">
               <div
                 v-if="opt.thumbnail"
                 class="lcms-product-configurator__swatch-cell"
+                :class="{ 'lcms-product-configurator__swatch-cell--selected': selectedOptions[group.uuid] === opt.uuid }"
               >
-                <div class="lcms-product-configurator__swatch-imgwrap">
+                <div
+                  class="lcms-product-configurator__swatch-imgwrap"
+                  @mouseenter="showHoverPreview($event, opt)"
+                  @mouseleave="hideHoverPreview"
+                >
                   <button
                     type="button"
                     class="lcms-product-configurator__swatch lcms-product-configurator__swatch--image"
@@ -1794,6 +2394,7 @@ const cssVars = computed(() => {
                 {{ opt.name }}<template v-if="optionPriceDeltaText(opt)"> ({{ optionPriceDeltaText(opt) }})</template>
               </button>
             </template>
+            </div>
           </div>
 
           <!-- text input display -->
@@ -1989,6 +2590,59 @@ const cssVars = computed(() => {
            z-index: 1`, which opens a stacking context the lightbox can never
            escape — no z-index on a descendant can lift it above the menu or
            the sticky navbar, both of which live outside the sections. -->
+      <!-- After add-to-cart: go to the cart, or stay and keep configuring.
+           Teleported for the same stacking reason as the lightbox. -->
+      <Teleport to="body">
+        <div
+          v-if="addedDialog"
+          class="lcms-product-configurator__added"
+          role="dialog"
+          aria-modal="true"
+          @click.self="continueShopping"
+        >
+          <div class="lcms-product-configurator__added-box">
+            <h3 class="lcms-product-configurator__added-title">{{ t('addedTitle') }}</h3>
+            <p class="lcms-product-configurator__added-product">
+              {{ addedDialog.name }}
+              <template v-if="addedDialog.quantity > 1"> × {{ addedDialog.quantity }}</template>
+            </p>
+            <div class="lcms-product-configurator__added-actions">
+              <button
+                type="button"
+                :class="backButtonClass"
+                :style="buttonInlineStyle"
+                @click="continueShopping"
+              >
+                {{ t('continueShopping') }}
+              </button>
+              <button
+                type="button"
+                :class="buttonClass"
+                :style="buttonInlineStyle"
+                @click="goToCart"
+              >
+                {{ t('goToCart') }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </Teleport>
+
+      <!-- Hover preview: the enlarged swatch that follows the pointer instead
+           of the old click-the-magnifier lightbox. Teleported for the same
+           stacking reason as the lightbox, and pointer-transparent so moving
+           onto it can't steal the hover from the swatch underneath. -->
+      <Teleport to="body">
+        <div
+          v-if="hoverPreview"
+          class="lcms-product-configurator__hover-preview"
+          :style="{ top: hoverPreview.top + 'px', left: hoverPreview.left + 'px' }"
+          aria-hidden="true"
+        >
+          <img :src="hoverPreview.url" :alt="hoverPreview.name">
+        </div>
+      </Teleport>
+
       <Teleport to="body">
         <div
           v-if="lightbox"
@@ -2030,6 +2684,10 @@ const cssVars = computed(() => {
           {{ formatPrice(totalPrice, currency) }}
         </span>
       </div>
+      <p
+        v-if="showPriceSummary && !productFlow && inlineBehavior?.cta.pending_price_note"
+        class="lcms-product-configurator__pending-price-note"
+      >{{ inlineBehavior!.cta.pending_price_note }}</p>
 
       <!-- Wizard nav (prev/next on a step; on summary step we render
            the regular add-to-cart / behavior button below). -->
@@ -2045,7 +2703,22 @@ const cssVars = computed(() => {
         >
           {{ t('stepBack') }}
         </button>
+        <!-- A plugin CTA declared with `placement: 'step'` takes over the
+             "Dalej" slot on its own step: the flow behind it produces values
+             the following steps depend on, so there is nothing sensible to
+             advance to before it has run. -->
         <button
+          v-if="inlineBehavior"
+          type="button"
+          class="lcms-product-configurator__nav-btn lcms-product-configurator__nav-btn--primary"
+          :disabled="!canRunBehavior"
+          @click="handleBehaviorAction"
+        >
+          <span v-if="isAdding" class="lcms-product-configurator__spinner" />
+          {{ behaviorButtonText }}
+        </button>
+        <button
+          v-else
           type="button"
           class="lcms-product-configurator__nav-btn lcms-product-configurator__nav-btn--primary"
           @click="goNextStep"
@@ -2074,8 +2747,42 @@ const cssVars = computed(() => {
           >
             {{ t('stepBack') }}
           </button>
+
+          <!-- Quantity belongs next to add-to-cart, not only in the cart.
+               Hidden for plugin flows and flow products: those buy exactly one
+               of whatever the customer configured out there. -->
+          <div
+            v-if="showQuantity && !summaryBehavior && !productFlow"
+            class="lcms-product-configurator__quantity"
+          >
+            <span class="lcms-product-configurator__quantity-label">{{ t('quantity') }}</span>
+            <div class="lcms-product-configurator__quantity-control">
+              <button
+                type="button"
+                class="lcms-product-configurator__quantity-btn"
+                :aria-label="t('quantityDecrease')"
+                :disabled="quantity <= 1"
+                @click="setQuantity(quantity - 1)"
+              >−</button>
+              <input
+                type="number"
+                min="1"
+                max="999"
+                class="lcms-product-configurator__quantity-input"
+                :value="quantity"
+                :aria-label="t('quantity')"
+                @input="setQuantity(Number(($event.target as HTMLInputElement).value))"
+              >
+              <button
+                type="button"
+                class="lcms-product-configurator__quantity-btn"
+                :aria-label="t('quantityIncrease')"
+                @click="setQuantity(quantity + 1)"
+              >+</button>
+            </div>
+          </div>
           <button
-            v-if="activeBehavior"
+            v-if="summaryBehavior"
             type="button"
             :class="buttonClass"
             :style="buttonInlineStyle"
@@ -2111,7 +2818,7 @@ const cssVars = computed(() => {
           </button>
         </div>
         <p
-          v-if="!activeBehavior && productFlow?.description"
+          v-if="!summaryBehavior && productFlow?.description"
           class="lcms-product-configurator__flow-description"
         >
           {{ productFlow.description }}
@@ -2195,6 +2902,32 @@ const cssVars = computed(() => {
   font-weight: 400;
   line-height: 1.45;
   margin-top: 0.25rem;
+  color: var(--lcms-color-text-muted, #6b7280);
+}
+
+/* A group whose value was produced by a plugin's external flow. Read-only
+ * rather than hidden — the customer should still see what they configured
+ * out there, they just can't drift from it here. The setters guard against
+ * programmatic changes too; this only removes the affordance. */
+.lcms-product-configurator__group--locked {
+  opacity: 0.75;
+}
+
+.lcms-product-configurator__group--locked .lcms-product-configurator__select,
+.lcms-product-configurator__group--locked .lcms-product-configurator__radio-group,
+.lcms-product-configurator__group--locked .lcms-product-configurator__swatches,
+.lcms-product-configurator__group--locked .lcms-product-configurator__numeric,
+.lcms-product-configurator__group--locked .lcms-product-configurator__checkbox,
+.lcms-product-configurator__group--locked .lcms-product-configurator__text-input,
+.lcms-product-configurator__group--locked .lcms-product-configurator__textarea-wrap,
+.lcms-product-configurator__group--locked .lcms-product-configurator__file {
+  pointer-events: none;
+}
+
+.lcms-product-configurator__group-note {
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  margin-bottom: 0.5rem;
   color: var(--lcms-color-text-muted, #6b7280);
 }
 
@@ -2414,13 +3147,34 @@ const cssVars = computed(() => {
    * transform animations stack on top of the border colour shift. */
 }
 
+.lcms-product-configurator__swatch {
+  transition: box-shadow 0.15s ease, transform 0.15s ease, border-color 0.15s ease;
+}
+
 .lcms-product-configurator__swatch:hover {
   border-color: var(--lcms-pc-option-border-hover, var(--lcms-color-primary, #3b82f6));
 }
 
 .lcms-product-configurator__swatch--selected {
   border-color: var(--lcms-pc-option-selected-border, var(--lcms-color-primary, #3b82f6));
-  box-shadow: 0 0 0 2px var(--lcms-pc-option-selected-bg, rgba(59, 130, 246, 0.2));
+  /* Ring plus a real drop shadow. The ring alone disappears on themes whose
+   * selected-background token is near-white, which left a black border as the
+   * only signal — easy to miss in a grid of thirty swatches. */
+  box-shadow:
+    0 0 0 2px var(--lcms-pc-option-selected-bg, rgba(59, 130, 246, 0.2)),
+    0 6px 16px rgba(0, 0, 0, 0.18);
+  transform: translateY(-1px);
+}
+
+/* The caption belongs to the selection too — the customer reads the name, not
+ * the border. */
+.lcms-product-configurator__swatch-cell--selected .lcms-product-configurator__swatch-name {
+  font-weight: 700;
+  color: var(--lcms-pc-option-selected-border, var(--lcms-color-primary, #3b82f6));
+}
+
+.lcms-product-configurator__swatch-cell--selected .lcms-product-configurator__swatch-price {
+  color: var(--lcms-pc-option-selected-border, var(--lcms-color-primary, #3b82f6));
 }
 
 .lcms-product-configurator__swatch--image img {
@@ -2658,6 +3412,198 @@ const cssVars = computed(() => {
   font-weight: 700;
   /* Inherit typography color unless user explicitly sets amount_color */
   color: var(--lcms-pc-summary-amount-color, inherit);
+}
+
+/* Shown while a step-placed plugin CTA is still pending — the total above is
+ * not the final price yet, because the flow behind the CTA feeds into it. */
+/* Hover preview (pointer devices). Fixed + teleported so no ancestor's
+ * overflow clips it; pointer-events off so it never eats the hover. */
+.lcms-product-configurator__hover-preview {
+  position: fixed;
+  z-index: 1000200;
+  width: 320px;
+  height: 320px;
+  padding: 8px;
+  border-radius: 10px;
+  background: var(--lcms-color-background, #ffffff);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.22);
+  pointer-events: none;
+}
+
+.lcms-product-configurator__hover-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* On pointer devices the hover preview replaces the magnifier. Touch keeps it —
+ * there is no hover there, and without it a phone can't enlarge a pattern. */
+@media (hover: hover) and (pointer: fine) {
+  .lcms-product-configurator__swatch-zoom {
+    display: none;
+  }
+}
+
+/* Collapsed image-swatch group: just the chosen swatch and a way back. */
+.lcms-product-configurator__swatch-chosen {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.lcms-product-configurator__swatch-chosen-img {
+  position: relative;
+  width: 96px;
+  height: 96px;
+  flex-shrink: 0;
+  border: 2px solid var(--lcms-pc-option-selected-border, var(--lcms-color-primary, #111827));
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--lcms-color-background, #ffffff);
+}
+
+.lcms-product-configurator__swatch-chosen-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.lcms-product-configurator__swatch-chosen-body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+}
+
+.lcms-product-configurator__swatch-chosen-name {
+  font-weight: 600;
+}
+
+.lcms-product-configurator__swatch-change {
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 0.8125rem;
+  color: var(--lcms-color-primary, #2563eb);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.lcms-product-configurator__added {
+  position: fixed;
+  inset: 0;
+  z-index: 1000300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.lcms-product-configurator__added-box {
+  width: 100%;
+  max-width: 420px;
+  padding: 1.5rem;
+  border-radius: 12px;
+  background: var(--lcms-color-background, #ffffff);
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.28);
+  text-align: center;
+}
+
+.lcms-product-configurator__added-title {
+  margin: 0 0 0.5rem;
+  font-family: var(--lcms-font-heading, inherit);
+  font-size: 1.125rem;
+}
+
+.lcms-product-configurator__added-product {
+  margin: 0 0 1.25rem;
+  color: var(--lcms-color-text-muted, #6b7280);
+}
+
+.lcms-product-configurator__added-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.lcms-product-configurator__added-actions > * {
+  flex: 1 1 10rem;
+}
+
+.lcms-product-configurator__quantity {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.lcms-product-configurator__quantity-label {
+  font-size: 0.875rem;
+  color: var(--lcms-color-text-muted, #6b7280);
+}
+
+.lcms-product-configurator__quantity-control {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--lcms-color-border, #e5e7eb);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.lcms-product-configurator__quantity-btn {
+  width: 2.25rem;
+  height: 2.25rem;
+  border: none;
+  background: transparent;
+  font: inherit;
+  font-size: 1.125rem;
+  line-height: 1;
+  cursor: pointer;
+  color: inherit;
+}
+
+.lcms-product-configurator__quantity-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.lcms-product-configurator__quantity-input {
+  width: 3rem;
+  height: 2.25rem;
+  border: none;
+  border-left: 1px solid var(--lcms-color-border, #e5e7eb);
+  border-right: 1px solid var(--lcms-color-border, #e5e7eb);
+  text-align: center;
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.lcms-product-configurator__quantity-input::-webkit-outer-spin-button,
+.lcms-product-configurator__quantity-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.lcms-product-configurator__editing-note {
+  margin: 0 0 1rem;
+  padding: 0.6rem 0.85rem;
+  border-radius: 8px;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  background: var(--lcms-color-background-alt, #f9fafb);
+  color: var(--lcms-color-text-muted, #6b7280);
+}
+
+.lcms-product-configurator__pending-price-note {
+  margin: -1rem 0 1.5rem;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--lcms-color-text-muted, #6b7280);
 }
 
 /* Button styling is delegated to the global .lcms-button__link--{variant}
