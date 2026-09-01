@@ -2741,6 +2741,41 @@ const cssVars = computed(() => {
            two visually match the wizard's prev/next pair on earlier steps
            rather than a small floating link above a giant full-width CTA. -->
       <template v-if="!wizardMode || showSummary || allGroups.length === 0">
+        <!-- Quantity gets its own line above the action row: inside that row
+             it sat between "Wstecz" and the CTA and read as a third button
+             wedged between two real ones. Hidden for plugin flows and flow
+             products — those buy exactly one of whatever the customer
+             configured out there. -->
+        <div
+          v-if="showQuantity && !summaryBehavior && !productFlow"
+          class="lcms-product-configurator__quantity"
+        >
+          <span class="lcms-product-configurator__quantity-label">{{ t('quantity') }}</span>
+          <div class="lcms-product-configurator__quantity-control">
+            <button
+              type="button"
+              class="lcms-product-configurator__quantity-btn"
+              :aria-label="t('quantityDecrease')"
+              :disabled="quantity <= 1"
+              @click="setQuantity(quantity - 1)"
+            >−</button>
+            <input
+              type="number"
+              min="1"
+              max="999"
+              class="lcms-product-configurator__quantity-input"
+              :value="quantity"
+              :aria-label="t('quantity')"
+              @input="setQuantity(Number(($event.target as HTMLInputElement).value))"
+            >
+            <button
+              type="button"
+              class="lcms-product-configurator__quantity-btn"
+              :aria-label="t('quantityIncrease')"
+              @click="setQuantity(quantity + 1)"
+            >+</button>
+          </div>
+        </div>
         <div
           :class="{ 'lcms-product-configurator__summary-actions': wizardMode && showSummary }"
         >
@@ -2753,40 +2788,6 @@ const cssVars = computed(() => {
           >
             {{ t('stepBack') }}
           </button>
-
-          <!-- Quantity belongs next to add-to-cart, not only in the cart.
-               Hidden for plugin flows and flow products: those buy exactly one
-               of whatever the customer configured out there. -->
-          <div
-            v-if="showQuantity && !summaryBehavior && !productFlow"
-            class="lcms-product-configurator__quantity"
-          >
-            <span class="lcms-product-configurator__quantity-label">{{ t('quantity') }}</span>
-            <div class="lcms-product-configurator__quantity-control">
-              <button
-                type="button"
-                class="lcms-product-configurator__quantity-btn"
-                :aria-label="t('quantityDecrease')"
-                :disabled="quantity <= 1"
-                @click="setQuantity(quantity - 1)"
-              >−</button>
-              <input
-                type="number"
-                min="1"
-                max="999"
-                class="lcms-product-configurator__quantity-input"
-                :value="quantity"
-                :aria-label="t('quantity')"
-                @input="setQuantity(Number(($event.target as HTMLInputElement).value))"
-              >
-              <button
-                type="button"
-                class="lcms-product-configurator__quantity-btn"
-                :aria-label="t('quantityIncrease')"
-                @click="setQuantity(quantity + 1)"
-              >+</button>
-            </div>
-          </div>
           <button
             v-if="summaryBehavior"
             type="button"
@@ -3855,6 +3856,10 @@ const cssVars = computed(() => {
   gap: 0.5rem;
   align-items: stretch;
   margin-top: 1.25rem;
+}
+/* The quantity row directly above already carries its own bottom spacing. */
+.lcms-product-configurator__quantity + .lcms-product-configurator__summary-actions {
+  margin-top: 0.25rem;
 }
 /* CTA in the row takes remaining space. Override the standalone width:100%
  * (used outside summary mode) so flex can distribute width across both
