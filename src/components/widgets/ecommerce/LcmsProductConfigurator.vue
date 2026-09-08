@@ -444,6 +444,8 @@ interface ResumeContext {
   marker: string
   lockedGroups: string[]
   notes: Record<string, string>
+  /** Per group: the plugin endpoint that takes the customer back to edit it. */
+  edits: Record<string, { url: string; label: string }>
   cartMetadata: Record<string, unknown>
   syncUrl: string | null
 }
@@ -465,6 +467,44 @@ function isGroupLocked(g: StorefrontProductOptionGroup): boolean {
 }
 function groupResumeNote(g: StorefrontProductOptionGroup): string {
   return resumeContext.value?.notes?.[g.uuid] || ''
+}
+function groupResumeEdit(g: StorefrontProductOptionGroup): { url: string; label: string } | null {
+  return resumeContext.value?.edits?.[g.uuid] || null
+}
+
+// Back into the flow that owns a locked value. State is saved first: the
+// customer leaves the page, and everything they picked after coming back from
+// the designer has to survive the round trip.
+const resumeEditInFlight = ref<string | null>(null)
+
+async function runResumeEdit(g: StorefrontProductOptionGroup) {
+  const edit = groupResumeEdit(g)
+  const p = effectiveProduct.value
+  if (!edit || !p || !client.value || resumeEditInFlight.value) return
+
+  resumeEditInFlight.value = g.uuid
+  try {
+    if (p.uuid) savePersistedState(p.uuid)
+    const response = await client.value.callPluginEndpoint<{
+      data?: { redirect_url?: string; designer_url?: string }
+      designer_url?: string
+      redirect_url?: string
+    }>(edit.url, { body: {} })
+    const target =
+      response?.data?.designer_url ||
+      response?.data?.redirect_url ||
+      response?.designer_url ||
+      response?.redirect_url
+    if (target && typeof window !== 'undefined') {
+      window.location.href = target
+    } else {
+      toast.error(t('addError'))
+    }
+  } catch (err: any) {
+    toast.error(err?.message || t('addError'))
+  } finally {
+    resumeEditInFlight.value = null
+  }
 }
 
 // Persisted-state TTL: long enough to survive an auth round-trip (register
@@ -1630,6 +1670,7 @@ function applyPluginResume(
     (payload.lock_groups ?? []).filter((uuid) => byUuid.has(uuid)),
   )
   const notes: Record<string, string> = {}
+  const edits: Record<string, { url: string; label: string }> = {}
   const nextSelected = { ...selectedOptions.value }
   const nextCustom = { ...customValues.value }
   const nextAnsweredCustom = new Set(answeredCustomGroups.value)
@@ -1656,6 +1697,7 @@ function applyPluginResume(
     }
     if (entry.locked) locked.add(group.uuid)
     if (entry.note) notes[group.uuid] = entry.note
+    if (entry.edit?.url && entry.edit?.label) edits[group.uuid] = entry.edit
   }
 
   selectedOptions.value = nextSelected
@@ -1665,6 +1707,7 @@ function applyPluginResume(
     marker,
     lockedGroups: [...locked],
     notes,
+    edits,
     cartMetadata: payload.cart_metadata ?? {},
     syncUrl: behavior.cta.sync_url
       ? behavior.cta.sync_url.replace('{ref}', encodeURIComponent(flowRef))
@@ -2257,9 +2300,18 @@ const cssVars = computed(() => {
           <!-- Annotation for a value that came back from a plugin's external
                flow (and is therefore rendered read-only). -->
           <div
-            v-if="groupResumeNote(group)"
+            v-if="groupResumeNote(group) || groupResumeEdit(group)"
             class="lcms-product-configurator__group-note"
-          >{{ groupResumeNote(group) }}</div>
+          >
+            <span v-if="groupResumeNote(group)">{{ groupResumeNote(group) }}</span>
+            <button
+              v-if="groupResumeEdit(group)"
+              type="button"
+              class="lcms-product-configurator__group-note-action"
+              :disabled="resumeEditInFlight === group.uuid"
+              @click="runResumeEdit(group)"
+            >{{ groupResumeEdit(group)?.label }}</button>
+          </div>
 
           <!-- select display -->
           <select
@@ -2988,6 +3040,27 @@ const cssVars = computed(() => {
   line-height: 1.45;
   margin-bottom: 0.5rem;
   color: var(--lcms-color-text-muted, #6b7280);
+}
+
+.lcms-product-configurator__group-note-action {
+  display: inline;
+  margin-left: 0.4em;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.lcms-product-configurator__group-note-action:hover:not(:disabled) {
+  opacity: 0.75;
+}
+
+.lcms-product-configurator__group-note-action:disabled {
+  cursor: default;
+  opacity: 0.5;
 }
 
 /* Flat mode: drop group headings so all groups read as one continuous list.

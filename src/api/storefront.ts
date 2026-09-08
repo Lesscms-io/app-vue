@@ -145,6 +145,13 @@ export interface StorefrontPluginResumePrefill {
   locked?: boolean
   /** Short annotation rendered under the group, e.g. "z Twojego projektu". */
   note?: string
+  /**
+   * Way back into the flow that produced this value. A locked field whose note
+   * says "change it in the designer" needs a door to that designer, otherwise
+   * the customer is told to do something they cannot reach. The widget POSTs
+   * to `url` and navigates to the `designer_url` / `redirect_url` it answers.
+   */
+  edit?: { url: string; label: string }
 }
 
 /**
