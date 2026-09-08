@@ -2035,8 +2035,20 @@ function goToCart() {
   if (typeof window !== 'undefined') window.location.href = cartUrl.value
 }
 
+// "Keep shopping" that only closes the dialog leaves the customer staring at
+// the configurator of the thing they just bought — the one page they are done
+// with. Send them back to the listing they came from: the product's category,
+// falling back to the site root when the product carries none.
+const continueShoppingUrl = computed(() => {
+  const slug = effectiveProduct.value?.category?.slug
+  if (!slug) return '/'
+  const route = projectConfig?.value?.commerce?.routes?.category || '/kategoria/:slug'
+  return route.replace(':slug', encodeURIComponent(slug))
+})
+
 function continueShopping() {
   addedDialog.value = null
+  if (typeof window !== 'undefined') window.location.href = continueShoppingUrl.value
 }
 
 function setQuantity(value: number) {
@@ -2708,7 +2720,7 @@ const cssVars = computed(() => {
           class="lcms-product-configurator__added"
           role="dialog"
           aria-modal="true"
-          @click.self="continueShopping"
+          @click.self="addedDialog = null"
         >
           <div class="lcms-product-configurator__added-box">
             <h3 class="lcms-product-configurator__added-title">{{ t('addedTitle') }}</h3>
