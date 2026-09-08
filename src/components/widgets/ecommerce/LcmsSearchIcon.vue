@@ -55,7 +55,7 @@ const productUrl = (product: StorefrontProduct) => {
 }
 
 const searchPageUrl = computed(() =>
-  projectConfig?.value?.commerce?.routes?.search || navigateUrl.value
+  projectConfig?.value?.commerce?.routes?.search || navigateUrl.value || '/szukaj'
 )
 
 function resolveColorValue(val: string | null | undefined): string | null {

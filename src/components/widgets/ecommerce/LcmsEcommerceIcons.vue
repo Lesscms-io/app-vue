@@ -62,8 +62,10 @@ const currency = computed(() => projectConfig?.value?.commerce?.currency || 'PLN
 const cartUrl = computed(() => projectConfig?.value?.commerce?.routes?.cart || '/koszyk')
 const checkoutUrl = computed(() => projectConfig?.value?.commerce?.routes?.checkout || '/zamowienie')
 const accountUrl = computed(() => projectConfig?.value?.commerce?.routes?.account || '/konto')
+// Ten sam adres awaryjny co w LcmsSearchBar — ikona i pasek wyszukiwania
+// prowadziły dotąd w dwa różne miejsca ('/search' vs '/szukaj').
 const searchPageUrl = computed(() =>
-  projectConfig?.value?.commerce?.routes?.search || searchGroup.value.navigate_url || '/search'
+  projectConfig?.value?.commerce?.routes?.search || searchGroup.value.navigate_url || '/szukaj'
 )
 
 const productUrl = (slug: string) => {
