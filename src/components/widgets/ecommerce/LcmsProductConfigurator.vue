@@ -2789,6 +2789,41 @@ const cssVars = computed(() => {
         v-if="showPriceSummary && !productFlow"
         class="lcms-product-configurator__summary"
       >
+        <!-- Quantity sits in the total row, not on a line of its own above the
+             buttons: it is a factor of the number next to it, and on its own
+             line it read as a stray third button between "Wstecz" and the CTA.
+             Hidden for plugin flows — those buy exactly one of whatever the
+             customer configured out there. -->
+        <div
+          v-if="showQuantity && !summaryBehavior && !productFlow"
+          class="lcms-product-configurator__quantity"
+        >
+          <span class="lcms-product-configurator__quantity-label">{{ t('quantity') }}</span>
+          <div class="lcms-product-configurator__quantity-control">
+            <button
+              type="button"
+              class="lcms-product-configurator__quantity-btn"
+              :aria-label="t('quantityDecrease')"
+              :disabled="quantity <= 1"
+              @click="setQuantity(quantity - 1)"
+            >−</button>
+            <input
+              type="number"
+              min="1"
+              max="999"
+              class="lcms-product-configurator__quantity-input"
+              :value="quantity"
+              :aria-label="t('quantity')"
+              @input="setQuantity(Number(($event.target as HTMLInputElement).value))"
+            >
+            <button
+              type="button"
+              class="lcms-product-configurator__quantity-btn"
+              :aria-label="t('quantityIncrease')"
+              @click="setQuantity(quantity + 1)"
+            >+</button>
+          </div>
+        </div>
         <span class="lcms-product-configurator__summary-label">{{ totalLabelText }}</span>
         <span class="lcms-product-configurator__summary-amount">
           {{ formatPrice(totalPrice, currency) }}
@@ -2845,41 +2880,6 @@ const cssVars = computed(() => {
            two visually match the wizard's prev/next pair on earlier steps
            rather than a small floating link above a giant full-width CTA. -->
       <template v-if="!wizardMode || showSummary || allGroups.length === 0">
-        <!-- Quantity gets its own line above the action row: inside that row
-             it sat between "Wstecz" and the CTA and read as a third button
-             wedged between two real ones. Hidden for plugin flows and flow
-             products — those buy exactly one of whatever the customer
-             configured out there. -->
-        <div
-          v-if="showQuantity && !summaryBehavior && !productFlow"
-          class="lcms-product-configurator__quantity"
-        >
-          <span class="lcms-product-configurator__quantity-label">{{ t('quantity') }}</span>
-          <div class="lcms-product-configurator__quantity-control">
-            <button
-              type="button"
-              class="lcms-product-configurator__quantity-btn"
-              :aria-label="t('quantityDecrease')"
-              :disabled="quantity <= 1"
-              @click="setQuantity(quantity - 1)"
-            >−</button>
-            <input
-              type="number"
-              min="1"
-              max="999"
-              class="lcms-product-configurator__quantity-input"
-              :value="quantity"
-              :aria-label="t('quantity')"
-              @input="setQuantity(Number(($event.target as HTMLInputElement).value))"
-            >
-            <button
-              type="button"
-              class="lcms-product-configurator__quantity-btn"
-              :aria-label="t('quantityIncrease')"
-              @click="setQuantity(quantity + 1)"
-            >+</button>
-          </div>
-        </div>
         <div
           :class="{ 'lcms-product-configurator__summary-actions': wizardMode && showSummary }"
         >
@@ -3525,8 +3525,12 @@ const cssVars = computed(() => {
 
 .lcms-product-configurator__summary {
   display: flex;
-  justify-content: space-between;
-  align-items: baseline;
+  /* Whichever element comes first carries the push, so the amount stays hard
+     right whether or not the quantity stepper is rendered. */
+  justify-content: flex-end;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  align-items: center;
   padding: 1rem 0;
   margin: 1.5rem 0;
   border-top: 1px solid var(--lcms-color-border, #e5e7eb);
@@ -3537,6 +3541,11 @@ const cssVars = computed(() => {
 .lcms-product-configurator__summary-label {
   font-size: 1rem;
   font-weight: 500;
+}
+
+.lcms-product-configurator__summary-label:first-child,
+.lcms-product-configurator__quantity {
+  margin-right: auto;
 }
 
 .lcms-product-configurator__summary-amount {
@@ -3668,7 +3677,6 @@ const cssVars = computed(() => {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  margin-bottom: 0.75rem;
 }
 
 .lcms-product-configurator__quantity-label {
