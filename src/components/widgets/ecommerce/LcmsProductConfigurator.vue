@@ -382,6 +382,17 @@ const currentStep = ref(0)
 const showSummary = ref(false)
 const quantity = ref(1)
 
+// Groups whose custom value the customer actually provided — as opposed to the
+// value they were seeded with on load (numerics start at `numeric_min`). Every
+// custom-value type flows through `setCustomValue`, so all of them land here;
+// only numerics are read back, because they are the only kind whose seeded
+// default is indistinguishable from a real answer. The distinction matters
+// for plugin flows that start mid-wizard: a designer told "10 to 10 spreads"
+// gives the customer no choice at all, and a seeded minimum must not be sent
+// as if it were their answer. Add-to-cart keeps sending everything: a customer
+// who accepts the default really is ordering the default.
+const answeredCustomGroups = ref<Set<string>>(new Set())
+
 // Everything below is touched by the hydration watcher, which runs with
 // `immediate: true` — i.e. during setup, before any `const` declared further
 // down exists. Declaring these next to the watcher's other state is not a
@@ -475,6 +486,7 @@ function loadPersistedState(productUuid: string): {
   selectedOptions: Record<string, string>
   customValues: Record<string, string | number | boolean>
   fileUploads: Record<string, StorefrontOptionUpload[]>
+  answeredCustomGroups: string[]
   pendingBehavior: boolean
   resumeContext: ResumeContext | null
   currentStep: number | null
@@ -494,6 +506,9 @@ function loadPersistedState(productUuid: string): {
       selectedOptions: parsed.selectedOptions || {},
       customValues: parsed.customValues || {},
       fileUploads: parsed.fileUploads || {},
+      answeredCustomGroups: Array.isArray(parsed.answeredCustomGroups)
+        ? parsed.answeredCustomGroups.filter((v: unknown) => typeof v === 'string')
+        : [],
       pendingBehavior: !!parsed.pendingBehavior,
       resumeContext: parsed.resumeContext || null,
       currentStep: typeof parsed.currentStep === 'number' ? parsed.currentStep : null,
@@ -518,6 +533,7 @@ function savePersistedState(
       selectedOptions: selectedOptions.value,
       customValues: customValues.value,
       fileUploads: fileUploads.value,
+      answeredCustomGroups: [...answeredCustomGroups.value],
       pendingBehavior: !!options.pendingBehavior,
       // Survives a reload after the customer came back from a plugin flow —
       // without it a refresh would unlock the prefilled groups and drop the
@@ -583,6 +599,9 @@ watch(
     const nextSelected: Record<string, string> = {}
     const nextCustom: Record<string, string | number | boolean> = {}
     const nextFiles: Record<string, StorefrontOptionUpload[]> = {}
+    // A fresh product starts with nothing answered; a restored one keeps
+    // whatever the customer had already filled in before the reload.
+    let nextAnswered = new Set<string>()
     for (const group of groups) {
       if (group.display_type === 'numeric') {
         nextCustom[group.uuid] = group.numeric_min ?? 0
@@ -619,6 +638,9 @@ watch(
       for (const [uuid, files] of Object.entries(persisted.fileUploads)) {
         if (validGroupUuids.has(uuid)) nextFiles[uuid] = files
       }
+      nextAnswered = new Set(
+        persisted.answeredCustomGroups.filter((uuid) => validGroupUuids.has(uuid)),
+      )
       // Clear after restore — if the user reloads later we don't want to
       // re-apply stale selections that they explicitly cleared.
       if (productUuid) clearPersistedState(productUuid)
@@ -627,6 +649,7 @@ watch(
     selectedOptions.value = nextSelected
     customValues.value = nextCustom
     fileUploads.value = nextFiles
+    answeredCustomGroups.value = nextAnswered
     // Collapsed-swatch state belongs to the product that was on screen.
     for (const key of Object.keys(pickedSwatchGroups)) delete pickedSwatchGroups[key]
     // A restored plugin-flow context keeps its locks, notes and cart metadata
@@ -1370,7 +1393,7 @@ async function handleBehaviorAction() {
       // Which group means "pages" or "size" is the plugin's business — it has
       // its own configured group codes. Core used to guess with a regex over
       // group names; that hardcode is gone.
-      const snapshot = buildConfiguredCartMetadata()
+      const snapshot = buildConfiguredCartMetadata({ answeredOnly: true })
       const response = await client.value.callPluginEndpoint<{
         data?: { redirect_url?: string; designer_url?: string }
         designer_url?: string
@@ -1482,6 +1505,7 @@ function applyConfiguredOptions(entries: Array<Record<string, unknown>>) {
   const nextSelected = { ...selectedOptions.value }
   const nextCustom = { ...customValues.value }
   const nextFiles = { ...fileUploads.value }
+  const nextAnsweredCustom = new Set(answeredCustomGroups.value)
 
   for (const entry of entries) {
     const group = byUuid.get(String(entry.group_uuid ?? ''))
@@ -1489,7 +1513,11 @@ function applyConfiguredOptions(entries: Array<Record<string, unknown>>) {
 
     if (group.display_type === 'numeric') {
       const value = Number(entry.value)
-      if (!isNaN(value)) nextCustom[group.uuid] = value
+      if (!isNaN(value)) {
+        nextCustom[group.uuid] = value
+        // Present in a saved snapshot means the customer settled on it.
+        nextAnsweredCustom.add(group.uuid)
+      }
     } else if (group.display_type === 'checkbox') {
       nextCustom[group.uuid] = entry.value === true
     } else if (isTextType(group)) {
@@ -1514,6 +1542,7 @@ function applyConfiguredOptions(entries: Array<Record<string, unknown>>) {
   selectedOptions.value = nextSelected
   customValues.value = nextCustom
   fileUploads.value = nextFiles
+  answeredCustomGroups.value = nextAnsweredCustom
 }
 
 // --- Plugin flow resume ------------------------------------------------------
@@ -1603,6 +1632,7 @@ function applyPluginResume(
   const notes: Record<string, string> = {}
   const nextSelected = { ...selectedOptions.value }
   const nextCustom = { ...customValues.value }
+  const nextAnsweredCustom = new Set(answeredCustomGroups.value)
 
   for (const entry of payload.prefill ?? []) {
     const group = byUuid.get(entry.group_uuid)
@@ -1613,6 +1643,9 @@ function applyPluginResume(
       if (group.numeric_min != null) value = Math.max(Number(group.numeric_min), value)
       if (group.numeric_max != null) value = Math.min(Number(group.numeric_max), value)
       nextCustom[group.uuid] = value
+      // What the customer produced in the plugin's flow is their answer —
+      // it must survive into any later snapshot, prefilled rather than typed.
+      nextAnsweredCustom.add(group.uuid)
     } else if (group.display_type === 'checkbox') {
       nextCustom[group.uuid] = entry.value === true
     } else if (isTextType(group)) {
@@ -1627,6 +1660,7 @@ function applyPluginResume(
 
   selectedOptions.value = nextSelected
   customValues.value = nextCustom
+  answeredCustomGroups.value = nextAnsweredCustom
   resumeContext.value = {
     marker,
     lockedGroups: [...locked],
@@ -1677,6 +1711,11 @@ function selectOption(groupUuid: string, optionUuid: string) {
 function setCustomValue(groupUuid: string, value: string | number | boolean) {
   if (lockedGroupUuids.value.has(groupUuid)) return
   customValues.value = { ...customValues.value, [groupUuid]: value }
+  // Every customer-driven edit goes through here (number input and both
+  // stepper buttons), so this is the one place that has to record it.
+  if (!answeredCustomGroups.value.has(groupUuid)) {
+    answeredCustomGroups.value = new Set(answeredCustomGroups.value).add(groupUuid)
+  }
 }
 
 // 'textarea' is 'text' with a multiline input — identical value/validation
@@ -1854,7 +1893,19 @@ async function fetchProduct() {
 // drop the configured product into the cart before redirecting off-site —
 // without that the user comes back from the external designer to an empty
 // cart and has to configure all over again.
-function buildConfiguredCartMetadata(): { configured_options: Array<Record<string, unknown>>; configured_total: number } {
+/**
+ * Snapshot of the configuration, in the shape the cart and plugins consume.
+ *
+ * `answeredOnly` drops numeric groups the customer never touched. Numeric
+ * inputs are seeded with `numeric_min` on load, so without this a flow started
+ * before the customer reached that step would hand the plugin a minimum that
+ * looks exactly like a deliberate choice — and photo-albums locks its designer
+ * to the count it is given. Add-to-cart passes nothing and keeps every value:
+ * a customer who accepts the seeded default really is ordering it.
+ */
+function buildConfiguredCartMetadata(
+  options: { answeredOnly?: boolean } = {},
+): { configured_options: Array<Record<string, unknown>>; configured_total: number } {
   const configuredOptions: Array<Record<string, unknown>> = []
   for (const g of visibleGroups.value) {
     if (isTextType(g)) {
@@ -1897,6 +1948,7 @@ function buildConfiguredCartMetadata(): { configured_options: Array<Record<strin
     } else if (g.display_type === 'numeric') {
       const qty = Number(customValues.value[g.uuid] ?? 0)
       if (!qty) continue
+      if (options.answeredOnly && !answeredCustomGroups.value.has(g.uuid)) continue
       const rate = effectivePricePerUnit(g)
       const delta = rate ? qty * rate : 0
       configuredOptions.push({
