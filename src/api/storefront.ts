@@ -26,6 +26,8 @@ export interface StorefrontPriceOverride {
 export interface StorefrontProductOption {
   uuid: string
   name: string
+  /** Optional caption under the option name; may carry `[text](url)` links. */
+  description?: string | null
   code: string
   /** Additive price delta vs base. Negative = subtract. Type column was
    *  dropped in BE migration 2026_05_05 — value alone now drives modifier. */

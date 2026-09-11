@@ -989,6 +989,41 @@ function selectedOptionOf(group: StorefrontProductOptionGroup): StorefrontProduc
   return group.options.find((o) => o.uuid === uuid) || null
 }
 
+/**
+ * Option caption as safe HTML. The merchant writes plain text with
+ * `[label](https://…)` links (e.g. "Zaprojektuj album w kreatorze"); every
+ * link opens in a new tab so the half-finished configuration stays put.
+ * Everything else is escaped — no raw HTML gets through.
+ */
+function optionDescriptionHtml(opt: StorefrontProductOption): string {
+  const text = (opt.description || '').trim()
+  if (!text) return ''
+  const escape = (s: string) =>
+    s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+  const link = (label: string, href: string) =>
+    /^(https?:\/\/|mailto:|\/)/i.test(href)
+      ? `<a href="${escape(href)}" target="_blank" rel="noopener noreferrer">${escape(label)}</a>`
+      : escape(label)
+  let html = ''
+  let last = 0
+  const re = /\[([^\]]+)\]\(([^)\s]+)\)/g
+  let m: RegExpExecArray | null
+  while ((m = re.exec(text))) {
+    html += escape(text.slice(last, m.index)) + link(m[1], m[2])
+    last = m.index + m[0].length
+  }
+  html += escape(text.slice(last))
+  return html.replace(/\n/g, '<br>')
+}
+
+/** Caption of the chosen option — shown under controls that don't list
+ *  captions inline (select, swatches, chips). Radio rows carry their own. */
+function selectedOptionDescription(group: StorefrontProductOptionGroup): string {
+  if (group.display_type === 'radio') return ''
+  const opt = selectedOptionOf(group)
+  return opt ? optionDescriptionHtml(opt) : ''
+}
+
 // Hover preview — replaces the per-swatch magnifier on pointer devices. The
 // magnifier stays for touch (there is no hover there), so a phone can still
 // enlarge a pattern. Teleported and fixed-positioned so no ancestor's overflow
@@ -2362,7 +2397,14 @@ const cssVars = computed(() => {
                 :checked="selectedOptions[group.uuid] === opt.uuid"
                 @change="selectOption(group.uuid, opt.uuid)"
               />
-              <span class="lcms-product-configurator__radio-label">{{ opt.name }}</span>
+              <span class="lcms-product-configurator__radio-label">
+                {{ opt.name }}
+                <span
+                  v-if="opt.description"
+                  class="lcms-product-configurator__option-description"
+                  v-html="optionDescriptionHtml(opt)"
+                />
+              </span>
               <span
                 v-if="optionPriceDeltaText(opt)"
                 class="lcms-product-configurator__price-delta"
@@ -2700,6 +2742,12 @@ const cssVars = computed(() => {
             />
             <span class="lcms-product-configurator__checkbox-label">{{ group.checkbox_label || 'TAK' }}</span>
           </label>
+
+          <div
+            v-if="selectedOptionDescription(group)"
+            class="lcms-product-configurator__option-description lcms-product-configurator__option-description--selected"
+            v-html="selectedOptionDescription(group)"
+          />
         </div>
       </div>
 
@@ -3209,6 +3257,32 @@ const cssVars = computed(() => {
   font-size: 0.875rem;
   color: var(--lcms-color-muted, #6b7280);
   font-weight: 500;
+}
+
+/* Caption under an option name (radio rows) or under the control for the
+ * chosen option (select / swatches / chips). Links inside are the point of
+ * it — "open the album designer" — so they stay visibly underlined. */
+.lcms-product-configurator__option-description {
+  display: block;
+  font-size: 0.8125rem;
+  font-weight: 400;
+  line-height: 1.45;
+  margin-top: 0.125rem;
+  color: var(--lcms-color-text-muted, #6b7280);
+}
+
+.lcms-product-configurator__option-description--selected {
+  margin-top: 0.5rem;
+}
+
+.lcms-product-configurator__option-description a {
+  color: var(--lcms-color-primary, inherit);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.lcms-product-configurator__option-description a:hover {
+  opacity: 0.8;
 }
 
 .lcms-product-configurator__swatches {
