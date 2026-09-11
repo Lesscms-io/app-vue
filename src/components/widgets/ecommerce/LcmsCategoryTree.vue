@@ -300,8 +300,12 @@ export default { components: { CategoryTreeNode } }
   padding: 0;
 }
 
+/* A nested level starts where the PARENT'S LABEL starts (past its chevron
+   and the row gap), plus a step. A child level without chevrons of its own
+   drops the spacer column, so a plain 1.25rem here landed the children to
+   the LEFT of the parent's text. */
 .lcms-category-tree__list--nested {
-  padding-left: 1.25rem;
+  padding-left: calc(22px + 0.25rem + 0.75rem);
 }
 
 .lcms-category-tree__row {
