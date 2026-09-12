@@ -107,7 +107,7 @@ const LAYOUT_KEYS = ['position', 'image_fill', 'content_width', 'text_align', 'v
 const LAYOUT_DEFAULTS: Record<string, string> = { position: 'center', image_fill: 'split', content_width: 'normal', text_align: 'center', vertical_align: 'center' }
 const LAYOUT_VALUES: Record<string, string[]> = {
   position: ['left', 'center', 'right', 'image-left', 'image-right'], image_fill: ['split', 'full'],
-  content_width: ['narrow', 'normal', 'wide'], text_align: ['left', 'center', 'right'], vertical_align: ['top', 'center', 'bottom']
+  content_width: ['narrow', 'normal', 'wide', 'container', 'custom'], text_align: ['left', 'center', 'right'], vertical_align: ['top', 'center', 'bottom']
 }
 function slideLayout(item: HeroSliderSlide | undefined) {
   const out: Record<string, string> = {
@@ -285,6 +285,7 @@ const rootStyle = computed(() => ({
   '--hs-title-color-hover': resolveColor(headingGroup.value['color:hover'], resolveColor(headingGroup.value.color, '#ffffff')),
   '--hs-subtitle-color': resolveColor(subheadingGroup.value.color, 'rgba(255,255,255,0.85)'),
   '--hs-subtitle-color-hover': resolveColor(subheadingGroup.value['color:hover'], resolveColor(subheadingGroup.value.color, 'rgba(255,255,255,0.85)')),
+  '--hs-custom-width': `${Number(layoutGroup.value.custom_width) || 1200}px`,
   '--hs-buttons-gap': `${buttonsGroup.value.gap ?? 12}px`,
   '--hs-anim-duration': `${animationGroup.value.duration ?? 700}ms`,
   '--hs-anim-stagger': `${animationGroup.value.stagger ?? 140}ms`,

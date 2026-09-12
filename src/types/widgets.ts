@@ -348,7 +348,8 @@ export interface HeroSliderWidgetData extends BaseWidgetData {
   items?: HeroSliderSlide[]
   layout?: {
     height?: 'sm' | 'md' | 'lg' | 'full'
-    content_width?: 'narrow' | 'normal' | 'wide'
+    content_width?: 'narrow' | 'normal' | 'wide' | 'container' | 'custom'
+    custom_width?: number
     position?: 'left' | 'center' | 'right' | 'image-left' | 'image-right'
     image_fill?: 'split' | 'full'
     text_align?: 'left' | 'center' | 'right'
