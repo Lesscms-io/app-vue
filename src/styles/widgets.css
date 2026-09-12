@@ -2930,7 +2930,9 @@
   .hs-slide.hs--pos-image-left .hs-bg,
   .hs-slide.hs--pos-image-right .hs-bg,
   .hs-slide.hs--pos-image-left .hs-overlay,
-  .hs-slide.hs--pos-image-right .hs-overlay { inset: 0; }
+  .hs-slide.hs--pos-image-right .hs-overlay,
+  .hs--bg-parallax .hs-slide.hs--pos-image-left.hs--fill-split .hs-bg,
+  .hs--bg-parallax .hs-slide.hs--pos-image-right.hs--fill-split .hs-bg { inset: 0; }
   .hs-title--xl { font-size: 38px; }
   .hs-title--xxl { font-size: 44px; }
   .hs-title--lg { font-size: 32px; }
