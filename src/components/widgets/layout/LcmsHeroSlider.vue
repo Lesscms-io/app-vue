@@ -104,16 +104,16 @@ const layerClass = (item: HeroSliderSlide | undefined, layer: Layer) => {
 // Slide layout = global layout + the slide's non-'inherit' keys. Height is
 // widget-level only. Applied per slide as classes on .hs-slide.
 const LAYOUT_KEYS = ['position', 'image_fill', 'content_width', 'text_align', 'vertical_align'] as const
-const LAYOUT_DEFAULTS: Record<string, string> = { position: 'center', image_fill: 'split', content_width: 'normal', text_align: 'center', vertical_align: 'center' }
+const LAYOUT_DEFAULTS: Record<string, string> = { position: 'center', image_fill: 'split', content_width: 'standard', text_align: 'center', vertical_align: 'center' }
 const LAYOUT_VALUES: Record<string, string[]> = {
   position: ['left', 'center', 'right', 'image-left', 'image-right'], image_fill: ['split', 'full'],
-  content_width: ['narrow', 'normal', 'wide', 'container', 'custom'], text_align: ['left', 'center', 'right'], vertical_align: ['top', 'center', 'bottom']
+  content_width: ['full', 'wide', 'standard', 'narrow', 'container', 'custom'], text_align: ['left', 'center', 'right'], vertical_align: ['top', 'center', 'bottom']
 }
 function slideLayout(item: HeroSliderSlide | undefined) {
   const out: Record<string, string> = {
     position: layoutGroup.value.position || 'center',
     image_fill: layoutGroup.value.image_fill || 'split',
-    content_width: layoutGroup.value.content_width || 'normal',
+    content_width: layoutGroup.value.content_width || 'standard',
     text_align: layoutGroup.value.text_align || 'center',
     vertical_align: layoutGroup.value.vertical_align || 'center'
   }
@@ -123,6 +123,7 @@ function slideLayout(item: HeroSliderSlide | undefined) {
     if (v && v !== 'inherit') out[key] = v
     // Unknown values (a stray 'inherit' at widget level) → defaults, so the
     // classes always match a CSS rule.
+    if (key === 'content_width' && out[key] === 'normal') out[key] = 'standard' // legacy value
     if (!LAYOUT_VALUES[key].includes(out[key])) out[key] = LAYOUT_DEFAULTS[key]
   }
   return out
@@ -475,9 +476,11 @@ const showDots = computed(() => hasMany.value && navigationGroup.value.dots !== 
         </div>
         <div class="hs-overlay" :style="overlayStyle" />
 
+        <!-- The outgoing slide keeps its layers (frozen, see CSS) so the
+             text fades/slides out together with its background. -->
         <div
-          v-if="i === activeIndex"
-          :key="`content-${animKey}`"
+          v-if="i === activeIndex || i === previousIndex"
+          :key="`content-${i === activeIndex ? animKey : 'leaving'}`"
           class="hs-content"
         >
           <span

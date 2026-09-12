@@ -2715,10 +2715,13 @@
   max-width: 100%;
 }
 
-/* Width presets set a cap; image layouts additionally keep to their half. */
-.hs-slide.hs--width-narrow { --hs-content-max: 560px; }
-.hs-slide.hs--width-normal { --hs-content-max: 760px; }
-.hs-slide.hs--width-wide { --hs-content-max: 1040px; }
+/* Width presets = the section content-width presets (+48px padding each
+   side so the text edges line up with section content); image layouts
+   additionally keep to their half. */
+.hs-slide.hs--width-full { --hs-content-max: 100%; }
+.hs-slide.hs--width-wide { --hs-content-max: calc(1400px + 96px); }
+.hs-slide.hs--width-standard { --hs-content-max: calc(1200px + 96px); }
+.hs-slide.hs--width-narrow { --hs-content-max: calc(960px + 96px); }
 /* container = the same boundaries as sections (project default section width); custom = px */
 .hs-slide.hs--width-container { --hs-content-max: calc(var(--lcms-container-width, 1200px) + 96px); }
 .hs-slide.hs--width-custom { --hs-content-max: calc(var(--hs-custom-width, 1200px) + 96px); }
@@ -2820,7 +2823,8 @@
 }
 
 /* replay_on_slide off: after the first change, layers arrive with the slide. */
-.hs--no-replay .hs-slide .hs-anim { animation: none !important; opacity: 1; transform: none; filter: none; }
+.hs--no-replay .hs-slide .hs-anim,
+.hs-slide--leaving .hs-anim { animation: none !important; opacity: 1; transform: none; filter: none; }
 
 .hs-anim-fade { animation-name: hs-fade; }
 .hs-anim-fade-up { animation-name: hs-fade-up; }
