@@ -267,9 +267,9 @@ export interface HeroSliderWidgetData extends BaseWidgetData {
     text_align?: 'left' | 'center' | 'right'
     vertical_align?: 'top' | 'center' | 'bottom'
   }
-  label?: { color?: string; background?: string; style?: 'pill' | 'outline' | 'text'; 'color:hover'?: string; 'background:hover'?: string }
-  heading?: { color?: string; tag?: string; size?: 'md' | 'lg' | 'xl' | 'xxl'; 'color:hover'?: string }
-  subheading?: { color?: string; size?: 'sm' | 'md' | 'lg'; 'color:hover'?: string }
+  label?: { color?: string; background?: string; style?: 'pill' | 'outline' | 'text'; font_family?: string; 'color:hover'?: string; 'background:hover'?: string }
+  heading?: { color?: string; tag?: string; size?: 'md' | 'lg' | 'xl' | 'xxl'; font_family?: string; 'color:hover'?: string }
+  subheading?: { color?: string; size?: 'sm' | 'md' | 'lg'; font_family?: string; 'color:hover'?: string }
   buttons?: { primary_style?: string; secondary_style?: string; size?: 'sm' | 'md' | 'lg'; border_radius?: string; gap?: number }
   overlay?: { color?: string; opacity?: number; gradient?: 'none' | 'bottom' | 'top' | 'left' | 'right'; 'color:hover'?: string }
   animation?: {
@@ -523,6 +523,7 @@ export interface MegaMenuWidgetData extends BaseWidgetData {
     text?: MultilingualValue | string
     font_size?: number
     font_weight?: string
+    font_family?: string
     color?: string | null
     'color:scrolled'?: string | null
   }
@@ -544,6 +545,7 @@ export interface MegaMenuWidgetData extends BaseWidgetData {
     'background:hover'?: string | null
     font_size?: number
     font_weight?: string
+    font_family?: string
     uppercase?: boolean
     letter_spacing?: number
     hover_animation?: 'none' | 'underline' | 'pill' | 'lift'
@@ -556,6 +558,7 @@ export interface MegaMenuWidgetData extends BaseWidgetData {
     background?: string
     color?: string
     heading_color?: string
+    font_family?: string
     link_color?: string
     'link_color:hover'?: string
     description_color?: string

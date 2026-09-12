@@ -266,6 +266,9 @@ const HEIGHTS: Record<string, string> = { sm: '320px', md: '440px', lg: '560px',
 
 const rootStyle = computed(() => ({
   '--hs-height': HEIGHTS[layoutGroup.value.height] || HEIGHTS.lg,
+  '--hs-label-font': labelGroup.value.font_family ? `'${labelGroup.value.font_family}', sans-serif` : 'var(--lcms-font-body)',
+  '--hs-title-font': headingGroup.value.font_family ? `'${headingGroup.value.font_family}', sans-serif` : 'var(--lcms-font-heading)',
+  '--hs-subtitle-font': subheadingGroup.value.font_family ? `'${subheadingGroup.value.font_family}', sans-serif` : 'var(--lcms-font-body)',
   '--hs-label-color': resolveColor(labelGroup.value.color, '#ffffff'),
   '--hs-label-color-hover': resolveColor(labelGroup.value['color:hover'], resolveColor(labelGroup.value.color, '#ffffff')),
   '--hs-label-bg': resolveColor(labelGroup.value.background, 'var(--lcms-color-primary)'),

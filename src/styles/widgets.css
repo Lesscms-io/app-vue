@@ -2747,6 +2747,7 @@
 
 /* ── Layers ── */
 .hs-label {
+  font-family: var(--hs-label-font, inherit);
   display: inline-block;
   font-size: 12px;
   font-weight: 600;
@@ -2765,6 +2766,7 @@
 .lcms-hero-slider:hover .hs-label--pill { background: var(--hs-label-bg-hover, var(--hs-label-bg)); }
 
 .hs-title {
+  font-family: var(--hs-title-font, inherit);
   margin: 0;
   font-weight: 700;
   line-height: 1.1;
@@ -2780,6 +2782,7 @@
 .hs-title--xxl { font-size: 72px; }
 
 .hs-subtitle {
+  font-family: var(--hs-subtitle-font, inherit);
   margin: 0;
   line-height: 1.5;
   color: var(--hs-subtitle-color);
@@ -3269,6 +3272,7 @@ img.lcms-rich-img {
 .lcms-mega-menu.mm--has-scrolled-logo.is-scrolled .mm-logo__img--default { display: none; }
 .lcms-mega-menu.mm--has-scrolled-logo.is-scrolled .mm-logo__img--scrolled { display: block; }
 .lcms-mega-menu .mm-logo__text {
+  font-family: var(--mm-logo-font, inherit);
   font-size: var(--mm-logo-size, 20px);
   font-weight: var(--mm-logo-weight, 700);
   color: var(--mm-logo-color, #111827);
@@ -3303,6 +3307,7 @@ img.lcms-rich-img {
   border-radius: 999px;
   background: var(--mm-link-bg, transparent);
   color: var(--mm-link-color, #111827);
+  font-family: var(--mm-link-font, inherit);
   font-size: var(--mm-link-size, 15px);
   font-weight: var(--mm-link-weight, 500);
   letter-spacing: var(--mm-link-spacing, 0);
@@ -3378,6 +3383,7 @@ img.lcms-rich-img {
   padding: var(--mm-panel-pad, 32px);
   background: var(--mm-panel-bg, #fff);
   color: var(--mm-panel-color, #111827);
+  font-family: var(--mm-panel-font, inherit);
   border-radius: var(--mm-panel-radius, 12px);
   box-shadow: var(--mm-panel-shadow);
   position: relative;
