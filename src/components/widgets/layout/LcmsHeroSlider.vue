@@ -58,6 +58,7 @@ const buttonsGroup = computed(() => config.value.buttons || {})
 const overlayGroup = computed(() => config.value.overlay || {})
 const animationGroup = computed(() => config.value.animation || {})
 const navigationGroup = computed(() => config.value.navigation || {})
+const mobileGroup = computed<Record<string, any>>(() => config.value.mobile || {})
 
 // ── Animation tables (mirror of fe/heroSliderShared.js) ──────────────
 const LAYERS = ['label', 'title', 'subtitle', 'buttons'] as const
@@ -273,6 +274,26 @@ onBeforeUnmount(() => {
 // ── Look ─────────────────────────────────────────────────────────────
 const HEIGHTS: Record<string, string> = { sm: '320px', md: '440px', lg: '560px', full: '100vh' }
 
+// Per-layer spacing: a layer's `margin_top` (px) wins over `layout.gap`.
+const layerGaps = computed(() => {
+  const out: Record<string, string> = {}
+  const groups: Array<[string, Record<string, any>]> = [['label', labelGroup.value], ['title', headingGroup.value], ['subtitle', subheadingGroup.value], ['buttons', buttonsGroup.value]]
+  for (const [key, group] of groups) {
+    const v = group.margin_top
+    if (v !== null && v !== undefined && v !== '') out[`--hs-${key}-mt`] = `${Number(v) || 0}px`
+  }
+  return out
+})
+// Mobile overrides (`mobile` group) → classes picked up by the 768px media query.
+const mobileClasses = computed(() => {
+  const m = mobileGroup.value
+  return [
+    m.height && m.height !== 'auto' ? `hs--m-height-${m.height}` : '',
+    m.title_size && m.title_size !== 'auto' ? `hs--m-title-${m.title_size}` : '',
+    m.text_align && m.text_align !== 'auto' ? `hs--m-align-${m.text_align}` : '',
+    { 'hs--m-hide-label': m.hide_label === true, 'hs--m-hide-subtitle': m.hide_subtitle === true, 'hs--m-hide-arrows': m.hide_arrows === true, 'hs--m-hide-dots': m.hide_dots === true }
+  ]
+})
 const rootStyle = computed(() => ({
   '--hs-height': HEIGHTS[layoutGroup.value.height] || HEIGHTS.lg,
   '--hs-label-font': labelGroup.value.font_family ? `'${labelGroup.value.font_family}', sans-serif` : 'var(--lcms-font-body)',
@@ -288,6 +309,9 @@ const rootStyle = computed(() => ({
   '--hs-subtitle-color-hover': resolveColor(subheadingGroup.value['color:hover'], resolveColor(subheadingGroup.value.color, 'rgba(255,255,255,0.85)')),
   '--hs-custom-width': `${Number(layoutGroup.value.custom_width) || 1200}px`,
   '--hs-buttons-gap': `${buttonsGroup.value.gap ?? 12}px`,
+  '--hs-gap': `${layoutGroup.value.gap ?? 14}px`,
+  ...layerGaps.value,
+  '--hs-m-pad': `${mobileGroup.value.padding ?? 24}px`,
   '--hs-anim-duration': `${animationGroup.value.duration ?? 700}ms`,
   '--hs-anim-stagger': `${animationGroup.value.stagger ?? 140}ms`,
   '--hs-anim-easing': animationGroup.value.easing || 'ease-out',
@@ -299,7 +323,8 @@ const rootStyle = computed(() => ({
 const rootClasses = computed(() => [
   `hs--bg-${animationGroup.value.background_effect || 'none'}`,
   `hs--transition-${transition.value}`,
-  { 'hs--mounted': mounted.value, 'hs--no-replay': noReplay.value }
+  { 'hs--mounted': mounted.value, 'hs--no-replay': noReplay.value },
+  ...mobileClasses.value
 ])
 
 const overlayStyle = computed(() => {
