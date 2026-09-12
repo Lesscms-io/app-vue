@@ -163,7 +163,7 @@ const goTo = (index: number, dir: 1 | -1 = 1) => {
   direction.value = dir
   previousIndex.value = activeIndex.value
   activeIndex.value = next
-  if (animationGroup.value.replay_on_slide === true) animKey.value++
+  if (animationGroup.value.replay_on_slide !== false) animKey.value++
   else noReplay.value = true
   restartAutoplay()
   // The outgoing slide stays mounted for the transition only.
