@@ -2706,6 +2706,7 @@
 /* ── Content box: position + alignment ── */
 .hs-content {
   position: relative;
+  box-sizing: border-box;
   z-index: 2;
   display: flex;
   flex-direction: column;
@@ -2715,9 +2716,11 @@
   max-width: 100%;
 }
 
-/* Width presets = the section content-width presets (+48px padding each
-   side so the text edges line up with section content); image layouts
-   additionally keep to their half. */
+/* Content width works like a section: a centred container of the preset
+   width (+48px padding each side so text edges line up with section
+   content). `--hs-inset` is the gutter left of that container; the text
+   block is placed inside it, and in image layouts it takes the half of the
+   container not covered by the media. */
 .hs-slide.hs--width-full { --hs-content-max: 100%; }
 .hs-slide.hs--width-wide { --hs-content-max: calc(1400px + 96px); }
 .hs-slide.hs--width-standard { --hs-content-max: calc(1200px + 96px); }
@@ -2725,7 +2728,11 @@
 /* container = the same boundaries as sections (project default section width); custom = px */
 .hs-slide.hs--width-container { --hs-content-max: calc(var(--lcms-container-width, 1200px) + 96px); }
 .hs-slide.hs--width-custom { --hs-content-max: calc(var(--hs-custom-width, 1200px) + 96px); }
-.hs-slide .hs-content { max-width: var(--hs-content-max, 100%); }
+.hs-slide { --hs-inset: max(0px, calc((100% - var(--hs-content-max, 100%)) / 2)); }
+.hs-slide .hs-content { max-width: var(--hs-content-max, 100%); margin: 0 var(--hs-inset); }
+/* left/right: the block takes the near ~60% of the container */
+.hs-slide.hs--pos-left .hs-content,
+.hs-slide.hs--pos-right .hs-content { max-width: calc(var(--hs-content-max, 100%) * 0.62); }
 
 .hs-slide { background: var(--hs-bg-color, #1f2937); }
 .hs-slide.hs--pos-center { justify-content: center; }
@@ -2733,8 +2740,8 @@
 .hs-slide.hs--pos-right { justify-content: flex-end; }
 /* Image layouts: the media is a half-width panel, the other half is the
    slide colour carrying the content. */
-.hs-slide.hs--pos-image-left .hs-content,
-.hs-slide.hs--pos-image-right .hs-content { max-width: min(50%, var(--hs-content-max, 100%)); }
+.hs-slide.hs--pos-image-left .hs-content { max-width: calc(50% - var(--hs-inset)); margin-left: 0; }
+.hs-slide.hs--pos-image-right .hs-content { max-width: calc(50% - var(--hs-inset)); margin-right: 0; }
 .hs-slide.hs--pos-image-left { justify-content: flex-end; }
 .hs-slide.hs--pos-image-right { justify-content: flex-start; }
 /* image_fill: `split` = photo on one half, `full` = photo across the slide. */
@@ -2893,8 +2900,11 @@
 
 @media (max-width: 768px) {
   .hs-content { padding: 40px 20px 56px; }
+  .hs-slide .hs-content,
+  .hs-slide.hs--pos-left .hs-content,
+  .hs-slide.hs--pos-right .hs-content,
   .hs-slide.hs--pos-image-left .hs-content,
-  .hs-slide.hs--pos-image-right .hs-content { max-width: var(--hs-content-max, 100%); }
+  .hs-slide.hs--pos-image-right .hs-content { max-width: 100%; margin: 0; }
   .hs-slide.hs--pos-image-left .hs-bg,
   .hs-slide.hs--pos-image-right .hs-bg,
   .hs-slide.hs--pos-image-left .hs-overlay,
