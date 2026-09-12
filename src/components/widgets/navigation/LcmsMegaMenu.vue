@@ -142,7 +142,8 @@ function panelTypeOf(node: MenuItem): PanelType {
   const item = itemOf(node)
   const children = nodeChildren(node)
   const featured = item.featured?.show === true
-  const type = item.panel || 'auto'
+  // The item's own choice wins; otherwise the widget-wide default (config.panel_default).
+  const type = (item.panel && item.panel !== 'auto') ? item.panel : (configGroup.value.panel_default || 'auto')
   if (type === 'none') return 'none'
   if (type === 'auto') {
     if (!children.length && !featured) return 'none'
@@ -376,6 +377,7 @@ const cssVars = computed(() => {
     '--mm-link-gap': `${linkGroup.value.gap ?? 4}px`,
     '--mm-link-px': `${linkGroup.value.padding_x ?? 14}px`,
     '--mm-link-py': `${linkGroup.value.padding_y ?? 10}px`,
+    '--mm-link-radius': ({ none: '0', sm: '6px', md: '10px', pill: '999px' } as Record<string, string>)[linkGroup.value.border_radius] || '999px',
     '--mm-panel-bg': resolveColor(panelGroup.value.background, '#ffffff'),
     '--mm-panel-color': resolveColor(panelGroup.value.color, 'var(--lcms-color-text, #111827)'),
     '--mm-heading': resolveColor(panelGroup.value.heading_color, 'var(--lcms-color-dark, #111827)'),
@@ -385,6 +387,7 @@ const cssVars = computed(() => {
     '--mm-icon': resolveColor(panelGroup.value.icon_color, 'var(--lcms-color-primary, #556ee6)'),
     '--mm-panel-radius': RADIUS[panelGroup.value.border_radius] || '12px',
     '--mm-panel-shadow': SHADOW[panelGroup.value.shadow] || SHADOW.lg,
+    '--mm-panel-border': panelGroup.value.border === true ? `1px solid ${resolveColor(panelGroup.value.border_color, '#e5e7eb')}` : '0',
     '--mm-panel-pad': `${panelGroup.value.padding ?? 32}px`,
     '--mm-cols-gap': `${panelGroup.value.columns_gap ?? 32}px`,
     '--mm-plink-px': `${panelGroup.value.link_padding_x ?? 10}px`,

@@ -3330,7 +3330,7 @@ img.lcms-rich-img {
   align-items: center;
   gap: 8px;
   padding: var(--mm-link-py, 10px) var(--mm-link-px, 14px);
-  border-radius: 999px;
+  border-radius: var(--mm-link-radius, 999px);
   background: var(--mm-link-bg, transparent);
   color: var(--mm-link-color, #111827);
   font-family: var(--mm-link-font, inherit);
@@ -3411,6 +3411,7 @@ img.lcms-rich-img {
   color: var(--mm-panel-color, #111827);
   font-family: var(--mm-panel-font, inherit);
   border-radius: var(--mm-panel-radius, 12px);
+  border: var(--mm-panel-border, 0);
   box-shadow: var(--mm-panel-shadow);
   position: relative;
 }
