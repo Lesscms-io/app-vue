@@ -291,10 +291,23 @@ const stickyEl = ref<HTMLElement | null>(null)
 const sticky = computed(() => barGroup.value.sticky === true)
 const stuck = ref(false)
 const stuckHeight = ref(0)
+// 'scroll-up': the pinned bar slides away while scrolling down and comes
+// back on the first scroll up (never while a panel or the drawer is open).
+const stickyMode = computed(() => barGroup.value.sticky_mode || 'always')
+const hidden = ref(false)
+let lastY = 0
 const onScroll = () => {
-  if (!sticky.value || !root.value) { stuck.value = false; return }
+  if (!sticky.value || !root.value) { stuck.value = false; hidden.value = false; return }
   if (!stuck.value && stickyEl.value) stuckHeight.value = stickyEl.value.offsetHeight
   stuck.value = root.value.getBoundingClientRect().top < 0
+  const y = window.scrollY
+  if (stickyMode.value === 'scroll-up' && stuck.value && !openId.value && !drawerOpen.value) {
+    if (y > lastY + 6) hidden.value = true
+    else if (y < lastY - 6) hidden.value = false
+  } else {
+    hidden.value = false
+  }
+  lastY = y
 }
 const spacerStyle = computed(() => (sticky.value && stuck.value ? { height: `${stuckHeight.value}px` } : {}))
 const isScrolled = computed(() => sectionIsScrolled.value || stuck.value)
@@ -410,6 +423,7 @@ const rootClasses = computed(() => [
     'mm--divider': barGroup.value.divider === true,
     'mm--sticky': sticky.value,
     'mm--stuck': stuck.value,
+    'mm--hidden': hidden.value,
     'mm--uppercase': linkGroup.value.uppercase === true,
     'mm--arrow': panelGroup.value.arrow !== false,
     'mm--mounted': mounted.value,

@@ -6,7 +6,7 @@
  * Supports custom entry templates from the collection configuration.
  */
 
-import { computed, watch, ref, inject, onMounted, unref, type Ref } from 'vue'
+import { computed, watch, ref, inject, onMounted, onBeforeUnmount, unref, type Ref } from 'vue'
 import { useCollection } from '@/composables/useCollection'
 import { useLanguage } from '@/composables/useLanguage'
 import { useApi } from '@/composables/useApi'
@@ -298,21 +298,106 @@ watch([resolvedFilterValue, collectionCode], () => {
   }
 }, { immediate: true })
 
-const entries = computed(() => {
-  if (needsClientFetch.value) return urlFilterEntries.value
-  if (hasEnrichedData.value) return config.value.entries || []
-  return fetchedEntries.value
-})
-const loading = computed(() => {
+const baseLoading = computed(() => {
   if (needsClientFetch.value) return urlFilterLoading.value
   if (hasEnrichedData.value) return false
   return fetchLoading.value
 })
-const error = computed(() => {
+const baseError = computed(() => {
   if (needsClientFetch.value) return urlFilterError.value
   if (hasEnrichedData.value) return null
   return fetchError.value
 })
+
+// ── AJAX filters / search / load more (premium) ──────────────────────
+// SSR shows the enriched first page; once a visitor touches a filter,
+// the search box or "load more", the list is fetched client-side with
+// the same collection endpoint (?field=value&q=…&page=…).
+const filtersEnabled = computed(() => config.value.filters_enabled === true)
+const filterDefs = computed(() => (Array.isArray(config.value.filters) ? config.value.filters : []))
+const filtersStyle = computed(() => config.value.filters_style || 'chips')
+const searchEnabled = computed(() => filtersEnabled.value && config.value.search_enabled === true)
+const showResultsCount = computed(() => filtersEnabled.value && config.value.show_results_count !== false)
+const filtersAllText = computed(() => extractValue(config.value.filters_all_text) || 'All')
+const searchPlaceholder = computed(() => extractValue(config.value.search_placeholder) || 'Search…')
+const paginationMode = computed(() => config.value.pagination_mode || 'none')
+const loadMoreText = computed(() => extractValue(config.value.load_more_text) || 'Load more')
+const loadMoreClass = computed(() => `lcms-button__link lcms-button__link--${config.value.load_more_style || 'outline-primary'}`)
+const labelOf = (v: any) => (v && typeof v === 'object' ? (extractValue(v) || '') : String(v ?? ''))
+
+const activeFilters = ref<Record<string, string>>({})
+const searchQuery = ref('')
+const ajaxEntries = ref<CollectionEntry[]>([])
+const ajaxPage = ref(1)
+const ajaxTotal = ref<number>(config.value.entries_meta?.total ?? 0)
+const ajaxTotalPages = ref<number>(config.value.entries_meta?.totalPages ?? 1)
+const ajaxLoading = ref(false)
+const ajaxError = ref<Error | null>(null)
+const ajaxActive = ref(false) // once true, ajaxEntries replace the SSR list
+let searchTimer: ReturnType<typeof setTimeout> | null = null
+
+async function fetchAjax(page = 1, append = false) {
+  if (!collectionCode.value) return
+  ajaxLoading.value = true
+  ajaxError.value = null
+  try {
+    const params: Record<string, any> = { page, pageSize: postsCount.value, lang: currentLanguage.value }
+    if (orderBy.value) { params.orderBy = orderBy.value; params.orderDir = orderDir.value }
+    if (excludeEntryId.value) params.exclude_entry_id = excludeEntryId.value
+    if (filterField.value && resolvedFilterValue.value) params[filterField.value] = resolvedFilterValue.value
+    else if (filterField.value && filterSource.value === 'static' && filterValue.value) params[filterField.value] = filterValue.value
+    for (const [k, v] of Object.entries(activeFilters.value)) if (v) params[k] = v
+    if (searchQuery.value.trim()) params.q = searchQuery.value.trim()
+    const response = await api.getCollection(collectionCode.value, params)
+    const list = response.data || []
+    ajaxEntries.value = append ? [...ajaxEntries.value, ...list] : list
+    ajaxPage.value = page
+    ajaxTotal.value = response.meta?.total ?? ajaxEntries.value.length
+    ajaxTotalPages.value = response.meta?.totalPages ?? 1
+    ajaxActive.value = true
+  } catch (e) {
+    ajaxError.value = e as Error
+  } finally {
+    ajaxLoading.value = false
+  }
+}
+const setFilter = (code: string, value: string) => {
+  activeFilters.value = { ...activeFilters.value, [code]: activeFilters.value[code] === value ? '' : value }
+  fetchAjax(1)
+}
+const onSearchInput = (e: Event) => {
+  searchQuery.value = (e.target as HTMLInputElement).value
+  if (searchTimer) clearTimeout(searchTimer)
+  searchTimer = setTimeout(() => fetchAjax(1), 300)
+}
+const hasMore = computed(() => (ajaxActive.value ? ajaxPage.value < ajaxTotalPages.value : (config.value.entries_meta?.totalPages ?? 1) > 1))
+const loadMore = () => { if (!ajaxLoading.value && hasMore.value) fetchAjax((ajaxActive.value ? ajaxPage.value : 1) + 1, ajaxActive.value) }
+// First "load more" after SSR: keep the SSR page, append page 2.
+const loadMoreFromSsr = () => {
+  if (ajaxActive.value) return loadMore()
+  ajaxEntries.value = baseEntries.value.slice()
+  ajaxPage.value = 1
+  ajaxActive.value = true
+  fetchAjax(2, true)
+}
+const sentinel = ref<HTMLElement | null>(null)
+let io: IntersectionObserver | null = null
+onMounted(() => {
+  if (paginationMode.value !== 'infinite' || typeof IntersectionObserver === 'undefined') return
+  io = new IntersectionObserver((entries) => { if (entries.some((e) => e.isIntersecting) && hasMore.value && !ajaxLoading.value) loadMoreFromSsr() }, { rootMargin: '300px' })
+  if (sentinel.value) io.observe(sentinel.value)
+})
+onBeforeUnmount(() => { io?.disconnect(); if (searchTimer) clearTimeout(searchTimer) })
+
+const baseEntries = computed(() => {
+  if (needsClientFetch.value) return urlFilterEntries.value
+  if (hasEnrichedData.value) return config.value.entries || []
+  return fetchedEntries.value
+})
+const entries = computed(() => (ajaxActive.value ? ajaxEntries.value : baseEntries.value))
+const loading = computed(() => (ajaxActive.value ? false : baseLoading.value))
+const error = computed(() => (ajaxActive.value ? ajaxError.value : baseError.value))
+const resultsTotal = computed(() => (ajaxActive.value ? ajaxTotal.value : (config.value.entries_meta?.total ?? baseEntries.value.length)))
 
 // Helper functions
 function getFieldValue(entry: CollectionEntry, fieldCode: string): any {
@@ -465,6 +550,67 @@ const responsiveCss = computed(() => {
     class="lcms-collection-grid"
     :class="`lcms-collection-grid--${layout}`"
   >
+    <div
+      v-if="filtersEnabled && (filterDefs.length || searchEnabled)"
+      class="lcms-collection-grid__filters"
+      :class="`lcms-collection-grid__filters--${filtersStyle}`"
+    >
+      <input
+        v-if="searchEnabled"
+        type="search"
+        class="lcms-collection-grid__search"
+        :placeholder="searchPlaceholder"
+        :value="searchQuery"
+        @input="onSearchInput"
+      >
+      <div
+        v-for="f in filterDefs"
+        :key="f.code"
+        class="lcms-collection-grid__filter"
+      >
+        <span class="lcms-collection-grid__filter-label">{{ labelOf(f.name) }}</span>
+        <select
+          v-if="filtersStyle === 'select'"
+          class="lcms-collection-grid__filter-select"
+          :value="activeFilters[f.code] || ''"
+          @change="setFilter(f.code, ($event.target as HTMLSelectElement).value)"
+        >
+          <option value="">{{ filtersAllText }}</option>
+          <option
+            v-for="o in f.options"
+            :key="o.value"
+            :value="o.value"
+          >{{ labelOf(o.label) }}</option>
+        </select>
+        <div
+          v-else
+          class="lcms-collection-grid__chips"
+          role="group"
+        >
+          <button
+            type="button"
+            class="lcms-collection-grid__chip"
+            :class="{ 'is-active': !activeFilters[f.code] }"
+            @click="setFilter(f.code, '')"
+          >{{ filtersAllText }}</button>
+          <button
+            v-for="o in f.options"
+            :key="o.value"
+            type="button"
+            class="lcms-collection-grid__chip"
+            :class="{ 'is-active': activeFilters[f.code] === o.value }"
+            :aria-pressed="activeFilters[f.code] === o.value ? 'true' : 'false'"
+            @click="setFilter(f.code, o.value)"
+          >{{ labelOf(o.label) }}</button>
+        </div>
+      </div>
+      <span
+        v-if="showResultsCount"
+        class="lcms-collection-grid__count"
+        aria-live="polite"
+      >{{ resultsTotal }}</span>
+    </div>
+
     <div
       v-if="loading"
       class="lcms-collection-grid__loading"
@@ -666,6 +812,36 @@ const responsiveCss = computed(() => {
           </template>
         </div>
       </article>
+    </div>
+
+    <!-- Load more / infinite scroll -->
+    <div
+      v-if="paginationMode !== 'none' && entries.length > 0"
+      class="lcms-collection-grid__more"
+    >
+      <button
+        v-if="paginationMode === 'load_more' && hasMore"
+        type="button"
+        :class="loadMoreClass"
+        :disabled="ajaxLoading"
+        @click="loadMoreFromSsr"
+      >
+        <i
+          v-if="ajaxLoading"
+          class="fa-solid fa-spinner fa-spin"
+        />
+        {{ loadMoreText }}
+      </button>
+      <div
+        v-if="paginationMode === 'infinite'"
+        ref="sentinel"
+        class="lcms-collection-grid__sentinel"
+      >
+        <i
+          v-if="ajaxLoading"
+          class="fa-solid fa-spinner fa-spin"
+        />
+      </div>
     </div>
   </div>
 </template>

@@ -257,6 +257,93 @@ export interface HeroSliderSlide {
   animation?: { preset?: string; label?: string; title?: string; subtitle?: string; buttons?: string }
 }
 
+export interface AnimatedHeadlineWidgetData extends BaseWidgetData {
+  text?: { before?: MultilingualValue; words?: MultilingualValue; after?: MultilingualValue }
+  animation?: { type?: 'rotate' | 'typewriter' | 'slide' | 'flip' | 'clip' | 'none'; interval?: number; speed?: number; loop?: boolean; cursor?: boolean }
+  highlight?: { style?: 'none' | 'underline' | 'double' | 'circle' | 'marker' | 'strike' | 'zigzag'; color?: string; weight?: number; animate?: boolean }
+  heading?: { tag?: string; size?: number; weight?: string; align?: 'left' | 'center' | 'right'; color?: string; word_color?: string; font_family?: string; line_height?: number }
+}
+
+export interface FlipBoxSide {
+  icon?: string
+  image?: string
+  title?: MultilingualValue
+  text?: MultilingualValue
+  background?: string
+  background_image?: string
+  color?: string
+  align?: 'left' | 'center' | 'right'
+}
+
+export interface FlipBoxWidgetData extends BaseWidgetData {
+  front?: FlipBoxSide
+  back?: FlipBoxSide
+  button?: {
+    show?: boolean; text?: MultilingualValue; style?: string; size?: string; border_radius?: string
+    url?: string; link_type?: string; page_id?: string | null; collection_code?: string | null; entry_id?: string | null; route_uuid?: string | null; target_blank?: boolean
+  }
+  config?: {
+    effect?: 'flip-h' | 'flip-v' | 'slide-up' | 'slide-left' | 'zoom' | 'fade'; trigger?: 'hover' | 'click'
+    height?: number; duration?: number; radius?: number; padding?: number; icon_size?: number; title_size?: number; overlay?: number; font_family?: string
+  }
+}
+
+export interface BeforeAfterWidgetData extends BaseWidgetData {
+  before?: { image?: string; label?: MultilingualValue; alt?: MultilingualValue }
+  after?: { image?: string; label?: MultilingualValue; alt?: MultilingualValue }
+  config?: { orientation?: 'horizontal' | 'vertical'; start?: number; hover_move?: boolean; ratio?: string; radius?: number; labels?: boolean }
+  handle?: { style?: 'circle' | 'bar' | 'minimal'; color?: string; 'color:hover'?: string | null; width?: number; size?: number }
+  label?: { background?: string; color?: string; position?: 'top' | 'center' | 'bottom' }
+}
+
+export interface HotspotItem {
+  uuid?: string | null
+  x?: number
+  y?: number
+  title?: MultilingualValue
+  text?: MultilingualValue
+  image?: string
+  icon?: string
+  url?: string
+  link_type?: string
+  page_id?: string | null
+  collection_code?: string | null
+  entry_id?: string | null
+  route_uuid?: string | null
+  target_blank?: boolean
+}
+
+export interface HotspotsWidgetData extends BaseWidgetData {
+  image?: { src?: string; alt?: MultilingualValue; radius?: number }
+  items?: HotspotItem[]
+  marker?: { style?: 'dot' | 'number' | 'icon'; size?: number; color?: string; background?: string; 'background:hover'?: string | null; pulse?: boolean }
+  tooltip?: { trigger?: 'hover' | 'click' | 'always'; position?: 'auto' | 'top' | 'bottom' | 'left' | 'right'; background?: string; color?: string; width?: number; radius?: number }
+}
+
+export interface VideoLightboxWidgetData extends BaseWidgetData {
+  video?: { source?: 'youtube' | 'vimeo' | 'file'; url?: string; start?: number; embed_url?: string | null }
+  poster?: { image?: string; alt?: MultilingualValue; ratio?: string; overlay?: number; radius?: number }
+  play?: { style?: 'circle' | 'pulse' | 'outline' | 'minimal'; size?: number; color?: string; background?: string; 'background:hover'?: string | null }
+  text?: { title?: MultilingualValue; subtitle?: MultilingualValue; color?: string; position?: 'overlay-bottom' | 'overlay-center' | 'below' | 'none' }
+  lightbox?: { enabled?: boolean; backdrop?: string; width?: number }
+}
+
+export interface LottieWidgetData extends BaseWidgetData {
+  source?: { src?: string; alt?: MultilingualValue }
+  playback?: { trigger?: 'load' | 'viewport' | 'hover' | 'click' | 'scroll'; loop?: boolean; speed?: number; direction?: 1 | -1; renderer?: 'svg' | 'canvas'; hover_pause?: boolean }
+  layout?: { max_width?: number; align?: 'left' | 'center' | 'right'; background?: string | null; radius?: number; padding?: number }
+}
+
+export interface OffCanvasWidgetData extends BaseWidgetData {
+  trigger?: { type?: 'button' | 'icon' | 'text'; text?: MultilingualValue; icon?: string; icon_position?: 'left' | 'right'; style?: string; size?: string; border_radius?: string; align?: 'left' | 'center' | 'right'; color?: string }
+  panel?: {
+    side?: 'right' | 'left' | 'top' | 'bottom'; width?: number; title?: MultilingualValue; html?: MultilingualValue
+    menu_code?: string; menu_position?: 'above' | 'below'; background?: string; color?: string; padding?: number; radius?: number; close?: boolean; link_size?: number
+  }
+  backdrop?: { color?: string; blur?: number; close_on_click?: boolean }
+  animation?: { type?: 'slide' | 'fade' | 'scale'; duration?: number }
+}
+
 export interface HeroSliderWidgetData extends BaseWidgetData {
   items?: HeroSliderSlide[]
   layout?: {
@@ -536,6 +623,7 @@ export interface MegaMenuWidgetData extends BaseWidgetData {
     shadow?: 'none' | 'sm' | 'md'
     divider?: boolean
     sticky?: boolean
+    sticky_mode?: 'always' | 'scroll-up'
   }
   link?: {
     color?: string | null
@@ -626,6 +714,13 @@ export interface SocialIconsWidgetData extends BaseWidgetData {
 // Collection Widgets
 // ============================================
 
+export interface CollectionGridFilter {
+  code: string
+  name: MultilingualValue | string
+  type: string
+  options: Array<{ value: string; label: MultilingualValue | string }>
+}
+
 export interface CollectionGridWidgetData extends BaseWidgetData {
   collection_code: string
   layout?: 'grid' | 'list' | 'cards'
@@ -646,6 +741,19 @@ export interface CollectionGridWidgetData extends BaseWidgetData {
   show_date?: boolean
   show_read_more?: boolean
   read_more_text?: MultilingualValue
+  // AJAX filters / search / load more (premium)
+  filters_enabled?: boolean
+  filter_fields?: string[]
+  filters_style?: 'chips' | 'select' | 'sidebar'
+  filters_all_text?: MultilingualValue
+  search_enabled?: boolean
+  search_placeholder?: MultilingualValue
+  show_results_count?: boolean
+  pagination_mode?: 'none' | 'load_more' | 'infinite'
+  load_more_text?: MultilingualValue
+  load_more_style?: string
+  filters?: CollectionGridFilter[]
+  entries_meta?: { total?: number; page?: number; pageSize?: number; totalPages?: number }
 }
 
 export interface CollectionCarouselWidgetData extends BaseWidgetData {
@@ -699,6 +807,13 @@ export type WidgetData =
   | ImageCarouselWidgetData
   | HeroWidgetData
   | HeroSliderWidgetData
+  | AnimatedHeadlineWidgetData
+  | FlipBoxWidgetData
+  | BeforeAfterWidgetData
+  | HotspotsWidgetData
+  | VideoLightboxWidgetData
+  | LottieWidgetData
+  | OffCanvasWidgetData
   | ToggleWidgetData
   | CountdownWidgetData
   | CounterWidgetData

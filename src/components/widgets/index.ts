@@ -58,6 +58,13 @@ import LcmsGoogleReviews from './interactive/LcmsGoogleReviews.vue'
 // Navigation widgets
 import LcmsMenu from './navigation/LcmsMenu.vue'
 import LcmsMegaMenu from './navigation/LcmsMegaMenu.vue'
+import LcmsOffCanvas from './navigation/LcmsOffCanvas.vue'
+import LcmsLottie from './media/LcmsLottie.vue'
+import LcmsVideoLightbox from './media/LcmsVideoLightbox.vue'
+import LcmsHotspots from './media/LcmsHotspots.vue'
+import LcmsBeforeAfter from './media/LcmsBeforeAfter.vue'
+import LcmsFlipBox from './content/LcmsFlipBox.vue'
+import LcmsAnimatedHeadline from './text/LcmsAnimatedHeadline.vue'
 import LcmsNavBar from './navigation/LcmsNavBar.vue'
 import LcmsSocialIcons from './navigation/LcmsSocialIcons.vue'
 import LcmsBreadcrumbs from './navigation/LcmsBreadcrumbs.vue'
@@ -163,6 +170,13 @@ export const widgetComponents: Record<string, Component> = {
   // Navigation
   menu: LcmsMenu,
   'mega-menu': LcmsMegaMenu,
+  'off-canvas': LcmsOffCanvas,
+  'lottie': LcmsLottie,
+  'video-lightbox': LcmsVideoLightbox,
+  'hotspots': LcmsHotspots,
+  'before-after': LcmsBeforeAfter,
+  'flip-box': LcmsFlipBox,
+  'animated-headline': LcmsAnimatedHeadline,
   'nav-bar': LcmsNavBar,
   'social-icons': LcmsSocialIcons,
   breadcrumbs: LcmsBreadcrumbs,
@@ -283,6 +297,13 @@ export {
   // Navigation
   LcmsMenu,
   LcmsMegaMenu,
+  LcmsOffCanvas,
+  LcmsLottie,
+  LcmsVideoLightbox,
+  LcmsHotspots,
+  LcmsBeforeAfter,
+  LcmsFlipBox,
+  LcmsAnimatedHeadline,
   LcmsNavBar,
   LcmsSocialIcons,
   LcmsBreadcrumbs,

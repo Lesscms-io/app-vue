@@ -104,6 +104,11 @@ const layerClass = (item: HeroSliderSlide | undefined, layer: Layer) => {
 // Slide layout = global layout + the slide's non-'inherit' keys. Height is
 // widget-level only. Applied per slide as classes on .hs-slide.
 const LAYOUT_KEYS = ['position', 'image_fill', 'content_width', 'text_align', 'vertical_align'] as const
+const LAYOUT_DEFAULTS: Record<string, string> = { position: 'center', image_fill: 'split', content_width: 'normal', text_align: 'center', vertical_align: 'center' }
+const LAYOUT_VALUES: Record<string, string[]> = {
+  position: ['left', 'center', 'right', 'image-left', 'image-right'], image_fill: ['split', 'full'],
+  content_width: ['narrow', 'normal', 'wide'], text_align: ['left', 'center', 'right'], vertical_align: ['top', 'center', 'bottom']
+}
 function slideLayout(item: HeroSliderSlide | undefined) {
   const out: Record<string, string> = {
     position: layoutGroup.value.position || 'center',
@@ -116,6 +121,9 @@ function slideLayout(item: HeroSliderSlide | undefined) {
   for (const key of LAYOUT_KEYS) {
     const v = own[key]
     if (v && v !== 'inherit') out[key] = v
+    // Unknown values (a stray 'inherit' at widget level) → defaults, so the
+    // classes always match a CSS rule.
+    if (!LAYOUT_VALUES[key].includes(out[key])) out[key] = LAYOUT_DEFAULTS[key]
   }
   return out
 }
@@ -506,7 +514,7 @@ const showDots = computed(() => hasMany.value && navigationGroup.value.dots !== 
             <a
               v-for="b in visibleButtons(item)"
               :key="b.kind"
-              class="lcms-button__link hs-btn"
+              class="lcms-button__link hs-cta"
               :class="buttonClasses(b.kind, b.btn)"
               :style="buttonInlineStyle(b.kind, b.btn)"
               :href="resolveButtonUrl(b.btn)"
@@ -515,11 +523,11 @@ const showDots = computed(() => hasMany.value && navigationGroup.value.dots !== 
             ><i
               v-if="buttonConfig(b.kind, b.btn).icon && buttonConfig(b.kind, b.btn).icon_position !== 'right'"
               :class="buttonConfig(b.kind, b.btn).icon"
-              class="hs-btn__icon hs-btn__icon--left"
+              class="hs-cta__icon hs-cta__icon--left"
             />{{ b.label }}<i
               v-if="buttonConfig(b.kind, b.btn).icon && buttonConfig(b.kind, b.btn).icon_position === 'right'"
               :class="buttonConfig(b.kind, b.btn).icon"
-              class="hs-btn__icon hs-btn__icon--right"
+              class="hs-cta__icon hs-cta__icon--right"
             /></a>
           </div>
         </div>
