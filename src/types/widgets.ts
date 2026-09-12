@@ -211,6 +211,93 @@ export interface HeroWidgetData extends BaseWidgetData {
   button_size?: string
 }
 
+export interface HeroSliderButton {
+  text?: MultilingualValue
+  url?: string
+  link_type?: 'custom' | 'page' | 'entry' | 'route'
+  page_id?: string | null
+  entry_id?: string | null
+  collection_code?: string | null
+  route_uuid?: string | null
+  target_blank?: boolean
+  show?: boolean
+  // Look overrides — 'inherit' / '' = the widget-level `buttons` group
+  style?: string
+  size?: 'inherit' | 'sm' | 'md' | 'lg'
+  border_radius?: 'inherit' | 'none' | 'sm' | 'md' | 'lg' | 'pill' | 'full'
+  padding?: string
+  icon?: string
+  icon_position?: 'left' | 'right'
+}
+
+export interface HeroSliderSlide {
+  uuid?: string
+  label_show?: boolean
+  label_style?: 'inherit' | 'pill' | 'outline' | 'text'
+  label?: MultilingualValue
+  title?: MultilingualValue
+  subtitle?: MultilingualValue
+  background?: {
+    type?: 'image' | 'video' | 'color'
+    image?: string
+    image_optimized?: string
+    video?: string
+    color?: string
+    focal?: string
+  }
+  button_primary?: HeroSliderButton
+  button_secondary?: HeroSliderButton
+  layout?: {
+    position?: 'inherit' | 'left' | 'center' | 'right' | 'image-left' | 'image-right'
+    image_fill?: 'inherit' | 'split' | 'full'
+    content_width?: 'inherit' | 'narrow' | 'normal' | 'wide'
+    text_align?: 'inherit' | 'left' | 'center' | 'right'
+    vertical_align?: 'inherit' | 'top' | 'center' | 'bottom'
+  }
+  animation?: { preset?: string; label?: string; title?: string; subtitle?: string; buttons?: string }
+}
+
+export interface HeroSliderWidgetData extends BaseWidgetData {
+  items?: HeroSliderSlide[]
+  layout?: {
+    height?: 'sm' | 'md' | 'lg' | 'full'
+    content_width?: 'narrow' | 'normal' | 'wide'
+    position?: 'left' | 'center' | 'right' | 'image-left' | 'image-right'
+    image_fill?: 'split' | 'full'
+    text_align?: 'left' | 'center' | 'right'
+    vertical_align?: 'top' | 'center' | 'bottom'
+  }
+  label?: { color?: string; background?: string; style?: 'pill' | 'outline' | 'text'; 'color:hover'?: string; 'background:hover'?: string }
+  heading?: { color?: string; tag?: string; size?: 'md' | 'lg' | 'xl' | 'xxl'; 'color:hover'?: string }
+  subheading?: { color?: string; size?: 'sm' | 'md' | 'lg'; 'color:hover'?: string }
+  buttons?: { primary_style?: string; secondary_style?: string; size?: 'sm' | 'md' | 'lg'; border_radius?: string; gap?: number }
+  overlay?: { color?: string; opacity?: number; gradient?: 'none' | 'bottom' | 'top' | 'left' | 'right'; 'color:hover'?: string }
+  animation?: {
+    preset?: 'none' | 'fade' | 'stagger-up' | 'stagger-left' | 'zoom' | 'reveal'
+    duration?: number
+    stagger?: number
+    easing?: string
+    replay_on_slide?: boolean
+    background_effect?: 'none' | 'kenburns' | 'parallax'
+    label?: string
+    title?: string
+    subtitle?: string
+    buttons?: string
+  }
+  navigation?: {
+    autoplay?: boolean
+    interval?: number
+    pause_on_hover?: boolean
+    loop?: boolean
+    arrows?: boolean
+    dots?: boolean
+    keyboard?: boolean
+    swipe?: boolean
+    transition?: 'fade' | 'slide' | 'zoom'
+    transition_duration?: number
+  }
+}
+
 export interface ToggleWidgetData extends BaseWidgetData {
   title: MultilingualValue
   content: MultilingualValue // HTML
@@ -380,6 +467,131 @@ export interface PdfViewerWidgetData extends BaseWidgetData {
 }
 
 // ============================================
+// Mega Menu Widget (premium)
+// ============================================
+
+export interface MegaMenuLink {
+  text?: MultilingualValue | string
+  url?: string
+  link_type?: 'custom' | 'page' | 'entry' | 'route' | 'url'
+  page_id?: string | null
+  entry_id?: string | null
+  collection_code?: string | null
+  route_uuid?: string | null
+  target_blank?: boolean
+  show?: boolean
+}
+
+export interface MegaMenuItemConfig {
+  id: string
+  panel?: 'auto' | 'simple' | 'mega' | 'none'
+  columns?: number
+  width?: 'inherit' | 'container' | 'full' | 'auto'
+  show_descriptions?: boolean
+  show_icons?: boolean
+  show_images?: boolean
+  badge?: { show?: boolean; text?: MultilingualValue | string; color?: string }
+  featured?: {
+    show?: boolean
+    position?: 'left' | 'right' | 'top'
+    image?: string
+    title?: MultilingualValue | string
+    text?: MultilingualValue | string
+    button?: MegaMenuLink
+  }
+}
+
+export interface MegaMenuWidgetData extends BaseWidgetData {
+  items?: MegaMenuItemConfig[]
+  config?: {
+    menu_code?: string | null
+    label_field?: string | null
+    description_field?: string | null
+    icon_field?: string | null
+    image_field?: string | null
+    trigger?: 'hover' | 'click'
+    panel_width?: 'container' | 'full' | 'auto'
+    mobile_breakpoint?: 'sm' | 'md' | 'lg' | 'never'
+    mobile_mode?: 'offcanvas-right' | 'offcanvas-left' | 'fullscreen' | 'dropdown'
+  }
+  logo?: {
+    type?: 'image' | 'text' | 'none'
+    light?: string | null
+    dark?: string | null
+    height?: number
+    position?: 'left' | 'center' | 'stacked' | 'right'
+    text?: MultilingualValue | string
+    font_size?: number
+    font_weight?: string
+    color?: string | null
+    'color:scrolled'?: string | null
+  }
+  bar?: {
+    background?: string | null
+    'background:scrolled'?: string | null
+    height?: number
+    width?: 'container' | 'full'
+    align?: 'left' | 'center' | 'right' | 'spread'
+    shadow?: 'none' | 'sm' | 'md'
+    divider?: boolean
+    sticky?: boolean
+  }
+  link?: {
+    color?: string | null
+    'color:hover'?: string | null
+    'color:scrolled'?: string | null
+    background?: string | null
+    'background:hover'?: string | null
+    font_size?: number
+    font_weight?: string
+    uppercase?: boolean
+    letter_spacing?: number
+    hover_animation?: 'none' | 'underline' | 'pill' | 'lift'
+    chevron?: boolean
+    gap?: number
+    padding_x?: number
+    padding_y?: number
+  }
+  panel?: {
+    background?: string
+    color?: string
+    heading_color?: string
+    link_color?: string
+    'link_color:hover'?: string
+    description_color?: string
+    icon_color?: string
+    border_radius?: 'none' | 'sm' | 'md' | 'lg'
+    shadow?: 'none' | 'sm' | 'md' | 'lg'
+    padding?: number
+    columns_gap?: number
+    animation?: 'fade' | 'fade-down' | 'zoom' | 'slide'
+    arrow?: boolean
+    max_columns?: number
+    link_padding_x?: number
+    link_padding_y?: number
+    link_gap?: number
+    link_radius?: 'none' | 'sm' | 'md' | 'lg'
+    link_font_size?: number
+    'link_background:hover'?: string | null
+  }
+  cta?: MegaMenuLink & {
+    position?: 'left' | 'right'
+    style?: string
+    size?: 'sm' | 'md' | 'lg'
+    border_radius?: 'none' | 'sm' | 'md' | 'lg' | 'pill'
+    icon?: string
+    icon_position?: 'left' | 'right'
+  }
+  mobile?: {
+    background?: string
+    color?: string
+    width?: number
+    hamburger_color?: string | null
+    animation?: 'slide' | 'fade'
+  }
+}
+
+// ============================================
 // Navigation Widgets
 // ============================================
 
@@ -483,6 +695,7 @@ export type WidgetData =
   | AudioWidgetData
   | ImageCarouselWidgetData
   | HeroWidgetData
+  | HeroSliderWidgetData
   | ToggleWidgetData
   | CountdownWidgetData
   | CounterWidgetData
@@ -498,6 +711,7 @@ export type WidgetData =
   | TimelineWidgetData
   | PdfViewerWidgetData
   | MenuWidgetData
+  | MegaMenuWidgetData
   | SocialIconsWidgetData
   | CollectionGridWidgetData
   | CollectionCarouselWidgetData

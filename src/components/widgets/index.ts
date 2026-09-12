@@ -39,6 +39,7 @@ import LcmsOpenStreetMap from './media/LcmsOpenStreetMap.vue'
 
 // Layout widgets
 import LcmsHero from './layout/LcmsHero.vue'
+import LcmsHeroSlider from './layout/LcmsHeroSlider.vue'
 import LcmsGrid from './layout/LcmsGrid.vue'
 
 // Interactive widgets
@@ -56,6 +57,7 @@ import LcmsGoogleReviews from './interactive/LcmsGoogleReviews.vue'
 
 // Navigation widgets
 import LcmsMenu from './navigation/LcmsMenu.vue'
+import LcmsMegaMenu from './navigation/LcmsMegaMenu.vue'
 import LcmsNavBar from './navigation/LcmsNavBar.vue'
 import LcmsSocialIcons from './navigation/LcmsSocialIcons.vue'
 import LcmsBreadcrumbs from './navigation/LcmsBreadcrumbs.vue'
@@ -142,6 +144,7 @@ export const widgetComponents: Record<string, Component> = {
 
   // Layout
   hero: LcmsHero,
+  'hero-slider': LcmsHeroSlider,
   grid: LcmsGrid,
 
   // Interactive
@@ -159,6 +162,7 @@ export const widgetComponents: Record<string, Component> = {
 
   // Navigation
   menu: LcmsMenu,
+  'mega-menu': LcmsMegaMenu,
   'nav-bar': LcmsNavBar,
   'social-icons': LcmsSocialIcons,
   breadcrumbs: LcmsBreadcrumbs,
@@ -262,6 +266,7 @@ export {
   LcmsOpenStreetMap,
   // Layout
   LcmsHero,
+  LcmsHeroSlider,
   LcmsGrid,
   // Interactive
   LcmsCountdown,
@@ -277,6 +282,7 @@ export {
   LcmsGoogleReviews,
   // Navigation
   LcmsMenu,
+  LcmsMegaMenu,
   LcmsNavBar,
   LcmsSocialIcons,
   LcmsBreadcrumbs,
