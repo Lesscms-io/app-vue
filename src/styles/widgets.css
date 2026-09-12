@@ -2715,12 +2715,14 @@
   max-width: 100%;
 }
 
-.hs-slide.hs--width-narrow .hs-content { max-width: 560px; }
-.hs-slide.hs--width-normal .hs-content { max-width: 760px; }
-.hs-slide.hs--width-wide .hs-content { max-width: 1040px; }
+/* Width presets set a cap; image layouts additionally keep to their half. */
+.hs-slide.hs--width-narrow { --hs-content-max: 560px; }
+.hs-slide.hs--width-normal { --hs-content-max: 760px; }
+.hs-slide.hs--width-wide { --hs-content-max: 1040px; }
 /* container = the same boundaries as sections (project default section width); custom = px */
-.hs-slide.hs--width-container .hs-content { max-width: calc(var(--lcms-container-width, 1200px) + 96px); }
-.hs-slide.hs--width-custom .hs-content { max-width: calc(var(--hs-custom-width, 1200px) + 96px); }
+.hs-slide.hs--width-container { --hs-content-max: calc(var(--lcms-container-width, 1200px) + 96px); }
+.hs-slide.hs--width-custom { --hs-content-max: calc(var(--hs-custom-width, 1200px) + 96px); }
+.hs-slide .hs-content { max-width: var(--hs-content-max, 100%); }
 
 .hs-slide { background: var(--hs-bg-color, #1f2937); }
 .hs-slide.hs--pos-center { justify-content: center; }
@@ -2729,7 +2731,7 @@
 /* Image layouts: the media is a half-width panel, the other half is the
    slide colour carrying the content. */
 .hs-slide.hs--pos-image-left .hs-content,
-.hs-slide.hs--pos-image-right .hs-content { max-width: 50%; }
+.hs-slide.hs--pos-image-right .hs-content { max-width: min(50%, var(--hs-content-max, 100%)); }
 .hs-slide.hs--pos-image-left { justify-content: flex-end; }
 .hs-slide.hs--pos-image-right { justify-content: flex-start; }
 /* image_fill: `split` = photo on one half, `full` = photo across the slide. */
@@ -2888,7 +2890,7 @@
 @media (max-width: 768px) {
   .hs-content { padding: 40px 20px 56px; }
   .hs-slide.hs--pos-image-left .hs-content,
-  .hs-slide.hs--pos-image-right .hs-content { max-width: 100%; }
+  .hs-slide.hs--pos-image-right .hs-content { max-width: var(--hs-content-max, 100%); }
   .hs-slide.hs--pos-image-left .hs-bg,
   .hs-slide.hs--pos-image-right .hs-bg,
   .hs-slide.hs--pos-image-left .hs-overlay,
