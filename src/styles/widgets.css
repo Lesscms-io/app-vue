@@ -2688,8 +2688,12 @@
   object-fit: cover;
 }
 
+/* The outgoing slide keeps the same animation declaration so the zoom
+   continues through the transition instead of snapping back to scale(1). */
 .hs--bg-kenburns .hs-slide--active .hs-bg__media,
-.hs--bg-kenburns .hs-slide--active .hs-bg__video { animation: hs-kenburns 14s ease-out both; }
+.hs--bg-kenburns .hs-slide--active .hs-bg__video,
+.hs--bg-kenburns .hs-slide--leaving .hs-bg__media,
+.hs--bg-kenburns .hs-slide--leaving .hs-bg__video { animation: hs-kenburns 14s ease-out both; }
 .hs--bg-parallax .hs-bg { inset: -80px 0; transform: translateY(var(--hs-parallax, 0)); transition: transform 80ms linear; }
 
 @keyframes hs-kenburns {
@@ -2921,8 +2925,8 @@
 @media (prefers-reduced-motion: reduce) {
   .hs-anim,
   .hs-slide,
-  .hs--bg-kenburns .hs-slide--active .hs-bg__media,
-  .hs--bg-kenburns .hs-slide--active .hs-bg__video { animation: none !important; opacity: 1; transform: none; }
+  .hs--bg-kenburns .hs-slide .hs-bg__media,
+  .hs--bg-kenburns .hs-slide .hs-bg__video { animation: none !important; opacity: 1; transform: none; }
   .hs-slide--leaving { display: none; }
 }
 
