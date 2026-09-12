@@ -3278,6 +3278,11 @@ img.lcms-rich-img {
 .lcms-mega-menu .mm-nav { order: 2; }
 .lcms-mega-menu .mm-nav--b { order: 4; }
 .lcms-mega-menu .mm-cta { order: 5; }
+.lcms-mega-menu .mm-shop { order: 5; flex: none; }
+.lcms-mega-menu .mm-drawer__shop { padding: 14px 18px; border-bottom: 1px solid rgba(15, 23, 42, 0.08); }
+.lcms-mega-menu .mm-drawer__shop--bottom { border-bottom: 0; border-top: 1px solid rgba(15, 23, 42, 0.08); margin-top: auto; }
+/* Overlay: the bar floats over whatever follows (a hero) and takes no height in the flow. */
+.lcms-mega-menu.mm--overlay { position: absolute; top: 0; left: 0; right: 0; z-index: 60; }
 .lcms-mega-menu.mm--cta-left .mm-cta { order: 1; }
 .lcms-mega-menu .mm-hamburger { order: 7; }
 .lcms-mega-menu.mm--logo-center .mm-logo { order: 3; }
@@ -3605,15 +3610,15 @@ img.lcms-rich-img {
 
 /* Collapse: the breakpoint class picks which media query applies. */
 @media (max-width: 575.98px) {
-  .lcms-mega-menu.mm--bp-sm .mm-nav, .lcms-mega-menu.mm--bp-sm .mm-cta { display: none; }
+  .lcms-mega-menu.mm--bp-sm .mm-nav, .lcms-mega-menu.mm--bp-sm .mm-cta, .lcms-mega-menu.mm--bp-sm .mm-shop--desktop { display: none; }
   .lcms-mega-menu.mm--bp-sm .mm-hamburger, .lcms-mega-menu.mm--bp-sm .mm-backdrop, .lcms-mega-menu.mm--bp-sm .mm-drawer { display: flex; }
 }
 @media (max-width: 767.98px) {
-  .lcms-mega-menu.mm--bp-md .mm-nav, .lcms-mega-menu.mm--bp-md .mm-cta { display: none; }
+  .lcms-mega-menu.mm--bp-md .mm-nav, .lcms-mega-menu.mm--bp-md .mm-cta, .lcms-mega-menu.mm--bp-md .mm-shop--desktop { display: none; }
   .lcms-mega-menu.mm--bp-md .mm-hamburger, .lcms-mega-menu.mm--bp-md .mm-backdrop, .lcms-mega-menu.mm--bp-md .mm-drawer { display: flex; }
 }
 @media (max-width: 991.98px) {
-  .lcms-mega-menu.mm--bp-lg .mm-nav, .lcms-mega-menu.mm--bp-lg .mm-cta { display: none; }
+  .lcms-mega-menu.mm--bp-lg .mm-nav, .lcms-mega-menu.mm--bp-lg .mm-cta, .lcms-mega-menu.mm--bp-lg .mm-shop--desktop { display: none; }
   .lcms-mega-menu.mm--bp-lg .mm-hamburger, .lcms-mega-menu.mm--bp-lg .mm-backdrop, .lcms-mega-menu.mm--bp-lg .mm-drawer { display: flex; }
 }
 .lcms-mega-menu .mm-backdrop { display: none; }

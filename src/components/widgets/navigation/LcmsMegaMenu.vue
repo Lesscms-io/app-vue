@@ -17,6 +17,7 @@ import { computed, inject, nextTick, onBeforeUnmount, onMounted, onServerPrefetc
 import { useMenu } from '@/composables/useMenu'
 import { useLanguage } from '@/composables/useLanguage'
 import { smallImage } from '@/composables/useImageOptimization'
+import LcmsEcommerceIcons from '../ecommerce/LcmsEcommerceIcons.vue'
 import type { MenuItem } from '@/api/types'
 import type { MegaMenuWidgetData, MegaMenuItemConfig, MegaMenuLink } from '@/types/widgets'
 
@@ -61,6 +62,30 @@ const linkGroup = computed(() => config.value.link || {})
 const panelGroup = computed(() => config.value.panel || {})
 const ctaGroup = computed(() => config.value.cta || {})
 const mobileGroup = computed(() => config.value.mobile || {})
+// Shop icons: the `shop` group is rendered by the ecommerce-icons component
+// (mirror of fe/megaMenuShared.js shopIconsData).
+const shopGroup = computed<Record<string, any>>(() => config.value.shop || {})
+const shopShown = computed(() => shopGroup.value.show === true)
+const shopMobile = computed<string>(() => shopGroup.value.mobile || 'bar')
+const shopData = computed(() => {
+  const s = shopGroup.value
+  const hl = (s.highlight_shape || 'circle') !== 'none'
+  const items: any[] = []
+  if (s.search !== false) items.push({ type: 'search', icon: s.search_icon || 'fa-solid fa-magnifying-glass', url: '', label: {}, target_blank: false, highlighted: hl })
+  if (s.account !== false) items.push({ type: 'account', icon: s.account_icon || 'fa-solid fa-user', url: '', label: {}, target_blank: false, highlighted: hl })
+  if (s.cart !== false) items.push({ type: 'cart', icon: s.cart_icon || 'fa-solid fa-bag-shopping', url: '', label: {}, target_blank: false, highlighted: hl })
+  if (s.custom_icon) items.push({ type: 'custom', icon: s.custom_icon, url: s.custom_url || '', label: s.custom_label || {}, target_blank: false, highlighted: hl })
+  return {
+    items,
+    config: { size: Number(s.size) || 18, gap: Number(s.gap) || 10, mobile_dock: shopMobile.value === 'dock' },
+    icon: { color: s.color || 'var:text', 'color:hover': s['color:hover'] || 'var:primary' },
+    badge: { background: s.badge_background || 'var:primary', color: s.badge_color || 'var:white' },
+    highlight: { shape: hl ? (s.highlight_shape || 'circle') : 'circle', background: s.highlight_background || 'var:background-alt', color: s.highlight_color || null, padding: Number(s.highlight_padding) || 10 },
+    search: { placeholder: s.search_placeholder || {}, navigate_url: '' }
+  }
+})
+// Overlay: the bar floats over the following content (0 height in the flow).
+const overlay = computed(() => barGroup.value.overlay === true)
 const itemConfigs = computed<MegaMenuItemConfig[]>(() => Array.isArray(config.value.items) ? config.value.items : [])
 
 const text = (v: any) => (extractValue(v) as string) || ''
@@ -310,7 +335,7 @@ const onScroll = () => {
   }
   lastY = y
 }
-const spacerStyle = computed(() => (sticky.value && stuck.value ? { height: `${stuckHeight.value}px` } : {}))
+const spacerStyle = computed(() => (sticky.value && stuck.value && !overlay.value ? { height: `${stuckHeight.value}px` } : {}))
 const isScrolled = computed(() => sectionIsScrolled.value || stuck.value)
 
 // ── Mobile drawer ────────────────────────────────────────────────────
@@ -425,6 +450,7 @@ const rootClasses = computed(() => [
   {
     'mm--divider': barGroup.value.divider === true,
     'mm--sticky': sticky.value,
+    'mm--overlay': overlay.value,
     'mm--stuck': stuck.value,
     'mm--hidden': hidden.value,
     'mm--uppercase': linkGroup.value.uppercase === true,
@@ -663,6 +689,13 @@ const rootClasses = computed(() => [
             </li>
           </ul>
 
+          <LcmsEcommerceIcons
+            v-if="shopShown"
+            class="mm-shop"
+            :class="{ 'mm-shop--desktop': shopMobile.startsWith('drawer') }"
+            :data="shopData"
+            :language="language"
+          />
           <a
             v-if="ctaShown"
             class="mm-cta"
@@ -719,6 +752,12 @@ const rootClasses = computed(() => [
       class="mm-drawer"
       :aria-hidden="!drawerOpen"
     >
+      <LcmsEcommerceIcons
+        v-if="shopShown && shopMobile === 'drawer-top'"
+        class="mm-shop mm-drawer__shop"
+        :data="shopData"
+        :language="language"
+      />
       <ul class="mm-drawer__list">
         <li
           v-for="node in topNodes"
@@ -805,6 +844,12 @@ const rootClasses = computed(() => [
           @click="closeDrawer"
         >{{ text(ctaGroup.text) }}</a>
       </div>
+      <LcmsEcommerceIcons
+        v-if="shopShown && shopMobile === 'drawer-bottom'"
+        class="mm-shop mm-drawer__shop mm-drawer__shop--bottom"
+        :data="shopData"
+        :language="language"
+      />
     </div>
   </div>
 </template>

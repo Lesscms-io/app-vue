@@ -616,6 +616,7 @@ export interface MegaMenuWidgetData extends BaseWidgetData {
     'color:scrolled'?: string | null
   }
   bar?: {
+    overlay?: boolean
     background?: string | null
     'background:scrolled'?: string | null
     height?: number
@@ -673,6 +674,30 @@ export interface MegaMenuWidgetData extends BaseWidgetData {
     border_radius?: 'none' | 'sm' | 'md' | 'lg' | 'pill'
     icon?: string
     icon_position?: 'left' | 'right'
+  }
+  shop?: {
+    show?: boolean
+    search?: boolean
+    account?: boolean
+    cart?: boolean
+    search_icon?: string
+    account_icon?: string
+    cart_icon?: string
+    custom_icon?: string
+    custom_url?: string
+    custom_label?: string | Record<string, string>
+    size?: number
+    gap?: number
+    color?: string | null
+    'color:hover'?: string | null
+    badge_background?: string | null
+    badge_color?: string | null
+    highlight_shape?: 'circle' | 'square' | 'none'
+    highlight_background?: string | null
+    highlight_color?: string | null
+    highlight_padding?: number
+    search_placeholder?: string | Record<string, string>
+    mobile?: 'bar' | 'dock' | 'drawer-top' | 'drawer-bottom'
   }
   mobile?: {
     background?: string
