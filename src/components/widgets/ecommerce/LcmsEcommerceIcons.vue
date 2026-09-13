@@ -234,15 +234,39 @@ function handleClickOutside(e: MouseEvent) {
   }
 }
 
+// Docked mode publishes its height on <html> (`lcms-has-dock` +
+// `--lcms-dock-h`) so bottom-anchored chrome (cookie banner / fab) can sit
+// above the dock instead of covering it on phones.
+let dockObserver: ResizeObserver | null = null
+const publishDock = () => {
+  if (typeof document === 'undefined') return
+  const root = document.documentElement
+  const on = mobileDock.value && !!containerEl.value && getComputedStyle(containerEl.value).position === 'fixed'
+  root.classList.toggle('lcms-has-dock', on)
+  root.style.setProperty('--lcms-dock-h', on && containerEl.value ? `${containerEl.value.offsetHeight}px` : '0px')
+}
+
 onMounted(() => {
   if (typeof document !== 'undefined') {
     document.addEventListener('click', handleClickOutside)
+  }
+  if (mobileDock.value && containerEl.value && typeof ResizeObserver !== 'undefined') {
+    dockObserver = new ResizeObserver(() => requestAnimationFrame(publishDock))
+    dockObserver.observe(containerEl.value)
+    window.addEventListener('resize', publishDock, { passive: true })
+    publishDock()
   }
 })
 
 onUnmounted(() => {
   if (typeof document !== 'undefined') {
     document.removeEventListener('click', handleClickOutside)
+  }
+  if (dockObserver) {
+    dockObserver.disconnect()
+    window.removeEventListener('resize', publishDock)
+    document.documentElement.classList.remove('lcms-has-dock')
+    document.documentElement.style.removeProperty('--lcms-dock-h')
   }
   if (debounceTimer) clearTimeout(debounceTimer)
 })
@@ -380,7 +404,7 @@ onUnmounted(() => {
     display: flex;
     flex-wrap: nowrap;
     justify-content: space-around;
-    padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px));
+    padding: 14px 16px calc(14px + env(safe-area-inset-bottom, 0px));
     margin: 0;
     background: var(--lcms-color-background, #fff);
     border-top: 1px solid color-mix(in srgb, var(--lcms-color-text, #1f2937) 12%, transparent);

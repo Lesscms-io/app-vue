@@ -698,7 +698,22 @@ export interface MegaMenuWidgetData extends BaseWidgetData {
     highlight_padding?: number
     search_placeholder?: string | Record<string, string>
     mobile?: 'bar' | 'dock' | 'drawer-top' | 'drawer-bottom'
+  }  schemes?: {
+    enabled?: boolean
+    top?: 'light' | 'dark'
+    scrolled?: 'light' | 'dark'
+    light_background?: string | null
+    light_text?: string | null
+    light_logo?: string | null
+    light_icons?: string | null
+    light_hamburger?: string | null
+    dark_background?: string | null
+    dark_text?: string | null
+    dark_logo?: string | null
+    dark_icons?: string | null
+    dark_hamburger?: string | null
   }
+
   mobile?: {
     background?: string
     color?: string

@@ -67,6 +67,26 @@ const mobileGroup = computed(() => config.value.mobile || {})
 const shopGroup = computed<Record<string, any>>(() => config.value.shop || {})
 const shopShown = computed(() => shopGroup.value.show === true)
 const shopMobile = computed<string>(() => shopGroup.value.mobile || 'bar')
+// Colour schemes (`schemes` group): light / dark palettes, one for the
+// page top and one for the stuck bar. When enabled they override the
+// per-group bar / link / logo / shop / hamburger colours.
+const schemesGroup = computed<Record<string, any>>(() => config.value.schemes || {})
+const schemePalette = (name: string) => {
+  const s = schemesGroup.value
+  const k = name === 'dark' ? 'dark' : 'light'
+  const text = s[`${k}_text`] || (k === 'dark' ? '#ffffff' : 'var:text')
+  return {
+    background: s[`${k}_background`] || (k === 'dark' ? 'transparent' : '#ffffff'),
+    text,
+    logo: s[`${k}_logo`] || text,
+    icons: s[`${k}_icons`] || text,
+    hamburger: s[`${k}_hamburger`] || text
+  }
+}
+const schemes = computed(() => schemesGroup.value.enabled === true
+  ? { top: schemePalette(schemesGroup.value.top || 'dark'), scrolled: schemePalette(schemesGroup.value.scrolled || 'light') }
+  : null)
+
 const shopData = computed(() => {
   const s = shopGroup.value
   const hl = (s.highlight_shape || 'circle') !== 'none'
@@ -78,7 +98,10 @@ const shopData = computed(() => {
   return {
     items,
     config: { size: Number(s.size) || 18, gap: Number(s.gap) || 10, mobile_dock: shopMobile.value === 'dock' },
-    icon: { color: s.color || 'var:text', 'color:hover': s['color:hover'] || 'var:primary' },
+    icon: {
+      color: schemes.value ? (isScrolled.value ? schemes.value.scrolled.icons : schemes.value.top.icons) : (s.color || 'var:text'),
+      'color:hover': s['color:hover'] || 'var:primary'
+    },
     badge: { background: s.badge_background || 'var:primary', color: s.badge_color || 'var:white' },
     highlight: { shape: hl ? (s.highlight_shape || 'circle') : 'circle', background: s.highlight_background || 'var:background-alt', color: s.highlight_color || null, padding: Number(s.highlight_padding) || 10 },
     search: { placeholder: s.search_placeholder || {}, navigate_url: '' }
@@ -382,17 +405,17 @@ const SHADOW: Record<string, string> = {
 
 const cssVars = computed(() => {
   const vars: Record<string, string> = {
-    '--mm-bar-bg': barGroup.value.background ? resolveColor(barGroup.value.background, 'transparent') : 'transparent',
+    '--mm-bar-bg': schemes.value ? resolveColor(schemes.value.top.background, 'transparent') : (barGroup.value.background ? resolveColor(barGroup.value.background, 'transparent') : 'transparent'),
     '--mm-bar-h': `${barGroup.value.height ?? 72}px`,
     '--mm-bar-shadow': SHADOW[barGroup.value.shadow] || 'none',
     '--mm-logo-h': `${logoGroup.value.height ?? 40}px`,
-    '--mm-logo-color': resolveColor(logoGroup.value.color, 'var(--lcms-color-dark, #111827)'),
+    '--mm-logo-color': schemes.value ? resolveColor(schemes.value.top.logo, '#111827') : resolveColor(logoGroup.value.color, 'var(--lcms-color-dark, #111827)'),
     '--mm-logo-size': `${logoGroup.value.font_size ?? 20}px`,
     '--mm-logo-font': logoGroup.value.font_family ? `'${logoGroup.value.font_family}', sans-serif` : 'var(--lcms-font-heading)',
     '--mm-link-font': linkGroup.value.font_family ? `'${linkGroup.value.font_family}', sans-serif` : 'inherit',
     '--mm-panel-font': panelGroup.value.font_family ? `'${panelGroup.value.font_family}', sans-serif` : 'inherit',
     '--mm-logo-weight': logoGroup.value.font_weight || '700',
-    '--mm-link-color': resolveColor(linkGroup.value.color, 'var(--lcms-color-text, #111827)'),
+    '--mm-link-color': schemes.value ? resolveColor(schemes.value.top.text, '#111827') : resolveColor(linkGroup.value.color, 'var(--lcms-color-text, #111827)'),
     '--mm-link-hover': resolveColor(linkGroup.value['color:hover'] || linkGroup.value.color, 'var(--lcms-color-primary, #556ee6)'),
     '--mm-link-bg': linkGroup.value.background ? resolveColor(linkGroup.value.background, 'transparent') : 'transparent',
     '--mm-link-bg-hover': linkGroup.value['background:hover'] ? resolveColor(linkGroup.value['background:hover'], 'transparent') : 'rgba(85, 110, 230, 0.1)',
@@ -424,7 +447,7 @@ const cssVars = computed(() => {
     '--mm-mobile-bg': resolveColor(mobileGroup.value.background, '#ffffff'),
     '--mm-mobile-color': resolveColor(mobileGroup.value.color, 'var(--lcms-color-text, #111827)'),
     '--mm-mobile-w': `${mobileGroup.value.width ?? 360}px`,
-    '--mm-hamburger': resolveColor(mobileGroup.value.hamburger_color || linkGroup.value.color, 'var(--lcms-color-text, #111827)')
+    '--mm-hamburger': schemes.value ? resolveColor(schemes.value.top.hamburger, '#111827') : resolveColor(mobileGroup.value.hamburger_color || linkGroup.value.color, 'var(--lcms-color-text, #111827)')
   }
   // Scrolled-state colours (sticky sections): only set when configured.
   const sbar = barGroup.value['background:scrolled'] ? resolveColor(barGroup.value['background:scrolled'], '') : ''
@@ -433,6 +456,13 @@ const cssVars = computed(() => {
   if (sbar) vars['--mm-bar-bg-scrolled'] = sbar
   if (slink) vars['--mm-link-color-scrolled'] = slink
   if (slogo) vars['--mm-logo-color-scrolled'] = slogo
+  if (schemes.value) {
+    const sc = schemes.value.scrolled
+    vars['--mm-bar-bg-scrolled'] = resolveColor(sc.background, 'transparent')
+    vars['--mm-link-color-scrolled'] = resolveColor(sc.text, '#111827')
+    vars['--mm-logo-color-scrolled'] = resolveColor(sc.logo, '#111827')
+    vars['--mm-hamburger-scrolled'] = resolveColor(sc.hamburger, '#111827')
+  }
   return vars
 })
 
@@ -689,13 +719,18 @@ const rootClasses = computed(() => [
             </li>
           </ul>
 
-          <LcmsEcommerceIcons
+          <!-- LcmsEcommerceIcons has inheritAttrs: false, so the placement
+               classes live on a wrapper (order in the bar, hide on phones). -->
+          <div
             v-if="shopShown"
             class="mm-shop"
             :class="{ 'mm-shop--desktop': shopMobile.startsWith('drawer') }"
-            :data="shopData"
-            :language="language"
-          />
+          >
+            <LcmsEcommerceIcons
+              :data="shopData"
+              :language="language"
+            />
+          </div>
           <a
             v-if="ctaShown"
             class="mm-cta"
@@ -752,12 +787,15 @@ const rootClasses = computed(() => [
       class="mm-drawer"
       :aria-hidden="!drawerOpen"
     >
-      <LcmsEcommerceIcons
+      <div
         v-if="shopShown && shopMobile === 'drawer-top'"
         class="mm-shop mm-drawer__shop"
-        :data="shopData"
-        :language="language"
-      />
+      >
+        <LcmsEcommerceIcons
+          :data="shopData"
+          :language="language"
+        />
+      </div>
       <ul class="mm-drawer__list">
         <li
           v-for="node in topNodes"
@@ -844,12 +882,15 @@ const rootClasses = computed(() => [
           @click="closeDrawer"
         >{{ text(ctaGroup.text) }}</a>
       </div>
-      <LcmsEcommerceIcons
+      <div
         v-if="shopShown && shopMobile === 'drawer-bottom'"
         class="mm-shop mm-drawer__shop mm-drawer__shop--bottom"
-        :data="shopData"
-        :language="language"
-      />
+      >
+        <LcmsEcommerceIcons
+          :data="shopData"
+          :language="language"
+        />
+      </div>
     </div>
   </div>
 </template>

@@ -3331,6 +3331,7 @@ img.lcms-rich-img {
   transition: color 0.25s ease;
 }
 .lcms-mega-menu.is-scrolled .mm-logo__text { color: var(--mm-logo-color-scrolled, var(--mm-logo-color, #111827)); }
+.lcms-mega-menu.is-scrolled .mm-hamburger span { background: var(--mm-hamburger-scrolled, var(--mm-hamburger, #111827)); }
 
 .lcms-mega-menu .mm-nav {
   list-style: none;
