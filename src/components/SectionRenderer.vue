@@ -844,6 +844,12 @@ function mapFlexAlign(value: string): string {
 .lcms-section--nav {
   overflow: visible;
 }
+/* `.lcms-section__grid` is a stacking context (z-index: 1), so a z-index: 60
+   menu inside it still paints under the NEXT section's grid. Lift the nav
+   section's grid above sibling grids so panels and overlay bars stay on top. */
+.lcms-section--nav .lcms-section__grid {
+  z-index: 60;
+}
 .lcms-section__bg-video,
 .lcms-section__column-bg-video {
   position: absolute;
