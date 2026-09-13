@@ -78,6 +78,7 @@ const schemePalette = (name: string) => {
   return {
     background: s[`${k}_background`] || (k === 'dark' ? 'transparent' : '#ffffff'),
     text,
+    textHover: s[`${k}_text_hover`] || '',
     logo: s[`${k}_logo`] || text,
     icons: s[`${k}_icons`] || text,
     hamburger: s[`${k}_hamburger`] || text
@@ -274,11 +275,15 @@ const ctaIconPosition = computed(() => ctaGroup.value.icon_position || 'left')
 const logoType = computed(() => logoGroup.value.type || 'image')
 const logoLight = computed(() => logoGroup.value.light || '')
 const logoDark = computed(() => logoGroup.value.dark || '')
-const logoSrc = computed(() => {
-  const u = logoLight.value || logoDark.value
-  return u ? (smallImage(u)?.src || u) : ''
-})
-const logoScrolledSrc = computed(() => (logoDark.value && logoLight.value ? (smallImage(logoDark.value)?.src || logoDark.value) : ''))
+// Which image is shown follows the colour schemes when enabled: the light
+// palette uses `logo.light` (logo for light backgrounds), the dark palette
+// `logo.dark`. Without schemes the legacy pairing applies — light at the top,
+// dark once scrolled.
+const logoFor = (scheme: string) => (scheme === 'dark' ? (logoDark.value || logoLight.value) : (logoLight.value || logoDark.value))
+const logoTopRaw = computed(() => (schemes.value ? logoFor(schemesGroup.value.top || 'dark') : (logoLight.value || logoDark.value)))
+const logoScrolledRaw = computed(() => (schemes.value ? logoFor(schemesGroup.value.scrolled || 'light') : (logoDark.value && logoLight.value ? logoDark.value : '')))
+const logoSrc = computed(() => (logoTopRaw.value ? (smallImage(logoTopRaw.value)?.src || logoTopRaw.value) : ''))
+const logoScrolledSrc = computed(() => (logoScrolledRaw.value && logoScrolledRaw.value !== logoTopRaw.value ? (smallImage(logoScrolledRaw.value)?.src || logoScrolledRaw.value) : ''))
 const logoText = computed(() => text(logoGroup.value.text))
 const hasLogo = computed(() => (logoType.value === 'text' ? !!logoText.value : logoType.value === 'image' && !!logoSrc.value))
 
@@ -416,7 +421,9 @@ const cssVars = computed(() => {
     '--mm-panel-font': panelGroup.value.font_family ? `'${panelGroup.value.font_family}', sans-serif` : 'inherit',
     '--mm-logo-weight': logoGroup.value.font_weight || '700',
     '--mm-link-color': schemes.value ? resolveColor(schemes.value.top.text, '#111827') : resolveColor(linkGroup.value.color, 'var(--lcms-color-text, #111827)'),
-    '--mm-link-hover': resolveColor(linkGroup.value['color:hover'] || linkGroup.value.color, 'var(--lcms-color-primary, #556ee6)'),
+    '--mm-link-hover': schemes.value
+      ? resolveColor(schemes.value.top.textHover || linkGroup.value['color:hover'] || schemes.value.top.text, '#556ee6')
+      : resolveColor(linkGroup.value['color:hover'] || linkGroup.value.color, 'var(--lcms-color-primary, #556ee6)'),
     '--mm-link-bg': linkGroup.value.background ? resolveColor(linkGroup.value.background, 'transparent') : 'transparent',
     '--mm-link-bg-hover': linkGroup.value['background:hover'] ? resolveColor(linkGroup.value['background:hover'], 'transparent') : 'rgba(85, 110, 230, 0.1)',
     '--mm-link-size': `${linkGroup.value.font_size ?? 15}px`,
@@ -460,6 +467,7 @@ const cssVars = computed(() => {
     const sc = schemes.value.scrolled
     vars['--mm-bar-bg-scrolled'] = resolveColor(sc.background, 'transparent')
     vars['--mm-link-color-scrolled'] = resolveColor(sc.text, '#111827')
+    vars['--mm-link-hover-scrolled'] = resolveColor(sc.textHover || linkGroup.value['color:hover'] || sc.text, '#556ee6')
     vars['--mm-logo-color-scrolled'] = resolveColor(sc.logo, '#111827')
     vars['--mm-hamburger-scrolled'] = resolveColor(sc.hamburger, '#111827')
   }

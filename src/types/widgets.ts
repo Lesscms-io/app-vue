@@ -704,11 +704,13 @@ export interface MegaMenuWidgetData extends BaseWidgetData {
     scrolled?: 'light' | 'dark'
     light_background?: string | null
     light_text?: string | null
+    light_text_hover?: string | null
     light_logo?: string | null
     light_icons?: string | null
     light_hamburger?: string | null
     dark_background?: string | null
     dark_text?: string | null
+    dark_text_hover?: string | null
     dark_logo?: string | null
     dark_icons?: string | null
     dark_hamburger?: string | null

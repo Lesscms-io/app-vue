@@ -3373,6 +3373,8 @@ img.lcms-rich-img {
 .lcms-mega-menu.mm--uppercase .mm-item { text-transform: uppercase; }
 .lcms-mega-menu .mm-item:hover,
 .lcms-mega-menu .mm-nav__li.is-open > .mm-item { color: var(--mm-link-hover, #556ee6); }
+.lcms-mega-menu.is-scrolled .mm-item:hover,
+.lcms-mega-menu.is-scrolled .mm-nav__li.is-open > .mm-item { color: var(--mm-link-hover-scrolled, var(--mm-link-hover, #556ee6)); }
 .lcms-mega-menu.mm--hover-pill .mm-item:hover,
 .lcms-mega-menu.mm--hover-pill .mm-nav__li.is-open > .mm-item { background: var(--mm-link-bg-hover, rgba(85, 110, 230, 0.1)); }
 .lcms-mega-menu.mm--hover-lift .mm-item:hover { transform: translateY(-2px); }
