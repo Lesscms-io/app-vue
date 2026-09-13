@@ -537,6 +537,18 @@ const columnsHoverCss = computed(() => {
   return columns.value.map((col, idx) => getColumnHoverCss(col, idx)).filter(Boolean).join('\n')
 })
 
+// Navigation widgets draw outside their box: mega-menu panels drop below
+// the bar and an overlay bar floats over the next section. The base
+// `.lcms-section { overflow: hidden }` (needed to clip bg media) would clip
+// them, so a section hosting one gets `.lcms-section--nav` → overflow visible.
+const OVERFLOWING_NAV_TYPES = new Set(['mega-menu', 'menu', 'nav-bar', 'ecommerce-icons', 'search-icon', 'off-canvas'])
+const hasOverflowingNav = computed(() =>
+  columns.value.some((col: any) => (col.content || []).some((item: any) =>
+    OVERFLOWING_NAV_TYPES.has(item.widget_type || item.type) ||
+    (item.type === 'wrapper' && (item.items || []).some((child: any) => OVERFLOWING_NAV_TYPES.has(child.widget_type || child.type)))
+  ))
+)
+
 // Get widgets from column content
 function getColumnWidgets(column: any) {
   // API returns widgets as "content" array with widget_type, uuid, widget, settings
@@ -640,6 +652,9 @@ const sectionClass = computed(() => {
   }
   if (sectionHasBgImageOpacity.value) {
     classes.push('lcms-section--has-bg-image-opacity')
+  }
+  if (hasOverflowingNav.value) {
+    classes.push('lcms-section--nav')
   }
 
   // Add breakpoint class for CSS targeting
@@ -825,6 +840,9 @@ function mapFlexAlign(value: string): string {
 .lcms-section {
   position: relative;
   overflow: hidden;
+}
+.lcms-section--nav {
+  overflow: visible;
 }
 .lcms-section__bg-video,
 .lcms-section__column-bg-video {

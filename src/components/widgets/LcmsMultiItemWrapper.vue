@@ -49,7 +49,12 @@ function resolveMultilingual(data: any): any {
   for (const [key, value] of Object.entries(data)) {
     if (value !== null && value !== undefined && typeof value === 'object' && !Array.isArray(value)) {
       const keys = Object.keys(value as object)
-      const isLangMap = keys.length > 0 && keys.length <= 10 && keys.every(k => /^[a-z]{2,3}$/.test(k))
+      // Same rule as WidgetRenderer: short keys AND primitive values (a
+      // `{ src, alt: [] }` group is not a language map).
+      const vals = Object.values(value as object)
+      const isLangMap = keys.length > 0 && keys.length <= 10 &&
+        keys.every(k => /^[a-z]{2,3}$/.test(k)) &&
+        vals.every(v => v === null || v === undefined || typeof v === 'string' || typeof v === 'number')
       if (isLangMap) {
         result[key] = extractValue(value as Record<string, string>)
       } else {

@@ -55,8 +55,15 @@ function resolveMultilingual(data: any): any {
   for (const [key, value] of Object.entries(data)) {
     if (value !== null && value !== undefined && typeof value === 'object' && !Array.isArray(value)) {
       // Check if this looks like a multilingual object (keys are 2-3 char language codes)
+      // A language map is { pl: 'text', en: 'text' } — short keys AND
+      // primitive values. Groups like Lottie's `source: { src, alt: [] }`
+      // have 3-letter keys too and used to be collapsed into a string,
+      // which silently emptied the widget.
       const keys = Object.keys(value as object)
-      const isLangMap = keys.length > 0 && keys.length <= 10 && keys.every(k => /^[a-z]{2,3}$/.test(k))
+      const vals = Object.values(value as object)
+      const isLangMap = keys.length > 0 && keys.length <= 10 &&
+        keys.every(k => /^[a-z]{2,3}$/.test(k)) &&
+        vals.every(v => v === null || v === undefined || typeof v === 'string' || typeof v === 'number')
       if (isLangMap) {
         result[key] = extractValue(value as Record<string, string>)
       } else {
