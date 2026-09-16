@@ -52,6 +52,7 @@ import LcmsAccordion from './interactive/LcmsAccordion.vue'
 import LcmsTabs from './interactive/LcmsTabs.vue'
 import LcmsEmbed from './interactive/LcmsEmbed.vue'
 import LcmsTimeline from './interactive/LcmsTimeline.vue'
+import LcmsFamilyTree from './interactive/LcmsFamilyTree.vue'
 import LcmsCookieConsent from './interactive/LcmsCookieConsent.vue'
 import LcmsGoogleReviews from './interactive/LcmsGoogleReviews.vue'
 
@@ -164,6 +165,7 @@ export const widgetComponents: Record<string, Component> = {
   tabs: LcmsTabs,
   embed: LcmsEmbed,
   timeline: LcmsTimeline,
+  'family-tree': LcmsFamilyTree,
   'cookie-consent': LcmsCookieConsent,
   'google-reviews': LcmsGoogleReviews,
 
@@ -292,6 +294,7 @@ export {
   LcmsTabs,
   LcmsEmbed,
   LcmsTimeline,
+  LcmsFamilyTree,
   LcmsCookieConsent,
   LcmsGoogleReviews,
   // Navigation
