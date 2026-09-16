@@ -204,11 +204,16 @@ const sectionStyle = computed(() => {
     }
   }
 
-  // Padding
-  if (s.padding_top) style.paddingTop = `${s.padding_top}px`
-  if (s.padding_right) style.paddingRight = `${s.padding_right}px`
-  if (s.padding_bottom) style.paddingBottom = `${s.padding_bottom}px`
-  if (s.padding_left) style.paddingLeft = `${s.padding_left}px`
+  // Padding — an explicit 0 must win over the mobile gutter default in CSS
+  // (`.lcms-section--contained`), so only null / '' means "not set".
+  const setPad = (key: 'padding_top' | 'padding_right' | 'padding_bottom' | 'padding_left', prop: string) => {
+    const v = (s as any)[key]
+    if (v !== undefined && v !== null && v !== '') style[prop] = `${v}px`
+  }
+  setPad('padding_top', 'paddingTop')
+  setPad('padding_right', 'paddingRight')
+  setPad('padding_bottom', 'paddingBottom')
+  setPad('padding_left', 'paddingLeft')
 
   // Margin
   if (s.margin_top) style.marginTop = `${s.margin_top}px`
@@ -660,6 +665,12 @@ const sectionClass = computed(() => {
   }
   if (hasOverflowingNav.value) {
     classes.push('lcms-section--nav')
+  }
+  // Contained content (a max-width set) gets phone gutters from CSS;
+  // full-bleed sections (hero, nav bar) must reach the screen edges.
+  const cw = (s as any).content_width
+  if (cw && cw !== '100%' && !hasOverflowingNav.value) {
+    classes.push('lcms-section--contained')
   }
 
   // Add breakpoint class for CSS targeting

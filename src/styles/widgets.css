@@ -2960,8 +2960,8 @@
 
 /* Tablet (768px - 1199px) */
 @media (min-width: 768px) and (max-width: 1199px) {
-  /* Sections */
-  .lcms-section {
+  /* Sections — gutters only for contained content (see mobile note below) */
+  .lcms-section--contained {
     padding: var(--lcms-spacing-8);
   }
 
@@ -3002,7 +3002,10 @@
   /* Note: Section column stacking is now controlled via JS (useResponsiveSettings)
      The .lcms-section--stacked class is added dynamically based on stackOnMobile setting */
 
-  .lcms-section {
+  /* Phone gutters only for sections with contained content — a full-bleed
+     hero or an overlay nav bar would otherwise get a 1rem frame. Inline
+     padding from the section settings (incl. an explicit 0) wins. */
+  .lcms-section--contained {
     padding: var(--lcms-spacing-4);
   }
 
@@ -3188,7 +3191,7 @@
 
 /* Small mobile (<= 480px) */
 @media (max-width: 480px) {
-  .lcms-section {
+  .lcms-section--contained {
     padding: var(--lcms-spacing-3);
   }
 
@@ -3578,11 +3581,15 @@ img.lcms-rich-img {
   z-index: 1000;
   background: rgba(15, 23, 42, 0.45);
   opacity: 0;
+  /* Closed backdrop/drawer are display:flex on mobile (media queries below)
+     — keep them out of hit-testing or they swallow taps on the sticky bar. */
+  pointer-events: none;
   transition: opacity 0.25s;
 }
 .lcms-mega-menu .mm-drawer {
   display: none;
   position: fixed;
+  pointer-events: none;
   top: 0;
   bottom: 0;
   right: 0;
@@ -3614,8 +3621,13 @@ img.lcms-rich-img {
 }
 .lcms-mega-menu.mm--mobile-anim-fade .mm-drawer { transform: none; opacity: 0; }
 .lcms-mega-menu.mm--mobile-dropdown .mm-backdrop { display: none !important; }
-.lcms-mega-menu.mm--drawer-open .mm-backdrop { opacity: 1; }
-.lcms-mega-menu.mm--drawer-open .mm-drawer { transform: none; opacity: 1; }
+.lcms-mega-menu.mm--drawer-open .mm-backdrop { opacity: 1; pointer-events: auto; }
+.lcms-mega-menu.mm--drawer-open .mm-drawer { transform: none; opacity: 1; pointer-events: auto; }
+/* Keep the bar (logo + close "X") above the open drawer — the drawer reserves
+   its height via padding-top. The hamburger takes the drawer's text colour
+   so a white-over-hero bar stays visible on the drawer's background. */
+.lcms-mega-menu.mm--drawer-open .mm-sticky { z-index: 1002; }
+.lcms-mega-menu.mm--drawer-open .mm-hamburger span { background: var(--mm-mobile-color, #111827); }
 .lcms-mega-menu .mm-drawer__list { list-style: none; margin: 0; padding: 8px 0; flex: 1; }
 .lcms-mega-menu .mm-drawer__row { display: flex; align-items: center; gap: 10px; padding: 12px 18px; font-weight: 500; }
 .lcms-mega-menu .mm-drawer__icon { color: var(--mm-icon, #556ee6); }

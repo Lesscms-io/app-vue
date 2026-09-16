@@ -406,9 +406,22 @@ onUnmounted(() => {
     justify-content: space-around;
     padding: 14px 16px calc(14px + env(safe-area-inset-bottom, 0px));
     margin: 0;
-    background: var(--lcms-color-background, #fff);
+    background: var(--lcms-ei-dock-bg, var(--lcms-color-background, #fff));
     border-top: 1px solid color-mix(in srgb, var(--lcms-color-text, #1f2937) 12%, transparent);
     box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.08);
+  }
+  /* The dock has its own (light) background, so the bar's icon colour —
+     often white over a hero — must not leak in. A host can pass
+     `--lcms-ei-dock-color` / `--lcms-ei-dock-bg` (the mega-menu uses its
+     mobile drawer palette); otherwise theme text on theme background. */
+  .lcms-ei--dock .lcms-ei__trigger {
+    color: var(--lcms-ei-dock-color, var(--lcms-color-text, #1f2937));
+  }
+  .lcms-ei--dock .lcms-ei__trigger:hover {
+    color: var(--lcms-ei-color-hover, var(--lcms-color-primary, #3b82f6));
+  }
+  .lcms-ei--dock .lcms-ei__trigger--highlighted {
+    background: transparent;
   }
 }
 

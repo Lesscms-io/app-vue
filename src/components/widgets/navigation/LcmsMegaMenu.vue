@@ -453,6 +453,10 @@ const cssVars = computed(() => {
     '--mm-plink-bg-hover': panelGroup.value['link_background:hover'] ? resolveColor(panelGroup.value['link_background:hover'], 'transparent') : 'rgba(15, 23, 42, 0.04)',
     '--mm-mobile-bg': resolveColor(mobileGroup.value.background, '#ffffff'),
     '--mm-mobile-color': resolveColor(mobileGroup.value.color, 'var(--lcms-color-text, #111827)'),
+    // The phone dock (shop.mobile = 'dock') sits on its own bar, so it takes
+    // the drawer palette instead of the (often white-over-hero) bar icons.
+    '--lcms-ei-dock-bg': resolveColor(mobileGroup.value.background, '#ffffff'),
+    '--lcms-ei-dock-color': resolveColor(mobileGroup.value.color, 'var(--lcms-color-text, #111827)'),
     '--mm-mobile-w': `${mobileGroup.value.width ?? 360}px`,
     '--mm-hamburger': schemes.value ? resolveColor(schemes.value.top.hamburger, '#111827') : resolveColor(mobileGroup.value.hamburger_color || linkGroup.value.color, 'var(--lcms-color-text, #111827)')
   }
