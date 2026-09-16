@@ -28,6 +28,7 @@ export interface ProjectConfig {
   custom_css_url: string | null
   custom_css_urls: string[]
   custom_css: string | null
+  custom_html?: string | null
   available_widgets: string[]
   available_fonts: string[]
   google_fonts_url: string | null
