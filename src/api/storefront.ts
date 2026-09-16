@@ -89,6 +89,15 @@ export interface StorefrontPluginBehaviorCta {
   label: string
   post_url?: string
   url?: string
+  /** For `link`: `_blank` opens the URL in a new tab (external editors the customer comes back from). */
+  target?: '_self' | '_blank'
+  /**
+   * 'replace' (default) — the CTA takes the add-to-cart button's place while
+   * the bound option is selected. 'alongside' — the CTA is an extra,
+   * secondary button next to the regular actions (add-to-cart stays): for
+   * "go design it in <external editor>, then come back and finish here".
+   */
+  mode?: 'replace' | 'alongside'
   /**
    * Generic flag set by any plugin behavior whose action requires an
    * authenticated customer. The widget redirects unauthenticated users to
@@ -185,12 +194,20 @@ export interface StorefrontPluginBehavior {
  * ProductConfigurator renders a flow CTA navigating there in place of the
  * add-to-cart button; without `url` the block is informational only.
  */
+export interface StorefrontActionLink {
+  label: string
+  url: string
+  target?: '_self' | '_blank'
+}
+
 export interface StorefrontProductFlow {
   plugin_id: string
   type: string
   button_label?: string | null
   description?: string | null
   url?: string | null
+  /** Secondary links rendered next to the flow CTA (e.g. a legacy / alternative tool). */
+  links?: StorefrontActionLink[] | null
   [key: string]: unknown
 }
 

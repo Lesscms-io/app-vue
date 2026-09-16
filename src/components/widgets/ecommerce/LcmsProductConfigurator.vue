@@ -425,15 +425,39 @@ const pluginBehaviors = computed<StorefrontPluginBehavior[]>(() =>
   effectiveProduct.value?.plugin_behaviors ?? []
 )
 
-const activeBehavior = computed<StorefrontPluginBehavior | null>(() => {
-  if (!pluginBehaviors.value.length) return null
-  for (const behavior of pluginBehaviors.value) {
-    if (selectedOptions.value[behavior.group_uuid] === behavior.option_uuid) {
-      return behavior
-    }
+const matchedBehaviors = computed<StorefrontPluginBehavior[]>(() =>
+  pluginBehaviors.value.filter(
+    (behavior) => selectedOptions.value[behavior.group_uuid] === behavior.option_uuid
+  )
+)
+
+// The behavior that takes over the add-to-cart button. `mode: 'alongside'`
+// behaviors never do — they render as extra secondary buttons instead.
+const activeBehavior = computed<StorefrontPluginBehavior | null>(
+  () => matchedBehaviors.value.find((b) => b.cta.mode !== 'alongside') ?? null
+)
+
+// Secondary CTAs for the selected options ("design it in <external editor>,
+// then come back"). In wizard mode they show on the step that owns the bound
+// option so the customer sees them right after picking it; on the summary
+// (and outside wizard mode) they sit next to the regular action row.
+const sideBehaviors = computed<StorefrontPluginBehavior[]>(() => {
+  const list = matchedBehaviors.value.filter((b) => b.cta.mode === 'alongside')
+  if (!list.length) return []
+  if (wizardMode.value && !showSummary.value) {
+    return list.filter((b) => currentStepGroups.value.some((g) => g.uuid === b.group_uuid))
   }
-  return null
+  return list
 })
+
+function openActionLink(url: string | undefined, target?: string) {
+  if (!url || typeof window === 'undefined') return
+  if (target === '_blank') {
+    window.open(url, '_blank', 'noopener')
+  } else {
+    window.location.href = url
+  }
+}
 
 // State handed back by a plugin's `cta.resume_url` after the customer
 // returns from its external service. Core stores it verbatim — which groups
@@ -1390,8 +1414,8 @@ const canRunBehavior = computed(() => {
   return !behaviorBlocked(behavior)
 })
 
-async function handleBehaviorAction() {
-  const behavior = activeBehavior.value
+async function handleBehaviorAction(explicit?: StorefrontPluginBehavior) {
+  const behavior = explicit ?? activeBehavior.value
   const p = effectiveProduct.value
   if (!behavior || !p) return
   if (behaviorBlocked(behavior)) {
@@ -1434,10 +1458,7 @@ async function handleBehaviorAction() {
   }
 
   if (cta.type === 'link') {
-    if (!cta.url) return
-    if (typeof window !== 'undefined') {
-      window.location.href = cta.url
-    }
+    openActionLink(cta.url, cta.target)
     return
   }
 
@@ -2894,6 +2915,26 @@ const cssVars = computed(() => {
         class="lcms-product-configurator__pending-price-note"
       >{{ inlineBehavior!.cta.pending_price_note }}</p>
 
+      <!-- Secondary plugin CTAs (`mode: 'alongside'`) bound to an option on
+           this step — e.g. "design it in <external editor>". They never
+           replace the wizard nav or add-to-cart. -->
+      <div
+        v-if="wizardMode && !showSummary && sideBehaviors.length"
+        class="lcms-product-configurator__side-actions"
+      >
+        <button
+          v-for="b in sideBehaviors"
+          :key="`${b.group_uuid}:${b.option_uuid}`"
+          type="button"
+          :class="backButtonClass"
+          :style="buttonInlineStyle"
+          @click="handleBehaviorAction(b)"
+        >
+          {{ b.cta.label }}
+          <i v-if="b.cta.target === '_blank'" class="fa-solid fa-arrow-up-right-from-square lcms-product-configurator__side-icon" />
+        </button>
+      </div>
+
       <!-- Wizard nav (prev/next on a step; on summary step we render
            the regular add-to-cart / behavior button below). -->
       <div
@@ -2917,7 +2958,7 @@ const cssVars = computed(() => {
           type="button"
           class="lcms-product-configurator__nav-btn lcms-product-configurator__nav-btn--primary"
           :disabled="!canRunBehavior"
-          @click="handleBehaviorAction"
+          @click="handleBehaviorAction()"
         >
           <span v-if="isAdding" class="lcms-product-configurator__spinner" />
           {{ behaviorButtonText }}
@@ -2958,7 +2999,7 @@ const cssVars = computed(() => {
             :class="buttonClass"
             :style="buttonInlineStyle"
             :disabled="!canRunBehavior"
-            @click="handleBehaviorAction"
+            @click="handleBehaviorAction()"
           >
             <span v-if="isAdding" class="lcms-product-configurator__spinner" />
             {{ behaviorButtonText }}
@@ -2994,6 +3035,38 @@ const cssVars = computed(() => {
         >
           {{ productFlow.description }}
         </p>
+        <!-- Secondary actions under the main CTA: `mode: 'alongside'`
+             plugin behaviors for the selected options and the flow's extra
+             links (e.g. a legacy tool the customer can still switch to). -->
+        <div
+          v-if="sideBehaviors.length || (!summaryBehavior && productFlow?.links?.length)"
+          class="lcms-product-configurator__side-actions"
+        >
+          <button
+            v-for="b in sideBehaviors"
+            :key="`${b.group_uuid}:${b.option_uuid}`"
+            type="button"
+            :class="backButtonClass"
+            :style="buttonInlineStyle"
+            @click="handleBehaviorAction(b)"
+          >
+            {{ b.cta.label }}
+            <i v-if="b.cta.target === '_blank'" class="fa-solid fa-arrow-up-right-from-square lcms-product-configurator__side-icon" />
+          </button>
+          <template v-if="!summaryBehavior && productFlow?.links?.length">
+            <button
+              v-for="(link, i) in productFlow.links"
+              :key="`flow-link-${i}`"
+              type="button"
+              :class="backButtonClass"
+              :style="buttonInlineStyle"
+              @click="openActionLink(link.url, link.target)"
+            >
+              {{ link.label }}
+              <i v-if="link.target === '_blank'" class="fa-solid fa-arrow-up-right-from-square lcms-product-configurator__side-icon" />
+            </button>
+          </template>
+        </div>
       </template>
     </template>
   </div>
@@ -4075,6 +4148,22 @@ const cssVars = computed(() => {
   gap: 0.5rem;
   align-items: stretch;
   margin-top: 1.25rem;
+}
+/* Secondary CTAs (alongside behaviors, flow links) — outline buttons in a
+ * wrapping row under the primary action / above the wizard nav. */
+.lcms-product-configurator__side-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+.lcms-product-configurator__side-actions .lcms-product-configurator__back-btn {
+  width: auto;
+}
+.lcms-product-configurator__side-icon {
+  font-size: 0.8em;
+  margin-left: 6px;
+  opacity: 0.7;
 }
 /* The quantity row directly above already carries its own bottom spacing. */
 .lcms-product-configurator__quantity + .lcms-product-configurator__summary-actions {
