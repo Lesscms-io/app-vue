@@ -464,9 +464,15 @@ const widgetClass = computed(() => {
 // Scroll animation inline style (for custom duration/delay)
 const animationStyle = computed(() => {
   if (!animationConfig.value) return {}
+  const { duration, delay } = animationConfig.value
+  // The hover style sets an inline `transition: all 200ms` which beats the
+  // .lcms-anim-* class rules — the reveal then snaps in 200ms. Spell the
+  // entrance transition out inline next to it so both keep working.
+  const hover = (widgetStyle.value as Record<string, string>).transition
   return {
-    '--lcms-anim-duration': `${animationConfig.value.duration}ms`,
-    '--lcms-anim-delay': `${animationConfig.value.delay}ms`
+    '--lcms-anim-duration': `${duration}ms`,
+    '--lcms-anim-delay': `${delay}ms`,
+    transition: `${hover ? hover + ', ' : ''}opacity ${duration}ms ease-out ${delay}ms, transform ${duration}ms ease-out ${delay}ms`
   }
 })
 

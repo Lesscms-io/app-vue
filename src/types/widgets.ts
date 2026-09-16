@@ -27,6 +27,8 @@ export interface ButtonConfigGroup {
   padding?: string
   icon?: string
   icon_position?: string
+  /** hide icon until hover, then reveal with a slide (Divi-style) */
+  icon_hover_only?: boolean
 }
 
 export interface ButtonLinkGroup {

@@ -42,6 +42,7 @@ const borderRadius = computed(() => configGroup.value.border_radius || '')
 const buttonPadding = computed(() => configGroup.value.padding || '')
 const buttonIcon = computed(() => configGroup.value.icon || '')
 const iconPosition = computed(() => configGroup.value.icon_position || 'left')
+const iconHoverOnly = computed(() => !!configGroup.value.icon_hover_only && !!buttonIcon.value)
 const isSvgIcon = computed(() => buttonIcon.value.startsWith('svg:'))
 const svgContent = computed(() => isSvgIcon.value ? buttonIcon.value.slice(4) : '')
 
@@ -101,25 +102,52 @@ const buttonInlineStyle = computed(() => {
       class="lcms-button__link"
       :class="[
         `lcms-button__link--${buttonStyle}`,
-        `lcms-button__link--size-${buttonSize}`
+        `lcms-button__link--size-${buttonSize}`,
+        { 'lcms-button__link--icon-hover': iconHoverOnly, [`lcms-button__link--icon-${iconPosition}`]: iconHoverOnly }
       ]"
       :style="buttonInlineStyle"
       :target="targetBlank ? '_blank' : undefined"
       :rel="targetBlank ? 'noopener noreferrer' : undefined"
     >
       <span v-if="isSvgIcon && iconPosition === 'left'" class="lcms-button__svg lcms-button__svg--left" v-html="svgContent" />
-      <i v-else-if="buttonIcon && iconPosition === 'left'" :class="buttonIcon" style="margin-right: 6px;" />
+      <i v-else-if="buttonIcon && iconPosition === 'left'" :class="[buttonIcon, 'lcms-button__icon']" style="margin-right: 6px;" />
       {{ buttonText }}
       <span v-if="isSvgIcon && iconPosition === 'right'" class="lcms-button__svg lcms-button__svg--right" v-html="svgContent" />
-      <i v-else-if="buttonIcon && iconPosition === 'right'" :class="buttonIcon" style="margin-left: 6px;" />
+      <i v-else-if="buttonIcon && iconPosition === 'right'" :class="[buttonIcon, 'lcms-button__icon']" style="margin-left: 6px;" />
     </a>
   </div>
 </template>
 
 <style scoped>
 .lcms-button__link {
-  transition: filter 200ms ease, transform 200ms ease, box-shadow 200ms ease;
+  transition: filter 200ms ease, transform 200ms ease, box-shadow 200ms ease, padding 200ms ease;
 }
+
+/* icon_hover_only: icon takes no space and is invisible; on hover it slides in
+   while the padding on that side grows so the label doesn't jump */
+.lcms-button__link--icon-hover .lcms-button__icon,
+.lcms-button__link--icon-hover .lcms-button__svg {
+  opacity: 0;
+  width: 0;
+  overflow: hidden;
+  margin: 0 !important;
+  transform: translateX(-6px);
+  transition: opacity 200ms ease, transform 200ms ease, width 200ms ease, margin 200ms ease;
+}
+.lcms-button__link--icon-hover.lcms-button__link--icon-left .lcms-button__icon,
+.lcms-button__link--icon-hover.lcms-button__link--icon-left .lcms-button__svg {
+  transform: translateX(6px);
+}
+.lcms-button__link--icon-hover:hover .lcms-button__icon,
+.lcms-button__link--icon-hover:hover .lcms-button__svg {
+  opacity: 1;
+  width: 1em;
+  transform: translateX(0);
+}
+.lcms-button__link--icon-hover.lcms-button__link--icon-right:hover .lcms-button__icon,
+.lcms-button__link--icon-hover.lcms-button__link--icon-right:hover .lcms-button__svg { margin-left: 6px !important; }
+.lcms-button__link--icon-hover.lcms-button__link--icon-left:hover .lcms-button__icon,
+.lcms-button__link--icon-hover.lcms-button__link--icon-left:hover .lcms-button__svg { margin-right: 6px !important; }
 
 .lcms-button__link:hover {
   filter: brightness(0.9);

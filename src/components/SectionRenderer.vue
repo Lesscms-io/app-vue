@@ -598,14 +598,15 @@ function getColumnWidgets(column: any) {
 
 // Scroll animation for section
 const sectionAnimConfig = computed(() => {
-  const s = settings.value as SectionSettings
-  const type = (s as any).animationType || 'none'
+  const s = settings.value as any
+  // API emits snake_case (same as the builder stores); camelCase kept for older payloads
+  const type = s.animation_type ?? s.animationType ?? 'none'
   if (type === 'none') return null
   return {
     type,
-    duration: (s as any).animationDuration ?? 600,
-    delay: (s as any).animationDelay ?? 0,
-    once: (s as any).animationOnce ?? true
+    duration: s.animation_duration ?? s.animationDuration ?? 600,
+    delay: s.animation_delay ?? s.animationDelay ?? 0,
+    once: s.animation_once ?? s.animationOnce ?? true
   }
 })
 
@@ -615,9 +616,13 @@ const { isVisible: sectionVisible, hasAnimated: sectionHasAnimated } = useScroll
 // Scroll animation inline style
 const sectionAnimStyle = computed(() => {
   if (!sectionAnimConfig.value) return {}
+  const { duration, delay } = sectionAnimConfig.value
+  // inline hover `transition` would override the .lcms-anim-* class transition — merge them
+  const hover = (sectionStyle.value as Record<string, string>).transition
   return {
-    '--lcms-anim-duration': `${sectionAnimConfig.value.duration}ms`,
-    '--lcms-anim-delay': `${sectionAnimConfig.value.delay}ms`
+    '--lcms-anim-duration': `${duration}ms`,
+    '--lcms-anim-delay': `${delay}ms`,
+    transition: `${hover && hover !== 'none' ? hover + ', ' : ''}opacity ${duration}ms ease-out ${delay}ms, transform ${duration}ms ease-out ${delay}ms`
   }
 })
 
