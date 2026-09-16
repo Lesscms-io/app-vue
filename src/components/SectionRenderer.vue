@@ -326,15 +326,17 @@ const gridStyle = computed(() => {
     }
   }
 
-  // Use actual column widths if available (span = 12-column grid system)
+  // Use actual column widths if available (span = 12-column grid system).
+  // fr, not % — percentage tracks ignore the grid gap, so "50% 50%" + gap
+  // overflowed the container by exactly one gap (visible with column_gap).
   const templateColumns = cols.map(col => {
     if (col.width) {
-      return `${col.width}%`
+      return `minmax(0, ${col.width}fr)`
     }
     if (col.span) {
-      return `${(col.span / 12) * 100}%`
+      return `minmax(0, ${col.span}fr)`
     }
-    return '1fr'
+    return 'minmax(0, 1fr)'
   }).join(' ')
 
   return {

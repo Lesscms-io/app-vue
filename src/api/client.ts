@@ -305,7 +305,9 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
     },
 
     getPagePreview(token: string) {
-      return get<PageResponse>(`/pages/preview/${encodeURIComponent(token)}`)
+      // Cache-buster: the edge caches JSON by full URL regardless of the
+      // origin's no-store, and a draft changes on every editor keystroke.
+      return get<PageResponse>(`/pages/preview/${encodeURIComponent(token)}`, { _: Date.now() })
     },
 
     getCollection(code: string, params?: CollectionParams) {
