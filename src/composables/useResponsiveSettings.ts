@@ -165,18 +165,20 @@ export function useResponsiveSettings() {
   /**
    * Check if should stack columns on current breakpoint
    */
-  function shouldStack(settings: { stackOnTablet?: boolean; stackOnMobile?: boolean } | undefined): boolean {
+  function shouldStack(settings: { stackOnTablet?: boolean; stackOnMobile?: boolean; stack_on_tablet?: boolean; stack_on_mobile?: boolean } | undefined): boolean {
     if (!settings) {
       // Default: stack on mobile, don't stack on tablet
       return currentBreakpoint.value === 'mobile'
     }
 
+    // The API emits snake_case (`stack_on_tablet`); camelCase kept for older callers.
+    // Reading only camelCase meant "stack on tablet" never reached the page.
     if (currentBreakpoint.value === 'tablet') {
-      return settings.stackOnTablet ?? false
+      return settings.stack_on_tablet ?? settings.stackOnTablet ?? false
     }
 
     if (currentBreakpoint.value === 'mobile') {
-      return settings.stackOnMobile ?? true // Default true for mobile
+      return settings.stack_on_mobile ?? settings.stackOnMobile ?? true // Default true for mobile
     }
 
     return false

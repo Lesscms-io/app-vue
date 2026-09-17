@@ -153,6 +153,9 @@ export interface BaseSettings {
   margin_right?: number
   margin_bottom?: number
   margin_left?: number
+  /** Unit applied to all four padding / margin values (px default) */
+  padding_unit?: 'px' | '%' | 'vw' | 'em'
+  margin_unit?: 'px' | '%' | 'vw' | 'em'
 
   // Border
   border_radius?: number
@@ -231,6 +234,18 @@ export interface SectionSettings extends BaseSettings {
   sectionHeight?: number | null
   content_width?: string
   customWidth?: number
+  /** Horizontal placement of a narrower content box */
+  content_align?: 'left' | 'center' | 'right'
+  /** px cap for a fluid (% / vw) content width: max-width: min(80%, 1080px) */
+  content_max_width?: number
+  /** Where bg / border / shadow are painted: the section (default) or the inner content box */
+  background_target?: 'section' | 'content'
+  content_padding_top?: number
+  content_padding_right?: number
+  content_padding_bottom?: number
+  content_padding_left?: number
+  content_padding_unit?: 'px' | '%' | 'vw' | 'em'
+  column_gap_unit?: 'px' | '%'
   column_gap?: number
   min_height?: number
 
@@ -251,6 +266,10 @@ export interface ColumnSettings extends BaseSettings {
   // Size
   columnHeight?: number | null
   column_height?: number | null
+  /** Vertical gap between widgets in px (0 allowed; unset = theme default) */
+  widget_gap?: number | null
+  /** Max width of the column box, with unit (e.g. "62%") */
+  max_width?: string | number | null
   min_height?: number | null
 
   // Alignment

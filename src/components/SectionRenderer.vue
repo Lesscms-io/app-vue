@@ -127,8 +127,34 @@ const gridType = computed(() => {
   return count === 1 ? '1' : `${count}-columns`
 })
 
+// Length with a group unit; a string that already carries a unit ("10%", "81px")
+// is used as-is so single sides can deviate from the group's unit.
+function withUnit(v: unknown, unit: string): string {
+  if (typeof v === 'string' && /^-?\d+(\.\d+)?(px|%|vw|vh|em|rem)$/.test(v.trim())) return v.trim()
+  return `${v}${unit}`
+}
+
+// Style keys that `background_target: 'content'` moves from the section onto
+// the inner grid box (Divi-style "row card": bg + radius + shadow on the
+// content box, section itself transparent).
+const BOX_STYLE_KEYS = [
+  'backgroundColor', 'backgroundImage', 'backgroundSize', 'backgroundPosition', 'backgroundRepeat',
+  'borderRadius', 'borderWidth', 'borderStyle', 'borderColor', 'boxShadow',
+  '--bg-image', '--bg-image-opacity', '--bg-size', '--bg-position'
+]
+const boxOnContent = computed(() => (settings.value as any).background_target === 'content')
+
 // Calculate section styles from settings
 const sectionStyle = computed(() => {
+  if (!boxOnContent.value) return rawSectionStyle.value
+  const out: Record<string, string> = {}
+  for (const [k, v] of Object.entries(rawSectionStyle.value)) {
+    if (!BOX_STYLE_KEYS.includes(k)) out[k] = v
+  }
+  return out
+})
+
+const rawSectionStyle = computed(() => {
   const s = settings.value as SectionSettings
   const style: Record<string, string> = {}
 
@@ -206,9 +232,11 @@ const sectionStyle = computed(() => {
 
   // Padding — an explicit 0 must win over the mobile gutter default in CSS
   // (`.lcms-section--contained`), so only null / '' means "not set".
+  // `padding_unit` / `margin_unit` (px | % | vw | em) apply to all four sides.
+  const padUnit = (s as any).padding_unit || 'px'
   const setPad = (key: 'padding_top' | 'padding_right' | 'padding_bottom' | 'padding_left', prop: string) => {
     const v = (s as any)[key]
-    if (v !== undefined && v !== null && v !== '') style[prop] = `${v}px`
+    if (v !== undefined && v !== null && v !== '') style[prop] = withUnit(v, padUnit)
   }
   setPad('padding_top', 'paddingTop')
   setPad('padding_right', 'paddingRight')
@@ -216,10 +244,11 @@ const sectionStyle = computed(() => {
   setPad('padding_left', 'paddingLeft')
 
   // Margin
-  if (s.margin_top) style.marginTop = `${s.margin_top}px`
-  if (s.margin_right) style.marginRight = `${s.margin_right}px`
-  if (s.margin_bottom) style.marginBottom = `${s.margin_bottom}px`
-  if (s.margin_left) style.marginLeft = `${s.margin_left}px`
+  const marUnit = (s as any).margin_unit || 'px'
+  if (s.margin_top) style.marginTop = withUnit(s.margin_top, marUnit)
+  if (s.margin_right) style.marginRight = withUnit(s.margin_right, marUnit)
+  if (s.margin_bottom) style.marginBottom = withUnit(s.margin_bottom, marUnit)
+  if (s.margin_left) style.marginLeft = withUnit(s.margin_left, marUnit)
 
   // Border
   if (s.border_radius) style.borderRadius = `${s.border_radius}px`
@@ -294,17 +323,45 @@ const innerStyle = computed(() => {
   if (width && width !== '100%') {
     if (width === 'custom' && s.customWidth) {
       style.maxWidth = `${s.customWidth}px`
-    } else if (width.endsWith('px')) {
+    } else if (/^\d+(\.\d+)?(px|%|vw|rem|em)$/.test(width)) {
+      // API emits custom widths with their unit (e.g. "80%", "1200px")
       style.maxWidth = width
     }
-    style.marginLeft = 'auto'
-    style.marginRight = 'auto'
+    // Fluid width capped in px (Divi row: `width: 80%; max-width: 1080px`)
+    const cap = (s as any).content_max_width
+    if (style.maxWidth && cap && !style.maxWidth.endsWith('px')) {
+      style.maxWidth = `min(${style.maxWidth}, ${cap}px)`
+    }
+    // content_align: left / right pin the narrower box to one edge (Divi rows
+    // with `margin: 0 auto 0 0`); default centered.
+    const align = (s as any).content_align || 'center'
+    style.marginLeft = align === 'left' ? '0' : 'auto'
+    style.marginRight = align === 'right' ? '0' : 'auto'
     style.width = '100%'
   }
 
-  // Column gap
+  // Column gap (column_gap_unit: px | %)
   if (s.column_gap) {
-    style.gap = `${s.column_gap}px`
+    style.gap = `${s.column_gap}${(s as any).column_gap_unit === '%' ? '%' : 'px'}`
+  }
+
+  // Inner padding of the content box (content_padding_* + content_padding_unit)
+  const cpUnit = (s as any).content_padding_unit || 'px'
+  for (const [key, prop] of [['content_padding_top', 'paddingTop'], ['content_padding_right', 'paddingRight'], ['content_padding_bottom', 'paddingBottom'], ['content_padding_left', 'paddingLeft']] as const) {
+    const v = (s as any)[key]
+    if (v !== undefined && v !== null && v !== '') {
+      style[prop] = withUnit(v, cpUnit)
+      // padding must stay inside the max-width box
+      style.boxSizing = 'border-box'
+    }
+  }
+
+  // background_target: 'content' — bg / border / shadow live on this box
+  if (boxOnContent.value) {
+    for (const [k, v] of Object.entries(rawSectionStyle.value)) {
+      if (BOX_STYLE_KEYS.includes(k)) style[k] = v
+    }
+    style.position = 'relative'
   }
 
   return style
@@ -423,17 +480,29 @@ function getColumnStyle(column: PageColumn) {
     }
   }
 
-  // Padding
-  if (s.padding_top) style.paddingTop = `${s.padding_top}px`
-  if (s.padding_right) style.paddingRight = `${s.padding_right}px`
-  if (s.padding_bottom) style.paddingBottom = `${s.padding_bottom}px`
-  if (s.padding_left) style.paddingLeft = `${s.padding_left}px`
+  // Padding (unit shared by the four sides: px | % | vw | em)
+  const padUnit = (s as any).padding_unit || 'px'
+  if (s.padding_top) style.paddingTop = withUnit(s.padding_top, padUnit)
+  if (s.padding_right) style.paddingRight = withUnit(s.padding_right, padUnit)
+  if (s.padding_bottom) style.paddingBottom = withUnit(s.padding_bottom, padUnit)
+  if (s.padding_left) style.paddingLeft = withUnit(s.padding_left, padUnit)
 
   // Margin
-  if (s.margin_top) style.marginTop = `${s.margin_top}px`
-  if (s.margin_right) style.marginRight = `${s.margin_right}px`
-  if (s.margin_bottom) style.marginBottom = `${s.margin_bottom}px`
-  if (s.margin_left) style.marginLeft = `${s.margin_left}px`
+  const marUnit = (s as any).margin_unit || 'px'
+  if (s.margin_top) style.marginTop = withUnit(s.margin_top, marUnit)
+  if (s.margin_right) style.marginRight = withUnit(s.margin_right, marUnit)
+  if (s.margin_bottom) style.marginBottom = withUnit(s.margin_bottom, marUnit)
+  if (s.margin_left) style.marginLeft = withUnit(s.margin_left, marUnit)
+
+  // Vertical gap between the column's widgets (explicit 0 allowed; null = theme default)
+  const wg = (s as any).widget_gap
+  if (wg !== undefined && wg !== null && wg !== '') style.gap = `${wg}px`
+
+  // Max width of the column box inside its grid track (API emits it with unit, e.g. "62%")
+  if (s.max_width) {
+    style.maxWidth = typeof s.max_width === 'number' ? `${s.max_width}px` : String(s.max_width)
+    style.boxSizing = 'border-box'
+  }
 
   // Border
   if (s.border_radius) style.borderRadius = `${s.border_radius}px`
@@ -665,7 +734,7 @@ const sectionClass = computed(() => {
     classes.push('lcms-section--stacked')
   }
   if (sectionHasBgImageOpacity.value) {
-    classes.push('lcms-section--has-bg-image-opacity')
+    if (!boxOnContent.value) classes.push('lcms-section--has-bg-image-opacity')
   }
   if (hasOverflowingNav.value) {
     classes.push('lcms-section--nav')
@@ -762,6 +831,7 @@ function mapFlexAlign(value: string): string {
     />
     <div
       class="lcms-section__grid"
+      :class="{ 'lcms-section__grid--has-bg-image-opacity': boxOnContent && sectionHasBgImageOpacity }"
       :style="gridStyle"
     >
       <div
@@ -830,6 +900,7 @@ function mapFlexAlign(value: string): string {
 
 /* Background image with opacity < 100 — pseudo-element overlay (matches WidgetRenderer pattern) */
 .lcms-section--has-bg-image-opacity::before,
+.lcms-section__grid--has-bg-image-opacity::before,
 .lcms-section__column--has-bg-image-opacity::before {
   content: '';
   position: absolute;
