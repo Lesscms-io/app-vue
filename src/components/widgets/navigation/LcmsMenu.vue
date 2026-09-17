@@ -71,7 +71,8 @@ const itemsGap = computed(() => {
   if (v === 'sm') return 4
   if (v === 'md' || v === undefined || v === null) return 12
   if (v === 'lg') return 24
-  return Number(v) || 12
+  const n = Number(v)
+  return isNaN(n) ? 12 : n // 0 is a valid gap (items flush, e.g. with dividers)
 })
 const itemsPadding = computed(() => {
   const v = configGroup.value.items_padding
@@ -90,6 +91,11 @@ const linkBackground = computed(() => linkGroup.value.background || null)
 const linkBackgroundHover = computed(() => linkGroup.value['background:hover'] || null)
 const linkHoverAnimation = computed(() => linkGroup.value.hover_animation || 'none')
 const linkHoverAnimationColor = computed(() => linkGroup.value.hover_animation_color || null)
+// Thin vertical divider between top-level items (horizontal lists only)
+const linkDivider = computed(() => !!linkGroup.value.divider)
+const linkDividerColor = computed(() => linkGroup.value.divider_color || null)
+// Caret / chevron after items that have a submenu (desktop lists; hamburger has its own toggle)
+const dropdownIndicator = computed(() => configGroup.value.dropdown_indicator || 'none')
 
 // Logo group
 const logoLight = computed(() => logoGroup.value.light || '')
@@ -137,6 +143,8 @@ const ctaSize = computed(() => ctaGroup.value.size || 'md')
 const ctaBorderRadius = computed(() => ctaGroup.value.border_radius || 'md')
 const ctaIcon = computed(() => ctaGroup.value.icon || '')
 const ctaIconPosition = computed(() => ctaGroup.value.icon_position || 'left')
+// Custom CTA colors override the preset (`style`) via CSS vars
+const ctaCustomColors = computed(() => !!ctaGroup.value.custom_colors)
 const isCtaSvgIcon = computed(() => ctaIcon.value.startsWith('svg:'))
 const ctaSvgContent = computed(() => isCtaSvgIcon.value ? ctaIcon.value.slice(4) : '')
 
@@ -243,6 +251,21 @@ const menuCssVars = computed(() => {
   if (lac) vars['--lcms-menu-link-hover-anim-color'] = lac
   else if (lhc) vars['--lcms-menu-link-hover-anim-color'] = lhc
   if (itemsPadding.value) vars['--lcms-menu-items-padding'] = itemsPadding.value
+  const ldc = resolveColorValue(linkDividerColor.value)
+  if (ldc) vars['--lcms-menu-divider-color'] = ldc
+
+  if (ctaCustomColors.value) {
+    const cbg = resolveColorValue(ctaGroup.value.background as string || null)
+    const cc = resolveColorValue(ctaGroup.value.color as string || null)
+    const cb = resolveColorValue(ctaGroup.value.border_color as string || null)
+    const cbgh = resolveColorValue(ctaGroup.value['background:hover'] as string || null)
+    const cch = resolveColorValue(ctaGroup.value['color:hover'] as string || null)
+    if (cbg) vars['--lcms-menu-cta-bg'] = cbg
+    if (cc) vars['--lcms-menu-cta-color'] = cc
+    if (cb) vars['--lcms-menu-cta-border'] = cb
+    if (cbgh) vars['--lcms-menu-cta-hover-bg'] = cbgh
+    if (cch) vars['--lcms-menu-cta-hover-color'] = cch
+  }
 
   // Scrolled state colors
   const slc = resolveColorValue(linkGroup.value['color:scrolled'] as string || null)
@@ -402,7 +425,7 @@ function isItemActiveDeep(item: MenuItem): boolean {
       `lcms-menu--align-${itemsAlignment}`,
       isPresetMode && !isHamburgerMode ? `lcms-menu--preset-${layoutPreset}` : '',
       linkHoverAnimation !== 'none' ? `lcms-menu--anim-${linkHoverAnimation}` : '',
-      { 'lcms-menu--hamburger': isHamburgerMode, 'lcms-menu--open': hamburgerOpen && isHamburgerMode, 'is-scrolled': sectionIsScrolled.value }
+      { 'lcms-menu--dividers': linkDivider && layout !== 'vertical', 'lcms-menu--hamburger': isHamburgerMode, 'lcms-menu--open': hamburgerOpen && isHamburgerMode, 'is-scrolled': sectionIsScrolled.value }
     ]"
     :style="menuCssVars"
   >
@@ -464,6 +487,10 @@ function isItemActiveDeep(item: MenuItem): boolean {
             @click="handleLinkClick"
           >
             {{ getItemLabel(item) }}
+            <span v-if="dropdownIndicator !== 'none' && item.children && item.children.length > 0" class="lcms-menu__indicator" :class="`lcms-menu__indicator--${dropdownIndicator}`" aria-hidden="true">
+              <svg v-if="dropdownIndicator === 'caret'" viewBox="0 0 10 6" width="10" height="6"><path d="M0 0h10L5 6z" fill="currentColor"/></svg>
+              <svg v-else viewBox="0 0 12 12" width="12" height="12" fill="none"><path d="M2.5 4.5L6 8L9.5 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </span>
           </a>
           <ul
             v-if="item.children && item.children.length > 0"
@@ -507,6 +534,10 @@ function isItemActiveDeep(item: MenuItem): boolean {
             @click="handleLinkClick"
           >
             {{ getItemLabel(item) }}
+            <span v-if="dropdownIndicator !== 'none' && item.children && item.children.length > 0" class="lcms-menu__indicator" :class="`lcms-menu__indicator--${dropdownIndicator}`" aria-hidden="true">
+              <svg v-if="dropdownIndicator === 'caret'" viewBox="0 0 10 6" width="10" height="6"><path d="M0 0h10L5 6z" fill="currentColor"/></svg>
+              <svg v-else viewBox="0 0 12 12" width="12" height="12" fill="none"><path d="M2.5 4.5L6 8L9.5 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </span>
           </a>
           <ul
             v-if="item.children && item.children.length > 0"
@@ -537,7 +568,8 @@ function isItemActiveDeep(item: MenuItem): boolean {
         class="lcms-menu__cta lcms-menu__preset-cta"
         :class="[
           `lcms-menu__cta--${ctaStyle}`,
-          `lcms-menu__cta--size-${ctaSize}`
+          `lcms-menu__cta--size-${ctaSize}`,
+          { 'lcms-menu__cta--custom': ctaCustomColors }
         ]"
         :style="ctaInlineStyle"
         :target="ctaTargetBlank ? '_blank' : undefined"
@@ -672,7 +704,8 @@ function isItemActiveDeep(item: MenuItem): boolean {
           class="lcms-menu__cta lcms-menu__cta--left"
           :class="[
             `lcms-menu__cta--${ctaStyle}`,
-            `lcms-menu__cta--size-${ctaSize}`
+            `lcms-menu__cta--size-${ctaSize}`,
+            { 'lcms-menu__cta--custom': ctaCustomColors }
           ]"
           :style="ctaInlineStyle"
           :target="ctaTargetBlank ? '_blank' : undefined"
@@ -713,6 +746,10 @@ function isItemActiveDeep(item: MenuItem): boolean {
               @click="handleLinkClick"
             >
               {{ getItemLabel(item) }}
+              <span v-if="!isHamburgerMode && dropdownIndicator !== 'none' && item.children && item.children.length > 0" class="lcms-menu__indicator" :class="`lcms-menu__indicator--${dropdownIndicator}`" aria-hidden="true">
+                <svg v-if="dropdownIndicator === 'caret'" viewBox="0 0 10 6" width="10" height="6"><path d="M0 0h10L5 6z" fill="currentColor"/></svg>
+                <svg v-else viewBox="0 0 12 12" width="12" height="12" fill="none"><path d="M2.5 4.5L6 8L9.5 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </span>
             </a>
 
             <!-- Nested menu -->
@@ -749,7 +786,8 @@ function isItemActiveDeep(item: MenuItem): boolean {
           class="lcms-menu__cta"
           :class="[
             `lcms-menu__cta--${ctaStyle}`,
-            `lcms-menu__cta--size-${ctaSize}`
+            `lcms-menu__cta--size-${ctaSize}`,
+            { 'lcms-menu__cta--custom': ctaCustomColors }
           ]"
           :style="ctaInlineStyle"
           :target="ctaTargetBlank ? '_blank' : undefined"
@@ -935,6 +973,38 @@ function isItemActiveDeep(item: MenuItem): boolean {
   white-space: nowrap;
   line-height: 1.2;
   text-decoration: none;
+}
+
+/* ===========================
+   Item divider + submenu indicator
+   =========================== */
+.lcms-menu--dividers .lcms-menu__list > .lcms-menu__item {
+  position: relative;
+}
+
+.lcms-menu--dividers .lcms-menu__list > .lcms-menu__item:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: calc(var(--lcms-menu-items-gap, 12px) / -2);
+  /* --lcms-menu-divider-width/-height: overridable from custom CSS */
+  width: var(--lcms-menu-divider-width, 1px);
+  height: var(--lcms-menu-divider-height, 1em);
+  transform: translate(50%, -50%);
+  background-color: var(--lcms-menu-divider-color, var(--lcms-menu-link-color, currentColor));
+  pointer-events: none;
+}
+
+.lcms-menu__indicator {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 6px;
+  line-height: 0;
+  transition: transform 0.2s ease;
+}
+
+.lcms-menu__item--has-children:hover > .lcms-menu__link > .lcms-menu__indicator--chevron {
+  transform: rotate(180deg);
 }
 
 /* ===========================
@@ -1353,6 +1423,19 @@ function isItemActiveDeep(item: MenuItem): boolean {
 
 .lcms-menu__cta:hover {
   filter: brightness(0.9);
+}
+
+/* Custom colors — declared after the presets so they win at equal specificity */
+.lcms-menu__cta.lcms-menu__cta--custom {
+  background-color: var(--lcms-menu-cta-bg, transparent);
+  color: var(--lcms-menu-cta-color, inherit);
+  border: 1px solid var(--lcms-menu-cta-border, transparent);
+}
+
+.lcms-menu__cta.lcms-menu__cta--custom:hover {
+  filter: none;
+  background-color: var(--lcms-menu-cta-hover-bg, var(--lcms-menu-cta-bg, transparent));
+  color: var(--lcms-menu-cta-hover-color, var(--lcms-menu-cta-color, inherit));
 }
 
 .lcms-menu__cta--primary {
