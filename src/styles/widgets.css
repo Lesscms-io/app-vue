@@ -2351,6 +2351,13 @@
   grid-column: 1 / -1;
 }
 
+/* phones: the two-column layout collapses to one column */
+@media (max-width: 767px) {
+  .lcms-form__fields--2col {
+    grid-template-columns: 1fr;
+  }
+}
+
 .lcms-form__submit-wrapper {
   display: flex;
 }
@@ -2361,6 +2368,11 @@
 
 .lcms-form__submit-wrapper--right {
   justify-content: flex-end;
+}
+
+.lcms-form__submit--full-width {
+  width: 100%;
+  justify-content: center;
 }
 
 .lcms-form__field--side {

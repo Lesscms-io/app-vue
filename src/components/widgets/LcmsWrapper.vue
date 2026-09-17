@@ -208,7 +208,7 @@ const hoverCss = computed(() => {
   <component :is="'style'" v-if="hoverCss">{{ hoverCss }}</component>
   <component :is="'style'" v-if="collapsedBorderCss">{{ collapsedBorderCss }}</component>
 
-  <div :id="wrapperId" class="lcms-wrapper" :class="{ 'lcms-wrapper--grid': layout !== 'inline', 'lcms-wrapper--equal-height': equalHeight }" :style="containerStyle">
+  <div :id="wrapperId" class="lcms-wrapper" :class="[{ 'lcms-wrapper--grid': layout !== 'inline', 'lcms-wrapper--equal-height': equalHeight }, (props.data.style as any)?.css_class || '']" :style="containerStyle">
     <div class="lcms-wrapper__grid" :style="gridStyle">
       <div
         v-for="(item, idx) in items"

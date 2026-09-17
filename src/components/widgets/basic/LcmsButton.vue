@@ -110,10 +110,10 @@ const buttonInlineStyle = computed(() => {
       :rel="targetBlank ? 'noopener noreferrer' : undefined"
     >
       <span v-if="isSvgIcon && iconPosition === 'left'" class="lcms-button__svg lcms-button__svg--left" v-html="svgContent" />
-      <i v-else-if="buttonIcon && iconPosition === 'left'" :class="[buttonIcon, 'lcms-button__icon']" style="margin-right: 6px;" />
+      <i v-else-if="buttonIcon && iconPosition === 'left'" :class="[buttonIcon, 'lcms-button__icon', 'lcms-button__icon--left']" />
       {{ buttonText }}
       <span v-if="isSvgIcon && iconPosition === 'right'" class="lcms-button__svg lcms-button__svg--right" v-html="svgContent" />
-      <i v-else-if="buttonIcon && iconPosition === 'right'" :class="[buttonIcon, 'lcms-button__icon']" style="margin-left: 6px;" />
+      <i v-else-if="buttonIcon && iconPosition === 'right'" :class="[buttonIcon, 'lcms-button__icon', 'lcms-button__icon--right']" />
     </a>
   </div>
 </template>
@@ -122,6 +122,10 @@ const buttonInlineStyle = computed(() => {
 .lcms-button__link {
   transition: filter 200ms ease, transform 200ms ease, box-shadow 200ms ease, padding 200ms ease;
 }
+
+/* icon spacing as classes (not inline) so project CSS can restyle the icon */
+.lcms-button__icon--left { margin-right: 6px; }
+.lcms-button__icon--right { margin-left: 6px; }
 
 /* icon_hover_only: icon takes no space and is invisible; on hover it slides in
    while the padding on that side grows so the label doesn't jump */

@@ -82,9 +82,12 @@ export interface PillWidgetData extends BaseWidgetData {
 }
 
 export interface LinkWidgetData extends BaseWidgetData {
-  text: MultilingualValue
+  // API (grouped): text.html/text.color, icon.icon/position, config.url/animation/target_blank
+  text: { html?: MultilingualValue; content?: MultilingualValue; color?: string; 'color:hover'?: string } | MultilingualValue
+  icon?: string | { icon?: string; position?: 'left' | 'right' | 'none' }
+  config?: { url?: string; animation?: 'none' | 'slide' | 'fade' | 'underline'; target_blank?: boolean }
+  // legacy flat keys
   url?: string
-  icon?: string
   icon_position?: 'left' | 'right' | 'none'
   animation?: 'none' | 'slide' | 'fade' | 'underline'
   color?: string

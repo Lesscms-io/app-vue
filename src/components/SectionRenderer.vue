@@ -373,12 +373,13 @@ const isStacked = computed(() => shouldStack(settings.value as SectionSettings))
 // Calculate grid template columns based on column widths
 const gridStyle = computed(() => {
   const cols = columns.value
-  if (!cols.length) return { gridTemplateColumns: '1fr' }
+  if (!cols.length) return { gridTemplateColumns: 'minmax(0, 1fr)' }
 
-  // If stacked, use single column
+  // If stacked, use single column (minmax(0, …): a bare 1fr = minmax(auto, 1fr) lets a wide
+  // min-content — e.g. a 2-column form — push the column past the viewport)
   if (isStacked.value) {
     return {
-      gridTemplateColumns: '1fr',
+      gridTemplateColumns: 'minmax(0, 1fr)',
       ...innerStyle.value
     }
   }
@@ -522,6 +523,8 @@ function getColumnStyle(column: PageColumn) {
     // Column needs height for justify-content to work
     if (!s.column_height && !s.min_height) {
       style.height = '100%'
+      // padding must not push the column past its grid track
+      style.boxSizing = 'border-box'
     }
   }
   if (s.horizontal_align) {
@@ -841,7 +844,8 @@ function mapFlexAlign(value: string): string {
         class="lcms-section__column"
         :class="[
           { 'lcms-hidden': isColumnHidden(column), 'lcms-section__column--has-bg-image-opacity': columnHasBgImageOpacity(column) },
-          getColumnAlignClass(column)
+          getColumnAlignClass(column),
+          (column.settings as any)?.css_class || ''
         ]"
         :style="getColumnStyle(column)"
         :data-column-index="colIndex"
@@ -895,7 +899,7 @@ function mapFlexAlign(value: string): string {
 
 /* Stacked layout class (applied via JS based on breakpoint settings) */
 .lcms-section--stacked .lcms-section__grid {
-  grid-template-columns: 1fr !important;
+  grid-template-columns: minmax(0, 1fr) !important;
 }
 
 /* Background image with opacity < 100 — pseudo-element overlay (matches WidgetRenderer pattern) */

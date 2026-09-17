@@ -40,13 +40,17 @@ function resolveColor(val: string | null | undefined): string | null {
 const resolvePageUrl = inject<(code: string | null, uuid: string | null) => string>('lesscms-resolve-page-url', () => '#')
 const resolveCollectionUrl = inject<(collectionCode: string, entryId: string) => string>('lesscms-resolve-collection-url', () => '#')
 
-const linkText = computed(() => extractValue(props.data.text?.html || props.data.text?.content))
-const linkUrl = computed(() => props.data.url || '#')
-const icon = computed(() => props.data.icon || 'fa-solid fa-arrow-right')
-const iconPosition = computed(() => props.data.icon_position || 'right')
-const animation = computed(() => props.data.animation || 'none')
-const color = computed(() => props.data.color || null)
-const targetBlank = computed(() => props.data.target_blank || false)
+// API shape is grouped (text.color, icon.icon/position, config.url/animation/target_blank); keep the flat legacy keys as fallback
+const d = computed(() => props.data as any)
+const iconGroup = computed(() => (typeof d.value.icon === 'object' && d.value.icon) ? d.value.icon : null)
+const configGroup = computed(() => d.value.config || {})
+const linkText = computed(() => extractValue(d.value.text?.html || d.value.text?.content || d.value.text))
+const linkUrl = computed(() => configGroup.value.url || d.value.url || '#')
+const icon = computed(() => (iconGroup.value ? iconGroup.value.icon : d.value.icon) || 'fa-solid fa-arrow-right')
+const iconPosition = computed(() => (iconGroup.value ? iconGroup.value.position : d.value.icon_position) || 'right')
+const animation = computed(() => configGroup.value.animation || d.value.animation || 'none')
+const color = computed(() => d.value.text?.color || d.value.color || null)
+const targetBlank = computed(() => configGroup.value.target_blank || d.value.target_blank || false)
 
 const linkStyles = computed(() => {
   const styles: Record<string, string> = {}
