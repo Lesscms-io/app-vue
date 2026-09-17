@@ -138,9 +138,9 @@ function withUnit(v: unknown, unit: string): string {
 // the inner grid box (Divi-style "row card": bg + radius + shadow on the
 // content box, section itself transparent).
 const BOX_STYLE_KEYS = [
-  'backgroundColor', 'backgroundImage', 'backgroundSize', 'backgroundPosition', 'backgroundRepeat',
+  'backgroundColor', 'backgroundImage', 'backgroundSize', 'backgroundPosition', 'backgroundRepeat', 'backgroundAttachment',
   'borderRadius', 'borderWidth', 'borderStyle', 'borderColor', 'boxShadow',
-  '--bg-image', '--bg-image-opacity', '--bg-size', '--bg-position'
+  '--bg-image', '--bg-image-opacity', '--bg-size', '--bg-position', '--bg-attachment'
 ]
 const boxOnContent = computed(() => (settings.value as any).background_target === 'content')
 
@@ -204,6 +204,8 @@ const rawSectionStyle = computed(() => {
       const imgSize = s.background_size || 'cover'
       const imgPos = s.background_position || 'center center'
       const imgOpacity = (s as any).background_image_opacity ?? 100
+      // background_attachment: fixed = image pinned to the viewport, content scrolls over it
+      const fixedBg = (s as any).background_attachment === 'fixed'
       if (imgOpacity < 100) {
         // Opacity uses pseudo-element overlay (CSS vars + has-bg-image-opacity class).
         // Inline `background-image` stays gradient-only here; ::before paints the image.
@@ -211,6 +213,7 @@ const rawSectionStyle = computed(() => {
         style['--bg-image-opacity'] = String(imgOpacity / 100)
         style['--bg-size'] = imgSize
         style['--bg-position'] = imgPos
+        if (fixedBg) style['--bg-attachment'] = 'fixed'
         if (gradientValue) {
           style.backgroundImage = gradientValue
         }
@@ -225,6 +228,7 @@ const rawSectionStyle = computed(() => {
         style.backgroundPosition = imgPos
         style.backgroundRepeat = 'no-repeat'
       }
+      if (fixedBg && imgOpacity >= 100) style.backgroundAttachment = gradientValue ? 'scroll, fixed' : 'fixed'
     } else if (gradientValue) {
       style.backgroundImage = gradientValue
     }
@@ -457,11 +461,14 @@ function getColumnStyle(column: PageColumn) {
       const imgSize = s.background_size || 'cover'
       const imgPos = s.background_position || 'center center'
       const imgOpacity = (s as any).background_image_opacity ?? 100
+      // background_attachment: fixed = image pinned to the viewport, content scrolls over it
+      const fixedBg = (s as any).background_attachment === 'fixed'
       if (imgOpacity < 100) {
         style['--bg-image'] = `url("${encodedUrl}")`
         style['--bg-image-opacity'] = String(imgOpacity / 100)
         style['--bg-size'] = imgSize
         style['--bg-position'] = imgPos
+        if (fixedBg) style['--bg-attachment'] = 'fixed'
         if (gradientValue) {
           style.backgroundImage = gradientValue
         }
@@ -476,6 +483,7 @@ function getColumnStyle(column: PageColumn) {
         style.backgroundPosition = imgPos
         style.backgroundRepeat = 'no-repeat'
       }
+      if (fixedBg && imgOpacity >= 100) style.backgroundAttachment = gradientValue ? 'scroll, fixed' : 'fixed'
     } else if (gradientValue) {
       style.backgroundImage = gradientValue
     }
@@ -912,6 +920,7 @@ function mapFlexAlign(value: string): string {
   background-image: var(--bg-image);
   background-size: var(--bg-size, cover);
   background-position: var(--bg-position, center center);
+  background-attachment: var(--bg-attachment, scroll);
   background-repeat: no-repeat;
   opacity: var(--bg-image-opacity, 1);
   pointer-events: none;

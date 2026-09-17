@@ -283,7 +283,12 @@ const menuCssVars = computed(() => {
   if (dlc) vars['--lcms-menu-dropdown-link-color'] = dlc
   if (dlhc) vars['--lcms-menu-dropdown-link-hover-color'] = dlhc
   const dbg = resolveColorValue(dropdownBg.value)
-  if (dbg) vars['--lcms-menu-dropdown-bg'] = dbg
+  if (dbg) {
+    vars['--lcms-menu-dropdown-bg'] = dbg
+    // custom dropdown background: the default light frame / hover tint would show as a white edge on dark menus
+    vars['--lcms-menu-dropdown-border'] = dbg
+    vars['--lcms-menu-dropdown-link-hover-bg'] = `color-mix(in srgb, ${dbg} 88%, #fff)`
+  }
   vars['--lcms-menu-dropdown-font-size'] = `${dropdownFontSize.value}px`
 
   const radiusMap: Record<string, string> = { none: '0', sm: '4px', md: '8px', lg: '12px' }

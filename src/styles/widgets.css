@@ -1567,7 +1567,7 @@
   min-width: 200px;
   padding: var(--lcms-spacing-2) 0;
   background-color: var(--lcms-menu-dropdown-bg, var(--lcms-color-white));
-  border: 1px solid var(--lcms-color-gray-200);
+  border: 1px solid var(--lcms-menu-dropdown-border, var(--lcms-color-gray-200));
   border-radius: var(--lcms-menu-dropdown-radius, var(--lcms-radius-md));
   box-shadow: var(--lcms-menu-dropdown-shadow, var(--lcms-shadow-lg));
   list-style: none;
@@ -1587,7 +1587,7 @@
 }
 
 .lcms-menu__sublink:hover {
-  background-color: var(--lcms-color-gray-100);
+  background-color: var(--lcms-menu-dropdown-link-hover-bg, var(--lcms-color-gray-100));
   color: var(--lcms-menu-dropdown-link-hover-color, var(--lcms-color-primary));
 }
 

@@ -368,6 +368,7 @@ const widgetStyle = computed(() => {
   const hoverLift = s['lift:hover']
   const hoverScale = s['scale:hover']
   const hoverShadowPreset = s['shadow_preset:hover']
+  const hoverAnimation = s['animation:hover']
 
   // Hover vars feed `!important var(...)` rules in widgets.css. An unset var
   // becomes an invalid declaration → reverts to CSS initial (medium ~3px for
@@ -375,7 +376,7 @@ const widgetStyle = computed(() => {
   // only one hover field (e.g. just border_color:hover), the others must
   // fall back to the matching normal-state value, otherwise a partial hover
   // edit produces a phantom thick border / color shift.
-  const hasAnyHover = !!(hoverBg || hoverBorderColor || hoverBorderWidth || hoverBoxShadow || hoverLift || (hoverScale && hoverScale !== 1) || (hoverShadowPreset && hoverShadowPreset !== 'none'))
+  const hasAnyHover = !!(hoverBg || hoverBorderColor || hoverBorderWidth || hoverBoxShadow || hoverLift || (hoverScale && hoverScale !== 1) || (hoverShadowPreset && hoverShadowPreset !== 'none') || (hoverAnimation && hoverAnimation !== 'none'))
   if (hasAnyHover) {
     const effectiveHoverBg = hoverBg || s.background_color || 'transparent'
     style['--wcsh-bg'] = effectiveHoverBg === 'transparent'
@@ -405,6 +406,16 @@ const widgetStyle = computed(() => {
     style['--wcsh-shadow-preset'] = shadowMap[hoverShadowPreset]
   }
 
+  // Looping hover animation (keyframes below)
+  const animationMap: Record<string, string> = {
+    pulse: 'wcsh-pulse 1s linear infinite',
+    bob: 'wcsh-bob 1.5s ease-in-out infinite',
+    wobble: 'wcsh-wobble 1s ease-in-out 1'
+  }
+  if (hoverAnimation && animationMap[hoverAnimation]) {
+    style['--wcsh-animation'] = animationMap[hoverAnimation]
+  }
+
   return style
 })
 
@@ -421,7 +432,8 @@ const hasWidgetHover = computed(() => {
     s['box_shadow:hover'] ||
     s['lift:hover'] ||
     (s['scale:hover'] && s['scale:hover'] !== 1) ||
-    (s['shadow_preset:hover'] && s['shadow_preset:hover'] !== 'none')
+    (s['shadow_preset:hover'] && s['shadow_preset:hover'] !== 'none') ||
+    (s['animation:hover'] && s['animation:hover'] !== 'none')
   )
 })
 
@@ -593,6 +605,25 @@ function mapHorizontalAlign(value: string): string {
   border-width: var(--wcsh-border-width) !important;
   box-shadow: var(--wcsh-shadow-preset, var(--wcsh-box-shadow)) !important;
   transform: translateY(var(--wcsh-lift, 0)) scale(var(--wcsh-scale, 1));
+  animation: var(--wcsh-animation, none);
+}
+
+/* Hover animations (animation:hover = pulse | bob | wobble) */
+@keyframes wcsh-pulse {
+  25% { transform: scale(1.1); }
+  75% { transform: scale(0.9); }
+}
+@keyframes wcsh-bob {
+  0%, 100% { transform: translateY(-8px); }
+  50% { transform: translateY(-4px); }
+}
+@keyframes wcsh-wobble {
+  16.65% { transform: rotate(3deg); }
+  33.3% { transform: rotate(-2deg); }
+  49.95% { transform: rotate(1deg); }
+  66.6% { transform: rotate(-0.5deg); }
+  83.25% { transform: rotate(0.25deg); }
+  100% { transform: rotate(0); }
 }
 
 /* Background image with opacity — pseudo-element approach */
