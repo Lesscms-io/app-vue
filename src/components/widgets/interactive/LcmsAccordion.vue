@@ -144,6 +144,31 @@ function isOpen(index: number): boolean {
   return openItems.value.has(index)
 }
 
+// Slide open/close: animate height between 0 and the natural height.
+// v-show keeps open items in the SSR HTML; the hooks only run on toggles.
+const SLIDE_MS = 280
+function slide(el: Element, to: 'open' | 'closed', done: () => void) {
+  const node = el as HTMLElement
+  const cs = window.getComputedStyle(node)
+  const open = { height: `${node.scrollHeight}px`, paddingTop: cs.paddingTop, paddingBottom: cs.paddingBottom, opacity: '1' }
+  const closed = { height: '0px', paddingTop: '0px', paddingBottom: '0px', opacity: '0' }
+  const from = to === 'open' ? closed : open
+  const dest = to === 'open' ? open : closed
+  node.style.overflow = 'hidden'
+  node.style.boxSizing = 'border-box'
+  Object.assign(node.style, from)
+  node.style.transition = `height ${SLIDE_MS}ms ease, padding ${SLIDE_MS}ms ease, opacity ${SLIDE_MS}ms ease`
+  void node.offsetHeight
+  Object.assign(node.style, dest)
+  window.setTimeout(done, SLIDE_MS)
+}
+function slideEnd(el: Element) {
+  const node = el as HTMLElement
+  for (const prop of ['height', 'padding-top', 'padding-bottom', 'opacity', 'overflow', 'box-sizing', 'transition']) {
+    node.style.removeProperty(prop)
+  }
+}
+
 // Computed styles
 const accordionStyle = computed(() => {
   const styles: Record<string, string> = {}
@@ -199,13 +224,21 @@ function contentStyle() {
           :style="iconColor ? { color: iconColor } : {}"
         />
       </button>
-      <div
-        v-show="isOpen(index)"
-        class="lcms-accordion__content"
-        :style="contentStyle()"
+      <Transition
+        :css="false"
+        @enter="(el, done) => slide(el, 'open', done)"
+        @after-enter="slideEnd"
+        @leave="(el, done) => slide(el, 'closed', done)"
+        @after-leave="slideEnd"
       >
-        <div v-html="item.content"></div>
-      </div>
+        <div
+          v-show="isOpen(index)"
+          class="lcms-accordion__content"
+          :style="contentStyle()"
+        >
+          <div v-html="item.content"></div>
+        </div>
+      </Transition>
     </div>
   </div>
 </template>
