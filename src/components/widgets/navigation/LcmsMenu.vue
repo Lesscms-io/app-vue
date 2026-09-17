@@ -66,13 +66,20 @@ const layoutPreset = computed(() => configGroup.value.layout_preset || '')
 const isPresetMode = computed(() => !!layoutPreset.value)
 const hamburgerBreakpoint = computed(() => configGroup.value.hamburger_breakpoint || 'never')
 const itemsAlignment = computed(() => configGroup.value.items_alignment || 'left')
+// Thin vertical divider between top-level items (horizontal lists only)
+const linkDivider = computed(() => !!linkGroup.value.divider)
 const itemsGap = computed(() => {
   const v = configGroup.value.items_gap
   if (v === 'sm') return 4
   if (v === 'md' || v === undefined || v === null) return 12
   if (v === 'lg') return 24
   const n = Number(v)
-  return isNaN(n) ? 12 : n // 0 is a valid gap (items flush, e.g. with dividers)
+  if (isNaN(n)) return 12
+  // The builder stores 0 for a cleared field, and every menu saved before
+  // dividers existed carries that 0 as "default" — so 0 only means flush
+  // when the dividers that need it are on; otherwise it stays the default.
+  if (n === 0 && !linkDivider.value) return 12
+  return n
 })
 const itemsPadding = computed(() => {
   const v = configGroup.value.items_padding
@@ -91,8 +98,6 @@ const linkBackground = computed(() => linkGroup.value.background || null)
 const linkBackgroundHover = computed(() => linkGroup.value['background:hover'] || null)
 const linkHoverAnimation = computed(() => linkGroup.value.hover_animation || 'none')
 const linkHoverAnimationColor = computed(() => linkGroup.value.hover_animation_color || null)
-// Thin vertical divider between top-level items (horizontal lists only)
-const linkDivider = computed(() => !!linkGroup.value.divider)
 const linkDividerColor = computed(() => linkGroup.value.divider_color || null)
 // Caret / chevron after items that have a submenu (desktop lists; hamburger has its own toggle)
 const dropdownIndicator = computed(() => configGroup.value.dropdown_indicator || 'none')
