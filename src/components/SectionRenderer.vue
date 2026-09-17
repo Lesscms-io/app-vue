@@ -653,8 +653,10 @@ const sectionClass = computed(() => {
   const classes = ['lcms-section', `lcms-section--grid-${gridType.value}`]
 
   const s = settings.value as SectionSettings
-  if (s.cssClass) {
-    classes.push(s.cssClass)
+  // API emits snake_case `css_class` (FE stores css_class); keep the camelCase fallback
+  const cssClass = (s as any).css_class || s.cssClass
+  if (cssClass) {
+    classes.push(cssClass)
   }
   if (isSectionHidden.value) {
     classes.push('lcms-hidden')

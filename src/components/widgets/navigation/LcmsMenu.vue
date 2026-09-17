@@ -8,10 +8,11 @@
  */
 
 import { computed, ref, inject, watch, onMounted, onUnmounted } from 'vue'
+import type { Ref, ComputedRef } from 'vue'
 import { useMenu } from '@/composables/useMenu'
 import { useLanguage } from '@/composables/useLanguage'
 import { useResponsiveSettings } from '@/composables/useResponsiveSettings'
-import { smallImage } from '@/composables/useImageOptimization'
+import { buildSrc, buildSrcset } from '@/composables/useImageOptimization'
 import type { MenuItem } from '@/api/types'
 
 defineOptions({
@@ -41,6 +42,12 @@ const resolveCollectionUrl = inject<(collectionCode: string, slug: string) => st
 
 // Scrolled state from parent section (sticky section provides this)
 const sectionIsScrolled = inject('sectionIsScrolled', ref(false))
+
+// Current path for active-item highlighting. The renderer provides it from
+// the router (SSR-safe); outside Nuxt we fall back to window.location on mount.
+const injectedCurrentPath = inject<Ref<string> | ComputedRef<string> | null>('lesscms-current-path', null)
+const fallbackCurrentPath = ref('')
+const currentPath = computed(() => injectedCurrentPath?.value ?? fallbackCurrentPath.value)
 
 // Element groups
 const linkGroup = computed(() => props.data.link || {})
@@ -77,6 +84,8 @@ const itemsIndent = computed(() => configGroup.value.items_indent || 0)
 // Link group
 const linkColor = computed(() => linkGroup.value.color || null)
 const linkHoverColor = computed(() => linkGroup.value['color:hover'] || null)
+const linkActiveColor = computed(() => linkGroup.value['color:active'] || null)
+const linkActiveBackground = computed(() => linkGroup.value['background:active'] || null)
 const linkBackground = computed(() => linkGroup.value.background || null)
 const linkBackgroundHover = computed(() => linkGroup.value['background:hover'] || null)
 const linkHoverAnimation = computed(() => linkGroup.value.hover_animation || 'none')
@@ -99,10 +108,18 @@ const logoColor = computed(() => {
   return val
 })
 
-// Optimized logo with srcset for responsive sizing
+// Optimized logo with srcset for responsive sizing. The logo renders at a
+// fixed height, so size it by height (assume up to a 4:1 aspect) — the
+// generic 200px "small image" preset upscales wide logos and blurs them.
 const logoOptimized = computed(() => {
   const url = logoLight.value || logoDark.value
-  return url ? smallImage(url) : null
+  if (!url) return null
+  const width = Math.max(200, Math.ceil(logoHeight.value * 4 / 100) * 100)
+  return {
+    src: buildSrc(url, width),
+    srcset: buildSrcset(url, [200, 400, 800, 1200]),
+    sizes: `${width}px`
+  }
 })
 
 // CTA group
@@ -215,6 +232,10 @@ const menuCssVars = computed(() => {
   if (lhc) vars['--lcms-menu-link-hover-color'] = lhc
   if (lhb) vars['--lcms-menu-link-bg'] = lhb
   if (lhbh) vars['--lcms-menu-link-hover-bg'] = lhbh
+  const lac2 = resolveColorValue(linkActiveColor.value)
+  const labg = resolveColorValue(linkActiveBackground.value)
+  if (lac2) vars['--lcms-menu-link-active-color'] = lac2
+  if (labg) vars['--lcms-menu-link-active-bg'] = labg
   vars['--lcms-menu-link-font-size'] = `${linkFontSize.value}px`
   vars['--lcms-menu-items-gap'] = `${itemsGap.value}px`
   if (itemsIndent.value) vars['--lcms-menu-items-indent'] = `${itemsIndent.value}px`
@@ -314,6 +335,7 @@ function handleKeydown(e: KeyboardEvent) {
 }
 
 onMounted(() => {
+  if (!injectedCurrentPath) fallbackCurrentPath.value = window.location.pathname
   document.addEventListener('keydown', handleKeydown)
 })
 
@@ -338,6 +360,37 @@ function getItemUrl(item: MenuItem): string {
 
 function getItemTarget(item: MenuItem): string | undefined {
   return item.metadata?.target
+}
+
+// Path-only, no trailing slash (except root), no query/hash. Anchors and
+// external hosts never match the current page.
+function normalizePath(url: string | null | undefined): string | null {
+  if (!url || url === '#' || url.startsWith('#')) return null
+  let path = url
+  if (/^[a-z][a-z0-9+.-]*:/i.test(url)) {
+    try {
+      const u = new URL(url)
+      if (typeof window !== 'undefined' && u.host !== window.location.host) return null
+      path = u.pathname
+    } catch {
+      return null
+    }
+  }
+  path = path.split('#')[0].split('?')[0]
+  if (!path.startsWith('/')) path = `/${path}`
+  if (path.length > 1) path = path.replace(/\/+$/, '')
+  return path
+}
+
+function isItemActive(item: MenuItem): boolean {
+  const cur = normalizePath(currentPath.value)
+  if (!cur) return false
+  return normalizePath(getItemUrl(item)) === cur
+}
+
+function isItemActiveDeep(item: MenuItem): boolean {
+  if (isItemActive(item)) return true
+  return (item.children || []).some(child => isItemActive(child))
 }
 </script>
 
@@ -400,11 +453,12 @@ function getItemTarget(item: MenuItem): string | undefined {
           v-for="item in (layoutPreset === 'logo-center-split' ? presetFirstHalf : items)"
           :key="item.id"
           class="lcms-menu__item"
-          :class="{ 'lcms-menu__item--has-children': item.children && item.children.length > 0 }"
+          :class="{ 'lcms-menu__item--has-children': item.children && item.children.length > 0, 'lcms-menu__item--active': isItemActiveDeep(item) }"
         >
           <a
             :href="getItemUrl(item)"
             class="lcms-menu__link"
+            :class="{ 'lcms-menu__link--active': isItemActive(item) }"
             :style="itemsPadding ? { padding: itemsPadding } : undefined"
             :target="getItemTarget(item)"
             @click="handleLinkClick"
@@ -423,6 +477,7 @@ function getItemTarget(item: MenuItem): string | undefined {
               <a
                 :href="getItemUrl(child)"
                 class="lcms-menu__sublink"
+                :class="{ 'lcms-menu__sublink--active': isItemActive(child) }"
                 :target="getItemTarget(child)"
                 @click="handleLinkClick"
               >
@@ -441,11 +496,12 @@ function getItemTarget(item: MenuItem): string | undefined {
           v-for="item in presetSecondHalf"
           :key="item.id"
           class="lcms-menu__item"
-          :class="{ 'lcms-menu__item--has-children': item.children && item.children.length > 0 }"
+          :class="{ 'lcms-menu__item--has-children': item.children && item.children.length > 0, 'lcms-menu__item--active': isItemActiveDeep(item) }"
         >
           <a
             :href="getItemUrl(item)"
             class="lcms-menu__link"
+            :class="{ 'lcms-menu__link--active': isItemActive(item) }"
             :style="itemsPadding ? { padding: itemsPadding } : undefined"
             :target="getItemTarget(item)"
             @click="handleLinkClick"
@@ -464,6 +520,7 @@ function getItemTarget(item: MenuItem): string | undefined {
               <a
                 :href="getItemUrl(child)"
                 class="lcms-menu__sublink"
+                :class="{ 'lcms-menu__sublink--active': isItemActive(child) }"
                 :target="getItemTarget(child)"
                 @click="handleLinkClick"
               >
@@ -634,7 +691,7 @@ function getItemTarget(item: MenuItem): string | undefined {
             v-for="item in items"
             :key="item.id"
             class="lcms-menu__item"
-            :class="{ 'lcms-menu__item--has-children': item.children && item.children.length > 0 }"
+            :class="{ 'lcms-menu__item--has-children': item.children && item.children.length > 0, 'lcms-menu__item--active': isItemActiveDeep(item) }"
           >
             <div v-if="isHamburgerMode && item.children && item.children.length > 0" class="lcms-menu__link-row" @click="toggleSubmenu(item.id)">
               <span class="lcms-menu__link">
@@ -650,6 +707,7 @@ function getItemTarget(item: MenuItem): string | undefined {
               v-else
               :href="getItemUrl(item)"
               class="lcms-menu__link"
+              :class="{ 'lcms-menu__link--active': isItemActive(item) }"
               :style="itemsPadding && !isHamburgerMode ? { padding: itemsPadding } : undefined"
               :target="getItemTarget(item)"
               @click="handleLinkClick"
@@ -673,6 +731,7 @@ function getItemTarget(item: MenuItem): string | undefined {
                 <a
                   :href="getItemUrl(child)"
                   class="lcms-menu__sublink"
+                  :class="{ 'lcms-menu__sublink--active': isItemActive(child) }"
                   :target="getItemTarget(child)"
                   @click="handleLinkClick"
                 >
@@ -1149,6 +1208,15 @@ function getItemTarget(item: MenuItem): string | undefined {
   background-color: var(--lcms-menu-link-hover-bg, var(--lcms-menu-link-bg, transparent));
 }
 
+/* Active (current page) item — `link.color:active` / `link.background:active`,
+ * falling back to the hover colors so the current page is highlighted even
+ * without explicit configuration. */
+.lcms-menu__link--active,
+.lcms-menu__link--active:hover {
+  color: var(--lcms-menu-link-active-color, var(--lcms-menu-link-hover-color, var(--lcms-menu-link-color, inherit)));
+  background-color: var(--lcms-menu-link-active-bg, var(--lcms-menu-link-hover-bg, var(--lcms-menu-link-bg, transparent)));
+}
+
 .lcms-menu.lcms-menu--align-center .lcms-menu__list {
   justify-content: center;
 }
@@ -1196,6 +1264,7 @@ function getItemTarget(item: MenuItem): string | undefined {
 
 /* Submenu: hidden by default, smooth accordion expand */
 .lcms-menu--hamburger .lcms-menu__submenu {
+  display: block;   /* the base dropdown rule hides it until :hover — useless in the touch drawer */
   position: static;
   box-shadow: none;
   background: rgba(0, 0, 0, 0.02);
@@ -1457,7 +1526,8 @@ function getItemTarget(item: MenuItem): string | undefined {
   transition: width 0.3s ease;
 }
 
-.lcms-menu--anim-underline .lcms-menu__link:hover::after {
+.lcms-menu--anim-underline .lcms-menu__link:hover::after,
+.lcms-menu--anim-underline .lcms-menu__link--active::after {
   width: 100%;
 }
 
@@ -1473,7 +1543,8 @@ function getItemTarget(item: MenuItem): string | undefined {
   transition: width 0.3s ease;
 }
 
-.lcms-menu--anim-overline .lcms-menu__link:hover::after {
+.lcms-menu--anim-overline .lcms-menu__link:hover::after,
+.lcms-menu--anim-overline .lcms-menu__link--active::after {
   width: 100%;
 }
 
@@ -1578,7 +1649,8 @@ function getItemTarget(item: MenuItem): string | undefined {
   white-space: nowrap;
 }
 
-.lcms-menu__sublink:hover {
+.lcms-menu__sublink:hover,
+.lcms-menu__sublink--active {
   color: var(--lcms-menu-dropdown-link-hover-color, var(--lcms-menu-link-hover-color, var(--lcms-color-primary, #50a5f1))) !important;
   background-color: rgba(0, 0, 0, 0.04);
 }
