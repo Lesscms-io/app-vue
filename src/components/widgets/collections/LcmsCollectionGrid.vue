@@ -191,6 +191,11 @@ const routeUuid = computed(() => config.value.route_uuid || null)
 const orderBy = computed(() => config.value.order_by || '')
 const orderDir = computed(() => config.value.order_dir || 'asc')
 const extraField = computed(() => config.value.extra_field || '')
+const extraField2 = computed(() => config.value.extra_field_2 || '')
+// Card link: entry page by default, or a URL field of the entry (portfolio / partner logos → external sites)
+const linkField = computed(() => config.value.link_field || '')
+const linkTarget = computed(() => (config.value.link_target === '_blank' ? '_blank' : undefined))
+const linkRel = computed(() => (linkTarget.value === '_blank' ? 'noopener' : undefined))
 const showPagination = computed(() => config.value.show_pagination || false)
 const showExtra = computed(() => config.value.show_extra || false)
 const excludeUrlSegment = computed(() => config.value.exclude_url_segment || null)
@@ -503,7 +508,28 @@ function getTags(entry: CollectionEntry): string[] {
 }
 
 function getUrl(entry: CollectionEntry): string {
+  if (linkField.value) {
+    const v = getFieldValue(entry, linkField.value)
+    if (typeof v === 'string' && v.trim()) return /^(https?:)?\/\/|^mailto:|^tel:|^\//i.test(v.trim()) ? v.trim() : `https://${v.trim()}`
+  }
   return entry.metadata?.url || '#'
+}
+
+// Plain-text value of a field (select/multiselect enriched objects → labels, arrays joined)
+function fieldText(entry: CollectionEntry, fieldCode: string): string {
+  const value = getFieldValue(entry, fieldCode)
+  if (value === null || value === undefined || value === '') return ''
+  const one = (v: any): string => {
+    if (v && typeof v === 'object') return String(extractValue(v.value_translation) || v.value || v.label || v.code || '')
+    return String(v)
+  }
+  const text = Array.isArray(value) ? value.map(one).filter(Boolean).join(', ') : one(value)
+  return text.replace(/<[^>]*>/g, '').trim()
+}
+
+// Extra line: one or two fields joined with a bullet (e.g. "2026 • Redesign")
+function getExtra(entry: CollectionEntry): string {
+  return [fieldText(entry, extraField.value), fieldText(entry, extraField2.value)].filter(Boolean).join(' • ')
 }
 
 // Build a unique ID for responsive style injection
@@ -701,7 +727,7 @@ const responsiveCss = computed(() => {
               v-if="field === 'title' && showTitle"
               class="lcms-collection-grid__title"
             >
-              <a :href="getUrl(entry)">{{ getTitle(entry) }}</a>
+              <a :href="getUrl(entry)" :target="linkTarget" :rel="linkRel">{{ getTitle(entry) }}</a>
             </h3>
 
             <time
@@ -728,9 +754,16 @@ const responsiveCss = computed(() => {
               >{{ tag }}</span>
             </div>
 
+            <div
+              v-else-if="field === 'extra' && showExtra && getExtra(entry)"
+              class="lcms-collection-grid__extra"
+            >{{ getExtra(entry) }}</div>
+
             <a
               v-else-if="field === 'read_more' && showReadMore"
               :href="getUrl(entry)"
+              :target="linkTarget"
+              :rel="linkRel"
               class="lcms-collection-grid__read-more"
             >
               {{ readMoreText }}
@@ -756,6 +789,8 @@ const responsiveCss = computed(() => {
         <a
           v-if="showImage && imageField && getImage(entry)"
           :href="getUrl(entry)"
+          :target="linkTarget"
+          :rel="linkRel"
           class="lcms-collection-grid__image-link"
         >
           <img
@@ -775,7 +810,7 @@ const responsiveCss = computed(() => {
               v-if="field === 'title' && showTitle"
               class="lcms-collection-grid__title"
             >
-              <a :href="getUrl(entry)">{{ getTitle(entry) }}</a>
+              <a :href="getUrl(entry)" :target="linkTarget" :rel="linkRel">{{ getTitle(entry) }}</a>
             </h3>
 
             <time
@@ -802,9 +837,16 @@ const responsiveCss = computed(() => {
               >{{ tag }}</span>
             </div>
 
+            <div
+              v-else-if="field === 'extra' && showExtra && getExtra(entry)"
+              class="lcms-collection-grid__extra"
+            >{{ getExtra(entry) }}</div>
+
             <a
               v-else-if="field === 'read_more' && showReadMore"
               :href="getUrl(entry)"
+              :target="linkTarget"
+              :rel="linkRel"
               class="lcms-collection-grid__read-more"
             >
               {{ readMoreText }}

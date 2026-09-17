@@ -1794,6 +1794,11 @@
   line-height: var(--lcms-p-line-height, var(--lcms-line-height-normal));
 }
 
+.lcms-collection-grid__extra {
+  font-size: var(--lcms-font-size-sm);
+  color: var(--lcms-color-gray-500);
+}
+
 .lcms-collection-grid__tags {
   display: flex;
   flex-wrap: wrap;
