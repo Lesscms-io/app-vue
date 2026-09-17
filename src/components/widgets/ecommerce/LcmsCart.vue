@@ -59,6 +59,15 @@ const editConfigurationUrl = (slug: string, itemUuid: string) => {
   return `${base}${sep}lcms_edit_item=${encodeURIComponent(itemUuid)}`
 }
 
+// Where the line's name/image point. A configured line opens its own
+// configuration for editing — customers click the product, not the small
+// "Edytuj konfigurację" link, and then land on a blank configurator asking
+// for size and colour all over again.
+const itemUrl = (item: { uuid: string; product: { slug: string }; metadata?: any }) =>
+  normalizedConfiguredOptions(item.metadata).length > 0
+    ? editConfigurationUrl(item.product.slug, item.uuid)
+    : productUrl(item.product.slug)
+
 const checkoutUrl = computed(() => projectConfig?.value?.commerce?.routes?.checkout || '/zamowienie')
 const continueUrl = computed(() => props.data?.config?.empty_redirect || '/')
 
@@ -196,7 +205,7 @@ function handleCheckout() {
           class="lcms-cart__item"
           :class="{ 'lcms-cart__item--expanded': expandedOptions[item.uuid] }"
         >
-          <a :href="productUrl(item.product.slug)" class="lcms-cart__item-image-link">
+          <a :href="itemUrl(item)" class="lcms-cart__item-image-link">
             <img
               v-if="item.product.image"
               :src="item.product.image"
@@ -213,7 +222,7 @@ function handleCheckout() {
           </a>
 
           <div class="lcms-cart__item-info">
-            <a :href="productUrl(item.product.slug)" class="lcms-cart__item-name">
+            <a :href="itemUrl(item)" class="lcms-cart__item-name">
               {{ item.product.name }}
             </a>
             <div class="lcms-cart__item-sku">{{ item.product.sku }}</div>

@@ -1317,6 +1317,12 @@ const totalPrice = computed(() => {
   return total
 })
 
+// What the summary row shows. `totalPrice` is the price of ONE configured
+// item (that's what goes to the cart as `configured_total` = unit price); the
+// quantity stepper sits in the same row, so the amount next to it has to be
+// the line total or bumping "2 szt." visibly changes nothing.
+const displayTotal = computed(() => totalPrice.value * quantity.value)
+
 // All required groups must have a valid value before add-to-cart enables.
 // The scoped variant backs plugin CTAs that run mid-wizard (`cta.validate:
 // 'step'`), where the groups of later steps aren't filled in yet by design.
@@ -1418,12 +1424,18 @@ async function handleBehaviorAction(explicit?: StorefrontPluginBehavior) {
   const behavior = explicit ?? activeBehavior.value
   const p = effectiveProduct.value
   if (!behavior || !p) return
-  if (behaviorBlocked(behavior)) {
+
+  const cta = behavior.cta
+
+  // A plain link ("design it in Zalamo", "write to us") never waits for the
+  // form: the customer leaves, does their part and comes back to finish here.
+  // Gating it on every required group blocked the external editor on step 1
+  // of a design-first wizard — the album link field it asks for is exactly
+  // what the customer goes to the editor to obtain.
+  if (cta.type !== 'link' && behaviorBlocked(behavior)) {
     toast.error(t('fillRequired'))
     return
   }
-
-  const cta = behavior.cta
 
   // Generic auth gate — any plugin behavior may set `requires_auth: true`
   // on its CTA. Core doesn't know which plugin; if the flag is on and the
@@ -1632,6 +1644,9 @@ function applyConfiguredOptions(entries: Array<Record<string, unknown>>) {
       }))
     } else if (entry.option_uuid) {
       nextSelected[group.uuid] = String(entry.option_uuid)
+      // Same state a click leaves behind: a swatch group with a restored pick
+      // collapses onto it, so the line reads as chosen rather than untouched.
+      pickedSwatchGroups[group.uuid] = true
     }
   }
 
@@ -2907,7 +2922,11 @@ const cssVars = computed(() => {
         </div>
         <span class="lcms-product-configurator__summary-label">{{ totalLabelText }}</span>
         <span class="lcms-product-configurator__summary-amount">
-          {{ formatPrice(totalPrice, currency) }}
+          <small
+            v-if="quantity > 1"
+            class="lcms-product-configurator__summary-unit"
+          >{{ quantity }} × {{ formatPrice(totalPrice, currency) }} =</small>
+          {{ formatPrice(displayTotal, currency) }}
         </span>
       </div>
       <p
@@ -3036,10 +3055,9 @@ const cssVars = computed(() => {
           {{ productFlow.description }}
         </p>
         <!-- Secondary actions under the main CTA: `mode: 'alongside'`
-             plugin behaviors for the selected options and the flow's extra
-             links (e.g. a legacy tool the customer can still switch to). -->
+             plugin behaviors for the selected options. -->
         <div
-          v-if="sideBehaviors.length || (!summaryBehavior && productFlow?.links?.length)"
+          v-if="sideBehaviors.length"
           class="lcms-product-configurator__side-actions"
         >
           <button
@@ -3053,10 +3071,23 @@ const cssVars = computed(() => {
             {{ b.cta.label }}
             <i v-if="b.cta.target === '_blank'" class="fa-solid fa-arrow-up-right-from-square lcms-product-configurator__side-icon" />
           </button>
-          <template v-if="!summaryBehavior && productFlow?.links?.length">
+        </div>
+        <!-- The flow's extra links (e.g. the previous tool the customer can
+             still switch to): each one is its own full-width alternative to
+             the CTA, introduced by the plugin's description above it. -->
+        <template v-if="!summaryBehavior && productFlow?.links?.length">
+          <div
+            v-for="(link, i) in productFlow.links"
+            :key="`flow-link-${i}`"
+            class="lcms-product-configurator__flow-link"
+          >
+            <p
+              v-if="link.description"
+              class="lcms-product-configurator__flow-description"
+            >
+              {{ link.description }}
+            </p>
             <button
-              v-for="(link, i) in productFlow.links"
-              :key="`flow-link-${i}`"
               type="button"
               :class="backButtonClass"
               :style="buttonInlineStyle"
@@ -3065,8 +3096,8 @@ const cssVars = computed(() => {
               {{ link.label }}
               <i v-if="link.target === '_blank'" class="fa-solid fa-arrow-up-right-from-square lcms-product-configurator__side-icon" />
             </button>
-          </template>
-        </div>
+          </div>
+        </template>
       </template>
     </template>
   </div>
@@ -3714,6 +3745,13 @@ const cssVars = computed(() => {
   color: var(--lcms-pc-summary-amount-color, inherit);
 }
 
+.lcms-product-configurator__summary-unit {
+  font-size: 0.875rem;
+  font-weight: 400;
+  opacity: 0.7;
+  margin-right: 0.35rem;
+}
+
 /* Shown while a step-placed plugin CTA is still pending — the total above is
  * not the final price yet, because the flow behind the CTA feeds into it. */
 /* Hover preview (pointer devices). Fixed + teleported so no ancestor's
@@ -4164,6 +4202,18 @@ const cssVars = computed(() => {
   font-size: 0.8em;
   margin-left: 6px;
   opacity: 0.7;
+}
+.lcms-product-configurator__flow-link {
+  margin-top: 1.25rem;
+}
+.lcms-product-configurator__flow-link .lcms-product-configurator__flow-description {
+  margin: 0 0 0.5rem;
+}
+.lcms-product-configurator__flow-link .lcms-product-configurator__back-btn {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 /* The quantity row directly above already carries its own bottom spacing. */
 .lcms-product-configurator__quantity + .lcms-product-configurator__summary-actions {
