@@ -1388,6 +1388,9 @@ function behaviorBlocked(behavior: StorefrontPluginBehavior): boolean {
 // add-to-cart button entirely. An option-bound behavior, when active,
 // still wins — it's the more specific instruction.
 const productFlow = computed<StorefrontProductFlow | null>(() => {
+  // Editing a cart line saves back onto that line; the bridge page would
+  // start a fresh purchase instead.
+  if (editingCartItemUuid.value) return null
   const flow = effectiveProduct.value?.flow
   if (!flow?.url || !flow?.button_label) return null
   return flow
@@ -1602,6 +1605,24 @@ async function applyCartLineForEditing(itemUuid: string, productUuid: string) {
   editingCartItemMetadata.value = { ...((item.metadata as Record<string, unknown> | null) ?? {}) }
   setQuantity(item.quantity)
   dismissEditItemMarker()
+  jumpToRestoredSummary()
+}
+
+// The customer came back to change one thing, not to click "Dalej" through
+// every step they already answered. Land on the summary; if the product
+// changed since and a required group is now empty, land on that step instead.
+function jumpToRestoredSummary() {
+  if (!wizardMode.value) return
+  const steps = effectiveSteps.value
+  const firstInvalid = steps.findIndex((step) => step.groups.some((g) => !isGroupValid(g)))
+  if (firstInvalid >= 0) {
+    currentStep.value = firstInvalid
+    showSummary.value = false
+  } else {
+    currentStep.value = Math.max(0, steps.length - 1)
+    showSummary.value = true
+  }
+  scrollToConfiguratorTop()
 }
 
 /**
