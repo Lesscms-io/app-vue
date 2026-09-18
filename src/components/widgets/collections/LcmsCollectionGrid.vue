@@ -409,13 +409,15 @@ function getFieldValue(entry: CollectionEntry, fieldCode: string): any {
   if (!fieldCode || !entry.content) return null
   const value = entry.content[fieldCode]
   if (value && typeof value === 'object' && !Array.isArray(value)) {
+    // enriched select option / relation ({ code, value, value_translation }) — not a multilingual map
+    if ('code' in value || 'entry_id' in value || 'collection_code' in value) return value
     return value[currentLanguage.value] || value.pl || Object.values(value)[0]
   }
   return value
 }
 
 function getTitle(entry: CollectionEntry): string {
-  const title = getFieldValue(entry, titleField.value) || ''
+  const title = fieldText(entry, titleField.value)
   if (titleLimit.value && title.length > titleLimit.value) {
     return title.substring(0, titleLimit.value) + '...'
   }
@@ -533,7 +535,9 @@ function getExtra(entry: CollectionEntry): string {
 }
 
 // Build a unique ID for responsive style injection
-const responsiveStyleId = computed(() => `lcms-grid-${Math.random().toString(36).slice(2, 8)}`)
+// Deterministic (SSR == client): a random id changes on hydration, the <style> keeps the server one and the grid
+// falls back to 3 columns. Encoding the values makes two grids with the same config share one harmless rule.
+const responsiveStyleId = computed(() => `lcms-grid-c${columns.value}-t${columnsTablet.value ?? 'a'}-m${columnsMobile.value ?? 'a'}`)
 
 const gridClass = computed(() => {
   if (columnsTablet.value || columnsMobile.value) {

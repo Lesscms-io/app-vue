@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { resolveColor } from '@/utils/resolveColor'
+import { buildGradientCss } from '@/utils/gradient'
 
 interface WrapperItem {
   id: string
@@ -77,6 +78,39 @@ const containerStyle = computed(() => {
   const s = props.data.style || {}
   const style: Record<string, string> = {}
   if (s.background_color) style.backgroundColor = resolveColor(s.background_color)
+  // Background image + gradient — same fields the settings panel offers for every widget (see WidgetRenderer)
+  let gradientValue: string | null = null
+  if (s.use_gradient && s.gradient_color_start && s.gradient_color_end) {
+    gradientValue = buildGradientCss(s.gradient_type || 'linear', s.gradient_angle ?? 180, s.gradient_position || 'center', s.gradient_intensity ?? 0,
+      resolveColor(s.gradient_color_start), resolveColor(s.gradient_color_end))
+  }
+  if (s.background_image) {
+    const rawUrl = s.background_image_optimized || s.background_image
+    let encodedUrl: string
+    try { encodedUrl = encodeURI(decodeURI(rawUrl)) } catch { encodedUrl = rawUrl }
+    const imgSize = s.background_size || 'cover'
+    const imgPos = s.background_position || 'center center'
+    const imgOpacity = s.background_image_opacity ?? 100
+    if (imgOpacity < 100) {
+      style['--bg-image'] = `url("${encodedUrl}")`
+      style['--bg-image-opacity'] = String(imgOpacity / 100)
+      style['--bg-size'] = imgSize
+      style['--bg-position'] = imgPos
+      if (gradientValue) style.backgroundImage = gradientValue
+    } else if (gradientValue) {
+      style.backgroundImage = `${gradientValue}, url("${encodedUrl}")`
+      style.backgroundSize = `auto, ${imgSize}`
+      style.backgroundPosition = `0 0, ${imgPos}`
+      style.backgroundRepeat = 'no-repeat'
+    } else {
+      style.backgroundImage = `url("${encodedUrl}")`
+      style.backgroundSize = imgSize
+      style.backgroundPosition = imgPos
+      style.backgroundRepeat = 'no-repeat'
+    }
+  } else if (gradientValue) {
+    style.backgroundImage = gradientValue
+  }
   if (s.padding_top !== undefined) style.paddingTop = `${s.padding_top}px`
   if (s.padding_right !== undefined) style.paddingRight = `${s.padding_right}px`
   if (s.padding_bottom !== undefined) style.paddingBottom = `${s.padding_bottom}px`
@@ -109,6 +143,8 @@ const containerStyle = computed(() => {
 
   return style
 })
+
+const hasBgImageOpacity = computed(() => { const s = props.data.style || {}; return !!s.background_image && (s.background_image_opacity ?? 100) < 100 })
 
 // Per-cell style: EMPTY per governance — cell is a pure grid slot.
 // Widget styles (bg, padding, border, shadow) are applied by WidgetRenderer on the widget itself.
@@ -208,7 +244,7 @@ const hoverCss = computed(() => {
   <component :is="'style'" v-if="hoverCss">{{ hoverCss }}</component>
   <component :is="'style'" v-if="collapsedBorderCss">{{ collapsedBorderCss }}</component>
 
-  <div :id="wrapperId" class="lcms-wrapper" :class="[{ 'lcms-wrapper--grid': layout !== 'inline', 'lcms-wrapper--equal-height': equalHeight }, (props.data.style as any)?.css_class || '']" :style="containerStyle">
+  <div :id="wrapperId" class="lcms-wrapper" :class="[{ 'lcms-wrapper--grid': layout !== 'inline', 'lcms-wrapper--equal-height': equalHeight, 'has-bg-image-opacity': hasBgImageOpacity }, (props.data.style as any)?.css_class || '']" :style="containerStyle">
     <div class="lcms-wrapper__grid" :style="gridStyle">
       <div
         v-for="(item, idx) in items"
@@ -226,6 +262,11 @@ const hoverCss = computed(() => {
 .lcms-wrapper {
   box-sizing: border-box;
 }
+
+/* Background image with opacity (pseudo-element, like WidgetRenderer) */
+.lcms-wrapper.has-bg-image-opacity { position: relative; }
+.lcms-wrapper.has-bg-image-opacity::before { content: ''; position: absolute; inset: 0; background-image: var(--bg-image); background-size: var(--bg-size, cover); background-position: var(--bg-position, center center); background-repeat: no-repeat; opacity: var(--bg-image-opacity, 1); pointer-events: none; border-radius: inherit; z-index: 0; }
+.lcms-wrapper.has-bg-image-opacity > * { position: relative; z-index: 1; }
 
 /* Grid layout wrappers need full width for proper column layout */
 .lcms-wrapper--grid {

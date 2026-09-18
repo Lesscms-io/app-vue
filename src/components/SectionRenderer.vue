@@ -831,7 +831,7 @@ function mapFlexAlign(value: string): string {
     :style="{ ...sectionStyle, ...sectionAnimStyle }"
   >
     <video
-      v-if="(settings as any).background_video_url"
+      v-if="(settings as any).background_video_url && !boxOnContent"
       class="lcms-section__bg-video"
       :src="(settings as any).background_video_url"
       :poster="(settings as any).background_image || undefined"
@@ -842,9 +842,20 @@ function mapFlexAlign(value: string): string {
     />
     <div
       class="lcms-section__grid"
-      :class="{ 'lcms-section__grid--has-bg-image-opacity': boxOnContent && sectionHasBgImageOpacity }"
+      :class="{ 'lcms-section__grid--has-bg-image-opacity': boxOnContent && sectionHasBgImageOpacity, 'lcms-section__grid--has-bg-video': boxOnContent && (settings as any).background_video_url }"
       :style="gridStyle"
     >
+      <!-- background_target: content → the video lives inside the (rounded) content box -->
+      <video
+        v-if="(settings as any).background_video_url && boxOnContent"
+        class="lcms-section__bg-video"
+        :src="(settings as any).background_video_url"
+        :poster="(settings as any).background_image || undefined"
+        autoplay
+        muted
+        loop
+        playsinline
+      />
       <div
         v-for="(column, colIndex) in columns"
         :key="column.id || colIndex"
@@ -967,6 +978,12 @@ function mapFlexAlign(value: string): string {
 }
 .lcms-section__column:has(> .lcms-section__column-bg-video) {
   overflow: hidden;
+}
+.lcms-section__grid--has-bg-video {
+  overflow: hidden;
+}
+.lcms-section__grid--has-bg-video > .lcms-section__column {
+  z-index: 1;
 }
 .lcms-section__grid {
   position: relative;
