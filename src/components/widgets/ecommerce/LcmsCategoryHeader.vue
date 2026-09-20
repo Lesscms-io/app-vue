@@ -30,6 +30,7 @@ const projectConfig = inject<Ref<any> | null>('lesscms-project-config', null)
 const config = computed(() => props.data?.config || props.data || {})
 
 const showBreadcrumbs = computed(() => config.value.show_breadcrumbs !== false)
+const showImage = computed(() => config.value.show_image !== false)
 const showDescription = computed(() => config.value.show_description !== false)
 const showProductCount = computed(() => config.value.show_product_count === true)
 const slugSource = computed(() => config.value.slug_source || 'url')
@@ -142,7 +143,7 @@ watch([resolvedSlug, isAvailable], () => {
     </nav>
 
     <div v-if="category" class="lcms-category-header__content">
-      <div v-if="category.image" class="lcms-category-header__image-wrap">
+      <div v-if="showImage && category.image" class="lcms-category-header__image-wrap">
         <img :src="category.image" :alt="category.name" class="lcms-category-header__image" />
       </div>
 
