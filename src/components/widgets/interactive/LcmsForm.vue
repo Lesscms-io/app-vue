@@ -33,11 +33,24 @@ defineOptions({
 
 interface FormField {
   code: string
-  type: 'text' | 'email' | 'textarea' | 'select' | 'checkbox'
+  type: 'text' | 'email' | 'textarea' | 'select' | 'checkbox' | 'file'
   label: string
   placeholder?: string
   required?: boolean
   options?: { value: string; label: string }[]
+  /** file: HTML accept list, e.g. ".pdf,.jpg,image/*" */
+  accept?: string
+  /** file: size cap in MB (backend caps at 20) */
+  max_size?: number
+}
+
+/** Value stored for a `file` field — produced by the upload endpoint, never by the client. */
+interface UploadedFile {
+  name: string
+  size: number
+  mime?: string
+  path: string
+  url: string
 }
 
 interface FormConsent {
@@ -105,7 +118,9 @@ const fields = computed<FormField[]>(() => {
       label: typeof f.label === 'object' ? (extractValue(f.label) as string) : (f.label || ''),
       placeholder: typeof f.placeholder === 'object' ? (extractValue(f.placeholder) as string) : (f.placeholder || ''),
       required: f.required ?? false,
-      options: f.options || []
+      options: f.options || [],
+      accept: f.accept || '',
+      max_size: f.max_size ? Number(f.max_size) : undefined
     }))
   }
 
@@ -117,7 +132,9 @@ const fields = computed<FormField[]>(() => {
     label: typeof f.label === 'object' ? (extractValue(f.label) as string) : (f.label || ''),
     placeholder: typeof f.placeholder === 'object' ? (extractValue(f.placeholder) as string) : (f.placeholder || ''),
     required: f.required ?? false,
-    options: f.options || []
+    options: f.options || [],
+    accept: f.accept || '',
+    max_size: f.max_size ? Number(f.max_size) : undefined
   }))
 })
 
@@ -169,6 +186,18 @@ const errorMessage = computed(() => {
   return val || 'Something went wrong. Please try again.'
 })
 
+// `file` field texts — overridable per widget (or per form), same pattern as submit/success/error copy
+function widgetText(value: unknown, remoteKey: string, fallback: string): string {
+  const val = value ?? remoteForm.value?.settings?.[remoteKey]
+  if (val && typeof val === 'object') return (extractValue(val) as string) || fallback
+  return (val as string) || fallback
+}
+const fileTooLargeText = computed(() => widgetText(config.value.file_too_large_text, 'file_too_large_text', 'File is larger than {max} MB'))
+const fileErrorText = computed(() => widgetText(config.value.file_error_text, 'file_error_text', 'Upload failed, please try again'))
+const fileChooseText = computed(() => widgetText(config.value.file_choose_text, 'file_choose_text', 'Choose a file'))
+const fileUploadingText = computed(() => widgetText(config.value.file_uploading_text, 'file_uploading_text', 'Uploading…'))
+const fileRemoveText = computed(() => widgetText(config.value.file_remove_text, 'file_remove_text', 'Remove'))
+
 const formUuid = computed(() => {
   if (remoteForm.value?.uuid) return remoteForm.value.uuid
   return config.value.form_uuid || props.data.uuid || ''
@@ -204,6 +233,8 @@ const consentData = reactive<Record<string, boolean>>({})
 const isSubmitting = ref(false)
 const submitStatus = ref<'idle' | 'success' | 'error'>('idle')
 const validationErrors = ref<Record<string, string>>({})
+// per-field upload state for `file` inputs
+const uploadingFields = ref<Record<string, boolean>>({})
 
 // Anti-spam: honeypot and timestamp
 const honeypot = ref('')
@@ -285,6 +316,8 @@ function initFormData() {
   for (const field of fields.value) {
     if (field.type === 'checkbox') {
       formData[field.code] = false
+    } else if (field.type === 'file') {
+      formData[field.code] = null
     } else {
       formData[field.code] = ''
     }
@@ -310,7 +343,10 @@ function validate(): boolean {
       if (field.type === 'checkbox' && !value) {
         validationErrors.value[field.code] = 'Required'
         valid = false
-      } else if (field.type !== 'checkbox' && (!value || !String(value).trim())) {
+      } else if (field.type === 'file' && !(value && (value as UploadedFile).url)) {
+        validationErrors.value[field.code] = 'Required'
+        valid = false
+      } else if (field.type !== 'checkbox' && field.type !== 'file' && (!value || !String(value).trim())) {
         validationErrors.value[field.code] = 'Required'
         valid = false
       }
@@ -335,7 +371,58 @@ function validate(): boolean {
   return valid
 }
 
+/** Upload straight after picking the file: the visitor learns about a too-big file before submitting. */
+async function handleFileChange(field: FormField, event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  formData[field.code] = null
+  delete validationErrors.value[field.code]
+  if (!file) return
+
+  const maxMb = field.max_size || 10
+  if (file.size > maxMb * 1024 * 1024) {
+    validationErrors.value[field.code] = fileTooLargeText.value.replace('{max}', String(maxMb))
+    input.value = ''
+    return
+  }
+
+  uploadingFields.value = { ...uploadingFields.value, [field.code]: true }
+  try {
+    const body = new FormData()
+    body.append('file', file)
+    body.append('field_code', field.code)
+    const res: any = await api.post(`/forms/${formUuid.value}/upload`, body)
+    const uploaded = (res?.data ?? res) as UploadedFile
+    if (!uploaded?.url) throw new Error('upload failed')
+    formData[field.code] = uploaded
+  } catch (e: any) {
+    const tooLarge = e?.status === 422 || /too large/i.test(e?.message || '')
+    validationErrors.value[field.code] = tooLarge
+      ? fileTooLargeText.value.replace('{max}', String(maxMb))
+      : fileErrorText.value
+    input.value = ''
+  } finally {
+    const next = { ...uploadingFields.value }
+    delete next[field.code]
+    uploadingFields.value = next
+  }
+}
+
+function clearFile(field: FormField) {
+  formData[field.code] = null
+  delete validationErrors.value[field.code]
+  const input = document.getElementById(`form-${field.code}`) as HTMLInputElement | null
+  if (input) input.value = ''
+}
+
+function formatFileSize(bytes: number): string {
+  if (!bytes) return ''
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`
+}
+
 async function handleSubmit() {
+  if (Object.keys(uploadingFields.value).length) return
   if (!validate()) return
 
   // Client-side honeypot check
@@ -570,7 +657,7 @@ const buttonClasses = computed(() => {
             :class="{
               'lcms-form__field--error': validationErrors[field.code],
               'lcms-form__field--side': labelPosition === 'side',
-              'lcms-form__field--full-width': field.type === 'textarea' || field.type === 'checkbox'
+              'lcms-form__field--full-width': field.type === 'textarea' || field.type === 'checkbox' || field.type === 'file'
             }"
           >
             <label
@@ -640,6 +727,44 @@ const buttonClasses = computed(() => {
                 {{ opt.label }}
               </option>
             </select>
+
+            <!-- File upload: uploaded right away, the form only carries the resulting reference -->
+            <div
+              v-else-if="field.type === 'file'"
+              class="lcms-form__file"
+            >
+              <input
+                :id="`form-${field.code}`"
+                type="file"
+                class="lcms-form__file-input"
+                :accept="field.accept || undefined"
+                :required="field.required && !formData[field.code]"
+                :disabled="uploadingFields[field.code]"
+                @change="handleFileChange(field, $event)"
+              >
+              <label
+                class="lcms-form__file-button"
+                :class="inputSizeClass"
+                :style="computedInputStyle"
+                :for="`form-${field.code}`"
+              >
+                {{ uploadingFields[field.code] ? fileUploadingText : (formData[field.code]?.name || field.placeholder || fileChooseText) }}
+              </label>
+              <button
+                v-if="formData[field.code] && !uploadingFields[field.code]"
+                type="button"
+                class="lcms-form__file-clear"
+                @click="clearFile(field)"
+              >
+                {{ fileRemoveText }}
+              </button>
+              <span
+                v-if="formData[field.code]?.size"
+                class="lcms-form__file-size"
+              >
+                {{ formatFileSize(formData[field.code].size) }}
+              </span>
+            </div>
 
             <!-- Checkbox -->
             <label
@@ -720,7 +845,7 @@ const buttonClasses = computed(() => {
             type="submit"
             :class="buttonClasses"
             :style="computedButtonStyle"
-            :disabled="isSubmitting"
+            :disabled="isSubmitting || Object.keys(uploadingFields).length > 0"
           >
             <span
               v-if="isSubmitting"

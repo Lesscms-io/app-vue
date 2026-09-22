@@ -224,8 +224,12 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
   async function post<T>(path: string, body?: any): Promise<T> {
     const url = `${basePath}${path}`
 
+    // FormData (form attachments) must keep its own multipart boundary — setting
+    // Content-Type by hand would make the upload unparseable on the server.
+    const isFormData = typeof FormData !== 'undefined' && body instanceof FormData
+
     const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
+      ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
       'Accept': 'application/json',
     }
 
@@ -236,7 +240,7 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
     const response = await fetch(url, {
       method: 'POST',
       headers,
-      body: body ? JSON.stringify(body) : undefined,
+      body: isFormData ? body : (body ? JSON.stringify(body) : undefined),
       credentials: isProxy ? 'include' : 'same-origin',
     })
 
