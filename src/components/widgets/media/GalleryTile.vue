@@ -9,6 +9,8 @@
  * of a block below the image) keeps every layout's aspect-ratio/masonry
  * geometry untouched.
  */
+import { posterFrameSrc } from '@/utils/videoPoster'
+
 defineProps<{
   item: any
   imgClass?: string
@@ -26,7 +28,7 @@ defineProps<{
     class="lcms-gallery__video"
   >
     <video
-      :src="item.url"
+      :src="item.poster ? item.url : posterFrameSrc(item.url)"
       :poster="item.poster || undefined"
       preload="metadata"
       muted

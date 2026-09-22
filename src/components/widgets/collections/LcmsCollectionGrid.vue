@@ -7,6 +7,7 @@
  */
 
 import { computed, watch, ref, inject, onMounted, onBeforeUnmount, unref, type Ref } from 'vue'
+import { posterFrameSrc } from '@/utils/videoPoster'
 import { useCollection } from '@/composables/useCollection'
 import { useLanguage } from '@/composables/useLanguage'
 import { useApi } from '@/composables/useApi'
@@ -718,7 +719,7 @@ const responsiveCss = computed(() => {
         <video
           v-if="showImage && imageField && isVideoEntry(entry)"
           class="lcms-collection-grid__bg-video"
-          :src="getImage(entry)"
+          :src="posterFrameSrc(getImage(entry))"
           preload="metadata"
           muted
           loop

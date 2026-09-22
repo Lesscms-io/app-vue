@@ -9,6 +9,7 @@
  */
 
 import { computed, inject, ref, unref, watch, onMounted, onUnmounted, Teleport, type Ref } from 'vue'
+import { posterFrameSrc } from '@/utils/videoPoster'
 import { useLanguage } from '@/composables/useLanguage'
 import { contentImage } from '@/composables/useImageOptimization'
 import type { CollectionFieldConfig, CollectionEntry } from '@/api/types'
@@ -500,7 +501,7 @@ const lightboxImage = computed(() => galleryItems.value[lightboxIndex.value] || 
             @click="openLightbox(idx)"
           >
             <video
-              :src="item.url"
+              :src="item.poster ? item.url : posterFrameSrc(item.url)"
               :poster="item.poster || undefined"
               preload="metadata"
               muted
