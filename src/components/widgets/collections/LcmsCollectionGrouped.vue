@@ -181,6 +181,7 @@ const props = defineProps<{
     }
     settings?: Record<string, unknown>
   }
+  language?: string
 }>()
 
 const config = computed(() => props.data.widget || props.data || {})
@@ -329,7 +330,7 @@ async function fetchEntries() {
 
   loading.value = true
   try {
-    const params: Record<string, any> = {}
+    const params: Record<string, any> = { lang: props.language || undefined }
     if (excludeEntryId.value) {
       params.exclude_entry_id = excludeEntryId.value
     }

@@ -116,7 +116,7 @@ const text = (v: any) => (extractValue(v) as string) || ''
 
 // ── Menu nodes ───────────────────────────────────────────────────────
 const menuCode = computed(() => configGroup.value.menu_code || '')
-const { items: nodes, refetch: fetchMenu } = useMenu(menuCode)
+const { items: nodes, refetch: fetchMenu } = useMenu(menuCode, props.language)
 // SSR: the nav has to be in the initial HTML (crawlable, no layout jump).
 onServerPrefetch(() => fetchMenu())
 const topNodes = computed(() => nodes.value.filter(n => n?.metadata?.is_public !== false))

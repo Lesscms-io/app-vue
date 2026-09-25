@@ -10,6 +10,7 @@ import { computed, watch, ref, inject, onMounted, onBeforeUnmount, unref, type R
 import { posterFrameSrc } from '@/utils/videoPoster'
 import { useCollection } from '@/composables/useCollection'
 import { useLanguage } from '@/composables/useLanguage'
+import { localizedEntryUrl } from '@/utils/entryUrl'
 import { useApi } from '@/composables/useApi'
 import { contentImage } from '@/composables/useImageOptimization'
 import LcmsEntryTemplateRenderer from './LcmsEntryTemplateRenderer.vue'
@@ -265,6 +266,7 @@ const collectionCodeForFetch = computed(() => {
 
 const { entries: fetchedEntries, loading: fetchLoading, error: fetchError } = useCollection(collectionCodeForFetch, {
   pageSize: postsCount.value,
+  lang: currentLanguage.value,
 }, excludeEntryId)
 
 // Manual fetch with dynamic params (useCollection doesn't support reactive params well)
@@ -283,6 +285,7 @@ async function fetchWithUrlFilter() {
     const params: Record<string, any> = {
       pageSize: postsCount.value,
       [filterField.value]: resolvedFilterValue.value,
+      lang: currentLanguage.value,
     }
     if (excludeEntryId.value) {
       params.exclude_entry_id = excludeEntryId.value
@@ -515,7 +518,7 @@ function getUrl(entry: CollectionEntry): string {
     const v = getFieldValue(entry, linkField.value)
     if (typeof v === 'string' && v.trim()) return /^(https?:)?\/\/|^mailto:|^tel:|^\//i.test(v.trim()) ? v.trim() : `https://${v.trim()}`
   }
-  return entry.metadata?.url || '#'
+  return localizedEntryUrl(entry.metadata, currentLanguage.value) || '#'
 }
 
 // Plain-text value of a field (select/multiselect enriched objects → labels, arrays joined)

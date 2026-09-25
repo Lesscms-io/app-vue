@@ -119,7 +119,7 @@ const menuItemsCache = ref<Record<string, any[]>>({})
 
 function ensureMenuLoaded(code: string) {
   if (!code || menuItemsCache.value[code]) return
-  const { items } = useMenu(code)
+  const { items } = useMenu(code, props.language)
   watch(items, (val) => {
     if (val) menuItemsCache.value = { ...menuItemsCache.value, [code]: val as any[] }
   }, { immediate: true })

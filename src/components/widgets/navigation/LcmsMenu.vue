@@ -310,7 +310,7 @@ const menuCssVars = computed(() => {
   return vars
 })
 
-const { items, loading, error } = useMenu(menuCode)
+const { items, loading, error } = useMenu(menuCode, props.language)
 
 // Split items for logo-center-split preset (logo siedzi w środku rzędu między dwiema połówkami).
 const presetFirstHalf = computed(() => {

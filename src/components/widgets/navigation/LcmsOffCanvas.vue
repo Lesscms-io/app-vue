@@ -31,7 +31,7 @@ const backdropGroup = computed(() => config.value.backdrop || {})
 const animationGroup = computed(() => config.value.animation || {})
 
 const menuCode = computed(() => panelGroup.value.menu_code || '')
-const { items: menuItems, refetch: fetchMenu } = useMenu(menuCode)
+const { items: menuItems, refetch: fetchMenu } = useMenu(menuCode, props.language)
 onServerPrefetch(async () => { if (menuCode.value) await fetchMenu() })
 onMounted(() => { if (menuCode.value && !menuItems.value.length) fetchMenu() })
 

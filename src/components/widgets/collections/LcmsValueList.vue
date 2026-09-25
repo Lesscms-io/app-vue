@@ -107,6 +107,7 @@
 <script setup lang="ts">
 import { computed, ref, inject, unref, onMounted, watch, type Ref } from 'vue'
 import { useApi } from '../../../composables/useApi'
+import { localizedEntryUrl } from '../../../utils/entryUrl'
 import type { ResolvedRoute } from '../../../composables/useRoutes'
 import type { CollectionEntry } from '../../../api/types'
 
@@ -160,6 +161,7 @@ const props = defineProps<{
     }
     settings?: Record<string, unknown>
   }
+  language?: string
 }>()
 
 const config = computed(() => props.data.widget || props.data || {})
@@ -453,8 +455,9 @@ const values = computed<ValueItem[]>(() => {
       } else {
         const vi: ValueItem = { value: code, label, count: 1 }
         // Store entry URL for link_to_entry mode
-        if (linkToEntry.value && entry.metadata?.url) {
-          vi.entryUrl = entry.metadata.url
+        const url = localizedEntryUrl(entry.metadata, props.language || 'pl')
+        if (linkToEntry.value && url) {
+          vi.entryUrl = url
         }
         // Extract subtitle and icon from entry for cards style
         if (subtitleField.value) {
@@ -562,7 +565,7 @@ async function fetchValues() {
 
   loading.value = true
   try {
-    const params: Record<string, any> = { pageSize: 1000 }
+    const params: Record<string, any> = { pageSize: 1000, lang: props.language || undefined }
     // Pass filter as query param for server-side filtering
     if (filterField.value && filterValue.value) {
       params[filterField.value] = filterValue.value

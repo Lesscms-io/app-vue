@@ -36,7 +36,7 @@ export interface UseMenuReturn {
 /**
  * Composable for fetching a menu by code
  */
-export function useMenu(code: Ref<string> | string): UseMenuReturn {
+export function useMenu(code: Ref<string> | string, language?: string): UseMenuReturn {
   const api = useApi()
 
   const items = ref<MenuItem[]>([])
@@ -57,7 +57,7 @@ export function useMenu(code: Ref<string> | string): UseMenuReturn {
     error.value = null
 
     try {
-      const response = await api.getMenu(codeRef.value)
+      const response = await api.getMenu(codeRef.value, language)
       items.value = response.data.content || []
       metadata.value = response.data.metadata || null
     } catch (e) {

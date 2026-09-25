@@ -9,6 +9,7 @@
 import { computed, ref, inject, onMounted, onUnmounted, type Ref } from 'vue'
 import { useCollection } from '@/composables/useCollection'
 import { useLanguage } from '@/composables/useLanguage'
+import { localizedEntryUrl } from '@/utils/entryUrl'
 import { contentImage } from '@/composables/useImageOptimization'
 import type { CollectionCarouselWidgetData } from '@/types/widgets'
 import type { CollectionEntry } from '@/api/types'
@@ -65,6 +66,7 @@ const collectionCodeForFetch = computed(() => hasEnrichedData.value ? '' : colle
 
 const { entries: fetchedEntries, loading: fetchLoading, error: fetchError } = useCollection(collectionCodeForFetch, {
   pageSize: postsCount.value,
+  lang: currentLanguage.value,
 }, excludeEntryId)
 
 const entries = computed(() => hasEnrichedData.value ? config.value.entries : fetchedEntries.value)
@@ -133,7 +135,7 @@ function getImage(entry: CollectionEntry): string {
 }
 
 function getUrl(entry: CollectionEntry): string {
-  return entry.metadata?.url || '#'
+  return localizedEntryUrl(entry.metadata, currentLanguage.value) || '#'
 }
 
 onMounted(() => {

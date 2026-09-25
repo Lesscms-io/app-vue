@@ -11,6 +11,7 @@
 import { computed, inject, ref, unref, watch, onMounted, onUnmounted, Teleport, type Ref } from 'vue'
 import { posterFrameSrc } from '@/utils/videoPoster'
 import { useLanguage } from '@/composables/useLanguage'
+import { localizedEntryUrl } from '@/utils/entryUrl'
 import { contentImage } from '@/composables/useImageOptimization'
 import type { CollectionFieldConfig, CollectionEntry } from '@/api/types'
 
@@ -134,7 +135,8 @@ const entryUrl = computed(() => {
 
   // 2. Fallback to injected entry metadata URL
   const entry = unref(injectedEntry)
-  if (entry?.metadata?.url) return entry.metadata.url
+  const localized = localizedEntryUrl(entry?.metadata, currentLanguage.value)
+  if (localized) return localized
 
   // 3. Final fallback: /{collection_code}/{entry_id}
   const entry2 = unref(injectedEntry)

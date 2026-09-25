@@ -39,7 +39,7 @@ export interface ApiClient {
   /**
    * Get a single page by code
    */
-  getPage(code: string): Promise<PageResponse>
+  getPage(code: string, language?: string): Promise<PageResponse>
 
   /**
    * Get a draft page by its preview token. Used by the renderer when a
@@ -66,7 +66,7 @@ export interface ApiClient {
   /**
    * Get menu by code
    */
-  getMenu(code: string): Promise<MenuResponse>
+  getMenu(code: string, language?: string): Promise<MenuResponse>
 
   /**
    * Get block by code
@@ -304,8 +304,9 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
       return get<PagesListResponse>('/pages')
     },
 
-    getPage(code: string) {
-      return get<PageResponse>(`/pages/${encodeURIComponent(code)}`)
+    getPage(code: string, language?: string) {
+      // lang: linki przycisków/CTA w języku strony
+      return get<PageResponse>(`/pages/${encodeURIComponent(code)}`, language ? { lang: language } : undefined)
     },
 
     getPagePreview(token: string) {
@@ -330,8 +331,9 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
       return get(`/collections/${encodeURIComponent(collectionCode)}/templates/${encodeURIComponent(templateId)}`)
     },
 
-    getMenu(code: string) {
-      return get<MenuResponse>(`/menus/${encodeURIComponent(code)}`)
+    getMenu(code: string, language?: string) {
+      // lang: adresy pozycji menu w bieżącym języku strony
+      return get<MenuResponse>(`/menus/${encodeURIComponent(code)}`, language ? { lang: language } : undefined)
     },
 
     getBlock(code: string) {

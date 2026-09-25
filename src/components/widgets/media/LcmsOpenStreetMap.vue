@@ -16,6 +16,7 @@
 <script setup lang="ts">
 import { computed, ref, inject, onMounted, onBeforeUnmount, watch, type Ref } from 'vue'
 import { useApiOptional } from '@/composables/useApi'
+import { localizedEntryUrl } from '@/utils/entryUrl'
 import type { ResolvedRoute } from '@/composables/useRoutes'
 
 const props = defineProps<{
@@ -281,7 +282,7 @@ async function fetchCollectionLayers() {
   if (!L) return
 
   try {
-    const fetchParams: Record<string, any> = { pageSize: collectionLayersLimit.value }
+    const fetchParams: Record<string, any> = { pageSize: collectionLayersLimit.value, lang: props.language || undefined }
     // Pass filter as query param for server-side filtering (handles relations, selects, text)
     if (collectionLayersFilterField.value && collectionLayersFilterValue.value) {
       fetchParams[collectionLayersFilterField.value] = collectionLayersFilterValue.value
@@ -296,7 +297,7 @@ async function fetchCollectionLayers() {
       const geoData = extractGeoJsonFromField(fieldValue, props.language || 'pl')
       if (!geoData) continue
 
-      const entryUrl = entry.metadata?.url || '#'
+      const entryUrl = localizedEntryUrl(entry.metadata, props.language || 'pl') || '#'
 
       let geojsonData: any
       if (typeof geoData === 'string') {
