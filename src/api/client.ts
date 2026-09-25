@@ -56,7 +56,7 @@ export interface ApiClient {
   /**
    * Get a single collection entry
    */
-  getCollectionEntry(collectionCode: string, entryId: string): Promise<{ data: import('./types').CollectionEntry }>
+  getCollectionEntry(collectionCode: string, entryId: string, language?: string): Promise<{ data: import('./types').CollectionEntry }>
 
   /**
    * Get collection entry template
@@ -318,8 +318,12 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
       return get<CollectionResponse>(`/collections/${encodeURIComponent(code)}`, params)
     },
 
-    getCollectionEntry(collectionCode: string, entryId: string) {
-      return get(`/collections/${encodeURIComponent(collectionCode)}/${encodeURIComponent(entryId)}`)
+    getCollectionEntry(collectionCode: string, entryId: string, language?: string) {
+      // lang: wpis szukany też po slugu w tym języku (metadata.slugs[lang]).
+      return get(
+        `/collections/${encodeURIComponent(collectionCode)}/${encodeURIComponent(entryId)}`,
+        language ? { lang: language } : undefined,
+      )
     },
 
     getCollectionTemplate(collectionCode: string, templateId: string) {

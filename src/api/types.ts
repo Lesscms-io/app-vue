@@ -392,6 +392,12 @@ export interface EntryMetadata {
   url: string
   created_at: string
   updated_at: string
+  // Multilingual fields (from new API contract)
+  slugs?: Record<string, string>
+  route_paths?: Record<string, string>
+  urls?: Record<string, string>
+  // Legacy fallback for single-language URLs
+  route_path?: string
 }
 
 export interface CollectionMeta {
@@ -593,6 +599,9 @@ export interface RoutesResponse {
     } | null
     pages: RoutePageItem[]
     collections: RouteCollectionItem[]
+    // Multilingual support (from new API contract)
+    default_language?: string
+    languages?: string[]
   }
 }
 
@@ -601,6 +610,8 @@ export interface RoutePageItem {
   url: string
   pattern: string | null
   page_uuid: string
+  // Multilingual support (from new API contract)
+  url_translation?: Record<string, string>
 }
 
 export interface RouteCollectionRoute {
