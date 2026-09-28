@@ -359,10 +359,20 @@ export interface SeoLanguageData {
   twitter?: SeoTwitterData
   custom_meta?: SeoCustomMeta[]
   // schema.org type to emit as JSON-LD on the rendered page. One of
-  // 'Article' | 'Service' | 'FAQPage' | '' (none). Renderer picks the
-  // right builder. Per-language (so a translated page can have its own
-  // schema) but typically users set it once and copy.
+  // 'Article' | 'Service' | 'FAQPage' | 'SoftwareApplication' | '' (none).
+  // Renderer picks the right builder. Per-language (so a translated page can
+  // have its own schema) but typically users set it once and copy.
   schema_type?: string
+  // Extra fields for schema_type = 'SoftwareApplication'.
+  software?: SeoSoftwareData
+}
+
+export interface SeoSoftwareData {
+  category?: string
+  operating_system?: string
+  price?: string | number
+  price_high?: string | number
+  currency?: string
 }
 
 // SEO data is keyed by language code
