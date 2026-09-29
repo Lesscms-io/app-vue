@@ -482,6 +482,12 @@ export interface PaymentInitResponse {
 export interface StorefrontClientOptions {
   baseUrl: string
   apiKey: string
+  /**
+   * Język strony. Dokładany jako `?lang=` do każdego zapytania — storefront
+   * podmienia wtedy nazwy i opisy produktów oraz kategorii na tłumaczenia
+   * (brak tłumaczenia = tekst podstawowy sklepu).
+   */
+  language?: string
 }
 
 export class StorefrontApiError extends Error {
@@ -690,6 +696,7 @@ export type StorefrontCampaignInclude = 'topbars' | 'banners'
 export function createStorefrontClient(options: StorefrontClientOptions): StorefrontClient {
   const baseUrl = options.baseUrl.replace(/\/$/, '')
   const apiKey = options.apiKey
+  const language = options.language
 
   let customerToken: string | null = null
 
@@ -699,6 +706,10 @@ export function createStorefrontClient(options: StorefrontClientOptions): Storef
     options: { body?: any; params?: Record<string, any>; requireAuth?: boolean } = {}
   ): Promise<T> {
     const url = new URL(`${baseUrl}/v1${path}`)
+
+    if (language) {
+      url.searchParams.set('lang', language)
+    }
 
     if (options.params) {
       for (const [key, value] of Object.entries(options.params)) {

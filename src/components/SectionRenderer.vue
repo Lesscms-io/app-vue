@@ -45,6 +45,10 @@ const columns = computed(() => props.section.columns || [])
 const isScrolled = ref(false)
 provide('sectionIsScrolled', isScrolled)
 
+// Język strony dla widgetów, które nie dostają go propsem — np. klient
+// storefrontu (useStorefront) prosi sklep o nazwy produktów w tym języku.
+provide('lesscms-current-language', computed(() => props.language))
+
 const handleScroll = () => {
   const s = settings.value as SectionSettings
   if (s.sticky) {

@@ -176,7 +176,16 @@ const fieldDescription = computed(() => config.value.field_description || '')
 function getField(product: any, path: string): any {
   if (!path) return null
   const val = path.split('.').reduce((obj: any, key: string) => obj?.[key], product)
-  return Array.isArray(val) ? val[0] ?? null : val
+  if (Array.isArray(val)) return val[0] ?? null
+  // Atrybut tłumaczony przychodzi jako { pl: '…', en: '…' } — bierzemy język
+  // strony, potem jego wersję bazową (pt-BR → pt), potem pierwszy niepusty.
+  if (val && typeof val === 'object') {
+    const lang = props.language || 'pl'
+    const picked = val[lang] ?? val[lang.split('-')[0]]
+    if (picked !== undefined && picked !== null && picked !== '') return picked
+    return Object.values(val).find((v) => v !== null && v !== undefined && v !== '') ?? null
+  }
+  return val
 }
 
 // Base price 0 = product priced by the configurator — hide the price (and any

@@ -25,9 +25,37 @@ export interface UseStorefrontResult {
   shopUuid: ComputedRef<string | null>
 }
 
-// Module-level cache so all widgets in the same app share the same client instance
-let cachedClient: StorefrontClient | null = null
-let cachedKey: string | null = null
+// Module-level cache so all widgets share client instances — one per API
+// key and language. Language is part of the key (not a mutable setting on a
+// shared client) because on the server concurrent SSR requests for different
+// languages go through the same module.
+const clients = new Map<string, StorefrontClient>()
+const rawTokenSetters = new WeakMap<StorefrontClient, (token: string | null) => void>()
+
+/**
+ * Client for a shop + language. Clients of the same shop share the logged-in
+ * customer's token: logging in through one widget must authorise requests of
+ * every other widget, whatever language client it ended up with.
+ */
+function getClient(apiUrl: string, apiKey: string, language: string): StorefrontClient {
+  const shopKey = `${apiUrl}|${apiKey}`
+  const key = `${shopKey}|${language}`
+  const existing = clients.get(key)
+  if (existing) return existing
+
+  const siblings = () =>
+    [...clients.entries()].filter(([k]) => k.startsWith(`${shopKey}|`)).map(([, c]) => c)
+  const currentToken = siblings()[0]?.getCustomerToken() ?? null
+
+  const created = createStorefrontClient({ baseUrl: apiUrl, apiKey, language: language || undefined })
+  rawTokenSetters.set(created, created.setCustomerToken.bind(created))
+  created.setCustomerToken = (token: string | null) => {
+    for (const c of siblings()) rawTokenSetters.get(c)?.(token)
+  }
+  clients.set(key, created)
+  if (currentToken) rawTokenSetters.get(created)!(currentToken)
+  return created
+}
 
 export function useStorefront(): UseStorefrontResult {
   // Commerce context can be provided as either a plain object or a computed ref
@@ -45,26 +73,20 @@ export function useStorefront(): UseStorefrontResult {
     return ctx as CommerceContext
   }
 
+  // Language of the page being rendered — provided by SectionRenderer, which
+  // gets it from the page. Outside a page (plugin pages) fall back to the
+  // project's default language from the provider config.
+  const pageLanguage = inject<Ref<string | undefined> | null>('lesscms-current-language', null)
+  const config = inject<{ language?: string } | null>('lesscms-config', null)
+
   const client = computed<StorefrontClient | null>(() => {
     const c = resolveCtx()
     if (!c?.apiUrl || !c?.apiKey) {
-      cachedClient = null
-      cachedKey = null
       return null
     }
 
-    // Cache key combines URL and API key
-    const key = `${c.apiUrl}|${c.apiKey}`
-    if (cachedClient && cachedKey === key) {
-      return cachedClient
-    }
-
-    cachedClient = createStorefrontClient({
-      baseUrl: c.apiUrl,
-      apiKey: c.apiKey,
-    })
-    cachedKey = key
-    return cachedClient
+    const language = pageLanguage?.value || config?.language || ''
+    return getClient(c.apiUrl, c.apiKey, language)
   })
 
   const isAvailable = computed(() => client.value !== null)
