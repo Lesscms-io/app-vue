@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
+import { useScrollAnimation } from '@/composables/useScrollAnimation'
 import { resolveColor } from '@/utils/resolveColor'
 import { buildGradientCss } from '@/utils/gradient'
 
@@ -144,6 +145,29 @@ const containerStyle = computed(() => {
   return style
 })
 
+// Scroll animation — same settings/classes as WidgetRenderer (wrappers are rendered outside of it)
+const animationConfig = computed(() => {
+  const s = props.data.style || {}
+  const type = s.animation_type || 'none'
+  if (type === 'none') return null
+  return { type, duration: s.animation_duration ?? 600, delay: s.animation_delay ?? 0, once: s.animation_once ?? true }
+})
+const wrapperRef = ref<HTMLElement | null>(null)
+const { isVisible, hasAnimated } = useScrollAnimation(wrapperRef, animationConfig)
+const animationClasses = computed(() => {
+  if (!animationConfig.value) return []
+  return [`lcms-anim-${animationConfig.value.type}`, (isVisible.value || hasAnimated.value) ? 'lcms-anim--visible' : '']
+})
+const animationStyle = computed(() => {
+  if (!animationConfig.value) return {}
+  const { duration, delay } = animationConfig.value
+  return {
+    '--lcms-anim-duration': `${duration}ms`,
+    '--lcms-anim-delay': `${delay}ms`,
+    transition: `opacity ${duration}ms ease-out ${delay}ms, transform ${duration}ms ease-out ${delay}ms`
+  }
+})
+
 const hasBgImageOpacity = computed(() => { const s = props.data.style || {}; return !!s.background_image && (s.background_image_opacity ?? 100) < 100 })
 
 // Per-cell style: EMPTY per governance — cell is a pure grid slot.
@@ -244,7 +268,7 @@ const hoverCss = computed(() => {
   <component :is="'style'" v-if="hoverCss">{{ hoverCss }}</component>
   <component :is="'style'" v-if="collapsedBorderCss">{{ collapsedBorderCss }}</component>
 
-  <div :id="wrapperId" class="lcms-wrapper" :class="[{ 'lcms-wrapper--grid': layout !== 'inline', 'lcms-wrapper--equal-height': equalHeight, 'has-bg-image-opacity': hasBgImageOpacity }, (props.data.style as any)?.css_class || '']" :style="containerStyle">
+  <div :id="wrapperId" ref="wrapperRef" class="lcms-wrapper" :class="[{ 'lcms-wrapper--grid': layout !== 'inline', 'lcms-wrapper--equal-height': equalHeight, 'has-bg-image-opacity': hasBgImageOpacity }, (props.data.style as any)?.css_class || '', ...animationClasses]" :style="{ ...containerStyle, ...animationStyle }">
     <div class="lcms-wrapper__grid" :style="gridStyle">
       <div
         v-for="(item, idx) in items"
