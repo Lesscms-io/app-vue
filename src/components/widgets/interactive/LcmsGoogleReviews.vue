@@ -382,9 +382,10 @@ function needsTruncation(review: any) {
 }
 
 .lcms-gr__carousel .lcms-gr__card {
+  /* `columns` cards per view — without a basis a card grows to its (unwrapped) text width */
+  flex: 0 0 calc((100% - (var(--gr-columns, 3) - 1) * 16px) / var(--gr-columns, 3));
   min-width: 300px;
   scroll-snap-align: start;
-  flex-shrink: 0;
 }
 
 .lcms-gr__arrow {

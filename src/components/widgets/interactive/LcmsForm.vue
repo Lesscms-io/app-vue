@@ -189,7 +189,11 @@ const errorMessage = computed(() => {
 // `file` field texts — overridable per widget (or per form), same pattern as submit/success/error copy
 function widgetText(value: unknown, remoteKey: string, fallback: string): string {
   const val = value ?? remoteForm.value?.settings?.[remoteKey]
-  if (val && typeof val === 'object') return (extractValue(val) as string) || fallback
+  // empty translations object round-trips through PHP as [] → would render "[]"
+  if (val && typeof val === 'object') {
+    const text = extractValue(val)
+    return typeof text === 'string' && text ? text : fallback
+  }
   return (val as string) || fallback
 }
 const fileTooLargeText = computed(() => widgetText(config.value.file_too_large_text, 'file_too_large_text', 'File is larger than {max} MB'))
