@@ -273,7 +273,6 @@ const t = (key: string, params?: Record<string, string | number>) => {
       addError: 'Nie udało się dodać do koszyka',
       saveConfiguration: 'Zapisz zmiany',
       configurationSaved: 'Zapisano zmiany w koszyku',
-      editingCartLine: 'Edytujesz pozycję, która jest już w koszyku — zapisanie podmieni ją, nie doda drugiej.',
       defaultHeading: 'Skonfiguruj produkt',
       defaultButton: 'Dodaj do koszyka',
       defaultTotal: 'Razem:',
@@ -309,7 +308,6 @@ const t = (key: string, params?: Record<string, string | number>) => {
       addError: 'Failed to add to cart',
       saveConfiguration: 'Save changes',
       configurationSaved: 'Cart updated',
-      editingCartLine: 'You are editing an item already in your cart — saving replaces it instead of adding another.',
       defaultHeading: 'Configure your product',
       defaultButton: 'Add to cart',
       defaultTotal: 'Total:',
@@ -1605,23 +1603,15 @@ async function applyCartLineForEditing(itemUuid: string, productUuid: string) {
   editingCartItemMetadata.value = { ...((item.metadata as Record<string, unknown> | null) ?? {}) }
   setQuantity(item.quantity)
   dismissEditItemMarker()
-  jumpToRestoredSummary()
+  startEditingFromFirstStep()
 }
 
-// The customer came back to change one thing, not to click "Dalej" through
-// every step they already answered. Land on the summary; if the product
-// changed since and a required group is now empty, land on that step instead.
-function jumpToRestoredSummary() {
+// Editing walks the wizard again from step 1, with every earlier pick
+// already selected — the customer clicks "Dalej" through what stays the same.
+function startEditingFromFirstStep() {
   if (!wizardMode.value) return
-  const steps = effectiveSteps.value
-  const firstInvalid = steps.findIndex((step) => step.groups.some((g) => !isGroupValid(g)))
-  if (firstInvalid >= 0) {
-    currentStep.value = firstInvalid
-    showSummary.value = false
-  } else {
-    currentStep.value = Math.max(0, steps.length - 1)
-    showSummary.value = true
-  }
+  currentStep.value = 0
+  showSummary.value = false
   scrollToConfiguratorTop()
 }
 
@@ -2289,12 +2279,6 @@ const cssVars = computed(() => {
       >
         {{ headingText }}
       </component>
-
-      <!-- Editing a line that's already in the cart: say so, because the
-           primary button now replaces that line instead of adding one. -->
-      <p v-if="editingCartItemUuid" class="lcms-product-configurator__editing-note">
-        {{ t('editingCartLine') }}
-      </p>
 
       <!-- Products without option groups render no empty-state note — the
            price row + add-to-cart below are all the user needs. -->
@@ -3945,16 +3929,6 @@ const cssVars = computed(() => {
 .lcms-product-configurator__quantity-input::-webkit-inner-spin-button {
   -webkit-appearance: none;
   margin: 0;
-}
-
-.lcms-product-configurator__editing-note {
-  margin: 0 0 1rem;
-  padding: 0.6rem 0.85rem;
-  border-radius: 8px;
-  font-size: 0.8125rem;
-  line-height: 1.45;
-  background: var(--lcms-color-background-alt, #f9fafb);
-  color: var(--lcms-color-text-muted, #6b7280);
 }
 
 .lcms-product-configurator__pending-price-note {
