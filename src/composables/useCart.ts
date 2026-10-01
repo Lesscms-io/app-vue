@@ -72,12 +72,17 @@ function createCartStore(): CartStore {
   const total = computed(() => cart.value?.totals.total || 0)
   const isEmpty = computed(() => itemsCount.value === 0)
 
-  let initialized = false
+  // Shared by every caller: the auto-init in useCart() starts first, and a
+  // widget awaiting init() right after (configurator editing a cart line) must
+  // wait for the same load, not return early with an empty cart.
+  let initPromise: Promise<void> | null = null
 
-  async function init() {
-    if (initialized) return
-    initialized = true
+  function init() {
+    if (!initPromise) initPromise = doInit()
+    return initPromise
+  }
 
+  async function doInit() {
     if (!isAvailable.value) {
       hasInitialized.value = true
       return
