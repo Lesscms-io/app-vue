@@ -135,31 +135,49 @@
   --lcms-h1-color: inherit;
   --lcms-h1-line-height: var(--lcms-line-height-tight);
   --lcms-h1-margin-bottom: var(--lcms-spacing-4);
+  --lcms-h1-letter-spacing: normal;
+  --lcms-h1-text-transform: none;
+  --lcms-h1-font-stretch: normal;
   --lcms-h2-font-size: 3.75rem;
   --lcms-h2-font-weight: var(--lcms-font-weight-bold);
   --lcms-h2-color: inherit;
   --lcms-h2-line-height: var(--lcms-line-height-tight);
   --lcms-h2-margin-bottom: var(--lcms-spacing-4);
+  --lcms-h2-letter-spacing: normal;
+  --lcms-h2-text-transform: none;
+  --lcms-h2-font-stretch: normal;
   --lcms-h3-font-size: 3rem;
   --lcms-h3-font-weight: var(--lcms-font-weight-semibold);
   --lcms-h3-color: inherit;
   --lcms-h3-line-height: var(--lcms-line-height-tight);
   --lcms-h3-margin-bottom: var(--lcms-spacing-3);
+  --lcms-h3-letter-spacing: normal;
+  --lcms-h3-text-transform: none;
+  --lcms-h3-font-stretch: normal;
   --lcms-h4-font-size: 2.25rem;
   --lcms-h4-font-weight: var(--lcms-font-weight-semibold);
   --lcms-h4-color: inherit;
   --lcms-h4-line-height: var(--lcms-line-height-tight);
   --lcms-h4-margin-bottom: var(--lcms-spacing-3);
+  --lcms-h4-letter-spacing: normal;
+  --lcms-h4-text-transform: none;
+  --lcms-h4-font-stretch: normal;
   --lcms-h5-font-size: 1.875rem;
   --lcms-h5-font-weight: var(--lcms-font-weight-medium);
   --lcms-h5-color: inherit;
   --lcms-h5-line-height: var(--lcms-line-height-normal);
   --lcms-h5-margin-bottom: var(--lcms-spacing-2);
+  --lcms-h5-letter-spacing: normal;
+  --lcms-h5-text-transform: none;
+  --lcms-h5-font-stretch: normal;
   --lcms-h6-font-size: 1.5rem;
   --lcms-h6-font-weight: var(--lcms-font-weight-medium);
   --lcms-h6-color: inherit;
   --lcms-h6-line-height: var(--lcms-line-height-normal);
   --lcms-h6-margin-bottom: var(--lcms-spacing-2);
+  --lcms-h6-letter-spacing: normal;
+  --lcms-h6-text-transform: none;
+  --lcms-h6-font-stretch: normal;
 
   /* Paragraph Typography */
   --lcms-p-font-size: var(--lcms-font-size-base);
@@ -184,6 +202,9 @@ h1, .h1 {
   font-weight: var(--lcms-h1-font-weight);
   color: var(--lcms-h1-color);
   line-height: var(--lcms-h1-line-height);
+  letter-spacing: var(--lcms-h1-letter-spacing);
+  text-transform: var(--lcms-h1-text-transform);
+  font-stretch: var(--lcms-h1-font-stretch);
   margin: 0 0 var(--lcms-h1-margin-bottom);
 }
 
@@ -192,6 +213,9 @@ h2, .h2 {
   font-weight: var(--lcms-h2-font-weight);
   color: var(--lcms-h2-color);
   line-height: var(--lcms-h2-line-height);
+  letter-spacing: var(--lcms-h2-letter-spacing);
+  text-transform: var(--lcms-h2-text-transform);
+  font-stretch: var(--lcms-h2-font-stretch);
   margin: 0 0 var(--lcms-h2-margin-bottom);
 }
 
@@ -200,6 +224,9 @@ h3, .h3 {
   font-weight: var(--lcms-h3-font-weight);
   color: var(--lcms-h3-color);
   line-height: var(--lcms-h3-line-height);
+  letter-spacing: var(--lcms-h3-letter-spacing);
+  text-transform: var(--lcms-h3-text-transform);
+  font-stretch: var(--lcms-h3-font-stretch);
   margin: 0 0 var(--lcms-h3-margin-bottom);
 }
 
@@ -208,6 +235,9 @@ h4, .h4 {
   font-weight: var(--lcms-h4-font-weight);
   color: var(--lcms-h4-color);
   line-height: var(--lcms-h4-line-height);
+  letter-spacing: var(--lcms-h4-letter-spacing);
+  text-transform: var(--lcms-h4-text-transform);
+  font-stretch: var(--lcms-h4-font-stretch);
   margin: 0 0 var(--lcms-h4-margin-bottom);
 }
 
@@ -216,6 +246,9 @@ h5, .h5 {
   font-weight: var(--lcms-h5-font-weight);
   color: var(--lcms-h5-color);
   line-height: var(--lcms-h5-line-height);
+  letter-spacing: var(--lcms-h5-letter-spacing);
+  text-transform: var(--lcms-h5-text-transform);
+  font-stretch: var(--lcms-h5-font-stretch);
   margin: 0 0 var(--lcms-h5-margin-bottom);
 }
 
@@ -224,7 +257,16 @@ h6, .h6 {
   font-weight: var(--lcms-h6-font-weight);
   color: var(--lcms-h6-color);
   line-height: var(--lcms-h6-line-height);
+  letter-spacing: var(--lcms-h6-letter-spacing);
+  text-transform: var(--lcms-h6-text-transform);
+  font-stretch: var(--lcms-h6-font-stretch);
   margin: 0 0 var(--lcms-h6-margin-bottom);
+}
+
+/* Emphasis inside headings — brand accent (e.g. "Nasze <em>realizacje</em>") */
+:is(h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6) em {
+  color: var(--lcms-heading-em-color, inherit);
+  font-style: var(--lcms-heading-em-style, italic);
 }
 
 /* Body / Paragraphs */

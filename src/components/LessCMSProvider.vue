@@ -388,7 +388,20 @@ function applyStyleVariables(styles: Record<string, any>) {
       root.style.setProperty(`--lcms-h${level}-line-height`, styles[`h${level}_line_height`])
     if (styles[`h${level}_margin_bottom`])
       root.style.setProperty(`--lcms-h${level}-margin-bottom`, styles[`h${level}_margin_bottom`])
+    if (styles[`h${level}_letter_spacing`])
+      root.style.setProperty(`--lcms-h${level}-letter-spacing`, styles[`h${level}_letter_spacing`])
+    if (styles[`h${level}_text_transform`])
+      root.style.setProperty(`--lcms-h${level}-text-transform`, styles[`h${level}_text_transform`])
+    if (styles[`h${level}_font_stretch`])
+      root.style.setProperty(`--lcms-h${level}-font-stretch`, `${styles[`h${level}_font_stretch`]}%`)
   }
+
+  // Emphasis inside headings
+  if (styles.heading_em_color) {
+    const c = styles.heading_em_color
+    root.style.setProperty('--lcms-heading-em-color', c.startsWith('var:') ? `var(--lcms-color-${c.slice(4).split(':')[0]})` : c.split(':')[0])
+  }
+  if (styles.heading_em_italic === false) root.style.setProperty('--lcms-heading-em-style', 'normal')
 
   // Paragraph typography variables
   if (styles.p_font_size) root.style.setProperty('--lcms-p-font-size', styles.p_font_size)
