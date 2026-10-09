@@ -22,6 +22,7 @@ const props = defineProps<{
   }
   items?: WrapperItem[]
   language?: string
+  uuid?: string
 }>()
 
 const columns = computed(() => props.data.columns || 1)
@@ -268,7 +269,7 @@ const hoverCss = computed(() => {
   <component :is="'style'" v-if="hoverCss">{{ hoverCss }}</component>
   <component :is="'style'" v-if="collapsedBorderCss">{{ collapsedBorderCss }}</component>
 
-  <div :id="wrapperId" ref="wrapperRef" class="lcms-wrapper" :class="[{ 'lcms-wrapper--grid': layout !== 'inline', 'lcms-wrapper--equal-height': equalHeight, 'has-bg-image-opacity': hasBgImageOpacity }, (props.data.style as any)?.css_class || '', ...animationClasses]" :style="{ ...containerStyle, ...animationStyle }">
+  <div :id="wrapperId" ref="wrapperRef" class="lcms-wrapper" :data-lcms-id="props.uuid || undefined" :class="[{ 'lcms-wrapper--grid': layout !== 'inline', 'lcms-wrapper--equal-height': equalHeight, 'has-bg-image-opacity': hasBgImageOpacity }, (props.data.style as any)?.css_class || '', ...animationClasses]" :style="{ ...containerStyle, ...animationStyle }">
     <div class="lcms-wrapper__grid" :style="gridStyle">
       <div
         v-for="(item, idx) in items"

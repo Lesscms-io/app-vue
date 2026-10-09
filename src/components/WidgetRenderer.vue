@@ -558,6 +558,7 @@ function mapHorizontalAlign(value: string): string {
     :is="linkSettings ? 'a' : 'div'"
     ref="widgetRef"
     :id="settings.id || widgetId"
+    :data-lcms-id="widget.uuid || undefined"
     :href="linkSettings?.url"
     :target="linkSettings?.targetBlank ? '_blank' : undefined"
     :rel="linkSettings?.targetBlank ? 'noopener noreferrer' : undefined"

@@ -29,6 +29,8 @@ import { createHead, type Head } from '@unhead/vue'
 import { createApiClient, type ApiClient, type ApiClientConfig } from '../api/client'
 import type { LessCMSConfig, ProjectConfig } from '../api/types'
 import { provideActiveCampaigns } from '../composables/useActiveCampaigns'
+import { buildProjectStyleCss } from '../utils/projectStyleCss'
+import LcmsLightbox from './LcmsLightbox.vue'
 
 interface Props {
   /**
@@ -434,6 +436,15 @@ function applyStyleVariables(styles: Record<string, any>) {
   if (styles.input_border_style) root.style.setProperty('--lcms-input-border-style', styles.input_border_style)
   if (styles.input_focus_border_color) root.style.setProperty('--lcms-input-focus-border-color', styles.input_focus_border_color)
   if (styles.input_placeholder_color) root.style.setProperty('--lcms-input-placeholder-color', styles.input_placeholder_color)
+
+  // Named text styles (.lcms-ts-*) and section presets (.lcms-section--preset-*)
+  let presetStyleEl = document.getElementById('lcms-project-styles') as HTMLStyleElement | null
+  if (!presetStyleEl) {
+    presetStyleEl = document.createElement('style')
+    presetStyleEl.id = 'lcms-project-styles'
+    document.head.appendChild(presetStyleEl)
+  }
+  presetStyleEl.textContent = buildProjectStyleCss(styles)
 }
 
 /**
@@ -539,4 +550,5 @@ defineExpose({
 
 <template>
   <slot />
+  <LcmsLightbox />
 </template>

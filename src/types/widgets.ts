@@ -296,8 +296,11 @@ export interface FlipBoxWidgetData extends BaseWidgetData {
 export interface BeforeAfterWidgetData extends BaseWidgetData {
   before?: { image?: string; label?: MultilingualValue; alt?: MultilingualValue }
   after?: { image?: string; label?: MultilingualValue; alt?: MultilingualValue }
-  config?: { orientation?: 'horizontal' | 'vertical'; start?: number; hover_move?: boolean; ratio?: string; radius?: number; labels?: boolean }
-  handle?: { style?: 'circle' | 'bar' | 'minimal'; color?: string; 'color:hover'?: string | null; width?: number; size?: number }
+  config?: { mode?: 'standard' | 'thermal'; orientation?: 'horizontal' | 'vertical'; start_position?: number; start?: number; hover_move?: boolean; auto_demo?: boolean; ratio?: string; radius?: number; labels?: boolean; show_scale?: boolean }
+  labels?: { before?: MultilingualValue; after?: MultilingualValue; background?: string; color?: string; position?: 'top' | 'center' | 'bottom' }
+  handle?: { style?: 'circle' | 'bar' | 'minimal'; background?: string | null; color?: string | null; 'color:hover'?: string | null; width?: number; size?: number }
+  thermal?: { intensity?: number; min_label?: MultilingualValue; max_label?: MultilingualValue }
+  /** @deprecated use labels.background / labels.color / labels.position */
   label?: { background?: string; color?: string; position?: 'top' | 'center' | 'bottom' }
 }
 
@@ -425,11 +428,38 @@ export interface CountdownWidgetData extends BaseWidgetData {
 }
 
 export interface CounterWidgetData extends BaseWidgetData {
-  number: number
-  prefix?: MultilingualValue
-  suffix?: MultilingualValue
-  title?: MultilingualValue
-  duration?: number // milliseconds
+  number?: {
+    number?: number | string
+    from?: number | null
+    duration?: number // milliseconds
+    decimals?: number | null
+    prefix?: MultilingualValue
+    suffix?: MultilingualValue
+    separator?: 'none' | 'space' | 'dot' | 'comma'
+    style?: 'fill' | 'outline'
+    color?: string | null
+    'color:hover'?: string | null
+    prefix_color?: string | null
+    outline_width?: number
+    font_stretch?: number | null
+    text_style?: string
+    size?: 'md' | 'lg' | 'xl' | '2xl'
+    tag?: string
+  } | number // legacy flat value
+  label?: {
+    text?: MultilingualValue
+    color?: string | null
+    'color:hover'?: string | null
+    tag?: string
+  }
+  config?: {
+    alignment?: 'left' | 'center' | 'right'
+    gap?: number
+    animate_on_scroll?: boolean
+    once?: boolean
+  }
+  /** legacy label group, read as fallback for `label` */
+  title?: MultilingualValue | { html?: MultilingualValue; tag?: string; color?: string | null }
 }
 
 export interface ProgressBarWidgetData extends BaseWidgetData {

@@ -39,6 +39,10 @@ export { useSeo, type UseSeoOptions, type UseSeoReturn } from './composables/use
 export { useRedirects } from './composables/useRedirects'
 export { usePageTransition } from './composables/usePageTransition'
 
+// Global lightbox (single <LcmsLightbox /> is mounted by LessCMSProvider)
+export { useLightbox, openLightbox, closeLightbox, type LightboxItem } from './composables/useLightbox'
+export { default as LcmsLightbox } from './components/LcmsLightbox.vue'
+
 // Ecommerce composables
 export { useStorefront, type CommerceContext, type UseStorefrontResult } from './composables/useStorefront'
 export { useCart, type CartStore } from './composables/useCart'

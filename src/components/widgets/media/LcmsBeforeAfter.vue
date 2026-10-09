@@ -2,8 +2,14 @@
 /**
  * Before / After Widget (premium)
  *
- * Two images under a draggable (or hover-following) divider, horizontal
- * or vertical. Keyboard accessible (arrow keys on the handle).
+ * Two modes:
+ * - standard: two images under a draggable (or hover-following) divider.
+ * - thermal:  one photo, cold (left) / hot (right) thermal-vision layers split
+ *             by the divider, optional colour scale below.
+ * Both modes: auto demo (one sweep of the divider on scroll-in, once),
+ * keyboard accessible (arrow keys on the handle), reduced-motion aware.
+ * Legacy data (flat label texts in before/after.label, handle.color as fill,
+ * config.start) is normalised on read.
  */
 
 import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
@@ -21,25 +27,34 @@ interface Props {
 const props = defineProps<Props>()
 const { extractValue } = useLanguage(props.language)
 
-const config = computed(() => (props.data as any).widget || props.data || {})
-const beforeGroup = computed(() => config.value.before || {})
-const afterGroup = computed(() => config.value.after || {})
-const configGroup = computed(() => config.value.config || {})
-const handleGroup = computed(() => config.value.handle || {})
-const labelGroup = computed(() => config.value.label || {})
+const config = computed<any>(() => (props.data as any).widget || props.data || {})
+const beforeGroup = computed<any>(() => config.value.before || {})
+const afterGroup = computed<any>(() => config.value.after || {})
+const configGroup = computed<any>(() => config.value.config || {})
+const handleGroup = computed<any>(() => config.value.handle || {})
+const labelsGroup = computed<any>(() => ({ ...(config.value.label || {}), ...(config.value.labels || {}) }))
+const thermalGroup = computed<any>(() => config.value.thermal || {})
 
-const beforeImage = computed(() => beforeGroup.value.image || '')
+const thermal = computed(() => configGroup.value.mode === 'thermal')
+const beforeImage = computed(() => (thermal.value ? '' : beforeGroup.value.image || ''))
 const afterImage = computed(() => afterGroup.value.image || '')
-const beforeLabel = computed(() => extractValue(beforeGroup.value.label) || '')
-const afterLabel = computed(() => extractValue(afterGroup.value.label) || '')
+const beforeLabel = computed(() => extractValue(labelsGroup.value.before) || extractValue(beforeGroup.value.label) || '')
+const afterLabel = computed(() => extractValue(labelsGroup.value.after) || extractValue(afterGroup.value.label) || '')
 const beforeAlt = computed(() => extractValue(beforeGroup.value.alt) || beforeLabel.value)
 const afterAlt = computed(() => extractValue(afterGroup.value.alt) || afterLabel.value)
+const isEn = computed(() => (props.language || 'pl') === 'en')
+const minLabel = computed(() => extractValue(thermalGroup.value.min_label) || (isEn.value ? 'cold' : 'zimno'))
+const maxLabel = computed(() => extractValue(thermalGroup.value.max_label) || (isEn.value ? 'hot' : 'ciepło'))
+const showScale = computed(() => thermal.value && configGroup.value.show_scale !== false)
+const intensity = computed(() => Math.min(100, Math.max(0, Number(thermalGroup.value.intensity ?? 100))) / 100)
 const showLabels = computed(() => configGroup.value.labels !== false && (beforeLabel.value || afterLabel.value))
 
 const vertical = computed(() => configGroup.value.orientation === 'vertical')
-const pos = ref(Number(configGroup.value.start ?? 50))
+const startPos = () => Number(configGroup.value.start_position ?? configGroup.value.start ?? 50)
+const pos = ref(startPos())
 
 const frame = ref<HTMLElement | null>(null)
+const root = ref<HTMLElement | null>(null)
 const dragging = ref(false)
 function setFromEvent(e: PointerEvent) {
   const r = frame.value?.getBoundingClientRect()
@@ -47,17 +62,53 @@ function setFromEvent(e: PointerEvent) {
   const p = vertical.value ? (e.clientY - r.top) / r.height : (e.clientX - r.left) / r.width
   pos.value = Math.min(100, Math.max(0, p * 100))
 }
-const onDown = (e: PointerEvent) => { dragging.value = true; setFromEvent(e); e.preventDefault() }
+const onDown = (e: PointerEvent) => { stopDemo(); dragging.value = true; setFromEvent(e); e.preventDefault() }
 const onMove = (e: PointerEvent) => { if (dragging.value || configGroup.value.hover_move) setFromEvent(e) }
 const onUp = () => { dragging.value = false }
 const onKey = (e: KeyboardEvent) => {
+  stopDemo()
   const dec = vertical.value ? 'ArrowUp' : 'ArrowLeft'
   const inc = vertical.value ? 'ArrowDown' : 'ArrowRight'
   if (e.key === dec) { pos.value = Math.max(0, pos.value - 2); e.preventDefault() }
   if (e.key === inc) { pos.value = Math.min(100, pos.value + 2); e.preventDefault() }
 }
-onMounted(() => { window.addEventListener('pointermove', onMove); window.addEventListener('pointerup', onUp) })
-onBeforeUnmount(() => { window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerup', onUp) })
+
+// Auto demo: one sweep of the divider when the widget enters the viewport.
+let demoRaf: number | null = null
+let demoIo: IntersectionObserver | null = null
+let demoDone = false
+function stopDemo() { if (demoRaf !== null) cancelAnimationFrame(demoRaf); demoRaf = null }
+function runDemo() {
+  if (demoDone || configGroup.value.auto_demo !== true) return
+  if (typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return
+  demoDone = true
+  const base = startPos()
+  const t0 = performance.now()
+  const step = (t: number) => {
+    const k = (t - t0) / 2200
+    if (k >= 1) { pos.value = base; demoRaf = null; return }
+    pos.value = Math.min(100, Math.max(0, base + Math.sin(k * Math.PI * 2) * 32))
+    demoRaf = requestAnimationFrame(step)
+  }
+  demoRaf = requestAnimationFrame(step)
+}
+
+onMounted(() => {
+  window.addEventListener('pointermove', onMove)
+  window.addEventListener('pointerup', onUp)
+  if (root.value && typeof IntersectionObserver !== 'undefined') {
+    demoIo = new IntersectionObserver((es) => {
+      if (es[0]?.isIntersecting) { demoIo?.disconnect(); runDemo() }
+    }, { threshold: 0.5 })
+    demoIo.observe(root.value)
+  }
+})
+onBeforeUnmount(() => {
+  window.removeEventListener('pointermove', onMove)
+  window.removeEventListener('pointerup', onUp)
+  demoIo?.disconnect()
+  stopDemo()
+})
 
 const ratioStyle = computed(() => {
   const r = configGroup.value.ratio || '16:9'
@@ -65,27 +116,34 @@ const ratioStyle = computed(() => {
   const [w, h] = r.split(':').map(Number)
   return { aspectRatio: `${w} / ${h}` }
 })
+// Handle fill = background (new) or color (legacy); arrow = color only once background is set
+const handleFill = computed(() => resolveColor(handleGroup.value.background ?? handleGroup.value.color) || '#ffffff')
+const handleArrow = computed(() => (handleGroup.value.background != null ? resolveColor(handleGroup.value.color) : '') || '#111827')
 const rootStyle = computed(() => ({
   '--ba-pos': `${pos.value}%`,
   '--ba-radius': `${configGroup.value.radius ?? 12}px`,
-  '--ba-handle-color': resolveColor(handleGroup.value.color) || '#ffffff',
-  '--ba-handle-color-hover': resolveColor(handleGroup.value['color:hover']) || resolveColor(handleGroup.value.color) || '#ffffff',
+  '--ba-th-opacity': String(intensity.value),
+  '--ba-handle-color': handleFill.value,
+  '--ba-handle-color-hover': resolveColor(handleGroup.value['color:hover']) || handleFill.value,
+  '--ba-handle-arrow': handleArrow.value,
   '--ba-handle-width': `${handleGroup.value.width ?? 3}px`,
   '--ba-handle-size': `${handleGroup.value.size ?? 44}px`,
-  '--ba-label-bg': resolveColor(labelGroup.value.background) || 'rgba(0,0,0,0.6)',
-  '--ba-label-color': resolveColor(labelGroup.value.color) || '#ffffff'
+  '--ba-label-bg': resolveColor(labelsGroup.value.background) || 'rgba(0,0,0,0.6)',
+  '--ba-label-color': resolveColor(labelsGroup.value.color) || '#ffffff'
 }))
 const rootClasses = computed(() => [
   'lcms-before-after',
   vertical.value ? 'ba--vertical' : 'ba--horizontal',
+  thermal.value ? 'ba--thermal' : 'ba--standard',
   `ba--handle-${handleGroup.value.style || 'circle'}`,
-  `ba--labels-${labelGroup.value.position || 'bottom'}`,
+  `ba--labels-${labelsGroup.value.position || (thermal.value ? 'top' : 'bottom')}`,
   { 'ba--dragging': dragging.value }
 ])
 </script>
 
 <template>
   <div
+    ref="root"
     :class="rootClasses"
     :style="rootStyle"
   >
@@ -95,24 +153,44 @@ const rootClasses = computed(() => [
       :style="ratioStyle"
       @pointerdown="onDown"
     >
-      <img
-        v-if="afterImage"
-        class="ba-img ba-img--after"
-        :src="afterImage"
-        :alt="afterAlt"
-        draggable="false"
-        loading="lazy"
-      >
-      <div class="ba-clip">
+      <template v-if="thermal && afterImage">
+        <div class="ba-th ba-th--cold">
+          <img
+            :src="afterImage"
+            :alt="afterAlt"
+            draggable="false"
+            loading="lazy"
+          >
+        </div>
+        <div class="ba-th ba-th--hot">
+          <img
+            :src="afterImage"
+            :alt="afterAlt"
+            draggable="false"
+            loading="lazy"
+          >
+        </div>
+      </template>
+      <template v-else>
         <img
-          v-if="beforeImage"
-          class="ba-img ba-img--before"
-          :src="beforeImage"
-          :alt="beforeAlt"
+          v-if="afterImage"
+          class="ba-img ba-img--after"
+          :src="afterImage"
+          :alt="afterAlt"
           draggable="false"
           loading="lazy"
         >
-      </div>
+        <div class="ba-clip">
+          <img
+            v-if="beforeImage"
+            class="ba-img ba-img--before"
+            :src="beforeImage"
+            :alt="beforeAlt"
+            draggable="false"
+            loading="lazy"
+          >
+        </div>
+      </template>
       <template v-if="showLabels">
         <span
           v-if="beforeLabel"
@@ -149,6 +227,14 @@ const rootClasses = computed(() => [
           </svg>
         </span>
       </div>
+    </div>
+    <div
+      v-if="showScale"
+      class="ba-scale"
+    >
+      <span>{{ minLabel }}</span>
+      <i />
+      <span>{{ maxLabel }}</span>
     </div>
   </div>
 </template>

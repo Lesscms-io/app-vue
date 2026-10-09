@@ -93,10 +93,22 @@ const isHtml = computed(() => {
   return headingContent.value.includes('<')
 })
 
+// HTML that already carries its own block tags (<h2>, <p>…) keeps the neutral
+// wrapper; inline-only HTML (<em>, <br>, <span>) gets the real heading tag.
+const htmlWrapperTag = computed(() =>
+  /<(h[1-6]|p|div|ul|ol|blockquote)[\s>]/i.test(headingContent.value) ? 'div' : headingLevel.value
+)
+
 // Get level from config or data
 const headingLevel = computed(() => {
   const level = props.data.config?.level || props.data.widget?.level || props.data.level || 2
   return `h${level}`
+})
+
+// Named text style (Projekt → Style → Styl tekstu): class on the root; .lcms-ts-* rules reach the h/p inside
+const textStyleClass = computed(() => {
+  const code = String((props.data as any).heading?.text_style || '')
+  return /^[a-z0-9-]+$/.test(code) ? `lcms-ts-${code}` : ''
 })
 
 const textAlign = computed(() => props.data.align || props.settings?.textAlign || 'left')
@@ -111,11 +123,13 @@ const entryId = computed(() => props.data.entry_id || null)
 <template>
   <div
     class="lcms-heading"
-    :class="[`lcms-heading--${textAlign}`, { 'has-hover': !!headingHoverColor }]"
+    :class="[textStyleClass, `lcms-heading--${textAlign}`, { 'has-hover': !!headingHoverColor }]"
     :style="headingStyle"
   >
     <!-- If content is HTML, render it directly -->
-    <div
+    <!-- Real heading tag, so h1..h6 project styles apply to HTML content too -->
+    <component
+      :is="htmlWrapperTag"
       v-if="isHtml"
       class="lcms-heading__html"
       v-html="headingContent"

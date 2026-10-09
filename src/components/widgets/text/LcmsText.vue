@@ -94,6 +94,12 @@ const rootStyle = computed(() => {
   return style
 })
 
+// Named text style (Projekt → Style → Styl tekstu) on the root; paragraphs inside pick it up
+const textStyleClass = computed(() => {
+  const code = String((props.data as any).text?.text_style || '')
+  return /^[a-z0-9-]+$/.test(code) ? `lcms-ts-${code}` : ''
+})
+
 const htmlContent = computed(() => {
   // API returns { text: { html: { pl: "..." } } } or { html: { pl: "..." } } or { content: { pl: "..." } }
   const raw = extractValue(props.data.text?.html) || extractValue(props.data.html) || extractValue(props.data.content) || ''
@@ -104,7 +110,7 @@ const htmlContent = computed(() => {
 <template>
   <div
     class="lcms-text"
-    :class="{ 'has-hover': !!textHoverColor }"
+    :class="[textStyleClass, { 'has-hover': !!textHoverColor }]"
     :style="rootStyle"
     v-html="htmlContent"
   />

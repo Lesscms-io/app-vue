@@ -1279,6 +1279,8 @@
 
 .lcms-counter {
   text-align: center;
+  width: 100%;
+  height: 100%;
 }
 
 .lcms-counter__number {
@@ -1287,35 +1289,71 @@
   justify-content: center;
   gap: 0.15em;
   flex-wrap: nowrap;
-}
-
-.lcms-counter__value {
   font-size: var(--lcms-font-size-5xl);
   font-weight: var(--lcms-font-weight-bold);
   line-height: 1;
-  color: var(--counter-number-color, inherit);
+  transition: color 0.6s ease, -webkit-text-stroke-color 0.6s ease;
+}
+
+.lcms-counter--has-color .lcms-counter__number {
+  color: var(--counter-color, inherit);
 }
 
 .lcms-counter__prefix,
 .lcms-counter__suffix {
   font-weight: var(--lcms-font-weight-bold);
-  color: var(--counter-prefix-color, var(--counter-number-color, inherit));
+  color: var(--counter-prefix-color, var(--counter-color, inherit));
+}
+
+/* Outline: digits drawn with a stroke, filled on hover of the whole widget */
+.lcms-counter--outline .lcms-counter__number {
+  color: transparent;
+  -webkit-text-stroke: var(--counter-stroke-width, 1.5px) var(--counter-color, currentColor);
+}
+
+.lcms-counter--outline .lcms-counter__prefix,
+.lcms-counter--outline .lcms-counter__suffix {
+  color: transparent;
+  -webkit-text-stroke: var(--counter-stroke-width, 1.5px) var(--counter-prefix-color, var(--counter-color, currentColor));
+}
+
+.lcms-widget--counter:hover .lcms-counter--outline .lcms-counter__number {
+  color: var(--counter-hover-color, var(--counter-color, currentColor));
+  -webkit-text-stroke-color: var(--counter-hover-color, var(--counter-color, currentColor));
+}
+
+.lcms-widget--counter:hover .lcms-counter--outline .lcms-counter__prefix,
+.lcms-widget--counter:hover .lcms-counter--outline .lcms-counter__suffix {
+  color: var(--counter-hover-color, var(--counter-color, currentColor));
+  -webkit-text-stroke-color: var(--counter-hover-color, var(--counter-color, currentColor));
+}
+
+/* Fill: optional hover color */
+.lcms-widget--counter:hover .lcms-counter--fill.lcms-counter--has-hover .lcms-counter__number,
+.lcms-widget--counter:hover .lcms-counter--fill.lcms-counter--has-hover .lcms-counter__prefix,
+.lcms-widget--counter:hover .lcms-counter--fill.lcms-counter--has-hover .lcms-counter__suffix {
+  color: var(--counter-hover-color);
 }
 
 /* Prefix/suffix sizes matching the number size */
 .lcms-counter--size-md .lcms-counter__prefix,
-.lcms-counter--size-md .lcms-counter__suffix { font-size: calc(var(--lcms-font-size-2xl) * 0.6); }
+.lcms-counter--size-md .lcms-counter__suffix { font-size: 0.6em; }
 .lcms-counter--size-lg .lcms-counter__prefix,
-.lcms-counter--size-lg .lcms-counter__suffix { font-size: calc(var(--lcms-font-size-4xl) * 0.6); }
+.lcms-counter--size-lg .lcms-counter__suffix { font-size: 0.6em; }
 .lcms-counter--size-xl .lcms-counter__prefix,
-.lcms-counter--size-xl .lcms-counter__suffix { font-size: calc(var(--lcms-font-size-5xl) * 0.6); }
+.lcms-counter--size-xl .lcms-counter__suffix { font-size: 0.6em; }
 .lcms-counter--size-2xl .lcms-counter__prefix,
-.lcms-counter--size-2xl .lcms-counter__suffix { font-size: calc(var(--lcms-font-size-6xl, 3.75rem) * 0.6); }
+.lcms-counter--size-2xl .lcms-counter__suffix { font-size: 0.6em; }
 
-.lcms-counter__title {
+.lcms-counter__label {
   margin-top: var(--lcms-spacing-2);
   font-size: var(--lcms-font-size-md);
-  color: var(--counter-title-color, var(--lcms-color-gray-600));
+  color: var(--counter-label-color, var(--lcms-color-gray-600));
+  transition: color 200ms ease;
+}
+
+.lcms-widget--counter:hover .lcms-counter--has-label-hover .lcms-counter__label {
+  color: var(--counter-label-hover-color);
 }
 
 /* Alignment */
@@ -1327,10 +1365,20 @@
 .lcms-counter--align-right .lcms-counter__number { justify-content: flex-end; }
 
 /* Number size */
-.lcms-counter--size-md .lcms-counter__value { font-size: var(--lcms-font-size-2xl); }
-.lcms-counter--size-lg .lcms-counter__value { font-size: var(--lcms-font-size-4xl); }
-.lcms-counter--size-xl .lcms-counter__value { font-size: var(--lcms-font-size-5xl); }
-.lcms-counter--size-2xl .lcms-counter__value { font-size: var(--lcms-font-size-6xl, 3.75rem); }
+.lcms-counter--size-md .lcms-counter__number { font-size: var(--lcms-font-size-2xl); }
+.lcms-counter--size-lg .lcms-counter__number { font-size: var(--lcms-font-size-4xl); }
+.lcms-counter--size-xl .lcms-counter__number { font-size: var(--lcms-font-size-5xl); }
+.lcms-counter--size-2xl .lcms-counter__number { font-size: var(--lcms-font-size-6xl, 3.75rem); }
+
+@media (prefers-reduced-motion: reduce) {
+  .lcms-counter__number,
+  .lcms-counter__label { transition: none; }
+}
+
+@media (max-width: 768px) {
+  .lcms-counter--size-xl .lcms-counter__number { font-size: var(--lcms-font-size-4xl); }
+  .lcms-counter--size-2xl .lcms-counter__number { font-size: var(--lcms-font-size-5xl); }
+}
 
 /* ==========================================================================
    Progress Bar Widget
@@ -3905,7 +3953,7 @@ img.lcms-rich-img {
 .lcms-before-after .ba-handle {
   position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
   width: var(--ba-handle-size); height: var(--ba-handle-size); border-radius: 50%;
-  background: var(--ba-handle-color); color: #111827; display: flex; align-items: center; justify-content: center;
+  background: var(--ba-handle-color); color: var(--ba-handle-arrow, #111827); display: flex; align-items: center; justify-content: center;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25); font-size: calc(var(--ba-handle-size) * 0.4); transition: background 0.15s, transform 0.15s;
 }
 .lcms-before-after:hover .ba-handle, .lcms-before-after:hover .ba-divider,
@@ -3915,6 +3963,26 @@ img.lcms-rich-img {
 .lcms-before-after.ba--vertical.ba--handle-bar .ba-handle { width: var(--ba-handle-size); height: calc(var(--ba-handle-size) * 0.55); }
 .lcms-before-after.ba--handle-minimal .ba-handle { display: none; }
 .lcms-before-after.ba--dragging .ba-handle { transform: translate(-50%, -50%) scale(1.08); }
+
+/* Thermal mode (mockup "Ciepło zostaje w środku"): one photo, cold + hot layers.
+   Palette is the fixed thermal-vision gradient set, not a theme colour. */
+.lcms-before-after.ba--thermal { --ba-th-cold: radial-gradient(ellipse at 50% 80%, #00d1ff 0%, #0066ff 35%, #2b0099 70%, #0b0040 100%); --ba-th-hot: radial-gradient(ellipse at 50% 20%, #fff200 0%, #ff7a00 22%, #ff1e3c 45%, #7a0aa8 75%, #1a0060 100%); }
+.lcms-before-after .ba-th { position: absolute; inset: 0; }
+.lcms-before-after .ba-th img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+.lcms-before-after .ba-th::after { content: ""; position: absolute; inset: 0; mix-blend-mode: color; opacity: var(--ba-th-opacity, 1); pointer-events: none; }
+.lcms-before-after .ba-th--cold img { filter: grayscale(1) contrast(1.3); }
+.lcms-before-after .ba-th--cold::after { background: var(--ba-th-cold); }
+.lcms-before-after .ba-th--hot img { filter: grayscale(1) contrast(1.4) brightness(1.1); }
+.lcms-before-after .ba-th--hot::after { background: var(--ba-th-hot); }
+.lcms-before-after .ba-th--hot { clip-path: inset(0 0 0 var(--ba-pos)); }
+.lcms-before-after.ba--vertical .ba-th--hot { clip-path: inset(var(--ba-pos) 0 0 0); }
+.lcms-before-after.ba--thermal .ba-label { padding: 9px 13px; border-radius: 30px; font-size: 12px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; backdrop-filter: blur(6px); }
+.lcms-before-after .ba-scale { display: flex; align-items: center; gap: 14px; margin-top: 14px; font-size: 12px; font-weight: 600; color: inherit; opacity: 0.75; }
+.lcms-before-after .ba-scale i { flex: 1; height: 8px; border-radius: 8px; opacity: var(--ba-th-opacity, 1); background: linear-gradient(90deg, #0b0040, #2b0099, #0066ff, #00d1ff, #7a0aa8, #ff1e3c, #ff7a00, #fff200); }
+@media (max-width: 768px) {
+  .lcms-before-after.ba--thermal .ba-label { font-size: 10px; padding: 6px 10px; }
+  .lcms-before-after .ba-scale { font-size: 11px; }
+}
 
 /* ==========================================================================
    Hotspots (premium)

@@ -742,6 +742,11 @@ const sectionClass = computed(() => {
   if (cssClass) {
     classes.push(cssClass)
   }
+  // Named section preset (Projekt → Style → Styl sekcji)
+  const preset = String((s as any).preset || '')
+  if (/^[a-z0-9-]+$/.test(preset)) {
+    classes.push(`lcms-section--preset-${preset}`)
+  }
   if (isSectionHidden.value) {
     classes.push('lcms-hidden')
   }
@@ -830,6 +835,7 @@ function mapFlexAlign(value: string): string {
   <section
     ref="sectionRef"
     :id="settings.id || sectionUniqueId"
+    :data-lcms-id="sectionId || undefined"
     :class="sectionClass"
     :data-section-id="sectionId"
     :style="{ ...sectionStyle, ...sectionAnimStyle }"
@@ -864,6 +870,7 @@ function mapFlexAlign(value: string): string {
         v-for="(column, colIndex) in columns"
         :key="column.id || colIndex"
         :id="column.settings?.id || getColumnId(column, colIndex)"
+        :data-lcms-id="sectionId ? `${sectionId}-c${colIndex}` : undefined"
         class="lcms-section__column"
         :class="[
           { 'lcms-hidden': isColumnHidden(column), 'lcms-section__column--has-bg-image-opacity': columnHasBgImageOpacity(column) },
@@ -890,6 +897,7 @@ function mapFlexAlign(value: string): string {
           <!-- Wrapper node -->
           <LcmsWrapper
             v-if="node.type === 'wrapper'"
+            :uuid="node.uuid || undefined"
             :data="node.data"
             :items="node.items"
             :language="language"

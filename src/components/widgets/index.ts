@@ -40,6 +40,7 @@ import LcmsOpenStreetMap from './media/LcmsOpenStreetMap.vue'
 // Layout widgets
 import LcmsHero from './layout/LcmsHero.vue'
 import LcmsHeroSlider from './layout/LcmsHeroSlider.vue'
+import LcmsSplitPanels from './layout/LcmsSplitPanels.vue'
 import LcmsGrid from './layout/LcmsGrid.vue'
 
 // Interactive widgets
@@ -85,6 +86,8 @@ import LcmsCollectionCarousel from './collections/LcmsCollectionCarousel.vue'
 import LcmsCollectionSingle from './collections/LcmsCollectionSingle.vue'
 import LcmsCollectionField from './collections/LcmsCollectionField.vue'
 import LcmsValueList from './collections/LcmsValueList.vue'
+import LcmsMarquee from './media/LcmsMarquee.vue'
+import LcmsServiceMap from './content/LcmsServiceMap.vue'
 import LcmsCollectionGrouped from './collections/LcmsCollectionGrouped.vue'
 
 // E-commerce widgets
@@ -154,6 +157,7 @@ export const widgetComponents: Record<string, Component> = {
   // Layout
   hero: LcmsHero,
   'hero-slider': LcmsHeroSlider,
+  'split-panels': LcmsSplitPanels,
   grid: LcmsGrid,
 
   // Interactive
@@ -199,6 +203,8 @@ export const widgetComponents: Record<string, Component> = {
   'collection-single': LcmsCollectionSingle,
   'data-field': LcmsCollectionField,
   'value-list': LcmsValueList,
+  'marquee': LcmsMarquee,
+  'service-map': LcmsServiceMap,
   'collection-grouped': LcmsCollectionGrouped,
 
   // E-commerce
@@ -285,6 +291,7 @@ export {
   // Layout
   LcmsHero,
   LcmsHeroSlider,
+  LcmsSplitPanels,
   LcmsGrid,
   // Interactive
   LcmsCountdown,
@@ -325,6 +332,8 @@ export {
   LcmsCollectionSingle,
   LcmsCollectionField,
   LcmsValueList,
+  LcmsMarquee,
+  LcmsServiceMap,
   LcmsCollectionGrouped,
   // E-commerce
   LcmsMiniCart,

@@ -7,8 +7,9 @@
  * Optional lightbox overlay for fullscreen image viewing.
  */
 
-import { computed, ref, onMounted, onUnmounted, Teleport, watch } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { contentImage } from '@/composables/useImageOptimization'
+import { useLightbox, type LightboxItem } from '@/composables/useLightbox'
 import type { GalleryWidgetData, GalleryImage } from '@/types/widgets'
 import GalleryTile from './GalleryTile.vue'
 
@@ -161,9 +162,8 @@ function stopAutoplay() {
   }
 }
 
-// --- Lightbox ---
-const lightboxOpen = ref(false)
-const lightboxIndex = ref(0)
+// --- Lightbox (global viewer: components/LcmsLightbox.vue) ---
+const { openLightbox: showLightbox } = useLightbox()
 
 // A tile is clickable when the lightbox is enabled, OR when it's a video
 // (videos always open in the lightbox to play, regardless of the setting).
@@ -173,88 +173,23 @@ function isClickable(image: any): boolean {
 
 function openLightbox(index: number) {
   if (!isClickable(images.value[index])) return
-  lightboxIndex.value = index
-  lightboxOpen.value = true
+  const items: LightboxItem[] = images.value.map((img: any) => ({
+    src: img.url,
+    alt: img.alt || '',
+    caption: captionFor(img),
+    type: img.type === 'video' ? 'video' : 'image',
+    poster: img.poster || undefined
+  }))
+  showLightbox(items, index)
 }
-
-function closeLightbox() {
-  lightboxOpen.value = false
-}
-
-function lightboxNext() {
-  lightboxIndex.value = (lightboxIndex.value + 1) % images.value.length
-}
-
-function lightboxPrev() {
-  lightboxIndex.value = (lightboxIndex.value - 1 + images.value.length) % images.value.length
-}
-
-function onLightboxKeydown(e: KeyboardEvent) {
-  if (!lightboxOpen.value) return
-  if (e.key === 'Escape') {
-    closeLightbox()
-  } else if (e.key === 'ArrowRight') {
-    lightboxNext()
-  } else if (e.key === 'ArrowLeft') {
-    lightboxPrev()
-  }
-}
-
-// Touch swipe support
-let touchStartX = 0
-let touchEndX = 0
-const SWIPE_THRESHOLD = 50
-
-function onTouchStart(e: TouchEvent) {
-  touchStartX = e.changedTouches[0].screenX
-}
-
-function onTouchEnd(e: TouchEvent) {
-  touchEndX = e.changedTouches[0].screenX
-  const diff = touchStartX - touchEndX
-  if (Math.abs(diff) >= SWIPE_THRESHOLD) {
-    if (diff > 0) {
-      lightboxNext()
-    } else {
-      lightboxPrev()
-    }
-  }
-}
-
-function onBackdropClick(e: MouseEvent) {
-  // Only close if clicking the backdrop itself, not the image or controls
-  if ((e.target as HTMLElement).classList.contains('lcms-lightbox__backdrop')) {
-    closeLightbox()
-  }
-}
-
-// Lock body scroll when lightbox is open
-watch(lightboxOpen, (open) => {
-  if (typeof document === 'undefined') return
-  if (open) {
-    document.body.style.overflow = 'hidden'
-  } else {
-    document.body.style.overflow = ''
-  }
-})
 
 onMounted(() => {
   startAutoplay()
-  if (typeof document !== 'undefined') {
-    document.addEventListener('keydown', onLightboxKeydown)
-  }
 })
 
 onUnmounted(() => {
   stopAutoplay()
-  if (typeof document !== 'undefined') {
-    document.removeEventListener('keydown', onLightboxKeydown)
-    // Ensure body scroll is restored
-    document.body.style.overflow = ''
-  }
 })
-
-const lightboxImage = computed(() => images.value[lightboxIndex.value])
 </script>
 
 <template>
@@ -488,83 +423,6 @@ const lightboxImage = computed(() => images.value[lightboxIndex.value])
         />
       </div>
     </div>
-
-    <!-- Lightbox Overlay -->
-    <Teleport to="body">
-      <Transition name="lcms-lightbox">
-        <div
-          v-if="lightboxOpen && lightboxImage"
-          class="lcms-lightbox__backdrop"
-          @click="onBackdropClick"
-          @touchstart="onTouchStart"
-          @touchend="onTouchEnd"
-        >
-          <!-- Close button -->
-          <button
-            class="lcms-lightbox__close"
-            type="button"
-            @click="closeLightbox"
-          >
-            <i class="fa-solid fa-xmark" />
-          </button>
-
-          <!-- Image counter -->
-          <div class="lcms-lightbox__counter">
-            {{ lightboxIndex + 1 }} / {{ images.length }}
-          </div>
-
-          <!-- Previous arrow -->
-          <button
-            v-if="images.length > 1"
-            class="lcms-lightbox__arrow lcms-lightbox__arrow--prev"
-            type="button"
-            @click.stop="lightboxPrev"
-          >
-            <i class="fa-solid fa-chevron-left" />
-          </button>
-
-          <!-- Current image / video -->
-          <div class="lcms-lightbox__image-wrapper">
-            <video
-              v-if="lightboxImage.type === 'video'"
-              :key="lightboxIndex"
-              :src="lightboxImage.url"
-              :poster="lightboxImage.poster || undefined"
-              class="lcms-lightbox__video"
-              controls
-              autoplay
-              playsinline
-              @click.stop
-            />
-            <img
-              v-else
-              :src="lightboxImage.url"
-              :alt="lightboxImage.alt || ''"
-              class="lcms-lightbox__image"
-              decoding="async"
-              @click.stop
-            >
-            <div
-              v-if="captionFor(lightboxImage)"
-              class="lcms-lightbox__caption"
-              @click.stop
-            >
-              {{ captionFor(lightboxImage) }}
-            </div>
-          </div>
-
-          <!-- Next arrow -->
-          <button
-            v-if="images.length > 1"
-            class="lcms-lightbox__arrow lcms-lightbox__arrow--next"
-            type="button"
-            @click.stop="lightboxNext"
-          >
-            <i class="fa-solid fa-chevron-right" />
-          </button>
-        </div>
-      </Transition>
-    </Teleport>
   </div>
 </template>
 
@@ -698,40 +556,4 @@ const lightboxImage = computed(() => images.value[lightboxIndex.value])
   .lcms-gallery__coverflow .lcms-gallery__arrow--prev { left: 10px; }
   .lcms-gallery__coverflow .lcms-gallery__arrow--next { right: 10px; }
 }
-
-/* Lightbox */
-.lcms-lightbox__backdrop {
-  position: fixed; inset: 0; background: rgba(0,0,0,0.9);
-  z-index: 9999; display: flex; align-items: center; justify-content: center;
-}
-.lcms-lightbox__image-wrapper { max-width: 90vw; max-height: 85vh; }
-.lcms-lightbox__image { max-width: 100%; max-height: 85vh; object-fit: contain; border-radius: 4px; }
-.lcms-lightbox__video { max-width: 90vw; max-height: 85vh; border-radius: 4px; background: #000; display: block; }
-.lcms-lightbox__close {
-  position: absolute; top: 16px; right: 16px; background: none; border: none;
-  color: #fff; font-size: 24px; cursor: pointer; z-index: 10;
-}
-.lcms-lightbox__counter {
-  position: absolute; top: 16px; left: 50%; transform: translateX(-50%);
-  color: #fff; font-size: 14px;
-}
-.lcms-lightbox__caption {
-  margin-top: 12px;
-  color: rgba(255, 255, 255, 0.9);
-  font-size: 14px;
-  text-align: center;
-  max-width: 80vw;
-}
-.lcms-lightbox__arrow {
-  position: absolute; top: 50%; transform: translateY(-50%);
-  background: rgba(255,255,255,0.15); border: none; border-radius: 50%;
-  width: 48px; height: 48px; color: #fff; cursor: pointer; z-index: 10;
-  display: flex; align-items: center; justify-content: center; font-size: 18px;
-  transition: background 200ms;
-}
-.lcms-lightbox__arrow:hover { background: rgba(255,255,255,0.3); }
-.lcms-lightbox__arrow--prev { left: 16px; }
-.lcms-lightbox__arrow--next { right: 16px; }
-.lcms-lightbox-enter-active, .lcms-lightbox-leave-active { transition: opacity 200ms; }
-.lcms-lightbox-enter-from, .lcms-lightbox-leave-to { opacity: 0; }
 </style>

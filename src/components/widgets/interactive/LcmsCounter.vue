@@ -2,13 +2,18 @@
 /**
  * Counter Widget
  *
- * Renders an animated counting number with prefix/suffix inline.
- * Element-group architecture: number, title, config groups.
+ * Animated number (count-up from `from` to `number`) with prefix/suffix.
+ * Element-group architecture: number, label, config groups.
+ * Legacy flat / pre-migration data is normalized on read (counterUtils.ts).
+ *
+ * Appearance: `number.style` = fill | outline. Outline draws the digits with
+ * -webkit-text-stroke and fills them on hover of the whole widget.
  */
 
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useLanguage } from '@/composables/useLanguage'
 import type { CounterWidgetData } from '@/types/widgets'
+import { normalizeCounterData, formatCounterValue, separatorChar } from './counterUtils'
 
 defineOptions({
   inheritAttrs: false
@@ -50,137 +55,165 @@ function resolveColorValue(val: string | null): string | null {
   return val
 }
 
-// Element-group computed refs
-const numberGroup = computed(() => props.data.number || {})
-const titleGroup = computed(() => props.data.title || {})
-const configGroup = computed(() => props.data.config || {})
+const norm = computed(() => normalizeCounterData(props.data))
 
-// Element-group reads
-const targetNumber = computed(() => parseFloat(numberGroup.value.number) || 0)
+const numberGroup = computed(() => norm.value.number)
+const labelGroup = computed(() => norm.value.label)
+const configGroup = computed(() => norm.value.config)
+
+const target = computed(() => parseFloat(String(numberGroup.value.number)) || 0)
 const decimals = computed(() => {
-  const str = String(numberGroup.value.number || '')
+  const explicit = numberGroup.value.decimals
+  if (explicit !== null && explicit !== '' && !isNaN(Number(explicit))) {
+    return Math.max(0, Math.min(6, Math.round(Number(explicit))))
+  }
+  const str = String(numberGroup.value.number ?? '')
   const dot = str.indexOf('.')
   return dot >= 0 ? str.length - dot - 1 : 0
 })
-const duration = computed(() => numberGroup.value.duration || 2000)
+const startValue = computed(() => {
+  const from = numberGroup.value.from
+  if (from !== null && from !== '' && !isNaN(Number(from))) return Number(from)
+  return target.value > 1000 ? target.value - 20 : 0
+})
+const duration = computed(() => Math.max(0, parseInt(String(numberGroup.value.duration)) || 0))
+const sepChar = computed(() => separatorChar(numberGroup.value.separator))
+
 const numberSize = computed(() => numberGroup.value.size || 'xl')
-const prefix = computed(() => numberGroup.value.prefix ? extractValue(numberGroup.value.prefix) : '')
-const suffix = computed(() => numberGroup.value.suffix ? extractValue(numberGroup.value.suffix) : '')
-const numberColor = computed(() => numberGroup.value.color || null)
-const numberHoverColor = computed(() => numberGroup.value['color:hover'] || null)
-const prefixColor = computed(() => numberGroup.value.prefix_color || null)
-
-const titleText = computed(() => (titleGroup.value.html || titleGroup.value.content) ? extractValue(titleGroup.value.html || titleGroup.value.content) : '')
-const titleColor = computed(() => titleGroup.value.color || null)
-const titleHoverColor = computed(() => titleGroup.value['color:hover'] || null)
-
+const numberStyleMode = computed(() => (numberGroup.value.style === 'outline' ? 'outline' : 'fill'))
+const prefix = computed(() => (numberGroup.value.prefix ? extractValue(numberGroup.value.prefix) : ''))
+const suffix = computed(() => (numberGroup.value.suffix ? extractValue(numberGroup.value.suffix) : ''))
 const numberTag = computed(() => numberGroup.value.tag || 'p')
-const titleTag = computed(() => titleGroup.value.tag || 'p')
+const textStyleClass = computed(() => {
+  const code = numberGroup.value.text_style
+  return code && /^[a-z0-9_-]+$/i.test(code) ? `lcms-ts-${code}` : ''
+})
+
+const labelText = computed(() => {
+  const t = labelGroup.value.text
+  return t ? extractValue(t) : ''
+})
+const labelTag = computed(() => labelGroup.value.tag || 'p')
+
 const alignment = computed(() => configGroup.value.alignment || 'center')
 const gap = computed(() => {
   const val = configGroup.value.gap
   return val !== undefined && val !== null ? `${val}px` : '10px'
 })
 
-const hasHover = computed(() => !!(
-  numberHoverColor.value ||
-  titleHoverColor.value
-))
+const hasColor = computed(() => !!numberGroup.value.color)
+const hasHover = computed(() => !!numberGroup.value['color:hover'])
 
 const counterStyle = computed(() => {
   const style: Record<string, string> = {}
-  const nc = resolveColorValue(numberColor.value)
-  if (nc) style['--counter-number-color'] = nc
-  const tc = resolveColorValue(titleColor.value)
-  if (tc) style['--counter-title-color'] = tc
-  const pc = resolveColorValue(prefixColor.value)
+  const nc = resolveColorValue(numberGroup.value.color)
+  if (nc) style['--counter-color'] = nc
+  const hc = resolveColorValue(numberGroup.value['color:hover'])
+  if (hc) style['--counter-hover-color'] = hc
+  const pc = resolveColorValue(numberGroup.value.prefix_color)
   if (pc) style['--counter-prefix-color'] = pc
-
-  // hover CSS custom properties
-  const hoverNumber = resolveColorValue(numberHoverColor.value)
-  if (hoverNumber) style['--hover-number-color'] = hoverNumber
-  const hoverTitle = resolveColorValue(titleHoverColor.value)
-  if (hoverTitle) style['--hover-title-color'] = hoverTitle
-
+  const tc = resolveColorValue(labelGroup.value.color)
+  if (tc) style['--counter-label-color'] = tc
+  const th = resolveColorValue(labelGroup.value['color:hover'])
+  if (th) style['--counter-label-hover-color'] = th
+  const ow = Number(numberGroup.value.outline_width)
+  if (!isNaN(ow) && ow > 0) style['--counter-stroke-width'] = `${ow}px`
   return style
 })
 
-// Initial value = target so SSR renders the real number. Crawlers (Google,
-// Facebook OG, etc.) see e.g. "1500+" not "0+". The browser animation only
-// kicks in once the counter scrolls into view, where the brief 0→target
-// rewind reads as the intended count-up effect rather than a flash of
-// missing data.
-const displayNumber = ref(targetNumber.value)
+const numberInlineStyle = computed(() => {
+  const fs = numberGroup.value.font_stretch
+  if (fs === null || fs === undefined || fs === '' || isNaN(Number(fs))) return undefined
+  return { fontStretch: `${Number(fs)}%` }
+})
+
+// SSR renders the real target so crawlers see e.g. "2010+" not "0+".
+// The count-up runs only once the counter scrolls into view.
+const displayNumber = ref(target.value)
+const displayText = computed(() => formatCounterValue(displayNumber.value, decimals.value, sepChar.value))
 let animationFrame: number | null = null
+let observer: IntersectionObserver | null = null
+let hasAnimated = false
 const rootEl = ref<HTMLElement | null>(null)
 
-function animateCounter() {
-  const start = 0
-  const end = targetNumber.value
-  const startTime = performance.now()
-  const dur = duration.value
+function prefersReducedMotion(): boolean {
+  return typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+}
 
-  function update(currentTime: number) {
-    const elapsed = currentTime - startTime
-    const progress = Math.min(elapsed / dur, 1)
-
-    // Easing function (ease-out)
-    const easeOut = 1 - Math.pow(1 - progress, 3)
-    const raw = start + (end - start) * easeOut
-    displayNumber.value = decimals.value > 0 ? parseFloat(raw.toFixed(decimals.value)) : Math.round(raw)
-
-    if (progress < 1) {
-      animationFrame = requestAnimationFrame(update)
-    }
-  }
-
-  if (animationFrame) {
+function cancelFrame() {
+  if (animationFrame !== null) {
     cancelAnimationFrame(animationFrame)
+    animationFrame = null
   }
-  // Reset to 0 as the animation start point. Off-screen counters skip
-  // this entirely (the observer never fires) so SSR's target value stays
-  // visible if the user never scrolls there.
-  displayNumber.value = 0
+}
+
+function animateCounter() {
+  if (typeof window === 'undefined') return
+  cancelFrame()
+  const from = startValue.value
+  const to = target.value
+  const dur = duration.value
+  if (prefersReducedMotion() || dur === 0) {
+    displayNumber.value = to
+    return
+  }
+  hasAnimated = true
+  displayNumber.value = from
+  const startTime = performance.now()
+
+  // Ease-out quart, same curve as the design mock-up.
+  function update(now: number) {
+    const k = Math.min(1, (now - startTime) / dur)
+    const eased = 1 - Math.pow(1 - k, 4)
+    displayNumber.value = k >= 1 ? to : from + (to - from) * eased
+    animationFrame = k < 1 ? requestAnimationFrame(update) : null
+  }
   animationFrame = requestAnimationFrame(update)
 }
 
 onMounted(() => {
   if (typeof window === 'undefined') return
+  if (!configGroup.value.animate_on_scroll || prefersReducedMotion()) return
 
-  // Honour reduced-motion: leave the SSR-rendered target in place and
-  // skip the count-up entirely.
-  const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-  if (reducedMotion) return
-
-  // No IntersectionObserver in older runtimes — fall back to immediate
-  // animation so the count-up still happens.
-  if (typeof IntersectionObserver === 'undefined') {
+  // No IntersectionObserver (old runtimes): animate immediately.
+  if (typeof IntersectionObserver === 'undefined' || !rootEl.value) {
     animateCounter()
     return
   }
 
-  const el = rootEl.value
-  if (!el) {
-    animateCounter()
-    return
-  }
-  const observer = new IntersectionObserver(
+  observer = new IntersectionObserver(
     (entries) => {
-      if (entries.some((e) => e.isIntersecting)) {
-        observer.disconnect()
+      const visible = entries.some((e) => e.isIntersecting)
+      if (visible) {
         animateCounter()
+        if (configGroup.value.once) observer?.disconnect()
+      } else if (!configGroup.value.once) {
+        // Re-arm: next entry counts up again from the start value.
+        cancelFrame()
+        displayNumber.value = startValue.value
       }
     },
-    { threshold: 0.2 },
+    { threshold: 0.6 },
   )
-  observer.observe(el)
+  observer.observe(rootEl.value)
 })
 
-// Re-animate when target changes (preview/editor live edits). Keeps the
-// inline editor experience: tweak the number, watch the count-up replay.
-watch(targetNumber, () => {
+onBeforeUnmount(() => {
+  observer?.disconnect()
+  observer = null
+  cancelFrame()
+})
+
+// Live edits (preview/editor): replay the count-up only if it already ran,
+// otherwise keep the static target so off-screen counters stay correct.
+watch([target, startValue, duration], () => {
   if (typeof window === 'undefined') return
-  animateCounter()
+  if (hasAnimated && configGroup.value.animate_on_scroll) {
+    animateCounter()
+  } else {
+    cancelFrame()
+    displayNumber.value = target.value
+  }
 })
 </script>
 
@@ -191,52 +224,37 @@ watch(targetNumber, () => {
     :class="[
       `lcms-counter--align-${alignment}`,
       `lcms-counter--size-${numberSize}`,
-      { 'has-hover': hasHover }
+      `lcms-counter--${numberStyleMode}`,
+      {
+        'lcms-counter--has-color': hasColor,
+        'lcms-counter--has-hover': hasHover
+      }
     ]"
     :style="counterStyle"
   >
-    <component :is="numberTag" class="lcms-counter__number">
+    <component
+      :is="numberTag"
+      class="lcms-counter__number"
+      :class="textStyleClass"
+      :style="numberInlineStyle"
+    >
       <span
         v-if="prefix"
         class="lcms-counter__prefix"
       >{{ prefix }}</span>
-      <span class="lcms-counter__value">{{ displayNumber.toLocaleString() }}</span>
+      <span class="lcms-counter__value">{{ displayText }}</span>
       <span
         v-if="suffix"
         class="lcms-counter__suffix"
       >{{ suffix }}</span>
     </component>
     <component
-      :is="titleTag"
-      v-if="titleText"
-      class="lcms-counter__title"
+      :is="labelTag"
+      v-if="labelText"
+      class="lcms-counter__label"
       :style="{ marginTop: gap }"
     >
-      {{ titleText }}
+      {{ labelText }}
     </component>
   </div>
 </template>
-
-<style scoped>
-.lcms-counter {
-  transition: transform 200ms ease, box-shadow 200ms ease;
-}
-
-.lcms-counter.has-hover:hover .lcms-counter__value {
-  color: var(--hover-number-color);
-}
-
-.lcms-counter.has-hover:hover .lcms-counter__title {
-  color: var(--hover-title-color);
-}
-
-.lcms-counter__value,
-.lcms-counter__prefix,
-.lcms-counter__suffix {
-  transition: color 200ms ease;
-}
-
-.lcms-counter__title {
-  transition: color 200ms ease;
-}
-</style>
