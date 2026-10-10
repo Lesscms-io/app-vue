@@ -8,7 +8,7 @@
 import { computed } from 'vue'
 import { useLanguage } from '@/composables/useLanguage'
 import { contentImage } from '@/composables/useImageOptimization'
-import { useLightbox } from '@/composables/useLightbox'
+import { useLightbox } from '../../../composables/useLightbox'
 import type { ImageWidgetData } from '@/types/widgets'
 
 defineOptions({

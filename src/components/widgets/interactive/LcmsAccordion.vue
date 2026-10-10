@@ -11,7 +11,7 @@
 
 import { ref, computed, watch } from 'vue'
 import { useLanguage } from '@/composables/useLanguage'
-import { openLightbox } from '@/composables/useLightbox'
+import { openLightbox } from '../../../composables/useLightbox'
 
 function resolveColor(val: string | null | undefined): string | null {
   if (!val) return null

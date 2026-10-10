@@ -9,7 +9,7 @@
 
 import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { contentImage } from '@/composables/useImageOptimization'
-import { useLightbox, type LightboxItem } from '@/composables/useLightbox'
+import { useLightbox, type LightboxItem } from '../../../composables/useLightbox'
 import type { GalleryWidgetData, GalleryImage } from '@/types/widgets'
 import GalleryTile from './GalleryTile.vue'
 

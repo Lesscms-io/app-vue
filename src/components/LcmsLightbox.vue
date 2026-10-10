@@ -11,7 +11,7 @@
  */
 
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { useLightbox } from '@/composables/useLightbox'
+import { useLightbox } from '../composables/useLightbox'
 
 const { state, closeLightbox, stepLightbox } = useLightbox()
 
