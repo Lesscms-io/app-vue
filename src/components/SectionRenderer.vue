@@ -695,7 +695,7 @@ const sectionAnimConfig = computed(() => {
   if (type === 'none') return null
   return {
     type,
-    duration: s.animation_duration ?? s.animationDuration ?? 600,
+    duration: s.animation_duration ?? s.animationDuration ?? (type.startsWith('mask-') || type === 'clip-up' ? 1100 : 600),
     delay: s.animation_delay ?? s.animationDelay ?? 0,
     once: s.animation_once ?? s.animationOnce ?? true
   }

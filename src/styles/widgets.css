@@ -429,6 +429,61 @@
   font-size: var(--lcms-font-size-lg);
 }
 
+/* Button: circle shape — diameter from inline --lcms-btn-circle-d (desktop) / --lcms-btn-circle-d-m (mobile) */
+.lcms-button__link--circle {
+  width: var(--lcms-btn-circle-d, 210px);
+  height: var(--lcms-btn-circle-d, 210px);
+  aspect-ratio: 1 / 1;
+  padding: var(--lcms-spacing-4);
+  border-radius: 50%;
+  text-align: center;
+  line-height: 1.25;
+  white-space: normal;
+}
+
+@media (max-width: 767px) {
+  .lcms-button__link--circle {
+    width: var(--lcms-btn-circle-d-m, min(var(--lcms-btn-circle-d, 210px), 150px));
+    height: var(--lcms-btn-circle-d-m, min(var(--lcms-btn-circle-d, 210px), 150px));
+  }
+}
+
+/* Button: hover fill from the bottom (white by default, override with --lcms-btn-fill / --lcms-btn-fill-text) */
+.lcms-button__link--fill-up {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.lcms-button__link--fill-up::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--lcms-btn-fill, #fff);
+  transform: translateY(101%);
+  transition: transform 450ms cubic-bezier(0.77, 0, 0.18, 1);
+}
+
+.lcms-button__link--fill-up:hover::before {
+  transform: none;
+}
+
+.lcms-button__link--fill-up:hover {
+  filter: none;
+  color: var(--lcms-btn-fill-text, var(--lcms-color-dark, #212529));
+}
+
+/* Button: magnetic — JS sets inline translate on the link; this only smooths it */
+.lcms-button__link--magnetic {
+  transition: transform 250ms ease-out, filter 200ms ease, color 200ms ease;
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lcms-button__link--fill-up::before { transition: none; }
+}
+
 /* ==========================================================================
    Heading Widget
    ========================================================================== */
@@ -2748,6 +2803,69 @@
     transition: none;
     opacity: 1;
     transform: none;
+  }
+}
+
+/* ==========================================================================
+   Scroll Animations — mask / clip variants
+   Reveal via animation (not transition) so widget-level inline `transition`
+   (hover) cannot cut it short. `backwards` fill: the from-state applies only
+   during delay + run, afterwards the element returns to its normal style.
+   ========================================================================== */
+
+@keyframes lcms-mask-up {
+  from { transform: translateY(105%); }
+  to { transform: none; }
+}
+
+@keyframes lcms-mask-up-fade {
+  from { transform: translateY(105%); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+
+@keyframes lcms-clip-up {
+  from { clip-path: inset(100% 0 0 0); }
+  to { clip-path: inset(0 0 0 0); }
+}
+
+/* mask-reveal — direct child (the element's content) slides up inside the clipping wrapper */
+.lcms-anim-mask-reveal { overflow: hidden; }
+.lcms-anim-mask-reveal:not(.lcms-anim--visible) > * { transform: translateY(105%); }
+.lcms-anim--visible.lcms-anim-mask-reveal > * {
+  animation: lcms-mask-up var(--lcms-anim-duration, 1100ms) cubic-bezier(0.77, 0, 0.18, 1) var(--lcms-anim-delay, 0ms) backwards;
+}
+
+/* mask-reveal-lines — text widget: each block (h1–h6, p) rises separately, staggered 120ms.
+   Stagger is per block element (not per rendered line): splitting text into lines is fragile. */
+.lcms-anim-mask-reveal-lines:not(.lcms-anim--visible) :is(h1, h2, h3, h4, h5, h6, p) { opacity: 0; transform: translateY(105%); }
+.lcms-anim--visible.lcms-anim-mask-reveal-lines :is(h1, h2, h3, h4, h5, h6, p) {
+  animation: lcms-mask-up-fade var(--lcms-anim-duration, 1100ms) cubic-bezier(0.77, 0, 0.18, 1) calc(var(--lcms-anim-delay, 0ms) + var(--lcms-line-i, 0) * 120ms) backwards;
+}
+.lcms-anim-mask-reveal-lines :is(h1, h2, h3, h4, h5, h6, p):nth-child(1) { --lcms-line-i: 0; }
+.lcms-anim-mask-reveal-lines :is(h1, h2, h3, h4, h5, h6, p):nth-child(2) { --lcms-line-i: 1; }
+.lcms-anim-mask-reveal-lines :is(h1, h2, h3, h4, h5, h6, p):nth-child(3) { --lcms-line-i: 2; }
+.lcms-anim-mask-reveal-lines :is(h1, h2, h3, h4, h5, h6, p):nth-child(4) { --lcms-line-i: 3; }
+.lcms-anim-mask-reveal-lines :is(h1, h2, h3, h4, h5, h6, p):nth-child(5) { --lcms-line-i: 4; }
+.lcms-anim-mask-reveal-lines :is(h1, h2, h3, h4, h5, h6, p):nth-child(6) { --lcms-line-i: 5; }
+.lcms-anim-mask-reveal-lines :is(h1, h2, h3, h4, h5, h6, p):nth-child(7) { --lcms-line-i: 6; }
+.lcms-anim-mask-reveal-lines :is(h1, h2, h3, h4, h5, h6, p):nth-child(8) { --lcms-line-i: 7; }
+.lcms-anim-mask-reveal-lines :is(h1, h2, h3, h4, h5, h6, p):nth-child(9) { --lcms-line-i: 8; }
+.lcms-anim-mask-reveal-lines :is(h1, h2, h3, h4, h5, h6, p):nth-child(n+10) { --lcms-line-i: 9; }
+
+/* clip-up — element is revealed by an inset clip-path growing from the bottom edge (hero panels) */
+.lcms-anim-clip-up:not(.lcms-anim--visible) { clip-path: inset(100% 0 0 0); }
+.lcms-anim--visible.lcms-anim-clip-up {
+  animation: lcms-clip-up var(--lcms-anim-duration, 1100ms) cubic-bezier(0.77, 0, 0.18, 1) var(--lcms-anim-delay, 0ms) backwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lcms-anim-mask-reveal > *,
+  .lcms-anim-mask-reveal-lines :is(h1, h2, h3, h4, h5, h6, p),
+  .lcms-anim-clip-up {
+    transform: none !important;
+    opacity: 1 !important;
+    clip-path: none !important;
+    animation: none !important;
   }
 }
 

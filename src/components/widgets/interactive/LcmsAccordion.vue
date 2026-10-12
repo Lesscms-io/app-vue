@@ -70,6 +70,9 @@ const isColumns = computed(() => configGroup.value.header_layout === 'columns')
 const showIndex = computed(() => configGroup.value.show_index === true)
 const isPlusCircle = computed(() => configGroup.value.icon_style === 'plus-circle')
 const contentType = computed(() => configGroup.value.content_type || 'text')
+// Lightbox for gallery images (default on); zoom inside it (default on).
+const lightboxEnabled = computed(() => configGroup.value.lightbox !== false)
+const lightboxZoom = computed(() => configGroup.value.lightbox_zoom !== false)
 const showText = computed(() => contentType.value !== 'gallery')
 const showGallery = computed(() => contentType.value === 'gallery' || contentType.value === 'text_gallery')
 const accentEnabled = computed(() => accent_lineGroup.value.enabled === true)
@@ -186,14 +189,16 @@ function pad(n: number): string {
   return String(n).padStart(2, '0')
 }
 
-function openGallery(images: GalleryImage[], index: number) {
+function openGallery(images: GalleryImage[], index: number, title = '') {
+  if (!lightboxEnabled.value) return
   openLightbox(
     images.map(img => ({
       src: img.url,
       alt: img.alt || '',
       type: img.type === 'video' ? 'video' : 'image'
     })),
-    index
+    index,
+    { zoom: lightboxZoom.value, title }
   )
 }
 
@@ -353,9 +358,9 @@ function contentStyle() {
               :key="imgIndex"
               type="button"
               class="lcms-accordion__gallery-item"
-              :class="{ 'is-wide': imgIndex === 0 }"
+              :class="{ 'is-wide': imgIndex === 0, 'lcms-accordion__gallery-item--static': !lightboxEnabled }"
               :aria-label="img.alt || ''"
-              @click.stop="openGallery(item.images, imgIndex)"
+              @click.stop="openGallery(item.images, imgIndex, item.title)"
             >
               <video
                 v-if="img.type === 'video'"
@@ -583,6 +588,8 @@ function contentStyle() {
   cursor: zoom-in;
   overflow: hidden;
 }
+
+.lcms-accordion__gallery-item--static { cursor: default; }
 
 .lcms-accordion__gallery-item img,
 .lcms-accordion__gallery-item video {

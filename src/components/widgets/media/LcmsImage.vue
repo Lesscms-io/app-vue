@@ -57,9 +57,11 @@ const lightboxEnabled = computed(() =>
 )
 const { openLightbox } = useLightbox()
 
+const lightboxZoom = computed(() => config.value.lightbox_zoom !== false)
+
 function onImageClick() {
   if (!lightboxEnabled.value || !imageUrl.value) return
-  openLightbox([{ src: imageUrl.value, alt: altText.value, caption: altText.value }], 0)
+  openLightbox([{ src: imageUrl.value, alt: altText.value, caption: altText.value }], 0, { zoom: lightboxZoom.value })
 }
 </script>
 

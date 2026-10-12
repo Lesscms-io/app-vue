@@ -6,8 +6,9 @@
  * Element-group structure: text + config + link
  */
 
-import { computed, inject } from 'vue'
+import { computed, inject, ref } from 'vue'
 import { useLanguage } from '@/composables/useLanguage'
+import { resolveColor as resolveCssColor } from '@/utils/resolveColor'
 import type { ButtonWidgetData } from '@/types/widgets'
 
 defineOptions({
@@ -82,8 +83,11 @@ const resolvedUrl = computed(() => {
 })
 
 const RADIUS_MAP: Record<string, string> = {
-  none: '0', sm: '4px', md: '8px', lg: '12px', pill: '50px'
+  none: '0', sm: '4px', md: '8px', lg: '12px', pill: '50px', circle: '50%'
 }
+
+const isCircle = computed(() => borderRadius.value === 'circle')
+const hoverFill = computed(() => configGroup.value.hover_effect === 'fill-up')
 
 const buttonInlineStyle = computed(() => {
   const styles: Record<string, string> = {}
@@ -91,23 +95,69 @@ const buttonInlineStyle = computed(() => {
     styles.borderRadius = RADIUS_MAP[borderRadius.value] || `${borderRadius.value}px`
   }
   if (buttonPadding.value) styles.padding = `${buttonPadding.value}px`
+  if (hoverFill.value) {
+    const fill = resolveCssColor(configGroup.value.fill_color)
+    const fillText = resolveCssColor(configGroup.value.fill_text_color)
+    if (fill) styles['--lcms-btn-fill'] = fill
+    if (fillText) styles['--lcms-btn-fill-text'] = fillText
+  }
+  if (isCircle.value) {
+    styles['--lcms-btn-circle-d'] = `${configGroup.value.circle_size || 210}px`
+    if (configGroup.value.circle_size_mobile) {
+      styles['--lcms-btn-circle-d-m'] = `${configGroup.value.circle_size_mobile}px`
+    }
+  }
   return styles
 })
+
+// Magnetic effect — link follows the cursor inside itself (pointer:fine, no reduced-motion)
+const linkEl = ref<HTMLAnchorElement | null>(null)
+const magnetic = computed(() => !!configGroup.value.magnetic)
+const magneticStrength = computed(() => {
+  const v = Number(configGroup.value.magnetic_strength)
+  return Number.isFinite(v) ? Math.min(0.6, Math.max(0.1, v)) : 0.3
+})
+
+function magneticAllowed(): boolean {
+  if (typeof window === 'undefined' || !window.matchMedia) return false
+  return window.matchMedia('(pointer: fine)').matches && !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+}
+
+function onMagneticMove(e: MouseEvent) {
+  if (!magnetic.value || !linkEl.value || !magneticAllowed()) return
+  const r = linkEl.value.getBoundingClientRect()
+  const dx = (e.clientX - (r.left + r.width / 2)) * magneticStrength.value
+  const dy = (e.clientY - (r.top + r.height / 2)) * magneticStrength.value
+  linkEl.value.style.transform = `translate(${dx}px, ${dy}px)`
+}
+
+function onMagneticLeave() {
+  if (linkEl.value) linkEl.value.style.transform = ''
+}
 </script>
 
 <template>
   <div class="lcms-button">
     <a
+      ref="linkEl"
       :href="resolvedUrl"
       class="lcms-button__link"
       :class="[
         `lcms-button__link--${buttonStyle}`,
         `lcms-button__link--size-${buttonSize}`,
-        { 'lcms-button__link--icon-hover': iconHoverOnly, [`lcms-button__link--icon-${iconPosition}`]: iconHoverOnly }
+        {
+          'lcms-button__link--icon-hover': iconHoverOnly,
+          [`lcms-button__link--icon-${iconPosition}`]: iconHoverOnly,
+          'lcms-button__link--circle': isCircle,
+          'lcms-button__link--fill-up': hoverFill,
+          'lcms-button__link--magnetic': magnetic
+        }
       ]"
       :style="buttonInlineStyle"
       :target="targetBlank ? '_blank' : undefined"
       :rel="targetBlank ? 'noopener noreferrer' : undefined"
+      @mousemove="onMagneticMove"
+      @mouseleave="onMagneticLeave"
     >
       <span v-if="isSvgIcon && iconPosition === 'left'" class="lcms-button__svg lcms-button__svg--left" v-html="svgContent" />
       <i v-else-if="buttonIcon && iconPosition === 'left'" :class="[buttonIcon, 'lcms-button__icon', 'lcms-button__icon--left']" />

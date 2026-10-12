@@ -377,6 +377,8 @@ function applyStyleVariables(styles: Record<string, any>) {
   if (styles.font_button) root.style.setProperty('--lcms-font-button', `"${styles.font_button}", sans-serif`)
   if (styles.font_size_base) root.style.setProperty('--lcms-font-size-base', `${styles.font_size_base}px`)
   if (styles.line_height) root.style.setProperty('--lcms-line-height', String(styles.line_height))
+  if (styles.font_heading_stretch) root.style.setProperty('--lcms-font-heading-stretch', `${styles.font_heading_stretch}%`)
+  if (styles.font_body_stretch) root.style.setProperty('--lcms-font-body-stretch', `${styles.font_body_stretch}%`)
 
   // Heading typography variables (H1-H6)
   for (const level of [1, 2, 3, 4, 5, 6]) {

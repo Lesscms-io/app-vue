@@ -80,6 +80,10 @@ const showDots = computed(() => {
 const enableLightbox = computed(() =>
   config.value.enable_lightbox || config.value.enableLightbox || props.data.enable_lightbox
 )
+// Zoom inside the lightbox (wheel, double click, +/−, pinch). Default on.
+const lightboxZoom = computed(() =>
+  config.value.lightbox_zoom !== false && config.value.lightboxZoom !== false
+)
 
 // Captions: 'none' | 'alt' | 'filename' — shown as a bottom overlay on tiles
 // and under the lightbox image.
@@ -180,7 +184,7 @@ function openLightbox(index: number) {
     type: img.type === 'video' ? 'video' : 'image',
     poster: img.poster || undefined
   }))
-  showLightbox(items, index)
+  showLightbox(items, index, { zoom: lightboxZoom.value })
 }
 
 onMounted(() => {

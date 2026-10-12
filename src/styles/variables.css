@@ -137,7 +137,7 @@
   --lcms-h1-margin-bottom: var(--lcms-spacing-4);
   --lcms-h1-letter-spacing: normal;
   --lcms-h1-text-transform: none;
-  --lcms-h1-font-stretch: normal;
+  --lcms-h1-font-stretch: var(--lcms-font-heading-stretch, normal);
   --lcms-h2-font-size: 3.75rem;
   --lcms-h2-font-weight: var(--lcms-font-weight-bold);
   --lcms-h2-color: inherit;
@@ -145,7 +145,7 @@
   --lcms-h2-margin-bottom: var(--lcms-spacing-4);
   --lcms-h2-letter-spacing: normal;
   --lcms-h2-text-transform: none;
-  --lcms-h2-font-stretch: normal;
+  --lcms-h2-font-stretch: var(--lcms-font-heading-stretch, normal);
   --lcms-h3-font-size: 3rem;
   --lcms-h3-font-weight: var(--lcms-font-weight-semibold);
   --lcms-h3-color: inherit;
@@ -153,7 +153,7 @@
   --lcms-h3-margin-bottom: var(--lcms-spacing-3);
   --lcms-h3-letter-spacing: normal;
   --lcms-h3-text-transform: none;
-  --lcms-h3-font-stretch: normal;
+  --lcms-h3-font-stretch: var(--lcms-font-heading-stretch, normal);
   --lcms-h4-font-size: 2.25rem;
   --lcms-h4-font-weight: var(--lcms-font-weight-semibold);
   --lcms-h4-color: inherit;
@@ -161,7 +161,7 @@
   --lcms-h4-margin-bottom: var(--lcms-spacing-3);
   --lcms-h4-letter-spacing: normal;
   --lcms-h4-text-transform: none;
-  --lcms-h4-font-stretch: normal;
+  --lcms-h4-font-stretch: var(--lcms-font-heading-stretch, normal);
   --lcms-h5-font-size: 1.875rem;
   --lcms-h5-font-weight: var(--lcms-font-weight-medium);
   --lcms-h5-color: inherit;
@@ -169,7 +169,7 @@
   --lcms-h5-margin-bottom: var(--lcms-spacing-2);
   --lcms-h5-letter-spacing: normal;
   --lcms-h5-text-transform: none;
-  --lcms-h5-font-stretch: normal;
+  --lcms-h5-font-stretch: var(--lcms-font-heading-stretch, normal);
   --lcms-h6-font-size: 1.5rem;
   --lcms-h6-font-weight: var(--lcms-font-weight-medium);
   --lcms-h6-color: inherit;
@@ -177,7 +177,7 @@
   --lcms-h6-margin-bottom: var(--lcms-spacing-2);
   --lcms-h6-letter-spacing: normal;
   --lcms-h6-text-transform: none;
-  --lcms-h6-font-stretch: normal;
+  --lcms-h6-font-stretch: var(--lcms-font-heading-stretch, normal);
 
   /* Paragraph Typography */
   --lcms-p-font-size: var(--lcms-font-size-base);
@@ -272,6 +272,7 @@ h6, .h6 {
 /* Body / Paragraphs */
 body {
   font-family: var(--lcms-font-body);
+  font-stretch: var(--lcms-font-body-stretch, normal);
   margin: 0;
 }
 

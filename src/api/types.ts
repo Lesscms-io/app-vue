@@ -83,6 +83,19 @@ export interface ProjectBusinessInfo {
   tax_id?: string
 }
 
+export interface ProjectPreloader {
+  enabled?: boolean
+  type?: 'lottie' | 'logo'
+  lottie_url?: string | null
+  logo_url?: string | null
+  background?: string | null
+  bar_color?: string | null
+  min_duration_ms?: number | null
+  max_duration_ms?: number | null
+  exit?: 'slide-up' | 'fade'
+  show?: 'always' | 'first_visit'
+}
+
 export interface ProjectStyles {
   primary_color?: string
   secondary_color?: string
@@ -93,6 +106,9 @@ export interface ProjectStyles {
   font_body?: string
   font_size_base?: number
   line_height?: number
+  font_heading_stretch?: number
+  font_body_stretch?: number
+  preloader?: ProjectPreloader
   border_radius?: number
   container_max_width?: number
 }

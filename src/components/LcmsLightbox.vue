@@ -27,8 +27,12 @@ const imgEl = ref<HTMLImageElement | null>(null)
 
 const current = computed(() => state.items[state.index])
 const isImage = computed(() => current.value?.type !== 'video')
+const zoomEnabled = computed(() => isImage.value && state.zoom)
 const total = computed(() => state.items.length)
 const zoomed = computed(() => zoom.value > MIN_ZOOM)
+const caption = computed(() => state.title || current.value?.caption || '')
+const dialogEl = ref<HTMLElement | null>(null)
+let returnFocusEl: HTMLElement | null = null
 
 const imgStyle = computed(() => ({
   transform: `translate(${panX.value}px, ${panY.value}px) scale(${zoom.value})`
@@ -42,6 +46,7 @@ function resetZoom() {
 
 // Zoom to `next` keeping the point (cx, cy) under the cursor fixed.
 function zoomTo(next: number, cx?: number, cy?: number) {
+  if (!zoomEnabled.value) return
   const nz = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, next))
   const el = imgEl.value
   if (el) {
@@ -83,18 +88,38 @@ function onKey(e: KeyboardEvent) {
   if (e.key === 'Escape') close()
   else if (e.key === 'ArrowLeft') prev()
   else if (e.key === 'ArrowRight') next()
-  else if (isImage.value && (e.key === '+' || e.key === '=')) zoomTo(zoom.value * 1.6)
-  else if (isImage.value && e.key === '-') zoomTo(zoom.value / 1.6)
-  else if (isImage.value && e.key === '0') resetZoom()
+  else if (zoomEnabled.value && (e.key === '+' || e.key === '=')) zoomTo(zoom.value * 1.6)
+  else if (zoomEnabled.value && e.key === '-') zoomTo(zoom.value / 1.6)
+  else if (zoomEnabled.value && e.key === '0') resetZoom()
+  else if (e.key === 'Tab') trapFocus(e)
+}
+
+// Focus trap: keep Tab / Shift+Tab cycling inside the dialog (aria-modal).
+function trapFocus(e: KeyboardEvent) {
+  const root = dialogEl.value
+  if (!root) return
+  const items = [...root.querySelectorAll<HTMLElement>('button:not(:disabled), video[controls]')]
+  if (items.length === 0) return
+  const first = items[0]
+  const last = items[items.length - 1]
+  const active = document.activeElement as HTMLElement | null
+  if (e.shiftKey && (active === first || !root.contains(active))) {
+    e.preventDefault()
+    last.focus()
+  } else if (!e.shiftKey && (active === last || !root.contains(active))) {
+    e.preventDefault()
+    first.focus()
+  }
 }
 
 function onWheel(e: WheelEvent) {
-  if (!isImage.value) return
+  if (!zoomEnabled.value) return
   e.preventDefault()
   zoomTo(zoom.value * Math.exp(-e.deltaY * 0.0025), e.clientX, e.clientY)
 }
 
 function onDblClick(e: MouseEvent) {
+  if (!zoomEnabled.value) return
   if (zoomed.value) resetZoom()
   else zoomTo(2.5, e.clientX, e.clientY)
 }
@@ -119,7 +144,7 @@ function onPointerDown(e: PointerEvent) {
   }
   if (e.pointerType === 'touch' && pointers.size === 1) {
     const now = Date.now()
-    if (now - lastTap < 300) {
+    if (now - lastTap < 300 && zoomEnabled.value) {
       if (zoomed.value) resetZoom()
       else zoomTo(2.5, e.clientX, e.clientY)
     }
@@ -135,11 +160,11 @@ function onPointerMove(e: PointerEvent) {
     pointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
     const [a, b] = [...pointers.values()]
     const d = Math.hypot(a.x - b.x, a.y - b.y)
-    if (pinchDist) zoomTo(zoom.value * d / pinchDist, (a.x + b.x) / 2, (a.y + b.y) / 2)
+    if (pinchDist && zoomEnabled.value) zoomTo(zoom.value * d / pinchDist, (a.x + b.x) / 2, (a.y + b.y) / 2)
     pinchDist = d
     return
   }
-  if (zoomed.value) {
+  if (zoomed.value && zoomEnabled.value) {
     panX.value += e.clientX - prev.x
     panY.value += e.clientY - prev.y
   }
@@ -173,12 +198,16 @@ onBeforeUnmount(() => {
   if (typeof document !== 'undefined' && state.open) document.body.style.overflow = ''
 })
 
-// Focus the close button when opened, for keyboard users.
+// Focus the close button when opened; return focus to the opener on close.
 const closeBtn = ref<HTMLButtonElement | null>(null)
 watch(() => state.open, async (open) => {
   if (open) {
+    returnFocusEl = document.activeElement as HTMLElement | null
     await nextTick()
     closeBtn.value?.focus()
+  } else if (returnFocusEl) {
+    returnFocusEl.focus?.()
+    returnFocusEl = null
   }
 })
 </script>
@@ -188,10 +217,12 @@ watch(() => state.open, async (open) => {
     <Transition name="lcms-lb-fade">
       <div
         v-if="state.open && current"
+        ref="dialogEl"
         class="lcms-lb"
-        :class="{ 'lcms-lb--zoomed': zoomed, 'lcms-lb--dragging': dragging }"
+        :class="{ 'lcms-lb--zoomed': zoomed, 'lcms-lb--dragging': dragging, 'lcms-lb--no-zoom': !zoomEnabled }"
         role="dialog"
         aria-modal="true"
+        aria-label="Galeria"
         @click="onBackdropClick"
         @wheel="onWheel"
       >
@@ -205,7 +236,7 @@ watch(() => state.open, async (open) => {
           <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" /></svg>
         </button>
 
-        <template v-if="isImage">
+        <template v-if="zoomEnabled">
           <button
             type="button"
             class="lcms-lb__btn lcms-lb__zoom lcms-lb__zoom--in"
@@ -276,12 +307,12 @@ watch(() => state.open, async (open) => {
         </button>
 
         <div
-          v-if="total > 1 || current.caption"
+          v-if="total > 1 || caption"
           class="lcms-lb__cnt"
         >
           <b v-if="total > 1">{{ state.index + 1 }} / {{ total }}</b>
-          <template v-if="current.caption">
-            <span v-if="total > 1"> · </span>{{ current.caption }}
+          <template v-if="caption">
+            <span v-if="total > 1"> · </span>{{ caption }}
           </template>
         </div>
       </div>
@@ -360,6 +391,7 @@ watch(() => state.open, async (open) => {
 .lcms-lb__zoom--in { top: 24px; right: 152px; }
 .lcms-lb__zoom--out { top: 24px; right: 88px; }
 .lcms-lb__zoom { width: 56px; }
+.lcms-lb--no-zoom .lcms-lb__img { cursor: default; }
 .lcms-lb__nav { top: 50%; margin-top: -28px; }
 .lcms-lb__nav--prev { left: 24px; }
 .lcms-lb__nav--next { right: 24px; }

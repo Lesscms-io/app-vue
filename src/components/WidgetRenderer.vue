@@ -144,7 +144,7 @@ const animationConfig = computed(() => {
   if (type === 'none') return null
   return {
     type,
-    duration: s.animation_duration ?? 600,
+    duration: s.animation_duration ?? (type.startsWith('mask-') || type === 'clip-up' ? 1100 : 600),
     delay: s.animation_delay ?? 0,
     once: s.animation_once ?? true
   }

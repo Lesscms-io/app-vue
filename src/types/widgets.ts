@@ -29,6 +29,20 @@ export interface ButtonConfigGroup {
   icon_position?: string
   /** hide icon until hover, then reveal with a slide (Divi-style) */
   icon_hover_only?: boolean
+  /** hover fill from the bottom ('fill-up') */
+  hover_effect?: 'none' | 'fill-up'
+  /** fill color (var:code or hex), null = white */
+  fill_color?: string | null
+  /** text color on hover, null = dark */
+  fill_text_color?: string | null
+  /** button follows the cursor inside itself */
+  magnetic?: boolean
+  /** 0.1–0.6, share of cursor offset applied as translate */
+  magnetic_strength?: number
+  /** diameter in px when border_radius = 'circle' */
+  circle_size?: number | null
+  /** diameter in px on mobile (falls back to min(circle_size, 150px)) */
+  circle_size_mobile?: number | null
 }
 
 export interface ButtonLinkGroup {

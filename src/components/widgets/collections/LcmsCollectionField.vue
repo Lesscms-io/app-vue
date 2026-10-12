@@ -8,11 +8,12 @@
  * Uses element-group pattern: icon, label, text, config
  */
 
-import { computed, inject, ref, unref, watch, onMounted, onUnmounted, Teleport, type Ref } from 'vue'
+import { computed, inject, unref, type Ref } from 'vue'
 import { posterFrameSrc } from '@/utils/videoPoster'
 import { useLanguage } from '@/composables/useLanguage'
 import { localizedEntryUrl } from '@/utils/entryUrl'
 import { contentImage } from '@/composables/useImageOptimization'
+import { openLightbox as showLightbox, type LightboxItem } from '../../../composables/useLightbox'
 import type { CollectionFieldConfig, CollectionEntry } from '@/api/types'
 
 defineOptions({
@@ -370,65 +371,16 @@ function formatDateValue(value: string | Date): string {
   return date.toLocaleDateString(currentLanguage.value, options)
 }
 
-// --- Lightbox (for gallery fields) ---
-const lightboxOpen = ref(false)
-const lightboxIndex = ref(0)
-
+// --- Lightbox: shared global viewer (components/LcmsLightbox.vue) ---
 function openLightbox(index: number) {
-  lightboxIndex.value = index
-  lightboxOpen.value = true
+  const items: LightboxItem[] = galleryItems.value.map((item: any, i: number) => ({
+    src: item.url,
+    alt: `${label || fieldCode} ${i + 1}`,
+    type: item.type === 'video' ? 'video' : 'image',
+    poster: item.poster || undefined
+  }))
+  showLightbox(items, index)
 }
-
-function closeLightbox() {
-  lightboxOpen.value = false
-}
-
-function lightboxNext() {
-  lightboxIndex.value = (lightboxIndex.value + 1) % galleryItems.value.length
-}
-
-function lightboxPrev() {
-  lightboxIndex.value = (lightboxIndex.value - 1 + galleryItems.value.length) % galleryItems.value.length
-}
-
-function onLightboxKeydown(e: KeyboardEvent) {
-  if (!lightboxOpen.value) return
-  if (e.key === 'Escape') closeLightbox()
-  else if (e.key === 'ArrowRight') lightboxNext()
-  else if (e.key === 'ArrowLeft') lightboxPrev()
-}
-
-let touchStartX = 0
-function onTouchStart(e: TouchEvent) {
-  touchStartX = e.changedTouches[0].screenX
-}
-function onTouchEnd(e: TouchEvent) {
-  const diff = touchStartX - e.changedTouches[0].screenX
-  if (Math.abs(diff) >= 50) {
-    diff > 0 ? lightboxNext() : lightboxPrev()
-  }
-}
-
-function onBackdropClick(e: MouseEvent) {
-  if ((e.target as HTMLElement).classList.contains('lcms-lightbox__backdrop')) {
-    closeLightbox()
-  }
-}
-
-watch(lightboxOpen, (open) => {
-  document.body.style.overflow = open ? 'hidden' : ''
-})
-
-onMounted(() => {
-  document.addEventListener('keydown', onLightboxKeydown)
-})
-
-onUnmounted(() => {
-  document.removeEventListener('keydown', onLightboxKeydown)
-  document.body.style.overflow = ''
-})
-
-const lightboxImage = computed(() => galleryItems.value[lightboxIndex.value] || null)
 </script>
 
 <template>
@@ -561,69 +513,6 @@ const lightboxImage = computed(() => galleryItems.value[lightboxIndex.value] || 
       />
     </component>
 
-    <!-- Lightbox Overlay (gallery fields) -->
-    <Teleport to="body">
-      <Transition name="lcms-lightbox">
-        <div
-          v-if="lightboxOpen && lightboxImage"
-          class="lcms-lightbox__backdrop"
-          @click="onBackdropClick"
-          @touchstart="onTouchStart"
-          @touchend="onTouchEnd"
-        >
-          <button
-            class="lcms-lightbox__close"
-            type="button"
-            @click="closeLightbox"
-          >
-            <i class="fa-solid fa-xmark" />
-          </button>
-
-          <div class="lcms-lightbox__counter">
-            {{ lightboxIndex + 1 }} / {{ galleryItems.length }}
-          </div>
-
-          <button
-            v-if="galleryItems.length > 1"
-            class="lcms-lightbox__arrow lcms-lightbox__arrow--prev"
-            type="button"
-            @click.stop="lightboxPrev"
-          >
-            <i class="fa-solid fa-chevron-left" />
-          </button>
-
-          <div class="lcms-lightbox__image-wrapper">
-            <video
-              v-if="lightboxImage.type === 'video'"
-              :key="lightboxIndex"
-              :src="lightboxImage.url"
-              :poster="lightboxImage.poster || undefined"
-              class="lcms-lightbox__video"
-              controls
-              autoplay
-              playsinline
-              @click.stop
-            />
-            <img
-              v-else
-              :src="lightboxImage.url"
-              :alt="`${label || fieldCode} ${lightboxIndex + 1}`"
-              class="lcms-lightbox__image"
-              @click.stop
-            >
-          </div>
-
-          <button
-            v-if="galleryItems.length > 1"
-            class="lcms-lightbox__arrow lcms-lightbox__arrow--next"
-            type="button"
-            @click.stop="lightboxNext"
-          >
-            <i class="fa-solid fa-chevron-right" />
-          </button>
-        </div>
-      </Transition>
-    </Teleport>
   </div>
 </template>
 
@@ -735,9 +624,4 @@ a.lcms-collection-field__value-wrapper--linked:hover {
   transform: translate(-50%, -50%) scale(1.08);
 }
 
-.lcms-lightbox__video {
-  max-width: 90vw;
-  max-height: 90vh;
-  display: block;
-}
 </style>

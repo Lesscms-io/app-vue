@@ -7,8 +7,9 @@
  * Clicking the main image opens a fullscreen lightbox (unless disabled).
  */
 
-import { computed, ref, watch, inject, onMounted, onUnmounted, type Ref } from 'vue'
+import { computed, ref, inject, type Ref } from 'vue'
 import { getProductFieldRaw } from '../../../utils/productField'
+import { openLightbox as showLightbox, type LightboxItem } from '../../../composables/useLightbox'
 
 defineOptions({ inheritAttrs: false })
 
@@ -83,85 +84,16 @@ const galleryStyle = computed(() => {
   return style
 })
 
-// --- Lightbox ---
-const lightboxOpen = ref(false)
-const lightboxIndex = ref(0)
-
+// --- Lightbox: shared global viewer (components/LcmsLightbox.vue) ---
 function openLightbox(index: number) {
   if (!enableZoom.value || !allImages.value[index]) return
-  lightboxIndex.value = index
-  lightboxOpen.value = true
+  const items: LightboxItem[] = allImages.value.map((img: any) => ({
+    src: typeof img === 'string' ? img : (img?.url || ''),
+    alt: productName.value
+  }))
+  showLightbox(items, index, { zoom: true })
+  selectedIdx.value = index
 }
-
-function closeLightbox() {
-  lightboxOpen.value = false
-}
-
-function lightboxNext() {
-  if (allImages.value.length < 2) return
-  lightboxIndex.value = (lightboxIndex.value + 1) % allImages.value.length
-  selectedIdx.value = lightboxIndex.value
-}
-
-function lightboxPrev() {
-  if (allImages.value.length < 2) return
-  lightboxIndex.value = (lightboxIndex.value - 1 + allImages.value.length) % allImages.value.length
-  selectedIdx.value = lightboxIndex.value
-}
-
-function onLightboxKeydown(e: KeyboardEvent) {
-  if (!lightboxOpen.value) return
-  if (e.key === 'Escape') {
-    closeLightbox()
-  } else if (e.key === 'ArrowRight') {
-    lightboxNext()
-  } else if (e.key === 'ArrowLeft') {
-    lightboxPrev()
-  }
-}
-
-// Touch swipe support
-let touchStartX = 0
-const SWIPE_THRESHOLD = 50
-
-function onTouchStart(e: TouchEvent) {
-  touchStartX = e.changedTouches[0].screenX
-}
-
-function onTouchEnd(e: TouchEvent) {
-  const diff = touchStartX - e.changedTouches[0].screenX
-  if (Math.abs(diff) < SWIPE_THRESHOLD) return
-  if (diff > 0) lightboxNext()
-  else lightboxPrev()
-}
-
-function onBackdropClick(e: MouseEvent) {
-  // Only close when the backdrop itself was clicked, not the image or controls
-  if ((e.target as HTMLElement).classList.contains('lcms-product-lightbox__backdrop')) {
-    closeLightbox()
-  }
-}
-
-// Lock body scroll while the lightbox is open
-watch(lightboxOpen, (open) => {
-  if (typeof document === 'undefined') return
-  document.body.style.overflow = open ? 'hidden' : ''
-})
-
-onMounted(() => {
-  if (typeof document !== 'undefined') {
-    document.addEventListener('keydown', onLightboxKeydown)
-  }
-})
-
-onUnmounted(() => {
-  if (typeof document !== 'undefined') {
-    document.removeEventListener('keydown', onLightboxKeydown)
-    document.body.style.overflow = ''
-  }
-})
-
-const lightboxImage = computed(() => allImages.value[lightboxIndex.value] || null)
 </script>
 
 <template>
@@ -210,61 +142,6 @@ const lightboxImage = computed(() => allImages.value[lightboxIndex.value] || nul
       </button>
     </div>
 
-    <!-- Lightbox Overlay -->
-    <Teleport to="body">
-      <Transition name="lcms-product-lightbox">
-        <div
-          v-if="lightboxOpen && lightboxImage"
-          class="lcms-product-lightbox__backdrop"
-          @click="onBackdropClick"
-          @touchstart="onTouchStart"
-          @touchend="onTouchEnd"
-        >
-          <button
-            class="lcms-product-lightbox__close"
-            type="button"
-            @click="closeLightbox"
-          >
-            <i class="fa-solid fa-xmark" />
-          </button>
-
-          <div
-            v-if="hasMultiple"
-            class="lcms-product-lightbox__counter"
-          >
-            {{ lightboxIndex + 1 }} / {{ allImages.length }}
-          </div>
-
-          <button
-            v-if="hasMultiple"
-            class="lcms-product-lightbox__arrow lcms-product-lightbox__arrow--prev"
-            type="button"
-            @click.stop="lightboxPrev"
-          >
-            <i class="fa-solid fa-chevron-left" />
-          </button>
-
-          <div class="lcms-product-lightbox__image-wrapper">
-            <img
-              :src="lightboxImage"
-              :alt="productName"
-              class="lcms-product-lightbox__image"
-              decoding="async"
-              @click.stop
-            >
-          </div>
-
-          <button
-            v-if="hasMultiple"
-            class="lcms-product-lightbox__arrow lcms-product-lightbox__arrow--next"
-            type="button"
-            @click.stop="lightboxNext"
-          >
-            <i class="fa-solid fa-chevron-right" />
-          </button>
-        </div>
-      </Transition>
-    </Teleport>
   </div>
 </template>
 
@@ -346,79 +223,4 @@ const lightboxImage = computed(() => allImages.value[lightboxIndex.value] || nul
   height: 100%;
   object-fit: cover;
 }
-
-/* Lightbox */
-.lcms-product-lightbox__backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.9);
-  z-index: 9999;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.lcms-product-lightbox__image-wrapper {
-  max-width: 90vw;
-  max-height: 90vh;
-}
-
-.lcms-product-lightbox__image {
-  max-width: 90vw;
-  max-height: 90vh;
-  object-fit: contain;
-  border-radius: 4px;
-}
-
-.lcms-product-lightbox__close {
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  background: none;
-  border: none;
-  color: #fff;
-  font-size: 24px;
-  cursor: pointer;
-  z-index: 10;
-}
-
-.lcms-product-lightbox__counter {
-  position: absolute;
-  top: 16px;
-  left: 50%;
-  transform: translateX(-50%);
-  color: #fff;
-  font-size: 14px;
-}
-
-.lcms-product-lightbox__arrow {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  background: rgba(255, 255, 255, 0.15);
-  border: none;
-  border-radius: 50%;
-  width: 48px;
-  height: 48px;
-  color: #fff;
-  cursor: pointer;
-  z-index: 10;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 18px;
-  transition: background 200ms;
-}
-
-.lcms-product-lightbox__arrow:hover {
-  background: rgba(255, 255, 255, 0.3);
-}
-
-.lcms-product-lightbox__arrow--prev { left: 16px; }
-.lcms-product-lightbox__arrow--next { right: 16px; }
-
-.lcms-product-lightbox-enter-active,
-.lcms-product-lightbox-leave-active { transition: opacity 200ms; }
-.lcms-product-lightbox-enter-from,
-.lcms-product-lightbox-leave-to { opacity: 0; }
 </style>
