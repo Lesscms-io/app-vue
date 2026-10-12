@@ -203,13 +203,15 @@ onMounted(() => {
             class="lcms-timeline__date"
             v-html="item.date"
           />
+          <!-- v-html on <component :is> is dropped in SSR — inner span carries it -->
           <component
             :is="titleTag"
             v-if="item.title"
             class="lcms-timeline__title"
             :class="titleTextClass"
-            v-html="item.title"
-          />
+          >
+            <span v-html="item.title" />
+          </component>
           <div
             v-if="item.content"
             class="lcms-timeline__content"

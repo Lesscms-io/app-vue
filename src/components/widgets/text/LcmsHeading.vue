@@ -128,12 +128,17 @@ const entryId = computed(() => props.data.entry_id || null)
   >
     <!-- If content is HTML, render it directly -->
     <!-- Real heading tag, so h1..h6 project styles apply to HTML content too -->
+    <!-- v-html on <component :is> is dropped in SSR — inner span carries it -->
     <component
       :is="htmlWrapperTag"
       v-if="isHtml"
       class="lcms-heading__html"
-      v-html="headingContent"
-    />
+    >
+      <span
+        style="display: contents"
+        v-html="headingContent"
+      />
+    </component>
     <!-- Otherwise render as plain text in heading tag -->
     <component
       v-else
