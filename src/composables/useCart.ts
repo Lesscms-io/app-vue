@@ -5,12 +5,17 @@
  * page reloads and stays attached to the visitor session. All cart operations
  * are performed against the LessCommerce Storefront API.
  *
+ * A logged-in customer's cart lives on the account instead: on init and on
+ * login the browser cart is merged into it (POST /cart/merge), so the same
+ * cart shows up on every device and never expires. Logout drops the local copy.
+ *
  * Singleton: a single cart store instance is shared across all widgets in
  * the page (created once on first useCart() call).
  */
 
-import { ref, computed, type Ref, type ComputedRef } from 'vue'
+import { ref, computed, watch, type Ref, type ComputedRef } from 'vue'
 import { useStorefront } from './useStorefront'
+import { useCustomer } from './useCustomer'
 import type { StorefrontCart } from '../api/storefront'
 
 const COOKIE_NAME = 'lcms_cart_uuid'
@@ -67,6 +72,7 @@ function createCartStore(): CartStore {
   const error = ref<string | null>(null)
 
   const { client, isAvailable } = useStorefront()
+  const customer = useCustomer()
 
   const itemsCount = computed(() => cart.value?.totals.items_count || 0)
   const total = computed(() => cart.value?.totals.total || 0)
@@ -95,9 +101,40 @@ function createCartStore(): CartStore {
     if (existingUuid) {
       cartUuid.value = existingUuid
       isLoading.value = true
+    }
+
+    await customer.init().catch(() => { /* treated as guest */ })
+    if (customer.isAuthenticated.value) {
+      await syncCustomerCart()
+    } else if (existingUuid) {
       await loadCart()
     }
     hasInitialized.value = true
+
+    // Login / register picks up the account cart; logout forgets it locally.
+    watch(customer.token, (now, before) => {
+      if (now && !before) void syncCustomerCart()
+      else if (!now && before) reset()
+    })
+  }
+
+  async function syncCustomerCart() {
+    if (!client.value) return
+
+    isLoading.value = true
+    try {
+      const response = await client.value.mergeCart({ cart_uuid: cartUuid.value })
+      if (response.data) {
+        cart.value = response.data
+        cartUuid.value = response.data.uuid
+        setCookie(COOKIE_NAME, response.data.uuid, COOKIE_MAX_AGE)
+      }
+    } catch {
+      // Fall back to whatever the cookie points at.
+      if (cartUuid.value) await loadCart()
+    } finally {
+      isLoading.value = false
+    }
   }
 
   async function loadCart() {

@@ -89,6 +89,8 @@ const t = (key: string) => {
       showOptions: 'Pokaż opcje',
       hideOptions: 'Ukryj opcje',
       editConfiguration: 'Edytuj konfigurację',
+      tierHint: 'Dodaj jeszcze {n} szt. „{product}”, a dostaniesz rabat {value}',
+      perItem: 'szt.',
     },
     en: {
       summary: 'Summary',
@@ -105,9 +107,32 @@ const t = (key: string) => {
       showOptions: 'Show options',
       hideOptions: 'Hide options',
       editConfiguration: 'Edit configuration',
+      tierHint: 'Add {n} more of “{product}” to get {value} off',
+      perItem: 'item',
     },
   }
   return dict[lang]?.[key] || dict.pl[key] || key
+}
+
+const tierDiscounts = computed(() => cart.cart.value?.totals.price_rule_discounts || [])
+const nextTiers = computed(() => cart.cart.value?.totals.next_tiers || [])
+// Discount not explained by quantity tiers (coupons) keeps the generic row.
+const otherDiscount = computed(() => {
+  const totals = cart.cart.value?.totals
+  if (!totals) return 0
+  const tiers = tierDiscounts.value.reduce((sum, d) => sum + d.amount, 0)
+  return Math.max(0, Math.round((totals.discount - tiers) * 100) / 100)
+})
+
+function tierValue(type: string, value: number): string {
+  return type === 'percentage' ? `−${value}%` : `${formatPrice(value, currency.value)} / ${t('perItem')}`
+}
+
+function tierHint(tier: { missing_quantity: number, product_name: string, discount_type: string, discount_value: number }): string {
+  return t('tierHint')
+    .replace('{n}', String(tier.missing_quantity))
+    .replace('{product}', tier.product_name)
+    .replace('{value}', tierValue(tier.discount_type, tier.discount_value))
 }
 
 // Normalize configured options into a uniform [{label, value}] list. Shape is
@@ -308,9 +333,18 @@ function handleCheckout() {
           <span>{{ formatPrice(cart.cart.value?.totals.subtotal || 0, currency) }}</span>
         </div>
 
-        <div v-if="cart.cart.value && cart.cart.value.totals.discount > 0" class="lcms-cart__summary-row lcms-cart__summary-row--discount">
+        <div
+          v-for="d in tierDiscounts"
+          :key="d.product_uuid"
+          class="lcms-cart__summary-row lcms-cart__summary-row--discount"
+        >
+          <span>{{ d.rule_name }} ({{ tierValue(d.discount_type, d.discount_value) }})</span>
+          <span>−{{ formatPrice(d.amount, currency) }}</span>
+        </div>
+
+        <div v-if="otherDiscount > 0" class="lcms-cart__summary-row lcms-cart__summary-row--discount">
           <span>{{ t('discount') }}</span>
-          <span>−{{ formatPrice(cart.cart.value.totals.discount, currency) }}</span>
+          <span>−{{ formatPrice(otherDiscount, currency) }}</span>
         </div>
 
         <div class="lcms-cart__summary-row">
@@ -327,6 +361,10 @@ function handleCheckout() {
           <span>{{ t('total') }}</span>
           <span>{{ formatPrice(cart.cart.value?.totals.total || 0, currency) }}</span>
         </div>
+
+        <p v-for="n in nextTiers" :key="n.product_uuid" class="lcms-cart__tier-hint">
+          {{ tierHint(n) }}
+        </p>
 
         <button
           type="button"
@@ -667,6 +705,15 @@ function handleCheckout() {
 
 .lcms-cart__summary-row--discount {
   color: var(--lcms-color-success, #10b981);
+}
+
+.lcms-cart__tier-hint {
+  margin: 0.25rem 0 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--lcms-color-success, #10b981) 10%, transparent);
+  color: var(--lcms-color-success, #10b981);
+  font-size: 0.8125rem;
 }
 
 .lcms-cart__shipping-info {

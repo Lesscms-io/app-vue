@@ -314,10 +314,34 @@ export interface StorefrontCart {
     discount: number
     shipping_cost: number
     total: number
+    price_rule_discounts?: StorefrontCartTierDiscount[]
+    next_tiers?: StorefrontCartNextTier[]
   }
   expires_at: string | null
   created_at: string
   updated_at: string
+}
+
+// Quantity-tier rule reached by a product's total quantity in the cart.
+export interface StorefrontCartTierDiscount {
+  product_uuid: string
+  product_name: string
+  rule_name: string
+  quantity: number
+  discount_type: 'percentage' | 'fixed_price'
+  discount_value: number
+  amount: number
+}
+
+// Nearest tier not reached yet — drives the "add N more" hint.
+export interface StorefrontCartNextTier {
+  product_uuid: string
+  product_name: string
+  rule_name: string
+  min_quantity: number
+  missing_quantity: number
+  discount_type: 'percentage' | 'fixed_price'
+  discount_value: number
 }
 
 export interface StorefrontAddress {
@@ -365,6 +389,7 @@ export interface StorefrontOrder {
   currency: string
   payment_method: string | null
   shipping_method: string | null
+  shipping_method_name?: string | null
   tracking_number: string | null
   customer_name: string | null
   customer_email: string | null
@@ -556,7 +581,7 @@ export interface StorefrontClient {
   removeFromCart(uuid: string, itemId: string): Promise<{ data: StorefrontCart }>
   clearCart(uuid: string): Promise<{ data: StorefrontCart }>
   validateCart(uuid: string): Promise<{ data: any }>
-  mergeCart(sessionId: string): Promise<{ data: StorefrontCart }>
+  mergeCart(guest: { cart_uuid?: string | null, session_id?: string | null }): Promise<{ data: StorefrontCart | null }>
   checkout(cartUuid: string, data: CheckoutRequest): Promise<{ data: StorefrontOrder }>
 
   // Customer auth
@@ -796,7 +821,7 @@ export function createStorefrontClient(options: StorefrontClientOptions): Storef
     removeFromCart: (uuid, itemId) => request('DELETE', `/cart/${uuid}/items/${itemId}`),
     clearCart: (uuid) => request('DELETE', `/cart/${uuid}`),
     validateCart: (uuid) => request('GET', `/cart/${uuid}/validate`),
-    mergeCart: (sessionId) => request('POST', '/cart/merge', { body: { session_id: sessionId }, requireAuth: true }),
+    mergeCart: (guest) => request('POST', '/cart/merge', { body: guest, requireAuth: true }),
     checkout: (cartUuid, data) => request('POST', `/cart/${cartUuid}/checkout`, { body: data }),
 
     // Customer auth

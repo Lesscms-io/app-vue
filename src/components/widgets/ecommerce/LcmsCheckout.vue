@@ -62,6 +62,8 @@ const t = (key: string) => {
       notes: 'Uwagi do zamówienia',
       summary: 'Podsumowanie zamówienia',
       subtotal: 'Suma częściowa',
+      discount: 'Rabat',
+      perItem: 'szt.',
       shippingCost: 'Wysyłka',
       total: 'Razem',
       name: 'Imię i nazwisko',
@@ -129,6 +131,8 @@ const t = (key: string) => {
       notes: 'Order notes',
       summary: 'Order summary',
       subtotal: 'Subtotal',
+      discount: 'Discount',
+      perItem: 'item',
       shippingCost: 'Shipping',
       total: 'Total',
       name: 'Full name',
@@ -389,7 +393,18 @@ function methodAmount(method: StorefrontShippingMethod | null): number {
 
 const shippingCost = computed(() => methodAmount(selectedShipping.value))
 const subtotal = computed(() => cart.cart.value?.totals.subtotal || 0)
-const total = computed(() => subtotal.value + shippingCost.value)
+// Quantity tiers and coupons, as the backend charges them at order time.
+const discount = computed(() => cart.cart.value?.totals.discount || 0)
+const tierDiscounts = computed(() => cart.cart.value?.totals.price_rule_discounts || [])
+const otherDiscount = computed(() => {
+  const tiers = tierDiscounts.value.reduce((sum, d) => sum + d.amount, 0)
+  return Math.max(0, Math.round((discount.value - tiers) * 100) / 100)
+})
+const total = computed(() => Math.max(0, subtotal.value - discount.value) + shippingCost.value)
+
+function tierValue(type: string, value: number): string {
+  return type === 'percentage' ? `−${value}%` : `${formatPrice(value, currency.value)} / ${t('perItem')}`
+}
 
 const pickupPointRequired = computed(() =>
   Boolean(selectedShipping.value?.requires_pickup_point)
@@ -1865,6 +1880,20 @@ async function retryBlik() {
             <span>{{ formatPrice(subtotal, currency) }}</span>
           </div>
 
+          <div
+            v-for="d in tierDiscounts"
+            :key="d.product_uuid"
+            class="lcms-checkout__summary-row lcms-checkout__summary-row--discount"
+          >
+            <span>{{ d.rule_name }} ({{ tierValue(d.discount_type, d.discount_value) }})</span>
+            <span>−{{ formatPrice(d.amount, currency) }}</span>
+          </div>
+
+          <div v-if="otherDiscount > 0" class="lcms-checkout__summary-row lcms-checkout__summary-row--discount">
+            <span>{{ t('discount') }}</span>
+            <span>−{{ formatPrice(otherDiscount, currency) }}</span>
+          </div>
+
           <div class="lcms-checkout__summary-row">
             <span>{{ t('shippingCost') }}</span>
             <span>{{ formatPrice(shippingCost, currency) }}</span>
@@ -2628,6 +2657,10 @@ async function retryBlik() {
   height: 1px;
   background: var(--lcms-color-border, #e5e7eb);
   margin: 0.875rem 0;
+}
+
+.lcms-checkout__summary-row--discount {
+  color: var(--lcms-color-success, #10b981);
 }
 
 .lcms-checkout__summary-row {

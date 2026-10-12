@@ -263,7 +263,8 @@ function paymentMethodLabel(code: string | null | undefined): string {
   return PAYMENT_METHOD_LABELS[code] || code
 }
 
-function shippingMethodLabel(code: string | null | undefined): string {
+function shippingMethodLabel(code: string | null | undefined, name?: string | null): string {
+  if (name) return name
   if (!code) return ''
   return SHIPPING_METHOD_LABELS[code] || code
 }
@@ -823,7 +824,7 @@ function formatDate(date: string) {
                 >
                   <div v-if="orderDetails[order.uuid].shipping_method">
                     <div class="lcms-customer-account__order-meta-label">{{ t('shippingMethod') }}</div>
-                    <div class="lcms-customer-account__order-meta-value">{{ shippingMethodLabel(orderDetails[order.uuid].shipping_method) }}</div>
+                    <div class="lcms-customer-account__order-meta-value">{{ shippingMethodLabel(orderDetails[order.uuid].shipping_method, orderDetails[order.uuid].shipping_method_name) }}</div>
                   </div>
                   <div v-if="orderDetails[order.uuid].payment_method">
                     <div class="lcms-customer-account__order-meta-label">{{ t('paymentMethod') }}</div>
