@@ -4,9 +4,20 @@
     :class="rootClasses"
     :style="rootStyle"
   >
-    <div class="lcms-marquee__viewport">
-      <div class="lcms-marquee__track">
-        <div class="lcms-marquee__group">
+    <div
+      class="lcms-marquee__viewport"
+      @mouseenter="hovered = true"
+      @mouseleave="hovered = false"
+    >
+      <div
+        ref="trackEl"
+        class="lcms-marquee__track"
+        :style="trackStyle"
+      >
+        <div
+          ref="groupEl"
+          class="lcms-marquee__group"
+        >
           <template
             v-for="slot in slots"
             :key="`a-${slot.key}`"
@@ -38,7 +49,8 @@
                   class="lcms-marquee__logo"
                   :src="slot.image"
                   :alt="slot.alt"
-                  loading="lazy"
+                  loading="eager"
+                  decoding="async"
                   draggable="false"
                 >
               </a>
@@ -47,7 +59,8 @@
                 class="lcms-marquee__logo"
                 :src="slot.image"
                 :alt="slot.alt"
-                loading="lazy"
+                loading="eager"
+                  decoding="async"
                 draggable="false"
               >
             </component>
@@ -83,7 +96,8 @@
                 class="lcms-marquee__logo"
                 :src="slot.image"
                 alt=""
-                loading="lazy"
+                loading="eager"
+                  decoding="async"
                 draggable="false"
               >
             </component>
@@ -95,7 +109,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useLanguage } from '@/composables/useLanguage'
 
 const props = defineProps<{
@@ -188,12 +202,69 @@ const rootClasses = computed(() => [
     'lcms-marquee--logos': isLogos.value,
     'lcms-marquee--right': configGroup.value.direction === 'right',
     'lcms-marquee--pause': configGroup.value.pause_on_hover !== false,
+    'lcms-marquee--js': jsDriven.value,
     'lcms-marquee--fade': configGroup.value.fade_edges !== false,
     'lcms-marquee--has-hover-text': !!textGroup.value['color:hover'],
     'lcms-marquee--border-top': borderGroup.value.top !== false,
     'lcms-marquee--border-bottom': borderGroup.value.bottom !== false
   }
 ])
+
+// JS-driven scroll: one copy (group) = one loop. Measured with ResizeObserver,
+// so logos that finish loading mid-scroll don't make the CSS -50% loop jump,
+// and hover eases the speed down to a stop instead of freezing/jumping.
+const trackEl = ref<HTMLElement | null>(null)
+const groupEl = ref<HTMLElement | null>(null)
+const hovered = ref(false)
+const jsDriven = ref(false)
+const offset = ref(0)
+const trackStyle = computed(() => (jsDriven.value ? { transform: `translate3d(${offset.value}px,0,0)` } : {}))
+
+let raf = 0
+let ro: ResizeObserver | null = null
+let groupWidth = 0
+let velocity = 1 // 0..1 factor of full speed (eased on hover)
+let last = 0
+
+function loopSeconds(): number {
+  const v = Number(configGroup.value.speed)
+  return v > 0 ? v : 28
+}
+
+function tick(now: number) {
+  const dt = last ? Math.min(0.1, (now - last) / 1000) : 0
+  last = now
+  const target = hovered.value && configGroup.value.pause_on_hover !== false ? 0 : 1
+  velocity += (target - velocity) * Math.min(1, dt * 6)
+  if (groupWidth > 0) {
+    const dir = configGroup.value.direction === 'right' ? 1 : -1
+    let x = offset.value + dir * (groupWidth / loopSeconds()) * velocity * dt
+    // keep x in (-groupWidth, 0]
+    while (x <= -groupWidth) x += groupWidth
+    while (x > 0) x -= groupWidth
+    offset.value = x
+  }
+  raf = requestAnimationFrame(tick)
+}
+
+onMounted(() => {
+  if (typeof window === 'undefined' || !trackEl.value || !groupEl.value) return
+  if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return
+  // continue from where the SSR CSS animation is, so takeover is seamless
+  const m = getComputedStyle(trackEl.value).transform
+  const cur = m && m !== 'none' ? new DOMMatrixReadOnly(m).m41 : 0
+  groupWidth = groupEl.value.getBoundingClientRect().width
+  offset.value = groupWidth > 0 ? cur % groupWidth : 0
+  jsDriven.value = true
+  ro = new ResizeObserver(() => { if (groupEl.value) groupWidth = groupEl.value.getBoundingClientRect().width })
+  ro.observe(groupEl.value)
+  raf = requestAnimationFrame(tick)
+})
+
+onBeforeUnmount(() => {
+  cancelAnimationFrame(raf)
+  ro?.disconnect()
+})
 
 const rootStyle = computed(() => {
   const s: Record<string, string> = {}
@@ -239,6 +310,7 @@ const rootStyle = computed(() => {
 }
 .lcms-marquee--right .lcms-marquee__track { animation-direction: reverse; }
 .lcms-marquee--pause:hover .lcms-marquee__track { animation-play-state: paused; }
+.lcms-marquee--js .lcms-marquee__track { animation: none; will-change: transform; }
 
 .lcms-marquee__group {
   display: flex;
