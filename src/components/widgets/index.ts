@@ -13,6 +13,7 @@ import LcmsSpacer from './basic/LcmsSpacer.vue'
 import LcmsIconBox from './content/LcmsIconBox.vue'
 import LcmsNumberedBox from './basic/LcmsNumberedBox.vue'
 import LcmsServiceCard from './basic/LcmsServiceCard.vue'
+import LcmsCredits from './basic/LcmsCredits.vue'
 import LcmsLink from './basic/LcmsLink.vue'
 import LcmsPill from './basic/LcmsPill.vue'
 import LcmsTeamMember from './basic/LcmsTeamMember.vue'
@@ -130,6 +131,7 @@ export const widgetComponents: Record<string, Component> = {
   'icon-box': LcmsIconBox,
   'numbered-box': LcmsNumberedBox,
   'service-card': LcmsServiceCard,
+  credits: LcmsCredits,
   link: LcmsLink,
   pill: LcmsPill,
   'team-member': LcmsTeamMember,

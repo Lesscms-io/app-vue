@@ -95,6 +95,31 @@ export interface PillWidgetData extends BaseWidgetData {
   uppercase?: boolean
 }
 
+export interface CreditsWidgetData extends BaseWidgetData {
+  text?: {
+    made_by?: MultilingualValue
+    running_on?: MultilingualValue
+    color?: string | null
+    size?: number
+  }
+  logo?: {
+    color?: string | null
+    'color:hover'?: string | null
+    height?: number
+    accent?: boolean
+  }
+  config?: {
+    show_made_by?: boolean
+    show_running_on?: boolean
+    alignment?: 'left' | 'center' | 'right'
+    separator?: '' | '·' | '|'
+    layout?: 'inline' | 'stacked'
+    link_made_by?: string | null
+    link_running_on?: string | null
+    target_blank?: boolean
+  }
+}
+
 export interface LinkWidgetData extends BaseWidgetData {
   // API (grouped): text.html/text.color, icon.icon/position, config.url/animation/target_blank
   text: { html?: MultilingualValue; content?: MultilingualValue; color?: string; 'color:hover'?: string } | MultilingualValue
@@ -886,6 +911,7 @@ export type WidgetData =
   | DividerWidgetData
   | SpacerWidgetData
   | PillWidgetData
+  | CreditsWidgetData
   | LinkWidgetData
   | StarRatingWidgetData
   | TextWidgetData
