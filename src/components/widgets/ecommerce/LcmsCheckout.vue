@@ -680,6 +680,11 @@ const isInpostPickup = computed(() => {
   return Boolean(selectedShipping.value?.requires_pickup_point)
     && (carrier.includes('inpost') || code.includes('paczkomat') || code.includes('inpost'))
 })
+// Shop's own locations (odbiór osobisty): a short list set in the panel —
+// no map, no postal search, all points load at once.
+const isLocalPickup = computed(() =>
+  (selectedShipping.value?.carrier || '').toLowerCase() === 'local_pickup'
+)
 let inpostAssetsLoadedFor: string | null = null
 function ensureInpostAssets(environment: 'sandbox' | 'production') {
   if (typeof document === 'undefined') return
@@ -744,7 +749,7 @@ const pickupMapRef = ref<HTMLElement | null>(null)
 // Map carriers get a map whenever a pickup method is selected — it doesn't
 // wait for points, because the map itself is how points get loaded.
 const showPickupMap = computed(() =>
-  pickupPointRequired.value && !isInpostPickup.value
+  pickupPointRequired.value && !isInpostPickup.value && !isLocalPickup.value
 )
 let pickupMap: any = null
 let pickupMarkersLayer: any = null
@@ -1010,7 +1015,8 @@ async function loadPickupPoints() {
   //    it wholesale. If the customer already typed a postal code we seed the
   //    picker with the nearby points (and the map centers on them); otherwise
   //    the map's viewport drives loading via fetchPointsInBounds().
-  const isPostalSearch = isInpostPickup.value || !!(form.shipping_postal_code && form.shipping_postal_code.length >= 5)
+  const isPostalSearch = isInpostPickup.value || isLocalPickup.value
+    || !!(form.shipping_postal_code && form.shipping_postal_code.length >= 5)
   if (!isPostalSearch) {
     // No postal yet — clear stale list; the map will fetch by viewport.
     pickupSearchTerm.value = ''
@@ -1057,6 +1063,15 @@ function changePickupPoint() {
   pickupChanging.value = true
   scheduleBoundsFetch()
 }
+
+// Switching between two pickup methods (locker ↔ own location) keeps
+// pickupPointRequired true, so reload on the carrier change itself.
+watch(() => selectedShipping.value?.carrier, async (carrier, previous) => {
+  if (!pickupPointRequired.value || !previous || carrier === previous) return
+  selectedPickupPoint.value = null
+  pickupPoints.value = []
+  await loadPickupPoints()
+})
 
 watch(pickupPointRequired, async (required) => {
   if (!required) {
