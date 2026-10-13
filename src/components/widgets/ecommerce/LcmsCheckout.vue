@@ -1189,8 +1189,8 @@ async function handleSubmit() {
     isFinalizing.value = true
     toast.success(t('orderSuccess'))
 
-    // Init payment if not COD
-    if (form.payment_method !== 'cod' && client.value) {
+    // Init payment for online methods only — COD and bank transfer have no gateway.
+    if (form.payment_method !== 'cod' && form.payment_method !== 'bank_transfer' && client.value) {
       try {
         const paymentResponse = await client.value.initPayment(
           order.uuid,

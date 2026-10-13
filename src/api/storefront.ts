@@ -390,6 +390,16 @@ export interface StorefrontOrder {
   payment_method: string | null
   shipping_method: string | null
   shipping_method_name?: string | null
+  // Present only for orders paid by bank transfer (account details + filled-in title).
+  bank_transfer?: {
+    account_holder: string
+    account_address: string
+    bank_name: string
+    account_number: string
+    transfer_title: string
+    amount: number
+    currency: string
+  } | null
   tracking_number: string | null
   customer_name: string | null
   customer_email: string | null

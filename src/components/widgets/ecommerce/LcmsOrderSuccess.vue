@@ -73,6 +73,13 @@ const t = (key: string) => {
       qty: 'szt.',
       paymentSection: 'Płatność',
       paymentMethod: 'Metoda płatności',
+      bankTransferTitle: 'Dane do przelewu',
+      bankRecipient: 'Odbiorca',
+      bankName: 'Bank',
+      bankAccount: 'Numer konta',
+      bankReference: 'Tytuł przelewu',
+      bankAmount: 'Kwota',
+      bankHint: 'Zamówienie zrealizujemy po zaksięgowaniu wpłaty.',
       itemFallbackName: 'Produkt',
     },
     en: {
@@ -100,6 +107,13 @@ const t = (key: string) => {
       qty: 'pcs',
       paymentSection: 'Payment',
       paymentMethod: 'Payment method',
+      bankTransferTitle: 'Bank transfer details',
+      bankRecipient: 'Recipient',
+      bankName: 'Bank',
+      bankAccount: 'Account number',
+      bankReference: 'Transfer title',
+      bankAmount: 'Amount',
+      bankHint: 'We will process the order once the payment arrives.',
       itemFallbackName: 'Product',
     },
   }
@@ -157,6 +171,7 @@ const PAYMENT_METHOD_LABELS: Record<string, string> = {
   blik: 'BLIK',
   cod: props.language === 'en' ? 'Cash on delivery' : 'Za pobraniem',
   transfer: props.language === 'en' ? 'Bank transfer' : 'Przelew bankowy',
+  bank_transfer: props.language === 'en' ? 'Bank transfer' : 'Przelew bankowy',
 }
 const paymentMethodLabel = computed(() => {
   const m = order.value?.payment_method
@@ -198,7 +213,9 @@ async function fetchOrder() {
       return
     }
 
-    if (status === 'pending' && Date.now() < pollDeadline) {
+    // Transfer / COD stay pending until someone books the money — nothing to wait for.
+    const offline = data.payment_method === 'bank_transfer' || data.payment_method === 'cod'
+    if (status === 'pending' && !offline && Date.now() < pollDeadline) {
       isPolling.value = true
       pollTimer = setTimeout(fetchOrder, 3000)
     } else {
@@ -314,6 +331,31 @@ function formatOrderPrice(value: number | null | undefined): string {
               <dd>{{ paymentMethodLabel }}</dd>
             </template>
           </dl>
+        </section>
+
+        <section
+          v-if="order.bank_transfer && order.payment_status !== 'paid'"
+          class="lcms-order-success__card"
+        >
+          <h3>{{ t('bankTransferTitle') }}</h3>
+          <dl class="lcms-order-success__card-list">
+            <dt>{{ t('bankRecipient') }}</dt>
+            <dd>
+              {{ order.bank_transfer.account_holder }}
+              <template v-if="order.bank_transfer.account_address"><br>{{ order.bank_transfer.account_address }}</template>
+            </dd>
+            <template v-if="order.bank_transfer.bank_name">
+              <dt>{{ t('bankName') }}</dt>
+              <dd>{{ order.bank_transfer.bank_name }}</dd>
+            </template>
+            <dt>{{ t('bankAccount') }}</dt>
+            <dd><strong>{{ order.bank_transfer.account_number }}</strong></dd>
+            <dt>{{ t('bankReference') }}</dt>
+            <dd>{{ order.bank_transfer.transfer_title }}</dd>
+            <dt>{{ t('bankAmount') }}</dt>
+            <dd>{{ formatOrderPrice(order.bank_transfer.amount) }}</dd>
+          </dl>
+          <p>{{ t('bankHint') }}</p>
         </section>
       </div>
 
