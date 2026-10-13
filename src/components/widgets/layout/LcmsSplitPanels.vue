@@ -164,7 +164,8 @@ const imageOf = (item: any) => (item.image ? contentImage(item.image) : null)
         :sizes="imageOf(item)!.sizes"
         :alt="text(item.alt)"
         :loading="index === 0 ? 'eager' : 'lazy'"
-        decoding="async"
+        :fetchpriority="index === 0 ? 'high' : undefined"
+        :decoding="index === 0 ? 'sync' : 'async'"
         class="sp-panel__img"
       >
       <div
