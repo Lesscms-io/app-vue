@@ -322,6 +322,24 @@ export interface StorefrontCart {
   updated_at: string
 }
 
+export interface StorefrontOpenCustomerGroup {
+  uuid: string
+  name: string
+  slug: string
+  description: string | null
+  application_intro: string | null
+}
+
+export interface StorefrontGroupApplicationsState {
+  customer_group_uuid: string | null
+  applications: Array<{
+    uuid: string
+    status: 'pending' | 'approved' | 'rejected'
+    group: { uuid: string, name: string, slug: string } | null
+    created_at: string | null
+  }>
+}
+
 // Quantity-tier rule reached by a product's total quantity in the cart.
 export interface StorefrontCartTierDiscount {
   product_uuid: string
@@ -603,6 +621,10 @@ export interface StorefrontClient {
 
   // Customer profile (requires customer auth)
   getMe(): Promise<{ data: StorefrontCustomer }>
+  // Customer groups taking applications (e.g. photographers) + own applications
+  getOpenCustomerGroups(): Promise<{ data: StorefrontOpenCustomerGroup[] }>
+  getGroupApplications(): Promise<{ data: StorefrontGroupApplicationsState }>
+  applyToCustomerGroup(payload: { customer_group_uuid: string, data?: Record<string, string> }): Promise<{ data: { uuid: string, status: string } }>
   updateProfile(data: Partial<StorefrontCustomer>): Promise<{ data: StorefrontCustomer }>
   changePassword(currentPassword: string, newPassword: string): Promise<{ data: { success: boolean } }>
   getAddresses(): Promise<{ data: { addresses: StorefrontAddress[]; default_address: StorefrontAddress | null } }>
@@ -844,6 +866,9 @@ export function createStorefrontClient(options: StorefrontClientOptions): Storef
 
     // Customer profile
     getMe: () => request('GET', '/customers/me', { requireAuth: true }),
+    getOpenCustomerGroups: () => request('GET', '/customers/groups/open'),
+    getGroupApplications: () => request('GET', '/customers/me/group-applications', { requireAuth: true }),
+    applyToCustomerGroup: (payload) => request('POST', '/customers/me/group-applications', { body: payload, requireAuth: true }),
     updateProfile: (data) => request('PATCH', '/customers/me', { body: data, requireAuth: true }),
     changePassword: (currentPassword, newPassword) =>
       request('POST', '/customers/me/password', {

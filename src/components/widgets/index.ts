@@ -104,6 +104,7 @@ import LcmsEcommerceIcons from './ecommerce/LcmsEcommerceIcons.vue'
 import LcmsProductCarousel from './ecommerce/LcmsProductCarousel.vue'
 import LcmsLoginForm from './ecommerce/LcmsLoginForm.vue'
 import LcmsRegisterForm from './ecommerce/LcmsRegisterForm.vue'
+import LcmsGroupApplication from './ecommerce/LcmsGroupApplication.vue'
 import LcmsCart from './ecommerce/LcmsCart.vue'
 import LcmsCheckout from './ecommerce/LcmsCheckout.vue'
 import LcmsCustomerAccount from './ecommerce/LcmsCustomerAccount.vue'
@@ -222,6 +223,7 @@ export const widgetComponents: Record<string, Component> = {
   'product-carousel': LcmsProductCarousel,
   'login-form': LcmsLoginForm,
   'register-form': LcmsRegisterForm,
+  'group-application': LcmsGroupApplication,
   cart: LcmsCart,
   checkout: LcmsCheckout,
   'customer-account': LcmsCustomerAccount,
@@ -350,6 +352,7 @@ export {
   LcmsProductCarousel,
   LcmsLoginForm,
   LcmsRegisterForm,
+  LcmsGroupApplication,
   LcmsCart,
   LcmsCheckout,
   LcmsCustomerAccount,
