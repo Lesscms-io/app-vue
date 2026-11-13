@@ -121,9 +121,9 @@ function getComponent(widgetType: string) {
 
 // Build widget data
 function getWidgetData(widget: TemplateWidget) {
-  return {
-    config: widget.config
-  }
+  // API zwraca widget w formacie { widget_type, uuid, widget: { icon, label, text, config }, settings } (jak WidgetRenderer)
+  const w = widget as any
+  return w.data || w.widget || { config: widget.config }
 }
 </script>
 

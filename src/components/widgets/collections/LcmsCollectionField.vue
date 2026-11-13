@@ -119,7 +119,7 @@ const valueBackgroundHover = computed(() => resolveColor(textGroup.value['backgr
 
 // Display settings
 const linkText = computed(() => {
-  const text = config.value.link_text
+  const text = configGroup.value.link_text || config.value.link_text
   if (!text) return ''
   if (typeof text === 'object') {
     return text[currentLanguage.value] || text.pl || Object.values(text)[0] || ''
