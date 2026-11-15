@@ -452,6 +452,7 @@ export interface StorefrontShippingMethod {
   estimated_days?: string | number | null
   requires_pickup_point?: boolean
   pickup_carrier?: string | null
+  free_from?: number | null
   shipx_service?: string | null
   logo_url?: string | null
   geowidget_config?: { token: string; environment: 'sandbox' | 'production' } | null

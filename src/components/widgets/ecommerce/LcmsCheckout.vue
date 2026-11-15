@@ -386,6 +386,8 @@ const selectedShipping = computed(() =>
 // shipping-service microservice; `cost` is kept for legacy mock payloads.
 function methodAmount(method: StorefrontShippingMethod | null): number {
   if (!method) return 0
+  // "Darmowa dostawa od X" — the backend zeroes it at order time; show it too.
+  if (method.free_from && (cart.cart.value?.totals.subtotal || 0) + 0.00001 >= method.free_from / 100) return 0
   if (typeof method.price === 'number') return method.price / 100
   if (typeof method.cost === 'number') return method.cost
   return 0
