@@ -682,6 +682,11 @@ const isInpostPickup = computed(() => {
 })
 // Shop's own locations (odbiór osobisty): a short list set in the panel —
 // no map, no postal search, all points load at once.
+// Official InPost map only with a token; without one InPost points go
+// through the generic map + list (points API is public).
+const useInpostGeowidget = computed(() => isInpostPickup.value && !!inpostGeowidgetToken.value)
+// Manual shipping methods can borrow a carrier's point network (pickup_carrier).
+const pickupCarrier = computed(() => selectedShipping.value?.pickup_carrier || selectedShipping.value?.carrier)
 const isLocalPickup = computed(() =>
   (selectedShipping.value?.carrier || '').toLowerCase() === 'local_pickup'
 )
@@ -729,7 +734,7 @@ function onInpostPointSelected(event: Event) {
   } as StorefrontPickupPoint)
 }
 
-watch([isInpostPickup, inpostWidgetRef], async ([active, el]) => {
+watch([useInpostGeowidget, inpostWidgetRef], async ([active, el]) => {
   if (!active || !el) return
   ensureInpostAssets(inpostGeowidgetEnvironment.value)
   await nextTick()
@@ -749,7 +754,7 @@ const pickupMapRef = ref<HTMLElement | null>(null)
 // Map carriers get a map whenever a pickup method is selected — it doesn't
 // wait for points, because the map itself is how points get loaded.
 const showPickupMap = computed(() =>
-  pickupPointRequired.value && !isInpostPickup.value && !isLocalPickup.value
+  pickupPointRequired.value && !useInpostGeowidget.value && !isLocalPickup.value
 )
 let pickupMap: any = null
 let pickupMarkersLayer: any = null
@@ -830,7 +835,7 @@ async function runPickupSearch() {
   isLoadingPickupPoints.value = true
   try {
     const response = await client.value.getPickupPoints({
-      carrier: selectedShipping.value.carrier,
+      carrier: pickupCarrier.value,
       search: term,
     })
     if (seq !== boundsFetchSeq) return
@@ -861,7 +866,7 @@ async function fetchPointsInBounds() {
   isLoadingPickupPoints.value = true
   try {
     const response = await client.value.getPickupPoints({
-      carrier: selectedShipping.value.carrier,
+      carrier: pickupCarrier.value,
       bbox,
     })
     if (seq !== boundsFetchSeq) return // a newer fetch superseded this one
@@ -1015,7 +1020,7 @@ async function loadPickupPoints() {
   //    it wholesale. If the customer already typed a postal code we seed the
   //    picker with the nearby points (and the map centers on them); otherwise
   //    the map's viewport drives loading via fetchPointsInBounds().
-  const isPostalSearch = isInpostPickup.value || isLocalPickup.value
+  const isPostalSearch = useInpostGeowidget.value || isLocalPickup.value
     || !!(form.shipping_postal_code && form.shipping_postal_code.length >= 5)
   if (!isPostalSearch) {
     // No postal yet — clear stale list; the map will fetch by viewport.
@@ -1024,7 +1029,7 @@ async function loadPickupPoints() {
   }
 
   const params: { carrier?: string; postal_code?: string; radius?: number } = {
-    carrier: selectedShipping.value.carrier,
+    carrier: pickupCarrier.value,
     postal_code: form.shipping_postal_code,
     radius: 10,
   }
@@ -1043,7 +1048,7 @@ async function loadPickupPoints() {
       if (!stillThere) selectedPickupPoint.value = null
     }
     // Recenter the (already-mounted) map on the freshly seeded points.
-    if (pickupMap && !isInpostPickup.value) centerPickupMap()
+    if (pickupMap && !useInpostGeowidget.value) centerPickupMap()
   } catch {
     pickupPoints.value = []
   } finally {
@@ -1172,7 +1177,7 @@ async function handleSubmit() {
               // Tag the chosen point with its carrier so the backend doesn't
               // have to re-derive it from the shipping_method when carriers
               // share point types (e.g. dpd_pickup vs inpost_locker).
-              carrier: selectedPickupPoint.value.carrier ?? selectedShipping.value?.carrier ?? undefined,
+              carrier: selectedPickupPoint.value.carrier ?? pickupCarrier.value ?? undefined,
             }
           : undefined,
       },
@@ -1676,7 +1681,7 @@ async function retryBlik() {
               </h4>
 
 
-              <div v-if="isInpostPickup && inpostGeowidgetToken" class="lcms-checkout__pickup-map">
+              <div v-if="useInpostGeowidget" class="lcms-checkout__pickup-map">
                 <inpost-geowidget
                   ref="inpostWidgetRef"
                   :token="inpostGeowidgetToken"
@@ -1685,9 +1690,6 @@ async function retryBlik() {
                   config="parcelcollect"
                   onpoint="onpointselect"
                 />
-              </div>
-              <div v-else-if="isInpostPickup" class="lcms-checkout__loading-text">
-                {{ props.language === 'en' ? 'Pickup point picker unavailable — InPost token missing in shop config' : 'Wybór punktu niedostępny — brak tokenu InPost w konfiguracji sklepu' }}
               </div>
               <div
                 v-else-if="showPickupMap"
@@ -1733,7 +1735,7 @@ async function retryBlik() {
                 {{ props.language === 'en' ? 'No points in this map area — pan or zoom out to find one' : 'Brak punktów w tym obszarze — przesuń lub oddal mapę' }}
               </div>
               <div
-                v-else-if="pickupPoints.length === 0 && !(isInpostPickup && inpostGeowidgetToken)"
+                v-else-if="pickupPoints.length === 0 && !useInpostGeowidget"
                 class="lcms-checkout__loading-text"
               >
                 {{ props.language === 'en' ? 'No pickup points available for this shipping method' : 'Brak punktów odbioru dla tej metody dostawy' }}

@@ -195,12 +195,19 @@ function getField(product: any, path: string): any {
 // container's own price would quote one arbitrary variant, so we show nothing
 // and let the product page state the real figure per variant.
 function hasPrice(product: any): boolean {
-  if (product?.price_varies === true) return false
+  if (product?.price_varies === true) return hasDisplayablePrice(product?.price_min)
   return hasDisplayablePrice(getField(product, fieldPrice.value))
 }
 
+// Variants that disagree on price: quote the cheapest one as "od X zł"
+// (price_min from the cache) rather than one arbitrary variant's price.
+function priceLabel(product: any): string {
+  if (product?.price_varies === true) return `${t('from')} ${formatPrice(product.price_min, currency.value)}`
+  return formatPrice(getField(product, fieldPrice.value), currency.value)
+}
+
 function hasDiscount(product: any): boolean {
-  return hasPrice(product) && !!product.compare_at_price && product.compare_at_price > product.price
+  return hasPrice(product) && product?.price_varies !== true && !!product.compare_at_price && product.compare_at_price > product.price
 }
 
 function labelText(label: any): string {
@@ -495,7 +502,7 @@ const t = (key: string) => {
             >
               {{ formatPrice(product.compare_at_price, currency) }}
             </span>
-            <span class="lcms-product-card__price">{{ formatPrice(getField(product, fieldPrice), currency) }}</span>
+            <span class="lcms-product-card__price">{{ priceLabel(product) }}</span>
           </div>
         </div>
       </a>
