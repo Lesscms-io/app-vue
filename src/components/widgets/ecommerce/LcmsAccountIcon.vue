@@ -87,7 +87,7 @@ onUnmounted(() => {
 
     <div v-if="isOpen && customer.isAuthenticated.value" class="lcms-account-icon__dropdown">
       <a :href="accountUrl" class="lcms-account-icon__menu-item">{{ t('myAccount') }}</a>
-      <a :href="`${accountUrl}/zamowienia`" class="lcms-account-icon__menu-item">{{ t('orders') }}</a>
+      <a :href="`${accountUrl}?tab=orders`" class="lcms-account-icon__menu-item">{{ t('orders') }}</a>
       <button type="button" class="lcms-account-icon__menu-item lcms-account-icon__menu-item--logout" @click="handleLogout">
         {{ t('logout') }}
       </button>
