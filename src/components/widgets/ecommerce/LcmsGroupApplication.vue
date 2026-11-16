@@ -78,9 +78,12 @@ const t = (key: string) => {
   return dict[lang]?.[key] || dict.pl[key] || key
 }
 
-const headingText = computed(() => extractValue(props.data?.heading?.text) || t('heading'))
-const submitText = computed(() => extractValue(props.data?.submit_button?.text) || t('submit'))
-const successText = computed(() => extractValue(props.data?.success_message?.text) || t('sent'))
+// Puste tłumaczenie bywa zapisane jako [] — nie pokazuj go klientowi.
+const text = (v: unknown): string => (typeof v === 'string' ? v.trim() : '')
+
+const headingText = computed(() => text(extractValue(props.data?.heading?.text)) || t('heading'))
+const submitText = computed(() => text(extractValue(props.data?.submit_button?.text)) || t('submit'))
+const successText = computed(() => text(extractValue(props.data?.success_message?.text)) || t('sent'))
 
 const group = ref<StorefrontOpenCustomerGroup | null>(null)
 const state = ref<StorefrontGroupApplicationsState | null>(null)
@@ -90,7 +93,7 @@ const sent = ref(false)
 const failed = ref(false)
 
 const introText = computed(() =>
-  extractValue(props.data?.intro?.text) || group.value?.application_intro || group.value?.description || ''
+  text(extractValue(props.data?.intro?.text)) || text(group.value?.application_intro) || text(group.value?.description)
 )
 
 const loginHref = computed(() => {
