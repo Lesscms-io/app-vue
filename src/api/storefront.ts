@@ -618,7 +618,7 @@ export interface StorefrontClient {
   register(data: RegisterRequest): Promise<{ data: { token: string; customer: StorefrontCustomer } }>
   login(email: string, password: string): Promise<{ data: { token: string; customer: StorefrontCustomer } }>
   logout(): Promise<{ data: { success: boolean } }>
-  forgotPassword(email: string): Promise<{ data: { success: boolean; message: string } }>
+  forgotPassword(email: string, resetUrl?: string): Promise<{ data: { success: boolean; message: string } }>
   resetPassword(email: string, token: string, password: string): Promise<{ data: { success: boolean; message: string } }>
 
   // Customer profile (requires customer auth)
@@ -862,7 +862,7 @@ export function createStorefrontClient(options: StorefrontClientOptions): Storef
     register: (data) => request('POST', '/customers/register', { body: data }),
     login: (email, password) => request('POST', '/customers/login', { body: { email, password } }),
     logout: () => request('POST', '/customers/logout'),
-    forgotPassword: (email) => request('POST', '/customers/password/forgot', { body: { email } }),
+    forgotPassword: (email, resetUrl) => request('POST', '/customers/password/forgot', { body: resetUrl ? { email, reset_url: resetUrl } : { email } }),
     resetPassword: (email, token, password) =>
       request('POST', '/customers/password/reset', { body: { email, token, password } }),
 

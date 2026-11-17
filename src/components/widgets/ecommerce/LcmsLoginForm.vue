@@ -45,12 +45,24 @@ const t = (key: string) => {
       noAccount: 'Nie masz konta?',
       register: 'Zarejestruj się',
       forgotTitle: 'Resetuj hasło',
-      forgotInfo: 'Wpisz swój email, aby otrzymać link do zresetowania hasła.',
+      forgotInfo: 'Wpisz swój email — wyślemy link do ustawienia nowego hasła.',
       sendLink: 'Wyślij link',
       cancel: 'Anuluj',
       forgotSuccess: 'Sprawdź swój email',
       loginError: 'Błędny email lub hasło',
       requiredField: 'To pole jest wymagane',
+      sentInfo: 'Jeśli konto o tym adresie istnieje, wysłaliśmy na nie link do ustawienia hasła. Sprawdź też folder spam.',
+      backToLogin: 'Wróć do logowania',
+      firstLoginHint: 'Pierwsze logowanie po zmianie sklepu? Ustaw hasło przez „Zapomniałeś hasła?”.',
+      resetTitle: 'Ustaw nowe hasło',
+      resetInfo: 'Wpisz nowe hasło do konta',
+      newPassword: 'Nowe hasło',
+      repeatPassword: 'Powtórz hasło',
+      setPassword: 'Ustaw hasło',
+      passwordTooShort: 'Hasło musi mieć co najmniej 8 znaków',
+      passwordMismatch: 'Hasła nie są takie same',
+      resetSuccess: 'Hasło ustawione. Możesz się zalogować.',
+      resetFailed: 'Link wygasł albo jest nieprawidłowy. Poproś o nowy.',
     },
     en: {
       email: 'Email',
@@ -67,6 +79,18 @@ const t = (key: string) => {
       forgotSuccess: 'Check your email',
       loginError: 'Invalid email or password',
       requiredField: 'Required',
+      sentInfo: 'If an account with this address exists, we have sent a link to set a password. Check your spam folder too.',
+      backToLogin: 'Back to sign in',
+      firstLoginHint: 'Signing in for the first time after our shop moved? Set a password via “Forgot password?”.',
+      resetTitle: 'Set a new password',
+      resetInfo: 'Enter a new password for',
+      newPassword: 'New password',
+      repeatPassword: 'Repeat password',
+      setPassword: 'Set password',
+      passwordTooShort: 'Password must be at least 8 characters',
+      passwordMismatch: 'Passwords do not match',
+      resetSuccess: 'Password set. You can sign in now.',
+      resetFailed: 'The link has expired or is invalid. Request a new one.',
     },
   }
   return dict[lang]?.[key] || dict.pl[key] || key
@@ -76,6 +100,28 @@ const form = reactive({ email: '', password: '' })
 const errors = reactive<Record<string, string>>({})
 const showForgot = ref(false)
 const forgotEmail = ref('')
+const forgotSent = ref(false)
+const loginFailed = ref(false)
+
+// Link z maila: ?reset_token=…&email=… → formularz nowego hasła.
+const reset = reactive({ token: '', email: '', password: '', repeat: '', error: '' })
+function readResetParams() {
+  if (typeof window === 'undefined') return
+  const params = new URLSearchParams(window.location.search)
+  const token = params.get('reset_token')
+  const email = params.get('email')
+  if (token && email) {
+    reset.token = token
+    reset.email = email
+  }
+}
+function clearResetParams() {
+  if (typeof window === 'undefined') return
+  const url = new URL(window.location.href)
+  url.searchParams.delete('reset_token')
+  url.searchParams.delete('email')
+  window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash)
+}
 
 // Hash-based visibility: when URL hash is #register, this form hides
 // so the RegisterForm widget (if present on the page) takes over.
@@ -86,6 +132,7 @@ function updateHash() {
 const isVisible = computed(() => currentHash.value !== '#register')
 
 onMounted(() => {
+  readResetParams()
   updateHash()
   if (typeof window !== 'undefined') {
     window.addEventListener('hashchange', updateHash)
@@ -150,20 +197,63 @@ async function handleLogin() {
       }
     }
   } catch (err: any) {
+    loginFailed.value = true
     toast.error(err.message || t('loginError'))
   }
+}
+
+function openForgot() {
+  forgotEmail.value = forgotEmail.value || form.email
+  forgotSent.value = false
+  showForgot.value = true
 }
 
 async function handleForgot() {
   if (!forgotEmail.value) return
   try {
-    await customer.forgotPassword(forgotEmail.value)
-    toast.success(t('forgotSuccess'))
-    showForgot.value = false
-    forgotEmail.value = ''
+    // Link w mailu prowadzi z powrotem na tę stronę (w domenie sklepu).
+    const here = typeof window !== 'undefined' ? window.location.origin + window.location.pathname : undefined
+    await customer.forgotPassword(forgotEmail.value, here)
+    forgotSent.value = true
   } catch (err: any) {
     toast.error(err.message || 'Error')
   }
+}
+
+function backToLogin() {
+  showForgot.value = false
+  forgotSent.value = false
+}
+
+async function handleReset() {
+  reset.error = ''
+  if (reset.password.length < 8) {
+    reset.error = t('passwordTooShort')
+    return
+  }
+  if (reset.password !== reset.repeat) {
+    reset.error = t('passwordMismatch')
+    return
+  }
+  try {
+    await customer.resetPassword(reset.email, reset.token, reset.password)
+    toast.success(t('resetSuccess'))
+    form.email = reset.email
+    form.password = ''
+    reset.token = ''
+    reset.password = ''
+    reset.repeat = ''
+    clearResetParams()
+  } catch (err: any) {
+    reset.error = t('resetFailed')
+  }
+}
+
+function abandonReset() {
+  reset.token = ''
+  clearResetParams()
+  openForgot()
+  forgotEmail.value = reset.email
 }
 </script>
 
@@ -171,7 +261,23 @@ async function handleForgot() {
   <div v-if="isVisible" class="lcms-login-form">
     <h3 v-if="headingText" class="lcms-login-form__heading">{{ headingText }}</h3>
 
-    <form v-if="!showForgot" class="lcms-login-form__form" @submit.prevent="handleLogin">
+    <form v-if="reset.token" class="lcms-login-form__form" @submit.prevent="handleReset">
+      <h4 class="lcms-login-form__forgot-title">{{ t('resetTitle') }}</h4>
+      <p class="lcms-login-form__forgot-info">{{ t('resetInfo') }} <strong>{{ reset.email }}</strong></p>
+      <div class="lcms-login-form__field">
+        <label class="lcms-login-form__label">{{ t('newPassword') }}</label>
+        <input v-model="reset.password" type="password" autocomplete="new-password" required minlength="8" class="lcms-login-form__input" />
+      </div>
+      <div class="lcms-login-form__field">
+        <label class="lcms-login-form__label">{{ t('repeatPassword') }}</label>
+        <input v-model="reset.repeat" type="password" autocomplete="new-password" required class="lcms-login-form__input" />
+      </div>
+      <span v-if="reset.error" class="lcms-login-form__error">{{ reset.error }}</span>
+      <button type="submit" class="lcms-login-form__btn" :disabled="customer.isLoading.value">{{ t('setPassword') }}</button>
+      <button v-if="reset.error === t('resetFailed')" type="button" class="lcms-login-form__link" @click="abandonReset">{{ t('forgot') }}</button>
+    </form>
+
+    <form v-else-if="!showForgot" class="lcms-login-form__form" @submit.prevent="handleLogin">
       <div class="lcms-login-form__field">
         <label class="lcms-login-form__label">{{ t('email') }}</label>
         <input
@@ -208,16 +314,23 @@ async function handleForgot() {
         v-if="showForgotPassword"
         type="button"
         class="lcms-login-form__link"
-        @click="showForgot = true"
+        @click="openForgot"
       >
         {{ t('forgot') }}
       </button>
+      <p v-if="loginFailed && showForgotPassword" class="lcms-login-form__forgot-info">{{ t('firstLoginHint') }}</p>
 
       <div v-if="showRegisterLink" class="lcms-login-form__register">
         {{ t('noAccount') }}
         <a href="#register">{{ t('register') }}</a>
       </div>
     </form>
+
+    <div v-else-if="forgotSent" class="lcms-login-form__form">
+      <h4 class="lcms-login-form__forgot-title">{{ t('forgotSuccess') }}</h4>
+      <p class="lcms-login-form__forgot-info">{{ t('sentInfo') }}</p>
+      <button type="button" class="lcms-login-form__btn lcms-login-form__btn--secondary" @click="backToLogin">{{ t('backToLogin') }}</button>
+    </div>
 
     <form v-else class="lcms-login-form__form" @submit.prevent="handleForgot">
       <h4 class="lcms-login-form__forgot-title">{{ t('forgotTitle') }}</h4>
@@ -227,10 +340,10 @@ async function handleForgot() {
         <input v-model="forgotEmail" type="email" required class="lcms-login-form__input" />
       </div>
       <div class="lcms-login-form__forgot-actions">
-        <button type="button" class="lcms-login-form__btn lcms-login-form__btn--secondary" @click="showForgot = false">
+        <button type="button" class="lcms-login-form__btn lcms-login-form__btn--secondary" @click="backToLogin">
           {{ t('cancel') }}
         </button>
-        <button type="submit" class="lcms-login-form__btn">{{ t('sendLink') }}</button>
+        <button type="submit" class="lcms-login-form__btn" :disabled="customer.isLoading.value">{{ t('sendLink') }}</button>
       </div>
     </form>
   </div>

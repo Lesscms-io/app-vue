@@ -40,7 +40,7 @@ export interface CustomerStore {
   login(email: string, password: string): Promise<void>
   register(data: RegisterRequest): Promise<void>
   logout(): Promise<void>
-  forgotPassword(email: string): Promise<void>
+  forgotPassword(email: string, resetUrl?: string): Promise<void>
   resetPassword(email: string, token: string, password: string): Promise<void>
   updateProfile(data: Partial<StorefrontCustomer>): Promise<void>
   changePassword(currentPassword: string, newPassword: string): Promise<void>
@@ -150,13 +150,13 @@ function createCustomerStore(): CustomerStore {
     applyToken(null)
   }
 
-  async function forgotPassword(email: string) {
+  async function forgotPassword(email: string, resetUrl?: string) {
     if (!client.value) throw new Error('Storefront not available')
 
     isLoading.value = true
     error.value = null
     try {
-      await client.value.forgotPassword(email)
+      await client.value.forgotPassword(email, resetUrl)
     } catch (err: any) {
       error.value = err.message || 'Password reset request failed'
       throw err
