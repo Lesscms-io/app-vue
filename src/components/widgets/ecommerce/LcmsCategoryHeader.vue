@@ -205,7 +205,8 @@ const descriptionIsHtml = computed(() => /<\/?[a-z][^>]*>/i.test(category.value?
 }
 
 @media (min-width: 768px) {
-  .lcms-category-header__content {
+  /* Dwie kolumny tylko ze zdjęciem — bez niego nazwa ściskała się w 1/3 szerokości. */
+  .lcms-category-header__content:has(.lcms-category-header__image-wrap) {
     grid-template-columns: 1fr 2fr;
     align-items: center;
   }
