@@ -126,6 +126,8 @@ onMounted(() => {
 watch([resolvedSlug, isAvailable], () => {
   if (isAvailable.value) fetchCategory()
 })
+
+const descriptionIsHtml = computed(() => /<\/?[a-z][^>]*>/i.test(category.value?.description || ''))
 </script>
 
 <template>
@@ -149,7 +151,14 @@ watch([resolvedSlug, isAvailable], () => {
 
       <div class="lcms-category-header__text">
         <h1 class="lcms-category-header__name">{{ category.name }}</h1>
-        <p v-if="showDescription && category.description" class="lcms-category-header__description">
+        <!-- Opis z panelu sklepu bywa HTML-em (nagłówki, akapity, linki — importy z PrestaShop/Woo);
+             renderujemy go jak opis produktu, zamiast pokazywać surowe tagi. -->
+        <div
+          v-if="showDescription && category.description && descriptionIsHtml"
+          class="lcms-category-header__description lcms-category-header__description--html"
+          v-html="category.description"
+        />
+        <p v-else-if="showDescription && category.description" class="lcms-category-header__description">
           {{ category.description }}
         </p>
         <span v-if="showProductCount" class="lcms-category-header__count">
@@ -228,6 +237,22 @@ watch([resolvedSlug, isAvailable], () => {
   color: var(--lcms-color-muted, #6b7280);
   line-height: 1.6;
   margin: 0.75rem 0 0;
+}
+
+.lcms-category-header__description--html :deep(h2),
+.lcms-category-header__description--html :deep(h3),
+.lcms-category-header__description--html :deep(h4) {
+  color: var(--lcms-color-text);
+  line-height: 1.25;
+  margin: 1.25em 0 0.5em;
+}
+
+.lcms-category-header__description--html :deep(p) {
+  margin: 0 0 0.75em;
+}
+
+.lcms-category-header__description--html :deep(a) {
+  color: var(--lcms-color-primary, currentColor);
 }
 
 .lcms-category-header__count {
