@@ -40,6 +40,8 @@ const placeholderText = computed(() =>
 
 const query = ref('')
 const results = ref<StorefrontProduct[]>([])
+// Fraza, dla której przyszła ostatnia odpowiedź — pokazujemy „brak wyników” tylko po zakończonym wyszukiwaniu.
+const searchedQuery = ref('')
 const isOpen = ref(false)
 const isLoading = ref(false)
 const containerEl = ref<HTMLDivElement | null>(null)
@@ -98,6 +100,7 @@ watch(query, (newQuery) => {
     } catch {
       results.value = []
     } finally {
+      searchedQuery.value = newQuery
       isLoading.value = false
     }
   }, 300)
@@ -166,9 +169,9 @@ onUnmounted(() => {
         </button>
       </form>
 
-      <div v-if="isLoading" class="lcms-search-icon__state">
-        <span>...</span>
-      </div>
+      <div v-if="isLoading" class="lcms-search-icon__state" role="status" :aria-label="language === 'en' ? 'Searching' : 'Szukam'">
+          <span class="lcms-search-icon__dots"><i /><i /><i /></span>
+        </div>
 
       <div v-else-if="results.length > 0" class="lcms-search-icon__results">
         <a
@@ -185,6 +188,13 @@ onUnmounted(() => {
             </div>
           </div>
         </a>
+      </div>
+
+      <div
+        v-else-if="searchedQuery.length >= 2 && searchedQuery === query"
+        class="lcms-search-icon__state"
+      >
+        {{ language === 'en' ? 'No results for' : 'Brak wyników dla' }} „{{ searchedQuery }}”
       </div>
     </div>
   </div>
@@ -267,6 +277,22 @@ onUnmounted(() => {
   text-align: center;
   color: var(--lcms-color-muted, #6b7280);
   font-size: 0.875rem;
+}
+
+.lcms-search-icon__dots { display: inline-flex; gap: 6px; align-items: center; height: 1rem; }
+.lcms-search-icon__dots i {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: currentColor; opacity: 0.25;
+  animation: lcms-search-icon-dot 1s ease-in-out infinite;
+}
+.lcms-search-icon__dots i:nth-child(2) { animation-delay: 0.15s; }
+.lcms-search-icon__dots i:nth-child(3) { animation-delay: 0.3s; }
+@keyframes lcms-search-icon-dot {
+  0%, 80%, 100% { opacity: 0.25; transform: translateY(0); }
+  40% { opacity: 1; transform: translateY(-4px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lcms-search-icon__dots i { animation-duration: 2s; transform: none !important; }
 }
 
 .lcms-search-icon__results {
