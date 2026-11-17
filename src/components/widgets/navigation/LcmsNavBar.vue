@@ -59,7 +59,16 @@ function slotInlineStyle(slot: any) {
 
 function slotVisibleInBar(slot: any) {
   if (!hamburgerActive.value) return slot.mobile_target !== 'hide'
-  return slot.mobile_target === 'keep-inline'
+  // The hamburger toggle lives in its slot — keep that slot in the bar even
+  // when all its items moved to the drawer, otherwise the menu can't be opened.
+  return slot.mobile_target === 'keep-inline' || slot.id === toggleSlotId.value
+}
+
+// Items rendered in the bar: a slot kept only to host the hamburger toggle
+// shows no items (they live in the drawer).
+function slotItemsInBar(slot: any) {
+  if (hamburgerActive.value && slot.mobile_target !== 'keep-inline') return []
+  return slot.items || []
 }
 
 const drawerSlots = computed(() => slots.value.filter(s => s.mobile_target === 'move-to-drawer'))
@@ -223,7 +232,7 @@ onMounted(() => {
         :style="slotInlineStyle(slot)"
       >
         <template
-          v-for="(item, idx) in slot.items || []"
+          v-for="(item, idx) in slotItemsInBar(slot)"
           :key="`${slot.id}-${idx}`"
         >
           <!-- LOGO -->
@@ -250,7 +259,7 @@ onMounted(() => {
               :key="`mi-${mIdx}`"
               class="lcms-nav-bar__menu-item"
             >
-              <a :href="mi.url || '#'">{{ getMenuItemLabel(mi, item.config?.label_field || '') }}</a>
+              <a :href="mi.metadata?.url || mi.url || '#'">{{ getMenuItemLabel(mi, item.config?.label_field || '') }}</a>
             </li>
           </ul>
 
@@ -392,7 +401,7 @@ onMounted(() => {
                 :key="`drawer-mi-${mIdx}`"
               >
                 <a
-                  :href="mi.url || '#'"
+                  :href="mi.metadata?.url || mi.url || '#'"
                   @click="drawerOpen = false"
                 >{{ getMenuItemLabel(mi, item.config?.label_field || '') }}</a>
               </li>
