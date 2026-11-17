@@ -20,6 +20,22 @@ interface Props {
 const props = defineProps<Props>()
 
 const { extractValue } = useLanguage(props.language)
+
+function labelsOf(product: any): any[] {
+  return Array.isArray(product?.marketing_labels) ? product.marketing_labels : []
+}
+
+function labelText(label: any): string {
+  const lang = props.language || 'pl'
+  return label?.text_translation?.[lang] || label?.text || ''
+}
+
+function labelStyle(label: any): Record<string, string> {
+  const style: Record<string, string> = {}
+  if (label?.background_color) style.background = label.background_color
+  if (label?.text_color) style.color = label.text_color
+  return style
+}
 const { client, isAvailable } = useStorefront()
 const projectConfig = inject<Ref<any> | null>('lesscms-project-config', null)
 const resolvedRoute = inject<Ref<ResolvedRoute | null> | null>('routeParams', null)
@@ -229,8 +245,19 @@ const t = (key: string) => {
               <path d="M21 15l-5-5L5 21" />
             </svg>
           </div>
+          <div
+            v-if="labelsOf(product).length"
+            class="lcms-related-card__labels lcms-product-card__labels"
+          >
+            <span
+              v-for="label in labelsOf(product)"
+              :key="label.uuid"
+              class="lcms-related-card__label lcms-product-card__label"
+              :style="labelStyle(label)"
+            >{{ labelText(label) }}</span>
+          </div>
           <span
-            v-if="hasDiscount(product)"
+            v-else-if="hasDiscount(product)"
             class="lcms-related-card__discount"
           >
             -{{ calculateDiscount(product.compare_at_price, product.price) }}%
@@ -345,6 +372,25 @@ const t = (key: string) => {
   padding: 0.125rem 0.5rem;
   border-radius: 999px;
   background: var(--lcms-color-danger, #ef4444);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.lcms-related-card__labels {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+}
+
+.lcms-related-card__label {
+  padding: 0.125rem 0.5rem;
+  border-radius: 999px;
+  background: var(--lcms-color-primary, #111);
   color: #fff;
   font-size: 0.75rem;
   font-weight: 600;
