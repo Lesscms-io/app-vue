@@ -80,7 +80,8 @@ const t = (key: string) => {
       bankReference: 'Tytuł przelewu',
       bankAmount: 'Kwota',
       bankHint: 'Zrób przelew na poniższe konto, w tytule wpisz numer zamówienia. Zamówienie zrealizujemy po zaksięgowaniu wpłaty.',
-      blikPhoneTitle: 'Jak zapłacić — BLIK na telefon',
+      blikPhoneTitle: 'Zapłać BLIK-iem na telefon',
+      bankPayTitle: 'Zapłać przelewem',
       blikPhoneNumber: 'Numer telefonu',
       blikPhoneHint: 'W aplikacji banku wybierz przelew BLIK na telefon, wpisz ten numer, kwotę i w tytule numer zamówienia. Zamówienie zrealizujemy po otrzymaniu wpłaty.',
       itemFallbackName: 'Produkt',
@@ -118,6 +119,7 @@ const t = (key: string) => {
       bankAmount: 'Amount',
       bankHint: 'Make a bank transfer to the account below with the order number as the title. We will process the order once the payment arrives.',
       blikPhoneTitle: 'Pay with BLIK phone transfer',
+      bankPayTitle: 'Pay by bank transfer',
       blikPhoneNumber: 'Phone number',
       blikPhoneHint: 'In your banking app choose BLIK phone transfer, enter this number, the amount and the order number as the title. We will process the order once the payment arrives.',
       itemFallbackName: 'Product',
@@ -290,7 +292,10 @@ function formatOrderPrice(value: number | null | undefined): string {
         v-if="order.bank_transfer && order.payment_status !== 'paid'"
         class="lcms-order-success__payinfo"
       >
-        <h3>{{ t('bankTransferTitle') }}</h3>
+        <div class="lcms-order-success__payinfo-head">
+          <h3>{{ t('bankPayTitle') }}</h3>
+          <span class="lcms-order-success__payinfo-amount">{{ formatOrderPrice(order.bank_transfer.amount) }}</span>
+        </div>
         <p>{{ t('bankHint') }}</p>
         <dl class="lcms-order-success__payinfo-list">
           <dt>{{ t('bankRecipient') }}</dt>
@@ -314,7 +319,10 @@ function formatOrderPrice(value: number | null | undefined): string {
         v-if="order.blik_phone && order.payment_status !== 'paid'"
         class="lcms-order-success__payinfo"
       >
-        <h3>{{ t('blikPhoneTitle') }}</h3>
+        <div class="lcms-order-success__payinfo-head">
+          <h3>{{ t('blikPhoneTitle') }}</h3>
+          <span class="lcms-order-success__payinfo-amount">{{ formatOrderPrice(order.blik_phone.amount) }}</span>
+        </div>
         <p>{{ t('blikPhoneHint') }}</p>
         <dl class="lcms-order-success__payinfo-list">
           <dt>{{ t('blikPhoneNumber') }}</dt>
@@ -579,9 +587,24 @@ function formatOrderPrice(value: number | null | undefined): string {
   border-radius: 8px;
 }
 
-.lcms-order-success__payinfo h3 {
+.lcms-order-success__payinfo-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
   margin: 0 0 0.4rem;
+}
+
+.lcms-order-success__payinfo h3 {
+  margin: 0;
   font-size: 1.05rem;
+}
+
+.lcms-order-success__payinfo-amount {
+  font-family: var(--lcms-font-heading, inherit);
+  font-size: 1.05rem;
+  font-weight: 700;
+  white-space: nowrap;
 }
 
 .lcms-order-success__payinfo p {
