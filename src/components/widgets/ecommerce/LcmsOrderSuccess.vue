@@ -79,8 +79,8 @@ const t = (key: string) => {
       bankAccount: 'Numer konta',
       bankReference: 'Tytuł przelewu',
       bankAmount: 'Kwota',
-      bankHint: 'Zamówienie zrealizujemy po zaksięgowaniu wpłaty.',
-      blikPhoneTitle: 'Zapłać BLIK-iem na telefon',
+      bankHint: 'Zrób przelew na poniższe konto, w tytule wpisz numer zamówienia. Zamówienie zrealizujemy po zaksięgowaniu wpłaty.',
+      blikPhoneTitle: 'Jak zapłacić — BLIK na telefon',
       blikPhoneNumber: 'Numer telefonu',
       blikPhoneHint: 'W aplikacji banku wybierz przelew BLIK na telefon, wpisz ten numer, kwotę i w tytule numer zamówienia. Zamówienie zrealizujemy po otrzymaniu wpłaty.',
       itemFallbackName: 'Produkt',
@@ -116,7 +116,7 @@ const t = (key: string) => {
       bankAccount: 'Account number',
       bankReference: 'Transfer title',
       bankAmount: 'Amount',
-      bankHint: 'We will process the order once the payment arrives.',
+      bankHint: 'Make a bank transfer to the account below with the order number as the title. We will process the order once the payment arrives.',
       blikPhoneTitle: 'Pay with BLIK phone transfer',
       blikPhoneNumber: 'Phone number',
       blikPhoneHint: 'In your banking app choose BLIK phone transfer, enter this number, the amount and the order number as the title. We will process the order once the payment arrives.',
@@ -284,6 +284,52 @@ function formatOrderPrice(value: number | null | undefined): string {
         <span class="lcms-order-success__ordernum-badge">{{ order.order_number }}</span>
       </div>
 
+      <!-- Jak zapłacić (przelew / BLIK na telefon) — od razu pod numerem
+           zamówienia, zanim klient zjedzie do produktów. -->
+      <section
+        v-if="order.bank_transfer && order.payment_status !== 'paid'"
+        class="lcms-order-success__payinfo"
+      >
+        <h3>{{ t('bankTransferTitle') }}</h3>
+        <p>{{ t('bankHint') }}</p>
+        <dl class="lcms-order-success__payinfo-list">
+          <dt>{{ t('bankRecipient') }}</dt>
+          <dd>
+            {{ order.bank_transfer.account_holder }}<template v-if="order.bank_transfer.account_address">, {{ order.bank_transfer.account_address }}</template>
+          </dd>
+          <template v-if="order.bank_transfer.bank_name">
+            <dt>{{ t('bankName') }}</dt>
+            <dd>{{ order.bank_transfer.bank_name }}</dd>
+          </template>
+          <dt>{{ t('bankAccount') }}</dt>
+          <dd>{{ order.bank_transfer.account_number }}</dd>
+          <dt>{{ t('bankReference') }}</dt>
+          <dd>{{ order.bank_transfer.transfer_title }}</dd>
+          <dt>{{ t('bankAmount') }}</dt>
+          <dd>{{ formatOrderPrice(order.bank_transfer.amount) }}</dd>
+        </dl>
+      </section>
+
+      <section
+        v-if="order.blik_phone && order.payment_status !== 'paid'"
+        class="lcms-order-success__payinfo"
+      >
+        <h3>{{ t('blikPhoneTitle') }}</h3>
+        <p>{{ t('blikPhoneHint') }}</p>
+        <dl class="lcms-order-success__payinfo-list">
+          <dt>{{ t('blikPhoneNumber') }}</dt>
+          <dd>{{ order.blik_phone.phone }}</dd>
+          <template v-if="order.blik_phone.recipient">
+            <dt>{{ t('bankRecipient') }}</dt>
+            <dd>{{ order.blik_phone.recipient }}</dd>
+          </template>
+          <dt>{{ t('bankReference') }}</dt>
+          <dd>{{ order.blik_phone.transfer_title }}</dd>
+          <dt>{{ t('bankAmount') }}</dt>
+          <dd>{{ formatOrderPrice(order.blik_phone.amount) }}</dd>
+        </dl>
+      </section>
+
       <section v-if="showItems && order.items?.length" class="lcms-order-success__items">
         <h3>{{ t('orderItems') }}</h3>
         <ul>
@@ -338,51 +384,6 @@ function formatOrderPrice(value: number | null | undefined): string {
               <dd>{{ paymentMethodLabel }}</dd>
             </template>
           </dl>
-        </section>
-
-        <section
-          v-if="order.bank_transfer && order.payment_status !== 'paid'"
-          class="lcms-order-success__card"
-        >
-          <h3>{{ t('bankTransferTitle') }}</h3>
-          <dl class="lcms-order-success__card-list">
-            <dt>{{ t('bankRecipient') }}</dt>
-            <dd>
-              {{ order.bank_transfer.account_holder }}
-              <template v-if="order.bank_transfer.account_address"><br>{{ order.bank_transfer.account_address }}</template>
-            </dd>
-            <template v-if="order.bank_transfer.bank_name">
-              <dt>{{ t('bankName') }}</dt>
-              <dd>{{ order.bank_transfer.bank_name }}</dd>
-            </template>
-            <dt>{{ t('bankAccount') }}</dt>
-            <dd><strong>{{ order.bank_transfer.account_number }}</strong></dd>
-            <dt>{{ t('bankReference') }}</dt>
-            <dd>{{ order.bank_transfer.transfer_title }}</dd>
-            <dt>{{ t('bankAmount') }}</dt>
-            <dd>{{ formatOrderPrice(order.bank_transfer.amount) }}</dd>
-          </dl>
-          <p>{{ t('bankHint') }}</p>
-        </section>
-
-        <section
-          v-if="order.blik_phone && order.payment_status !== 'paid'"
-          class="lcms-order-success__card"
-        >
-          <h3>{{ t('blikPhoneTitle') }}</h3>
-          <dl class="lcms-order-success__card-list">
-            <dt>{{ t('blikPhoneNumber') }}</dt>
-            <dd><strong>{{ order.blik_phone.phone }}</strong></dd>
-            <template v-if="order.blik_phone.recipient">
-              <dt>{{ t('bankRecipient') }}</dt>
-              <dd>{{ order.blik_phone.recipient }}</dd>
-            </template>
-            <dt>{{ t('bankReference') }}</dt>
-            <dd><strong>{{ order.blik_phone.transfer_title }}</strong></dd>
-            <dt>{{ t('bankAmount') }}</dt>
-            <dd><strong>{{ formatOrderPrice(order.blik_phone.amount) }}</strong></dd>
-          </dl>
-          <p>{{ t('blikPhoneHint') }}</p>
         </section>
       </div>
 
@@ -568,6 +569,42 @@ function formatOrderPrice(value: number | null | undefined): string {
 .lcms-order-success__card-list dd {
   margin: 0;
   font-weight: 600;
+}
+
+.lcms-order-success__payinfo {
+  margin: 1.5rem auto 2rem;
+  padding: 1.1rem 1.25rem;
+  background: var(--lcms-color-background-alt, #f8f9fa);
+  border: 1px solid var(--lcms-color-border, #eee);
+  border-left: 4px solid var(--lcms-color-primary, #333);
+  border-radius: 8px;
+}
+
+.lcms-order-success__payinfo h3 {
+  margin: 0 0 0.4rem;
+  font-size: 1.05rem;
+}
+
+.lcms-order-success__payinfo p {
+  margin: 0 0 0.75rem;
+  line-height: 1.6;
+}
+
+.lcms-order-success__payinfo-list {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.25rem 0.75rem;
+  margin: 0;
+}
+
+.lcms-order-success__payinfo-list dt {
+  color: var(--lcms-color-muted, #6b7280);
+  font-weight: 400;
+}
+
+.lcms-order-success__payinfo-list dd {
+  margin: 0;
+  font-weight: 400;
 }
 
 .lcms-order-success__actions {
