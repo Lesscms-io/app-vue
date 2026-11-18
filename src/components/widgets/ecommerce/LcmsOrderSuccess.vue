@@ -304,7 +304,7 @@ function formatOrderPrice(value: number | null | undefined): string {
           <dt>{{ t('bankAccount') }}</dt>
           <dd>{{ order.bank_transfer.account_number }}</dd>
           <dt>{{ t('bankReference') }}</dt>
-          <dd>{{ order.bank_transfer.transfer_title }}</dd>
+          <dd class="lcms-order-success__payinfo-ref">{{ order.bank_transfer.transfer_title }}</dd>
           <dt>{{ t('bankAmount') }}</dt>
           <dd>{{ formatOrderPrice(order.bank_transfer.amount) }}</dd>
         </dl>
@@ -324,7 +324,7 @@ function formatOrderPrice(value: number | null | undefined): string {
             <dd>{{ order.blik_phone.recipient }}</dd>
           </template>
           <dt>{{ t('bankReference') }}</dt>
-          <dd>{{ order.blik_phone.transfer_title }}</dd>
+          <dd class="lcms-order-success__payinfo-ref">{{ order.blik_phone.transfer_title }}</dd>
           <dt>{{ t('bankAmount') }}</dt>
           <dd>{{ formatOrderPrice(order.blik_phone.amount) }}</dd>
         </dl>
@@ -576,7 +576,6 @@ function formatOrderPrice(value: number | null | undefined): string {
   padding: 1.1rem 1.25rem;
   background: var(--lcms-color-background-alt, #f8f9fa);
   border: 1px solid var(--lcms-color-border, #eee);
-  border-left: 4px solid var(--lcms-color-primary, #333);
   border-radius: 8px;
 }
 
@@ -593,8 +592,9 @@ function formatOrderPrice(value: number | null | undefined): string {
 .lcms-order-success__payinfo-list {
   display: grid;
   grid-template-columns: auto 1fr;
-  gap: 0.25rem 0.75rem;
+  gap: 0.55rem 0.9rem;
   margin: 0;
+  line-height: 1.5;
 }
 
 .lcms-order-success__payinfo-list dt {
@@ -605,6 +605,10 @@ function formatOrderPrice(value: number | null | undefined): string {
 .lcms-order-success__payinfo-list dd {
   margin: 0;
   font-weight: 400;
+}
+
+.lcms-order-success__payinfo-list dd.lcms-order-success__payinfo-ref {
+  font-weight: 600;
 }
 
 .lcms-order-success__actions {
