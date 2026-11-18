@@ -80,6 +80,9 @@ const t = (key: string) => {
       bankReference: 'Tytuł przelewu',
       bankAmount: 'Kwota',
       bankHint: 'Zamówienie zrealizujemy po zaksięgowaniu wpłaty.',
+      blikPhoneTitle: 'Zapłać BLIK-iem na telefon',
+      blikPhoneNumber: 'Numer telefonu',
+      blikPhoneHint: 'W aplikacji banku wybierz przelew BLIK na telefon, wpisz ten numer, kwotę i w tytule numer zamówienia. Zamówienie zrealizujemy po otrzymaniu wpłaty.',
       itemFallbackName: 'Produkt',
     },
     en: {
@@ -114,6 +117,9 @@ const t = (key: string) => {
       bankReference: 'Transfer title',
       bankAmount: 'Amount',
       bankHint: 'We will process the order once the payment arrives.',
+      blikPhoneTitle: 'Pay with BLIK phone transfer',
+      blikPhoneNumber: 'Phone number',
+      blikPhoneHint: 'In your banking app choose BLIK phone transfer, enter this number, the amount and the order number as the title. We will process the order once the payment arrives.',
       itemFallbackName: 'Product',
     },
   }
@@ -172,6 +178,7 @@ const PAYMENT_METHOD_LABELS: Record<string, string> = {
   cod: props.language === 'en' ? 'Cash on delivery' : 'Za pobraniem',
   transfer: props.language === 'en' ? 'Bank transfer' : 'Przelew bankowy',
   bank_transfer: props.language === 'en' ? 'Bank transfer' : 'Przelew bankowy',
+  blik_phone: props.language === 'en' ? 'BLIK phone transfer' : 'BLIK na telefon',
 }
 const paymentMethodLabel = computed(() => {
   const m = order.value?.payment_method
@@ -214,7 +221,7 @@ async function fetchOrder() {
     }
 
     // Transfer / COD stay pending until someone books the money — nothing to wait for.
-    const offline = data.payment_method === 'bank_transfer' || data.payment_method === 'cod'
+    const offline = ['bank_transfer', 'cod', 'blik_phone'].includes(data.payment_method)
     if (status === 'pending' && !offline && Date.now() < pollDeadline) {
       isPolling.value = true
       pollTimer = setTimeout(fetchOrder, 3000)
@@ -356,6 +363,26 @@ function formatOrderPrice(value: number | null | undefined): string {
             <dd>{{ formatOrderPrice(order.bank_transfer.amount) }}</dd>
           </dl>
           <p>{{ t('bankHint') }}</p>
+        </section>
+
+        <section
+          v-if="order.blik_phone && order.payment_status !== 'paid'"
+          class="lcms-order-success__card"
+        >
+          <h3>{{ t('blikPhoneTitle') }}</h3>
+          <dl class="lcms-order-success__card-list">
+            <dt>{{ t('blikPhoneNumber') }}</dt>
+            <dd><strong>{{ order.blik_phone.phone }}</strong></dd>
+            <template v-if="order.blik_phone.recipient">
+              <dt>{{ t('bankRecipient') }}</dt>
+              <dd>{{ order.blik_phone.recipient }}</dd>
+            </template>
+            <dt>{{ t('bankReference') }}</dt>
+            <dd><strong>{{ order.blik_phone.transfer_title }}</strong></dd>
+            <dt>{{ t('bankAmount') }}</dt>
+            <dd><strong>{{ formatOrderPrice(order.blik_phone.amount) }}</strong></dd>
+          </dl>
+          <p>{{ t('blikPhoneHint') }}</p>
         </section>
       </div>
 

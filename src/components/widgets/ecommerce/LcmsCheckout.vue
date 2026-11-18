@@ -112,6 +112,7 @@ const t = (key: string) => {
       paymentStripe: 'Karta płatnicza',
       paymentCod: 'Płatność za pobraniem',
       paymentBankTransfer: 'Przelew bankowy',
+      paymentBlikPhone: 'BLIK na telefon',
       blikCode: 'Kod BLIK',
       blikCodeHint: 'Wpisz 6-cyfrowy kod z aplikacji bankowej',
       blikCodeInvalid: 'Kod BLIK musi mieć 6 cyfr',
@@ -181,6 +182,7 @@ const t = (key: string) => {
       paymentStripe: 'Credit/Debit Card',
       paymentCod: 'Cash on Delivery',
       paymentBankTransfer: 'Bank Transfer',
+      paymentBlikPhone: 'BLIK phone transfer',
       blikCode: 'BLIK code',
       blikCodeHint: 'Enter the 6-digit code from your banking app',
       blikCodeInvalid: 'BLIK code must be 6 digits',
@@ -342,6 +344,7 @@ const paymentLabelFor = (code: string, fallback: string) => {
     cod: 'paymentCod',
     cash: 'paymentCod',
     bank_transfer: 'paymentBankTransfer',
+    blik_phone: 'paymentBlikPhone',
     p24: 'paymentP24',
     przelewy24: 'paymentP24',
     blik: 'paymentBlik',
@@ -1212,7 +1215,8 @@ async function handleSubmit() {
     toast.success(t('orderSuccess'))
 
     // Init payment for online methods only — COD and bank transfer have no gateway.
-    if (form.payment_method !== 'cod' && form.payment_method !== 'bank_transfer' && client.value) {
+    // Offline: pobranie, przelew, BLIK na telefon — bez bramki, od razu strona potwierdzenia.
+    if (!['cod', 'bank_transfer', 'blik_phone'].includes(form.payment_method) && client.value) {
       try {
         const paymentResponse = await client.value.initPayment(
           order.uuid,

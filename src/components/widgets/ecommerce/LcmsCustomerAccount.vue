@@ -232,6 +232,7 @@ const PAYMENT_METHOD_LABELS: Record<string, string> = {
   cod: 'Płatność za pobraniem',
   cash: 'Płatność za pobraniem',
   bank_transfer: 'Przelew bankowy',
+  blik_phone: 'BLIK na telefon',
 }
 
 // Shipping codes get prettified — most carriers use `inpost_locker_s` style

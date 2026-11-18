@@ -418,6 +418,14 @@ export interface StorefrontOrder {
     amount: number
     currency: string
   } | null
+  // Tylko dla „BLIK na telefon”: numer, odbiorca, tytuł z numerem zamówienia.
+  blik_phone?: {
+    phone: string
+    recipient: string
+    transfer_title: string
+    amount: number
+    currency: string
+  } | null
   tracking_number: string | null
   customer_name: string | null
   customer_email: string | null
@@ -496,7 +504,7 @@ export interface CheckoutRequest {
   customer_phone?: string
   shipping_address: StorefrontAddress
   billing_address?: StorefrontAddress
-  payment_method: 'p24' | 'stripe' | 'cod' | 'bank_transfer'
+  payment_method: 'p24' | 'stripe' | 'cod' | 'bank_transfer' | 'blik_phone'
   shipping_method: string
   shipping_cost: number
   discount?: number
