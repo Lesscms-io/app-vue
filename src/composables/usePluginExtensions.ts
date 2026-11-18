@@ -12,7 +12,8 @@
  * extensions actually live on disk.
  */
 
-import { inject, type Component, type InjectionKey } from 'vue'
+import { inject, ref, type Component, type InjectionKey } from 'vue'
+import { useStorefront } from './useStorefront'
 
 export interface PluginPageEntry {
   pluginId: string
@@ -51,6 +52,39 @@ export function usePluginExtensions(): PluginExtensions {
   return inject(PLUGIN_EXTENSIONS_KEY, EMPTY_REGISTRY)
 }
 
+/**
+ * Plugins switched on for the linked shop, from the storefront config
+ * (`plugins`). `undefined` = still loading (plugin UI stays hidden so it
+ * doesn't flash), `null` = config predates the field (show everything).
+ */
+const enabledPlugins = ref<string[] | null | undefined>(undefined)
+let enabledPluginsRequested = false
+
+function loadEnabledPlugins(): void {
+  if (enabledPluginsRequested) return
+  const { client } = useStorefront()
+  if (!client.value) {
+    enabledPlugins.value = null
+    return
+  }
+  enabledPluginsRequested = true
+  client.value
+    .getConfig()
+    .then((res) => {
+      const list = res?.data?.plugins
+      enabledPlugins.value = Array.isArray(list) ? list.map(String) : null
+    })
+    .catch(() => {
+      enabledPlugins.value = null
+    })
+}
+
 export function useSlotEntries(slotName: string): PluginSlotEntry[] {
-  return usePluginExtensions().slots[slotName] || []
+  const entries = usePluginExtensions().slots[slotName] || []
+  if (!entries.length) return entries
+  loadEnabledPlugins()
+  const enabled = enabledPlugins.value
+  if (enabled === undefined) return []
+  if (enabled === null) return entries
+  return entries.filter((e) => enabled.includes(e.pluginId))
 }
