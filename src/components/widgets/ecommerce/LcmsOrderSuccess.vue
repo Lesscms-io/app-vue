@@ -592,7 +592,7 @@ function formatOrderPrice(value: number | null | undefined): string {
   justify-content: space-between;
   align-items: baseline;
   gap: 1rem;
-  margin: 0 0 0.4rem;
+  margin: 0 0 0.9rem;
 }
 
 .lcms-order-success__payinfo h3 {
