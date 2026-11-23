@@ -772,7 +772,8 @@ export interface MegaMenuWidgetData extends BaseWidgetData {
     highlight_padding?: number
     search_placeholder?: string | Record<string, string>
     mobile?: 'bar' | 'dock' | 'drawer-top' | 'drawer-bottom'
-  }  schemes?: {
+  }
+  schemes?: {
     enabled?: boolean
     top?: 'light' | 'dark'
     scrolled?: 'light' | 'dark'
