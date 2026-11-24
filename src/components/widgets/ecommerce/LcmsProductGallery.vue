@@ -55,7 +55,9 @@ const allImages = computed(() => {
 
   // Fallback to core fields
   const imgs = [...(p.images || [])]
-  if (p.image && !imgs.includes(p.image)) imgs.unshift(p.image)
+  // Same file can come with a different resize query (?w=800 vs ?w=1200)
+  const base = (u: any) => (typeof u === 'string' ? u.split('?')[0] : u)
+  if (p.image && !imgs.some((u: any) => base(u) === base(p.image))) imgs.unshift(p.image)
   return imgs
 })
 
