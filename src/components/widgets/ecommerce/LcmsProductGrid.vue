@@ -958,7 +958,7 @@ const t = (key: string) => {
 .lcms-product-card__image-wrap {
   position: relative;
   aspect-ratio: 1 / 1;
-  background: var(--lcms-color-background-alt, #f9fafb);
+  background: var(--lcms-product-image-bg, var(--lcms-color-background, #fff));
   overflow: hidden;
 }
 
@@ -1139,7 +1139,7 @@ const t = (key: string) => {
 .lcms-product-grid .lcms-product-grid__grid--list > .lcms-product-card > .lcms-product-card__image-wrap {
   position: relative !important; width: 180px !important; height: 180px !important; aspect-ratio: 1 / 1 !important;
   margin: 0 !important; padding: 0 !important; border: 0 !important; border-radius: 10px !important;
-  background: var(--lcms-color-surface, #f8f8f8) !important; overflow: hidden !important;
+  background: var(--lcms-product-image-bg, var(--lcms-color-background, #fff)) !important; overflow: hidden !important;
 }
 .lcms-product-grid .lcms-product-grid__grid--list > .lcms-product-card .lcms-product-card__image {
   position: absolute !important; inset: 10px !important; width: calc(100% - 20px) !important; height: calc(100% - 20px) !important;

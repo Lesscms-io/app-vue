@@ -151,6 +151,7 @@ function openLightbox(index: number) {
 .lcms-product-gallery__main {
   position: relative;
   aspect-ratio: 1 / 1;
+  background: var(--lcms-product-image-bg, var(--lcms-color-background, #fff));
   border-radius: var(--lcms-pg-radius, var(--lcms-border-radius, 0.5rem));
   overflow: hidden;
 }
@@ -212,6 +213,7 @@ function openLightbox(index: number) {
   overflow: hidden;
   cursor: pointer;
   padding: 0;
+  background: var(--lcms-product-image-bg, var(--lcms-color-background, #fff));
   transition: border-color 0.15s;
 }
 
@@ -223,6 +225,8 @@ function openLightbox(index: number) {
 .lcms-product-gallery__thumb img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
+  padding: 6px;
+  box-sizing: border-box;
 }
 </style>
