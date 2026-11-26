@@ -11,7 +11,9 @@ import { useLanguage } from '../../../composables/useLanguage'
 import { useStorefront } from '../../../composables/useStorefront'
 import { formatPrice, calculateDiscount, hasDisplayablePrice } from '../../../utils/currency'
 import type { StorefrontProduct } from '../../../api/storefront'
-import { readShopFilterQuery, toStorefrontFilters, SHOP_FILTER_EVENT } from '../../../utils/shopFilters'
+import { readShopFilterQuery, toStorefrontFilters, SHOP_FILTER_EVENT, buildShopFilterSearch, commitShopFilterSearch } from '../../../utils/shopFilters'
+import { useCart } from '../../../composables/useCart'
+import LcmsSortDropdown from '../../common/LcmsSortDropdown.vue'
 
 defineOptions({ inheritAttrs: false })
 
@@ -119,6 +121,59 @@ const enablePagination = computed(() => config.value.enable_pagination === true 
 // Sort key for latest/category sources — 'manual' honors products.sort_order
 // set in the PIM (unpositioned products sort last).
 const sortBy = computed(() => config.value.sort_by || 'newest')
+
+// Pasek nad listingiem: liczba wyników, sortowanie (stan w URL ?sort=, jak panel
+// filtrów), przełącznik siatka/lista (URL ?view= albo localStorage) i — na
+// telefonie — przycisk „Filtry” otwierający szufladę widgetu shop-filters.
+const showToolbar = computed(() => config.value.show_toolbar === true)
+const toolbarSort = computed(() => showToolbar.value && config.value.toolbar_sort !== false)
+const toolbarView = computed(() => showToolbar.value && config.value.toolbar_view_toggle !== false)
+const toolbarCount = computed(() => showToolbar.value && config.value.toolbar_count !== false)
+const VIEW_KEY = 'lcms:product-view'
+const view = ref<'grid' | 'list'>(config.value.default_view === 'list' ? 'list' : 'grid')
+function setView(v: 'grid' | 'list') {
+  view.value = v
+  try { localStorage.setItem(VIEW_KEY, v) } catch { /* storage off */ }
+}
+const sortOptions = computed(() => [
+  { value: '', label: t('sortDefault') },
+  { value: 'price_asc', label: t('sortPriceAsc') },
+  { value: 'price_desc', label: t('sortPriceDesc') },
+  { value: 'newest', label: t('sortNewest') },
+  { value: 'name_asc', label: t('sortNameAsc') },
+  { value: 'name_desc', label: t('sortNameDesc') },
+])
+function setSort(value: string) {
+  const current = new URLSearchParams(window.location.search)
+  commitShopFilterSearch(buildShopFilterSearch(current, { sort: value || null }))
+  urlTick.value++
+}
+const hasFiltersWidget = ref(false)
+function openFilters() { window.dispatchEvent(new CustomEvent('lcms:shop-filters-open')) }
+
+// Widok listy: przycisk „Do koszyka” dla produktów bez wariantów.
+const cart = useCart()
+const adding = ref<Record<string, 'busy' | 'done'>>({})
+async function quickAdd(product: StorefrontProduct) {
+  if (adding.value[product.uuid]) return
+  adding.value = { ...adding.value, [product.uuid]: 'busy' }
+  try {
+    await cart.addItem(product.uuid, 1)
+    adding.value = { ...adding.value, [product.uuid]: 'done' }
+    setTimeout(() => { const { [product.uuid]: _, ...rest } = adding.value; adding.value = rest }, 2000)
+  } catch {
+    const { [product.uuid]: _, ...rest } = adding.value
+    adding.value = rest
+  }
+}
+function canQuickAdd(product: StorefrontProduct): boolean {
+  return !product.has_children && !product.is_container && hasPrice(product)
+}
+function shortText(product: StorefrontProduct): string {
+  const raw = (product as any).short_description || (product as any).description || ''
+  const txt = String(raw).replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim()
+  return txt.length > 180 ? txt.slice(0, 177).replace(/\s+\S*$/, '') + '…' : txt
+}
 
 const currentPage = computed(() => {
   let raw = routeQuery?.value?.page
@@ -381,6 +436,14 @@ onServerPrefetch(async () => {
 onMounted(() => {
   window.addEventListener(SHOP_FILTER_EVENT, bumpUrlTick)
   window.addEventListener('popstate', bumpUrlTick)
+  if (toolbarView.value) {
+    const q = new URLSearchParams(window.location.search).get('view')
+    let saved: string | null = null
+    try { saved = localStorage.getItem(VIEW_KEY) } catch { /* storage off */ }
+    const v = q || saved
+    if (v === 'list' || v === 'grid') view.value = v
+  }
+  hasFiltersWidget.value = !!document.querySelector('.lcms-shop-filters')
   if (isAvailable.value && products.value.length === 0 && !error.value) {
     fetchProducts()
   }
@@ -411,6 +474,9 @@ const t = (key: string) => {
       searchPrompt: 'Wpisz szukaną frazę w wyszukiwarce',
       searchEmpty: 'Brak wyników dla',
       searchResults: 'Wyniki wyszukiwania dla',
+      results: 'produktów', sort: 'Sortuj', sortDefault: 'Domyślnie', sortPriceAsc: 'Cena rosnąco',
+      sortPriceDesc: 'Cena malejąco', sortNewest: 'Najnowsze', sortNameAsc: 'Nazwa (A–Z)', sortNameDesc: 'Nazwa (Z–A)',
+      viewGrid: 'Widok siatki', viewList: 'Widok listy', filters: 'Filtry', addToCart: 'Do koszyka', added: 'Dodano',
     },
     en: {
       loading: 'Loading products...',
@@ -423,6 +489,9 @@ const t = (key: string) => {
       searchPrompt: 'Type a phrase in the search bar',
       searchEmpty: 'No results for',
       searchResults: 'Search results for',
+      results: 'products', sort: 'Sort by', sortDefault: 'Default', sortPriceAsc: 'Price: low to high',
+      sortPriceDesc: 'Price: high to low', sortNewest: 'Newest', sortNameAsc: 'Name (A–Z)', sortNameDesc: 'Name (Z–A)',
+      viewGrid: 'Grid view', viewList: 'List view', filters: 'Filters', addToCart: 'Add to cart', added: 'Added',
     },
   }
   return dict[lang]?.[key] || dict.pl[key] || key
@@ -457,6 +526,64 @@ const t = (key: string) => {
       <span v-if="paginationMeta?.total"> ({{ paginationMeta.total }})</span>
     </p>
 
+    <div
+      v-if="showToolbar"
+      class="lcms-product-grid__toolbar"
+    >
+      <div class="lcms-product-grid__toolbar-left">
+        <button
+          v-if="hasFiltersWidget"
+          type="button"
+          class="lcms-product-grid__filters-btn"
+          @click="openFilters"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12" /><circle cx="16" cy="6" r="2" /><circle cx="10" cy="12" r="2" /><circle cx="18" cy="18" r="2" /></svg>
+          {{ t('filters') }}
+        </button>
+        <span
+          v-if="toolbarCount && paginationMeta"
+          class="lcms-product-grid__count"
+        ><strong>{{ paginationMeta.total }}</strong> {{ t('results') }}</span>
+      </div>
+      <div class="lcms-product-grid__toolbar-right">
+        <LcmsSortDropdown
+          v-if="toolbarSort"
+          :label="t('sort')"
+          :model-value="shopFilterState.sort || ''"
+          :options="sortOptions"
+          @update:model-value="setSort"
+        />
+        <div
+          v-if="toolbarView"
+          class="lcms-product-grid__view"
+          role="group"
+        >
+          <button
+            type="button"
+            class="lcms-product-grid__view-btn"
+            :class="{ 'is-active': view === 'grid' }"
+            :aria-pressed="view === 'grid'"
+            :aria-label="t('viewGrid')"
+            :title="t('viewGrid')"
+            @click="setView('grid')"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></svg>
+          </button>
+          <button
+            type="button"
+            class="lcms-product-grid__view-btn"
+            :class="{ 'is-active': view === 'list' }"
+            :aria-pressed="view === 'list'"
+            :aria-label="t('viewList')"
+            :title="t('viewList')"
+            @click="setView('list')"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false"><rect x="3" y="4" width="5" height="5" rx="1" /><rect x="3" y="15" width="5" height="5" rx="1" /><path d="M11 6.5h10M11 17.5h10" /></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
     <div v-if="isLoading" class="lcms-product-grid__loading">
       <div v-for="i in limit" :key="i" class="lcms-product-card lcms-product-card--skeleton">
         <div class="lcms-product-card__skeleton-image" />
@@ -478,7 +605,12 @@ const t = (key: string) => {
       </template>
     </div>
 
-    <div v-else class="lcms-product-grid__grid" :style="gridStyle">
+    <div
+      v-else
+      class="lcms-product-grid__grid"
+      :class="{ 'lcms-product-grid__grid--list': view === 'list' }"
+      :style="gridStyle"
+    >
       <a
         v-for="product in products"
         :key="product.uuid"
@@ -533,6 +665,12 @@ const t = (key: string) => {
           <p v-if="fieldDescription && getField(product, fieldDescription)" class="lcms-product-card__description">
             {{ getField(product, fieldDescription) }}
           </p>
+          <p
+            v-if="view === 'list' && shortText(product)"
+            class="lcms-product-card__excerpt"
+          >
+            {{ shortText(product) }}
+          </p>
           <div v-if="showPrice && hasPrice(product)" class="lcms-product-card__price-wrap">
             <span
               v-if="hasDiscount(product)"
@@ -542,6 +680,23 @@ const t = (key: string) => {
             </span>
             <span class="lcms-product-card__price">{{ priceLabel(product) }}</span>
           </div>
+        </div>
+        <div
+          v-if="view === 'list'"
+          class="lcms-product-card__actions"
+        >
+          <button
+            v-if="canQuickAdd(product)"
+            type="button"
+            class="lcms-product-card__cart-btn"
+            :class="{ 'is-done': adding[product.uuid] === 'done' }"
+            :disabled="adding[product.uuid] === 'busy'"
+            @click.prevent.stop="quickAdd(product)"
+          >
+            <svg v-if="adding[product.uuid] === 'done'" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 6 9 17l-5-5" /></svg>
+            <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="9" cy="20" r="1.5" /><circle cx="18" cy="20" r="1.5" /><path d="M3 4h2l2.4 11.2a2 2 0 0 0 2 1.6h8.2a2 2 0 0 0 2-1.6L21 8H6.2" /></svg>
+            {{ adding[product.uuid] === 'done' ? t('added') : t('addToCart') }}
+          </button>
         </div>
       </a>
 
@@ -941,5 +1096,58 @@ const t = (key: string) => {
 @keyframes lcms-skeleton-pulse {
   0%, 100% { background-position: 200% 0; }
   50% { background-position: -200% 0; }
+}
+
+/* Pasek nad listingiem */
+.lcms-product-grid__toolbar {
+  --tb-primary: var(--lcms-color-primary, #2563eb);
+  --tb-border: var(--lcms-border-color, #e5e7eb);
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 20px;
+}
+.lcms-product-grid__toolbar-left,
+.lcms-product-grid__toolbar-right { display: flex; align-items: center; gap: 12px; }
+.lcms-product-grid__count { font-size: 0.875rem; color: var(--lcms-muted-color, #6b7280); }
+.lcms-product-grid__count strong { color: var(--tb-primary); font-weight: 700; }
+.lcms-product-grid__filters-btn {
+  display: none; align-items: center; gap: 8px; height: 40px; padding: 0 16px; border: 0; border-radius: 10px;
+  background: var(--tb-primary); color: #fff; font: inherit; font-size: 0.875rem; font-weight: 600; cursor: pointer;
+}
+.lcms-product-grid__view { display: inline-flex; padding: 3px; border: 1px solid var(--tb-border); border-radius: 10px; gap: 2px; }
+.lcms-product-grid__view-btn {
+  display: inline-grid; place-items: center; width: 34px; height: 32px; border: 0; border-radius: 7px;
+  background: none; color: var(--lcms-muted-color, #6b7280); cursor: pointer; transition: background 0.15s, color 0.15s;
+}
+.lcms-product-grid__view-btn:hover { color: var(--tb-primary); }
+.lcms-product-grid__view-btn.is-active { background: var(--tb-primary); color: #fff; }
+
+/* Widok listy */
+.lcms-product-grid__grid--list { grid-template-columns: 1fr !important; }
+.lcms-product-grid__grid--list .lcms-product-card {
+  display: grid; grid-template-columns: 180px 1fr auto; align-items: center; gap: 24px; text-align: left;
+}
+.lcms-product-grid__grid--list .lcms-product-card__image-wrap { margin: 0; aspect-ratio: 1 / 1; }
+.lcms-product-grid__grid--list .lcms-product-card__body { padding: 0; }
+.lcms-product-card__excerpt {
+  margin: 6px 0 10px; font-size: 0.875rem; line-height: 1.55; color: var(--lcms-muted-color, #6b7280);
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
+.lcms-product-card__actions { padding-right: 8px; }
+.lcms-product-card__cart-btn {
+  display: inline-flex; align-items: center; gap: 8px; height: 42px; padding: 0 18px; border: 0; border-radius: 10px;
+  background: var(--lcms-color-primary, #2563eb); color: #fff; font: inherit; font-size: 0.875rem; font-weight: 600;
+  white-space: nowrap; cursor: pointer; transition: filter 0.15s;
+}
+.lcms-product-card__cart-btn:hover { filter: brightness(1.07); }
+.lcms-product-card__cart-btn:disabled { opacity: 0.6; cursor: wait; }
+.lcms-product-card__cart-btn.is-done { background: #16a34a; }
+
+@media (max-width: 768px) {
+  .lcms-product-grid__filters-btn { display: inline-flex; }
+  .lcms-product-grid__count { display: none; }
+  .lcms-product-grid__toolbar .lcms-sort :deep(.lcms-sort__label) { display: none; }
+  .lcms-product-grid__toolbar-right :deep(.lcms-sort__button) { min-width: 0; }
+  .lcms-product-grid__grid--list .lcms-product-card { grid-template-columns: 96px 1fr; gap: 14px; }
+  .lcms-product-grid__grid--list .lcms-product-card__actions { grid-column: 2; padding: 0; }
+  .lcms-product-grid__grid--list .lcms-product-card__cart-btn { height: 38px; padding: 0 14px; }
 }
 </style>
