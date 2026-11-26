@@ -99,6 +99,7 @@ import LcmsCategoryGrid from './ecommerce/LcmsCategoryGrid.vue'
 import LcmsCategoryTree from './ecommerce/LcmsCategoryTree.vue'
 import LcmsRelatedProducts from './ecommerce/LcmsRelatedProducts.vue'
 import LcmsSearchBar from './ecommerce/LcmsSearchBar.vue'
+import LcmsShopFilters from './ecommerce/LcmsShopFilters.vue'
 import LcmsSearchIcon from './ecommerce/LcmsSearchIcon.vue'
 import LcmsEcommerceIcons from './ecommerce/LcmsEcommerceIcons.vue'
 import LcmsProductCarousel from './ecommerce/LcmsProductCarousel.vue'
@@ -218,6 +219,7 @@ export const widgetComponents: Record<string, Component> = {
   'category-tree': LcmsCategoryTree,
   'related-products': LcmsRelatedProducts,
   'search-bar': LcmsSearchBar,
+  'shop-filters': LcmsShopFilters,
   'search-icon': LcmsSearchIcon,
   'ecommerce-icons': LcmsEcommerceIcons,
   'product-carousel': LcmsProductCarousel,
@@ -347,6 +349,7 @@ export {
   LcmsCategoryTree,
   LcmsRelatedProducts,
   LcmsSearchBar,
+  LcmsShopFilters,
   LcmsSearchIcon,
   LcmsEcommerceIcons,
   LcmsProductCarousel,

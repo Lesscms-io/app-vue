@@ -495,6 +495,42 @@ export interface StorefrontPaginated<T> {
     per_page: number
     total: number
   }
+  /** Obecne tylko, gdy listing idzie ścieżką wyszukiwarki (SEARCH_LISTINGS). */
+  search?: { facets?: StorefrontSearchFacets }
+}
+
+export interface StorefrontFacetValue {
+  value: string
+  label: string
+  count: number
+}
+
+export interface StorefrontFacetFilter {
+  code: string
+  label: string
+  type: 'select' | 'multiselect' | 'text' | 'bool' | 'number'
+  position: number
+  values?: StorefrontFacetValue[]
+  min?: number
+  max?: number
+}
+
+export interface StorefrontSearchFacets {
+  filters?: StorefrontFacetFilter[]
+  categories?: Array<{ uuid: string; count: number }>
+  price?: { min: number; max: number }
+}
+
+/** Filtry listingu (kontrakt storefront): attr[kod]=a,b (OR w atrybucie, AND między nimi). */
+export interface StorefrontListingFilters {
+  q?: string
+  category_uuid?: string
+  min_price?: number
+  max_price?: number
+  in_stock?: boolean
+  attr?: Record<string, string>
+  attr_min?: Record<string, number>
+  attr_max?: Record<string, number>
 }
 
 export interface CheckoutRequest {
@@ -572,18 +608,13 @@ export interface StorefrontClient {
   getConfig(): Promise<{ data: any }>
 
   // Products
-  getProducts(params?: {
-    q?: string
-    category_uuid?: string
-    min_price?: number
-    max_price?: number
-    in_stock?: boolean
+  getProducts(params?: StorefrontListingFilters & {
     sort_by?: 'manual' | 'price_asc' | 'price_desc' | 'name_asc' | 'name_desc' | 'newest' | 'oldest'
     page?: number
     per_page?: number
   }): Promise<StorefrontPaginated<StorefrontProduct>>
   getProduct(slug: string): Promise<{ data: StorefrontProduct }>
-  searchProducts(q: string, params?: { page?: number; per_page?: number }): Promise<StorefrontPaginated<StorefrontProduct>>
+  searchProducts(q: string, params?: StorefrontListingFilters & { page?: number; per_page?: number; sort_by?: string }): Promise<StorefrontPaginated<StorefrontProduct>>
   /**
    * Produkty powiązane wyliczone przez reguły sklepu (ustawienia → Produkty powiązane).
    * `set` wybiera zestaw reguł, `limit` nadpisuje limit z konfiguracji.
@@ -598,7 +629,7 @@ export interface StorefrontClient {
   getCategory(slug: string): Promise<{ data: StorefrontCategory }>
   getCategoryProducts(
     slug: string,
-    params?: { page?: number; per_page?: number; sort_by?: 'manual' | 'price_asc' | 'price_desc' | 'name_asc' | 'name_desc' | 'newest' | 'oldest' }
+    params?: StorefrontListingFilters & { page?: number; per_page?: number; sort_by?: 'manual' | 'price_asc' | 'price_desc' | 'name_asc' | 'name_desc' | 'newest' | 'oldest' }
   ): Promise<StorefrontPaginated<StorefrontProduct>>
 
   // Cart
@@ -781,7 +812,14 @@ export function createStorefrontClient(options: StorefrontClientOptions): Storef
     if (options.params) {
       for (const [key, value] of Object.entries(options.params)) {
         if (value !== undefined && value !== null && value !== '') {
-          url.searchParams.append(key, String(value))
+          if (typeof value === 'object' && !Array.isArray(value)) {
+            // Słowniki filtrów: attr[kod]=…, attr_min[kod]=…, attr_max[kod]=…
+            for (const [code, v] of Object.entries(value)) {
+              if (v !== undefined && v !== null && v !== '') url.searchParams.append(`${key}[${code}]`, String(v))
+            }
+          } else {
+            url.searchParams.append(key, String(value))
+          }
         }
       }
     }

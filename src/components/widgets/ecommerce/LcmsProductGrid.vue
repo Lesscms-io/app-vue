@@ -6,11 +6,12 @@
  * Sources: latest, category, featured.
  */
 
-import { computed, ref, onMounted, onServerPrefetch, watch, inject, type Ref } from 'vue'
+import { computed, ref, onMounted, onBeforeUnmount, onServerPrefetch, watch, inject, type Ref } from 'vue'
 import { useLanguage } from '../../../composables/useLanguage'
 import { useStorefront } from '../../../composables/useStorefront'
 import { formatPrice, calculateDiscount, hasDisplayablePrice } from '../../../utils/currency'
 import type { StorefrontProduct } from '../../../api/storefront'
+import { readShopFilterQuery, toStorefrontFilters, SHOP_FILTER_EVENT } from '../../../utils/shopFilters'
 
 defineOptions({ inheritAttrs: false })
 
@@ -157,7 +158,33 @@ const pageItems = computed<(number | null)[]>(() => {
   return items
 })
 
-const pageUrl = (page: number) => (page <= 1 ? '?' : `?page=${page}`)
+// Zachowuje pozostałe parametry (filtry sklepu, ?q=) — bez nich strona 2 gubi filtry.
+const pageUrl = (page: number) => {
+  const sp = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '')
+  if (typeof window === 'undefined' && routeQuery?.value) {
+    for (const [k, v] of Object.entries(routeQuery.value)) if (typeof v === 'string') sp.set(k, v)
+  }
+  sp.delete('page')
+  if (page > 1) sp.set('page', String(page))
+  const str = sp.toString()
+  return str ? `?${str}` : '?'
+}
+
+// Filtry sklepu z URL (widget shop-filters). Na kliencie czytamy window, bo
+// filtr zmienia URL bez nawigacji renderera; na serwerze — routeQuery.
+// Bez parametrów filtrów shopFilters jest pusty i zapytania są jak dotąd.
+const urlTick = ref(0)
+const shopFilterState = computed(() => {
+  void urlTick.value
+  if (typeof window !== 'undefined') return readShopFilterQuery(new URLSearchParams(window.location.search))
+  return readShopFilterQuery(routeQuery?.value ?? null)
+})
+const shopFilters = computed(() => {
+  const { sort_by, ...rest } = toStorefrontFilters(shopFilterState.value)
+  return { filters: rest as Record<string, any>, sort: sort_by as string | undefined }
+})
+const shopFilterKey = computed(() => JSON.stringify(shopFilters.value))
+const bumpUrlTick = () => { urlTick.value++ }
 const columns = computed(() => Number(config.value.columns) || 4)
 const columnsTablet = computed(() => Number(config.value.columns_tablet) || 2)
 const columnsMobile = computed(() => Number(config.value.columns_mobile) || 1)
@@ -285,7 +312,9 @@ async function fetchProducts() {
         paginationMeta.value = null
         return
       }
+      const { q: _q, ...searchFilters } = shopFilters.value.filters
       const response = await client.value.searchProducts(searchQuery.value, {
+        ...searchFilters,
         per_page: limit.value,
         ...(enablePagination.value ? { page: currentPage.value } : {}),
       })
@@ -316,16 +345,18 @@ async function fetchProducts() {
         return
       }
       const response = await client.value.getCategoryProducts(resolvedCategorySlug.value, {
+        ...shopFilters.value.filters,
         per_page: limit.value,
-        sort_by: sortBy.value as any,
+        sort_by: (shopFilters.value.sort || sortBy.value) as any,
         ...(enablePagination.value ? { page: currentPage.value } : {}),
       })
       products.value = response.data || []
       paginationMeta.value = response.pagination || null
     } else {
       const response = await client.value.getProducts({
+        ...shopFilters.value.filters,
         per_page: limit.value,
-        sort_by: sortBy.value as any,
+        sort_by: (shopFilters.value.sort || sortBy.value) as any,
         ...(enablePagination.value ? { page: currentPage.value } : {}),
       })
       products.value = response.data || []
@@ -348,12 +379,19 @@ onServerPrefetch(async () => {
 
 // Client: fetch on mount only if SSR didn't already load products
 onMounted(() => {
+  window.addEventListener(SHOP_FILTER_EVENT, bumpUrlTick)
+  window.addEventListener('popstate', bumpUrlTick)
   if (isAvailable.value && products.value.length === 0 && !error.value) {
     fetchProducts()
   }
 })
 
-watch([source, resolvedCategorySlug, productSlugs, limit, isAvailable, currentPage, sortBy, searchQuery, relatedSourceSlug, relatedSet], () => {
+onBeforeUnmount(() => {
+  window.removeEventListener(SHOP_FILTER_EVENT, bumpUrlTick)
+  window.removeEventListener('popstate', bumpUrlTick)
+})
+
+watch([source, resolvedCategorySlug, productSlugs, limit, isAvailable, currentPage, sortBy, searchQuery, relatedSourceSlug, relatedSet, shopFilterKey], () => {
   if (isAvailable.value) {
     fetchProducts()
   }
