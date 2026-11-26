@@ -171,9 +171,12 @@ function canQuickAdd(product: StorefrontProduct): boolean {
   return !product.has_children && !product.is_container && hasPrice(product)
 }
 function shortText(product: StorefrontProduct): string {
-  const raw = (product as any).short_description || (product as any).description || ''
-  const txt = String(raw).replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim()
-  return txt.length > 180 ? txt.slice(0, 177).replace(/\s+\S*$/, '') + '…' : txt
+  // Krótki opis do widoku listy: pierwszy akapit czystego tekstu, bez nagłówków i list.
+  const raw = String((product as any).short_description || (product as any).description || '')
+  const firstP = raw.match(/<p[^>]*>([\s\S]*?)<\/p>/i)?.[1]
+  const src = firstP ?? raw.split(/<h[1-6][\s>]/i)[0]
+  const txt = src.replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim()
+  return txt.length > 200 ? txt.slice(0, 197).replace(/\s+\S*$/, '') + '…' : txt
 }
 
 const currentPage = computed(() => {
@@ -672,7 +675,7 @@ const t = (key: string) => {
           >
             {{ shortText(product) }}
           </p>
-          <div v-if="showPrice && hasPrice(product)" class="lcms-product-card__price-wrap">
+          <div v-if="showPrice && hasPrice(product) && view !== 'list'" class="lcms-product-card__price-wrap">
             <span
               v-if="hasDiscount(product)"
               class="lcms-product-card__price-original"
@@ -686,6 +689,10 @@ const t = (key: string) => {
           v-if="view === 'list'"
           class="lcms-product-card__actions"
         >
+          <div v-if="showPrice && hasPrice(product)" class="lcms-product-card__price-wrap">
+            <span v-if="hasDiscount(product)" class="lcms-product-card__price-original">{{ formatPrice(product.compare_at_price, currency) }}</span>
+            <span class="lcms-product-card__price">{{ priceLabel(product) }}</span>
+          </div>
           <button
             v-if="canQuickAdd(product)"
             type="button"
@@ -1121,18 +1128,35 @@ const t = (key: string) => {
 .lcms-product-grid__view-btn:hover { color: var(--tb-primary); }
 .lcms-product-grid__view-btn.is-active { background: var(--tb-primary); color: #fff; }
 
-/* Widok listy */
-.lcms-product-grid__grid--list { grid-template-columns: 1fr !important; }
-.lcms-product-grid__grid--list .lcms-product-card {
-  display: grid; grid-template-columns: 180px 1fr auto; align-items: center; gap: 24px; text-align: left;
+/* Widok listy — selektory z .lcms-product-grid i !important, żeby CSS projektu dla kart siatki nie łapał wiersza */
+.lcms-product-grid .lcms-product-grid__grid--list { grid-template-columns: 1fr !important; }
+.lcms-product-grid .lcms-product-grid__grid--list > .lcms-product-card {
+  display: grid !important; grid-template-columns: 180px minmax(0, 1fr) auto !important; flex-direction: initial !important;
+  align-items: center !important; gap: 24px !important; padding: 20px !important; text-align: left !important;
 }
-.lcms-product-grid__grid--list .lcms-product-card__image-wrap { margin: 0; aspect-ratio: 1 / 1; }
-.lcms-product-grid__grid--list .lcms-product-card__body { padding: 0; }
+.lcms-product-grid .lcms-product-grid__grid--list > .lcms-product-card > .lcms-product-card__image-wrap {
+  position: relative !important; width: 180px !important; height: 180px !important; aspect-ratio: 1 / 1 !important;
+  margin: 0 !important; padding: 0 !important; border: 0 !important; border-radius: 10px !important;
+  background: var(--lcms-color-surface, #f8f8f8) !important; overflow: hidden !important;
+}
+.lcms-product-grid .lcms-product-grid__grid--list > .lcms-product-card .lcms-product-card__image {
+  position: absolute !important; inset: 10px !important; width: calc(100% - 20px) !important; height: calc(100% - 20px) !important;
+  object-fit: contain !important; border-radius: 0 !important;
+}
+.lcms-product-grid .lcms-product-grid__grid--list > .lcms-product-card > .lcms-product-card__body {
+  padding: 0 !important; display: flex !important; flex-direction: column !important; gap: 6px !important; min-width: 0;
+}
+.lcms-product-grid .lcms-product-grid__grid--list .lcms-product-card__name { min-height: 0 !important; }
 .lcms-product-card__excerpt {
-  margin: 6px 0 10px; font-size: 0.875rem; line-height: 1.55; color: var(--lcms-muted-color, #6b7280);
-  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+  margin: 2px 0 0; font-size: 0.875rem; line-height: 1.55; color: var(--lcms-muted-color, #6b7280);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
-.lcms-product-card__actions { padding-right: 8px; }
+.lcms-product-grid .lcms-product-grid__grid--list .lcms-product-card__actions {
+  display: flex; flex-direction: column; align-items: flex-end; justify-content: center; gap: 12px; padding: 0;
+}
+.lcms-product-grid .lcms-product-grid__grid--list .lcms-product-card__actions .lcms-product-card__price-wrap {
+  margin: 0 !important; padding: 0 !important; display: flex; flex-direction: column; align-items: flex-end; gap: 2px;
+}
 .lcms-product-card__cart-btn {
   display: inline-flex; align-items: center; gap: 8px; height: 42px; padding: 0 18px; border: 0; border-radius: 10px;
   background: var(--lcms-color-primary, #2563eb); color: #fff; font: inherit; font-size: 0.875rem; font-weight: 600;
@@ -1147,8 +1171,15 @@ const t = (key: string) => {
   .lcms-product-grid__count { display: none; }
   .lcms-product-grid__toolbar .lcms-sort :deep(.lcms-sort__label) { display: none; }
   .lcms-product-grid__toolbar-right :deep(.lcms-sort__button) { min-width: 0; }
-  .lcms-product-grid__grid--list .lcms-product-card { grid-template-columns: 96px 1fr; gap: 14px; }
-  .lcms-product-grid__grid--list .lcms-product-card__actions { grid-column: 2; padding: 0; }
-  .lcms-product-grid__grid--list .lcms-product-card__cart-btn { height: 38px; padding: 0 14px; }
+  .lcms-product-grid .lcms-product-grid__grid--list > .lcms-product-card {
+    grid-template-columns: 96px minmax(0, 1fr) !important; align-items: start !important; gap: 8px 14px !important; padding: 12px !important;
+  }
+  .lcms-product-grid .lcms-product-grid__grid--list > .lcms-product-card > .lcms-product-card__image-wrap { width: 96px !important; height: 96px !important; grid-row: span 2; }
+  .lcms-product-grid .lcms-product-grid__grid--list .lcms-product-card .lcms-product-card__image { inset: 6px !important; width: calc(100% - 12px) !important; height: calc(100% - 12px) !important; }
+  .lcms-product-grid .lcms-product-grid__grid--list .lcms-product-card__actions {
+    grid-column: 2; flex-direction: row; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;
+  }
+  .lcms-product-grid .lcms-product-grid__grid--list .lcms-product-card__actions .lcms-product-card__price-wrap { align-items: flex-start; }
+  .lcms-product-grid .lcms-product-grid__grid--list .lcms-product-card__cart-btn { height: 36px; padding: 0 12px; font-size: 0.8125rem; }
 }
 </style>
