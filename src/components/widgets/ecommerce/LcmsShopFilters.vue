@@ -390,7 +390,7 @@ function priceFill(bounds: { min: number; max: number }): Record<string, string>
         class="lcms-shop-filters__toggle"
         @click="mobileOpen = true"
       >
-        <i class="fa-solid fa-sliders" aria-hidden="true" />
+        <svg class="lcms-shop-filters__icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0" /><circle cx="16" cy="6" r="2" /><circle cx="10" cy="12" r="2" /><circle cx="18" cy="18" r="2" /></svg>
         {{ t('filters_button') }}
       </button>
       <span
@@ -436,7 +436,7 @@ function priceFill(bounds: { min: number; max: number }): Record<string, string>
           :aria-label="t('close')"
           @click="mobileOpen = false"
         >
-          <i class="fa-solid fa-xmark" aria-hidden="true" />
+          <svg class="lcms-shop-filters__icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M18 6 6 18M6 6l12 12" /></svg>
         </button>
       </div>
 
@@ -451,10 +451,7 @@ function priceFill(bounds: { min: number; max: number }): Record<string, string>
           class="lcms-shop-filters__chip"
           @click="applyChanges(chip.remove)"
         >
-          {{ chip.label }} <i
-            class="fa-solid fa-xmark"
-            aria-hidden="true"
-          />
+          {{ chip.label }} <svg class="lcms-shop-filters__icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M18 6 6 18M6 6l12 12" /></svg>
         </button>
         <button
           type="button"
@@ -478,10 +475,7 @@ function priceFill(bounds: { min: number; max: number }): Record<string, string>
           @click="mode === 'bar' ? toggleSection(sec.key) : toggleCollapse(sec.key)"
         >
           <span>{{ sec.title }}</span>
-          <i
-            class="lcms-shop-filters__chevron fa-solid fa-chevron-down"
-            aria-hidden="true"
-          />
+          <svg class="lcms-shop-filters__icon lcms-shop-filters__chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m6 9 6 6 6-6" /></svg>
         </button>
 
         <div
@@ -675,10 +669,7 @@ function priceFill(bounds: { min: number; max: number }): Record<string, string>
                   @click="expandedFacets[f.code] = !expandedFacets[f.code]"
                 >
                   {{ expandedFacets[f.code] ? t('show_less') : t('show_more') }}
-                  <i
-                    class="fa-solid fa-chevron-down"
-                    aria-hidden="true"
-                  />
+                  <svg class="lcms-shop-filters__icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m6 9 6 6 6-6" /></svg>
                 </button>
               </template>
             </template>
@@ -752,9 +743,11 @@ function priceFill(bounds: { min: number; max: number }): Record<string, string>
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   background-repeat: no-repeat; background-position: right 12px center;
 }
+.lcms-shop-filters__icon { display: inline-block; flex: 0 0 auto; vertical-align: middle; }
 .lcms-shop-filters__panel { display: flex; flex-direction: column; gap: 12px; }
 .lcms-shop-filters__panel-head { display: none; justify-content: space-between; align-items: center; font-size: 1.125rem; }
 .lcms-shop-filters__close {
+  display: inline-grid; place-items: center;
   width: 36px; height: 36px; border-radius: 50%; background: var(--sf-soft); border: 0; cursor: pointer;
   color: inherit; font-size: 1rem;
 }
@@ -765,7 +758,7 @@ function priceFill(bounds: { min: number; max: number }): Record<string, string>
   cursor: pointer; transition: opacity 0.15s;
 }
 .lcms-shop-filters__chip:hover { opacity: 0.85; }
-.lcms-shop-filters__chip i { font-size: 0.75em; opacity: 0.85; }
+.lcms-shop-filters__chip .lcms-shop-filters__icon { opacity: 0.85; }
 .lcms-shop-filters__clear {
   background: none; border: 0; padding: 4px 6px; cursor: pointer; font: inherit; font-size: 0.8125rem;
   color: var(--sf-muted); text-decoration: none;
@@ -779,7 +772,7 @@ function priceFill(bounds: { min: number; max: number }): Record<string, string>
   background: none; border: 0; padding: 14px 16px; color: inherit; font-family: inherit; text-align: left; width: 100%;
 }
 .lcms-shop-filters__section-title--toggle { display: flex; justify-content: space-between; align-items: center; gap: 8px; cursor: pointer; }
-.lcms-shop-filters__chevron { font-size: 0.75rem; color: var(--sf-muted); transition: transform 0.2s; }
+.lcms-shop-filters__chevron { flex: 0 0 auto; color: var(--sf-muted); transition: transform 0.2s; }
 .lcms-shop-filters__section.is-open .lcms-shop-filters__chevron { transform: rotate(180deg); }
 .lcms-shop-filters__section-body { padding: 0 16px 16px; }
 .lcms-shop-filters__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
@@ -813,8 +806,8 @@ function priceFill(bounds: { min: number; max: number }): Record<string, string>
   display: inline-flex; align-items: center; gap: 6px; margin-top: 10px; background: none; border: 0; padding: 0;
   cursor: pointer; color: var(--sf-primary); font: inherit; font-size: 0.8125rem; font-weight: 500;
 }
-.lcms-shop-filters__more i { font-size: 0.65rem; transition: transform 0.2s; }
-.lcms-shop-filters__more.is-expanded i { transform: rotate(180deg); }
+.lcms-shop-filters__more .lcms-shop-filters__icon { transition: transform 0.2s; }
+.lcms-shop-filters__more.is-expanded .lcms-shop-filters__icon { transform: rotate(180deg); }
 .lcms-shop-filters__range { display: flex; flex-direction: column; gap: 14px; }
 .lcms-shop-filters__dual { position: relative; height: 20px; margin: 4px 8px 0; }
 .lcms-shop-filters__dual::before,
