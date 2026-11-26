@@ -77,7 +77,7 @@ const DEFAULT_LABELS: Record<string, Record<string, string>> = {
     attributes: 'Atrybuty', show_more: 'Pokaż więcej', results: 'wyników', apply: 'Zastosuj',
     close: 'Zamknij', from: 'Od', to: 'Do', in_stock: 'Tylko dostępne', default_sort: 'Domyślne',
     price_asc: 'Cena rosnąco', price_desc: 'Cena malejąco', newest: 'Najnowsze', name_asc: 'Nazwa (A–Z)',
-    name_desc: 'Nazwa (Z–A)', show_less: 'Pokaż mniej', yes: 'Tak', no: 'Nie',
+    name_desc: 'Nazwa (Z–A)', show_less: 'Pokaż mniej', yes: 'Tak', no: 'Nie', currency_suffix: 'zł',
   },
   en: {
     title: 'Filters', filters_button: 'Filters', clear: 'Clear', sort: 'Sort by',
@@ -85,7 +85,7 @@ const DEFAULT_LABELS: Record<string, Record<string, string>> = {
     attributes: 'Attributes', show_more: 'Show more', results: 'results', apply: 'Apply',
     close: 'Close', from: 'From', to: 'To', in_stock: 'In stock only', default_sort: 'Default',
     price_asc: 'Price: low to high', price_desc: 'Price: high to low', newest: 'Newest', name_asc: 'Name (A–Z)',
-    name_desc: 'Name (Z–A)', show_less: 'Show less', yes: 'Yes', no: 'No',
+    name_desc: 'Name (Z–A)', show_less: 'Show less', yes: 'Yes', no: 'No', currency_suffix: '',
   },
 }
 
@@ -190,6 +190,15 @@ const expandedFacets = ref<Record<string, boolean>>({})
 
 function toggleSection(key: string) {
   openSection.value = openSection.value === key ? null : key
+}
+
+// Sidebar: sekcje jako akordeon, domyślnie rozwinięte.
+const collapsed = ref<Record<string, boolean>>({})
+function toggleCollapse(key: string) {
+  collapsed.value = { ...collapsed.value, [key]: !collapsed.value[key] }
+}
+function sectionOpen(key: string): boolean {
+  return mode.value === 'bar' ? openSection.value === key : !collapsed.value[key]
 }
 
 async function fetchData() {
@@ -359,6 +368,14 @@ const chips = computed(() => {
 })
 
 const resultsLabel = computed(() => (total.value != null ? `${total.value} ${t('results')}` : ''))
+
+// Wypełnienie toru suwaka ceny między uchwytami (procenty dla CSS).
+function priceFill(bounds: { min: number; max: number }): Record<string, string> {
+  const span = bounds.max - bounds.min || 1
+  const lo = (rangeValue('min', bounds, state.value.minPrice) - bounds.min) / span * 100
+  const hi = (rangeValue('max', bounds, state.value.maxPrice) - bounds.min) / span * 100
+  return { '--lo': `${lo}%`, '--hi': `${hi}%` }
+}
 </script>
 
 <template>
@@ -377,16 +394,16 @@ const resultsLabel = computed(() => (total.value != null ? `${total.value} ${t('
         {{ t('filters_button') }}
       </button>
       <span
-        v-if="showResultsCount && resultsLabel"
+        v-if="showResultsCount && total != null"
         class="lcms-shop-filters__count"
-      >{{ resultsLabel }}</span>
+      ><strong class="lcms-shop-filters__count-num">{{ total }}</strong> {{ t('results') }}</span>
       <label
         v-if="showSort"
         class="lcms-shop-filters__sort"
       >
         <span class="lcms-shop-filters__sort-label">{{ t('sort') }}</span>
         <select
-          class="lcms-shop-filters__select"
+          class="lcms-shop-filters__select lcms-shop-filters__select--sort"
           :value="state.sort"
           @change="setSort(($event.target as HTMLSelectElement).value)"
         >
@@ -452,29 +469,23 @@ const resultsLabel = computed(() => (total.value != null ? `${total.value} ${t('
         v-for="sec in sections"
         :key="sec.key"
         class="lcms-shop-filters__section"
-        :class="{ 'is-open': openSection === sec.key }"
+        :class="{ 'is-open': sectionOpen(sec.key) }"
       >
         <button
-          v-if="mode === 'bar'"
           type="button"
           class="lcms-shop-filters__section-title lcms-shop-filters__section-title--toggle"
-          :aria-expanded="openSection === sec.key"
-          @click="toggleSection(sec.key)"
+          :aria-expanded="sectionOpen(sec.key)"
+          @click="mode === 'bar' ? toggleSection(sec.key) : toggleCollapse(sec.key)"
         >
-          {{ sec.title }} <i
-            class="fa-solid fa-chevron-down"
+          <span>{{ sec.title }}</span>
+          <i
+            class="lcms-shop-filters__chevron fa-solid fa-chevron-down"
             aria-hidden="true"
           />
         </button>
-        <h4
-          v-else
-          class="lcms-shop-filters__section-title"
-        >
-          {{ sec.title }}
-        </h4>
 
         <div
-          v-show="mode === 'sidebar' || openSection === sec.key"
+          v-show="sectionOpen(sec.key)"
           class="lcms-shop-filters__section-body"
         >
           <!-- Wyszukiwarka -->
@@ -497,13 +508,14 @@ const resultsLabel = computed(() => (total.value != null ? `${total.value} ${t('
               :key="row.uuid"
               :style="{ paddingLeft: `${row.depth * 12}px` }"
             >
-              <label class="lcms-shop-filters__option">
+              <label class="lcms-shop-filters__option lcms-shop-filters__option--check">
                 <input
                   type="checkbox"
+                  class="lcms-shop-filters__check"
                   :checked="state.category === row.uuid"
                   @change="toggleCategory(row.uuid)"
                 >
-                <span>{{ row.name }}</span>
+                <span class="lcms-shop-filters__option-label">{{ row.name }}</span>
                 <span class="lcms-shop-filters__count-badge">{{ row.count }}</span>
               </label>
             </li>
@@ -514,7 +526,10 @@ const resultsLabel = computed(() => (total.value != null ? `${total.value} ${t('
             v-else-if="sec.key === 'price' && priceBounds"
             class="lcms-shop-filters__range"
           >
-            <div class="lcms-shop-filters__dual">
+            <div
+              class="lcms-shop-filters__dual"
+              :style="priceFill(priceBounds)"
+            >
               <input
                 type="range"
                 :min="priceBounds.min"
@@ -533,29 +548,47 @@ const resultsLabel = computed(() => (total.value != null ? `${total.value} ${t('
               >
             </div>
             <div class="lcms-shop-filters__range-inputs">
-              <input
-                type="number"
-                class="lcms-shop-filters__input"
-                :placeholder="t('from')"
-                :min="priceBounds.min"
-                :value="state.minPrice"
-                @change="setPrice('min_price', ($event.target as HTMLInputElement).value)"
-              >
-              <input
-                type="number"
-                class="lcms-shop-filters__input"
-                :placeholder="t('to')"
-                :max="priceBounds.max"
-                :value="state.maxPrice"
-                @change="setPrice('max_price', ($event.target as HTMLInputElement).value)"
-              >
+              <label class="lcms-shop-filters__affix">
+                <input
+                  type="text"
+                  inputmode="decimal"
+                  class="lcms-shop-filters__input"
+                  :placeholder="`${t('from')} ${priceBounds.min}`"
+                  :value="state.minPrice"
+                  @change="setPrice('min_price', ($event.target as HTMLInputElement).value.replace(',', '.').replace(/[^0-9.]/g, ''))"
+                >
+                <span
+                  v-if="t('currency_suffix')"
+                  class="lcms-shop-filters__suffix"
+                >{{ t('currency_suffix') }}</span>
+              </label>
+              <span class="lcms-shop-filters__range-sep">–</span>
+              <label class="lcms-shop-filters__affix">
+                <input
+                  type="text"
+                  inputmode="decimal"
+                  class="lcms-shop-filters__input"
+                  :placeholder="`${t('to')} ${priceBounds.max}`"
+                  :value="state.maxPrice"
+                  @change="setPrice('max_price', ($event.target as HTMLInputElement).value.replace(',', '.').replace(/[^0-9.]/g, ''))"
+                >
+                <span
+                  v-if="t('currency_suffix')"
+                  class="lcms-shop-filters__suffix"
+                >{{ t('currency_suffix') }}</span>
+              </label>
             </div>
-            <label class="lcms-shop-filters__option">
+            <label class="lcms-shop-filters__switch">
               <input
                 type="checkbox"
+                role="switch"
                 :checked="state.inStock"
                 @change="setInStock(($event.target as HTMLInputElement).checked)"
               >
+              <span
+                class="lcms-shop-filters__switch-track"
+                aria-hidden="true"
+              />
               <span>{{ t('in_stock') }}</span>
             </label>
           </div>
@@ -573,7 +606,8 @@ const resultsLabel = computed(() => (total.value != null ? `${total.value} ${t('
               >
                 <div class="lcms-shop-filters__range-inputs">
                   <input
-                    type="number"
+                    type="text"
+                    inputmode="decimal"
                     class="lcms-shop-filters__input"
                     :placeholder="t('from')"
                     :min="f.min"
@@ -582,7 +616,8 @@ const resultsLabel = computed(() => (total.value != null ? `${total.value} ${t('
                     @change="setAttrRange(f.code, 'min', ($event.target as HTMLInputElement).value)"
                   >
                   <input
-                    type="number"
+                    type="text"
+                    inputmode="decimal"
                     class="lcms-shop-filters__input"
                     :placeholder="t('to')"
                     :min="f.min"
@@ -596,42 +631,54 @@ const resultsLabel = computed(() => (total.value != null ? `${total.value} ${t('
               <!-- bool: przełącznik -->
               <label
                 v-else-if="f.type === 'bool'"
-                class="lcms-shop-filters__option"
+                class="lcms-shop-filters__switch"
               >
                 <input
                   type="checkbox"
+                  role="switch"
                   :checked="attrValues(f.code).includes('1')"
                   @change="toggleAttrValue(f.code, '1', ($event.target as HTMLInputElement).checked)"
                 >
+                <span
+                  class="lcms-shop-filters__switch-track"
+                  aria-hidden="true"
+                />
                 <span>{{ f.label }}</span>
               </label>
 
               <!-- select / multiselect / text: checkboxy z liczbami -->
               <template v-else>
-                <ul class="lcms-shop-filters__list">
-                  <li
+                <div
+                  class="lcms-shop-filters__pills"
+                  role="group"
+                  :aria-label="f.label"
+                >
+                  <button
                     v-for="(v, vi) in (f.values || []).filter((x) => x.count > 0)"
                     v-show="expandedFacets[f.code] || vi < visibleLimit"
                     :key="v.value"
+                    type="button"
+                    class="lcms-shop-filters__pill"
+                    :class="{ 'is-active': attrValues(f.code).includes(v.value) }"
+                    :aria-pressed="attrValues(f.code).includes(v.value)"
+                    @click="toggleAttrValue(f.code, v.value, !attrValues(f.code).includes(v.value))"
                   >
-                    <label class="lcms-shop-filters__option">
-                      <input
-                        type="checkbox"
-                        :checked="attrValues(f.code).includes(v.value)"
-                        @change="toggleAttrValue(f.code, v.value, ($event.target as HTMLInputElement).checked)"
-                      >
-                      <span>{{ v.label }}</span>
-                      <span class="lcms-shop-filters__count-badge">{{ v.count }}</span>
-                    </label>
-                  </li>
-                </ul>
+                    <span>{{ v.label }}</span>
+                    <span class="lcms-shop-filters__count-badge">{{ v.count }}</span>
+                  </button>
+                </div>
                 <button
                   v-if="(f.values || []).filter((x) => x.count > 0).length > visibleLimit"
                   type="button"
                   class="lcms-shop-filters__more"
+                  :class="{ 'is-expanded': expandedFacets[f.code] }"
                   @click="expandedFacets[f.code] = !expandedFacets[f.code]"
                 >
                   {{ expandedFacets[f.code] ? t('show_less') : t('show_more') }}
+                  <i
+                    class="fa-solid fa-chevron-down"
+                    aria-hidden="true"
+                  />
                 </button>
               </template>
             </template>
@@ -667,71 +714,151 @@ const resultsLabel = computed(() => (total.value != null ? `${total.value} ${t('
   color: inherit;
   cursor: pointer;
 }
-.lcms-shop-filters__count { color: var(--lcms-muted-color, #6b7280); }
+.lcms-shop-filters {
+  --sf-primary: var(--lcms-color-primary, #2563eb);
+  --sf-border: var(--lcms-border-color, #e5e7eb);
+  --sf-muted: var(--lcms-muted-color, #6b7280);
+  --sf-bg: var(--lcms-color-background, #fff);
+  --sf-soft: color-mix(in srgb, var(--sf-primary) 8%, var(--sf-bg));
+  --sf-radius: 10px;
+}
+.lcms-shop-filters__count { color: var(--sf-muted); font-size: 0.875rem; }
+.lcms-shop-filters__count-num { color: var(--sf-primary); font-weight: 700; font-size: 1rem; }
 .lcms-shop-filters__sort { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; }
-.lcms-shop-filters__sort-label { color: var(--lcms-muted-color, #6b7280); }
+.lcms-shop-filters__sort-label { color: var(--sf-muted); font-size: 0.875rem; white-space: nowrap; }
 .lcms-shop-filters__select,
 .lcms-shop-filters__input {
-  padding: 6px 10px;
-  border: 1px solid var(--lcms-border-color, #d0d5dd);
-  border-radius: var(--lcms-border-radius, 6px);
-  background: var(--lcms-color-background, #fff);
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--sf-border);
+  border-radius: var(--sf-radius);
+  background: var(--sf-bg);
   color: inherit;
   font: inherit;
+  font-size: 0.875rem;
   min-width: 0;
   width: 100%;
   box-sizing: border-box;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
-.lcms-shop-filters__panel { display: flex; flex-direction: column; gap: 16px; }
-.lcms-shop-filters__panel-head { display: none; justify-content: space-between; align-items: center; }
-.lcms-shop-filters__close { background: none; border: 0; cursor: pointer; color: inherit; font-size: 1.125rem; }
-.lcms-shop-filters__chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.lcms-shop-filters__select:focus,
+.lcms-shop-filters__input:focus {
+  outline: none; border-color: var(--sf-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--sf-primary) 18%, transparent);
+}
+.lcms-shop-filters__select--sort {
+  appearance: none; -webkit-appearance: none; width: auto; min-width: 170px; padding-right: 36px; cursor: pointer;
+  font-weight: 500;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 12px center;
+}
+.lcms-shop-filters__panel { display: flex; flex-direction: column; gap: 12px; }
+.lcms-shop-filters__panel-head { display: none; justify-content: space-between; align-items: center; font-size: 1.125rem; }
+.lcms-shop-filters__close {
+  width: 36px; height: 36px; border-radius: 50%; background: var(--sf-soft); border: 0; cursor: pointer;
+  color: inherit; font-size: 1rem;
+}
+.lcms-shop-filters__chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .lcms-shop-filters__chip {
-  display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px;
-  border: 1px solid var(--lcms-color-primary, #2563eb);
-  background: color-mix(in srgb, var(--lcms-color-primary, #2563eb) 10%, transparent);
-  color: inherit; font-size: 0.8125rem; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px 5px 12px; border-radius: 999px;
+  border: 0; background: var(--sf-primary); color: #fff; font: inherit; font-size: 0.8125rem; font-weight: 500;
+  cursor: pointer; transition: opacity 0.15s;
 }
+.lcms-shop-filters__chip:hover { opacity: 0.85; }
+.lcms-shop-filters__chip i { font-size: 0.75em; opacity: 0.85; }
 .lcms-shop-filters__clear {
-  background: none; border: 0; padding: 4px 6px; cursor: pointer;
-  color: var(--lcms-color-primary, #2563eb); text-decoration: underline; font: inherit;
+  background: none; border: 0; padding: 4px 6px; cursor: pointer; font: inherit; font-size: 0.8125rem;
+  color: var(--sf-muted); text-decoration: none;
 }
-.lcms-shop-filters__section { border-top: 1px solid var(--lcms-border-color, #e5e7eb); padding-top: 12px; }
+.lcms-shop-filters__clear:hover { color: var(--sf-primary); }
+.lcms-shop-filters__section {
+  border: 1px solid var(--sf-border); border-radius: var(--sf-radius); background: var(--sf-bg); padding: 0;
+}
 .lcms-shop-filters__section-title {
-  margin: 0 0 8px; font-size: 0.875rem; font-weight: 600; background: none; border: 0; padding: 0;
-  color: inherit; font-family: inherit; text-align: left; width: 100%;
+  margin: 0; font-size: 0.9375rem; font-weight: 600; letter-spacing: 0; text-transform: none;
+  background: none; border: 0; padding: 14px 16px; color: inherit; font-family: inherit; text-align: left; width: 100%;
 }
-.lcms-shop-filters__section-title--toggle { display: flex; justify-content: space-between; cursor: pointer; }
-.lcms-shop-filters__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
-.lcms-shop-filters__option { display: flex; align-items: center; gap: 8px; cursor: pointer; }
-.lcms-shop-filters__count-badge { margin-left: auto; color: var(--lcms-muted-color, #6b7280); font-size: 0.8125rem; }
+.lcms-shop-filters__section-title--toggle { display: flex; justify-content: space-between; align-items: center; gap: 8px; cursor: pointer; }
+.lcms-shop-filters__chevron { font-size: 0.75rem; color: var(--sf-muted); transition: transform 0.2s; }
+.lcms-shop-filters__section.is-open .lcms-shop-filters__chevron { transform: rotate(180deg); }
+.lcms-shop-filters__section-body { padding: 0 16px 16px; }
+.lcms-shop-filters__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.lcms-shop-filters__option { display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 0.875rem; padding: 3px 0; }
+.lcms-shop-filters__check {
+  appearance: none; -webkit-appearance: none; flex: 0 0 18px; width: 18px; height: 18px; margin: 0;
+  border: 1.5px solid var(--sf-border); border-radius: 5px; background: var(--sf-bg); cursor: pointer;
+  display: grid; place-content: center; transition: background 0.15s, border-color 0.15s;
+}
+.lcms-shop-filters__check::after {
+  content: ''; width: 9px; height: 5px; border: solid #fff; border-width: 0 0 2px 2px; transform: rotate(-45deg) translate(1px, -1px);
+  opacity: 0;
+}
+.lcms-shop-filters__check:checked { background: var(--sf-primary); border-color: var(--sf-primary); }
+.lcms-shop-filters__check:checked::after { opacity: 1; }
+.lcms-shop-filters__count-badge {
+  margin-left: auto; min-width: 22px; padding: 1px 7px; border-radius: 999px; text-align: center;
+  background: var(--sf-soft); color: var(--sf-muted); font-size: 0.75rem; font-weight: 500; line-height: 1.5;
+}
+.lcms-shop-filters__pills { display: flex; flex-wrap: wrap; gap: 8px; }
+.lcms-shop-filters__pill {
+  display: inline-flex; align-items: center; gap: 6px; padding: 6px 8px 6px 12px; border-radius: 999px;
+  border: 1px solid var(--sf-border); background: var(--sf-bg); color: inherit; font: inherit; font-size: 0.8125rem;
+  cursor: pointer; transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+.lcms-shop-filters__pill .lcms-shop-filters__count-badge { margin-left: 0; }
+.lcms-shop-filters__pill:hover { border-color: var(--sf-primary); }
+.lcms-shop-filters__pill.is-active { background: var(--sf-primary); border-color: var(--sf-primary); color: #fff; }
+.lcms-shop-filters__pill.is-active .lcms-shop-filters__count-badge { background: rgba(255, 255, 255, 0.22); color: #fff; }
 .lcms-shop-filters__more {
-  margin-top: 6px; background: none; border: 0; padding: 0; cursor: pointer;
-  color: var(--lcms-color-primary, #2563eb); font: inherit;
+  display: inline-flex; align-items: center; gap: 6px; margin-top: 10px; background: none; border: 0; padding: 0;
+  cursor: pointer; color: var(--sf-primary); font: inherit; font-size: 0.8125rem; font-weight: 500;
 }
-.lcms-shop-filters__range { display: flex; flex-direction: column; gap: 10px; }
-.lcms-shop-filters__dual { position: relative; height: 24px; }
+.lcms-shop-filters__more i { font-size: 0.65rem; transition: transform 0.2s; }
+.lcms-shop-filters__more.is-expanded i { transform: rotate(180deg); }
+.lcms-shop-filters__range { display: flex; flex-direction: column; gap: 14px; }
+.lcms-shop-filters__dual { position: relative; height: 20px; margin: 4px 8px 0; }
+.lcms-shop-filters__dual::before,
+.lcms-shop-filters__dual::after {
+  content: ''; position: absolute; top: 50%; height: 3px; transform: translateY(-50%); border-radius: 2px;
+}
+.lcms-shop-filters__dual::before { left: 0; right: 0; background: var(--sf-border); }
+.lcms-shop-filters__dual::after { left: var(--lo, 0%); right: calc(100% - var(--hi, 100%)); background: var(--sf-primary); }
 .lcms-shop-filters__dual input[type='range'] {
-  position: absolute; inset: 0; width: 100%; pointer-events: none; background: none; appearance: none; margin: 0;
-  accent-color: var(--lcms-color-primary, #2563eb);
+  position: absolute; inset: 0 -8px; width: calc(100% + 16px); pointer-events: none; background: none;
+  appearance: none; -webkit-appearance: none; margin: 0; z-index: 1;
 }
-.lcms-shop-filters__dual::before {
-  content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 4px; transform: translateY(-50%);
-  border-radius: 2px; background: var(--lcms-border-color, #e5e7eb);
-}
-.lcms-shop-filters__dual input[type='range']::-webkit-slider-runnable-track { background: none; height: 24px; }
+.lcms-shop-filters__dual input[type='range']::-webkit-slider-runnable-track { background: none; height: 20px; }
 .lcms-shop-filters__dual input[type='range']::-moz-range-track { background: none; }
 .lcms-shop-filters__dual input[type='range']::-webkit-slider-thumb {
-  pointer-events: auto; -webkit-appearance: none; appearance: none; width: 16px; height: 16px; margin-top: 4px;
-  border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.15);
-  background: var(--lcms-color-primary, #2563eb); cursor: pointer; position: relative; z-index: 1;
+  pointer-events: auto; -webkit-appearance: none; appearance: none; width: 18px; height: 18px; margin-top: 1px;
+  border-radius: 50%; border: 3px solid var(--sf-primary); background: #fff; cursor: grab;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
 }
 .lcms-shop-filters__dual input[type='range']::-moz-range-thumb {
-  pointer-events: auto; width: 14px; height: 14px; border-radius: 50%; border: 2px solid #fff;
-  background: var(--lcms-color-primary, #2563eb); cursor: pointer;
+  pointer-events: auto; width: 14px; height: 14px; border-radius: 50%; border: 3px solid var(--sf-primary);
+  background: #fff; cursor: grab;
 }
-.lcms-shop-filters input[type='checkbox'] { accent-color: var(--lcms-color-primary, #2563eb); }
-.lcms-shop-filters__range-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.lcms-shop-filters__range-inputs { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; }
+.lcms-shop-filters__range-sep { color: var(--sf-muted); }
+.lcms-shop-filters__affix { position: relative; display: block; }
+.lcms-shop-filters__affix .lcms-shop-filters__input { padding-right: 32px; }
+.lcms-shop-filters__suffix {
+  position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: var(--sf-muted); font-size: 0.8125rem;
+  pointer-events: none;
+}
+.lcms-shop-filters__switch { display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 0.875rem; }
+.lcms-shop-filters__switch input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.lcms-shop-filters__switch-track {
+  position: relative; flex: 0 0 36px; width: 36px; height: 20px; border-radius: 999px; background: var(--sf-border);
+  transition: background 0.2s;
+}
+.lcms-shop-filters__switch-track::after {
+  content: ''; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25); transition: transform 0.2s;
+}
+.lcms-shop-filters__switch input:checked + .lcms-shop-filters__switch-track { background: var(--sf-primary); }
+.lcms-shop-filters__switch input:checked + .lcms-shop-filters__switch-track::after { transform: translateX(16px); }
+.lcms-shop-filters__switch input:focus-visible + .lcms-shop-filters__switch-track { box-shadow: 0 0 0 3px color-mix(in srgb, var(--sf-primary) 25%, transparent); }
 .lcms-shop-filters__backdrop { display: none; }
 
 /* Bar: poziomy pasek, sekcje jako rozwijane panele */
@@ -739,16 +866,17 @@ const resultsLabel = computed(() => (total.value != null ? `${total.value} ${t('
   flex-direction: row; flex-wrap: wrap; align-items: flex-start; gap: 8px;
 }
 .lcms-shop-filters--bar .lcms-shop-filters__section {
-  border-top: 0; padding-top: 0; position: relative; flex: 0 0 auto;
+  border: 0; position: relative; flex: 0 0 auto; background: none;
 }
 .lcms-shop-filters--bar .lcms-shop-filters__section-title--toggle {
-  width: auto; padding: 8px 12px; border: 1px solid var(--lcms-border-color, #d0d5dd);
-  border-radius: var(--lcms-border-radius, 8px); gap: 8px; margin: 0;
+  width: auto; padding: 9px 14px; border: 1px solid var(--sf-border); background: var(--sf-bg);
+  border-radius: 999px; gap: 8px; margin: 0; font-size: 0.875rem;
 }
+.lcms-shop-filters--bar .lcms-shop-filters__section.is-open .lcms-shop-filters__section-title--toggle { border-color: var(--sf-primary); }
 .lcms-shop-filters--bar .lcms-shop-filters__section-body {
   position: absolute; z-index: 20; top: calc(100% + 6px); left: 0; min-width: 240px; max-width: 320px;
-  padding: 12px; background: var(--lcms-color-background, #fff); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-  border: 1px solid var(--lcms-border-color, #e5e7eb); border-radius: var(--lcms-border-radius, 8px);
+  padding: 16px; background: var(--sf-bg); box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
+  border: 1px solid var(--sf-border); border-radius: var(--sf-radius);
 }
 .lcms-shop-filters--bar .lcms-shop-filters__panel > .lcms-shop-filters__chips,
 .lcms-shop-filters--bar .lcms-shop-filters__panel > .lcms-shop-filters__panel-head { flex-basis: 100%; }
