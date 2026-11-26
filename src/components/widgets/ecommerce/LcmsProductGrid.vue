@@ -12,7 +12,7 @@ import { useLanguage } from '../../../composables/useLanguage'
 import { useStorefront } from '../../../composables/useStorefront'
 import { formatPrice, calculateDiscount, hasDisplayablePrice } from '../../../utils/currency'
 import type { StorefrontProduct } from '../../../api/storefront'
-import { readShopFilterQuery, toStorefrontFilters, SHOP_FILTER_EVENT, buildShopFilterSearch, commitShopFilterSearch } from '../../../utils/shopFilters'
+import { readShopFilterQuery, useShopFilterDefaults, toStorefrontFilters, SHOP_FILTER_EVENT, buildShopFilterSearch, commitShopFilterSearch } from '../../../utils/shopFilters'
 import { useCart } from '../../../composables/useCart'
 import LcmsSortDropdown from '../../common/LcmsSortDropdown.vue'
 
@@ -233,10 +233,11 @@ const pageUrl = (page: number) => {
 // filtr zmienia URL bez nawigacji renderera; na serwerze — routeQuery.
 // Bez parametrów filtrów shopFilters jest pusty i zapytania są jak dotąd.
 const urlTick = ref(0)
+const shopDefaults = useShopFilterDefaults()
 const shopFilterState = computed(() => {
   void urlTick.value
-  if (typeof window !== 'undefined') return readShopFilterQuery(new URLSearchParams(window.location.search))
-  return readShopFilterQuery(routeQuery?.value ?? null)
+  if (typeof window !== 'undefined') return readShopFilterQuery(new URLSearchParams(window.location.search), shopDefaults)
+  return readShopFilterQuery(routeQuery?.value ?? null, shopDefaults)
 })
 const shopFilters = computed(() => {
   const { sort_by, ...rest } = toStorefrontFilters(shopFilterState.value)
@@ -547,7 +548,7 @@ const t = (key: string) => {
         <span
           v-if="toolbarCount && paginationMeta"
           class="lcms-product-grid__count"
-        ><strong>{{ paginationMeta.total }}</strong> {{ pluralWord(paginationMeta.total, t('results'), language || 'pl') }}</span>
+        ><strong>{{ paginationMeta.total }}</strong> {{ pluralWord(paginationMeta.total ?? 0, t('results'), language || 'pl') }}</span>
       </div>
       <div class="lcms-product-grid__toolbar-right">
         <LcmsSortDropdown

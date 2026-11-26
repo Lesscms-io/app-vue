@@ -5,14 +5,25 @@
  *   q                 — fraza (ta sama co ?q= wyszukiwarki)
  *   cat               — uuid kategorii (drzewko w sidebarze)
  *   min_price/max_price
- *   in_stock=1
+ *   in_stock=1|0      — brak = domyślna dostępność (ustawienie widgetu shop-filters, domyślnie tylko dostępne)
  *   sort              — manual|price_asc|price_desc|name_asc|name_desc|newest
  *   f_<kod>=a,b       — wartości atrybutu (OR w obrębie, AND między atrybutami)
  *   fmin_<kod>/fmax_<kod> — zakres liczbowy atrybutu
  * Parametr page jest zarządzany przez listing i jest kasowany przy zmianie filtra.
  */
 
+import { getCurrentInstance, reactive } from 'vue'
 import type { StorefrontListingFilters } from '../api/storefront'
+
+/** Domyślne wartości filtrów na stronie (ustawia widget shop-filters, czyta listing). Jeden obiekt na aplikację/żądanie SSR. */
+export interface ShopFilterDefaults { inStock: boolean }
+export function useShopFilterDefaults(): ShopFilterDefaults {
+  const app = getCurrentInstance()?.appContext
+  if (!app) return reactive({ inStock: false })
+  const g = app.config.globalProperties as any
+  if (!g.__lcmsShopFilterDefaults) g.__lcmsShopFilterDefaults = reactive({ inStock: false })
+  return g.__lcmsShopFilterDefaults
+}
 
 export const SHOP_FILTER_EVENT = 'lcms:shop-filters-change'
 
@@ -51,7 +62,7 @@ function isNumeric(v: string): boolean {
   return v !== '' && Number.isFinite(Number(v))
 }
 
-export function readShopFilterQuery(query: QueryLike): ShopFilterState {
+export function readShopFilterQuery(query: QueryLike, defaults?: Partial<ShopFilterDefaults>): ShopFilterState {
   const attrs: Record<string, string[]> = {}
   for (const key of listKeys(query, 'f_')) {
     const code = key.slice(2)
@@ -76,7 +87,12 @@ export function readShopFilterQuery(query: QueryLike): ShopFilterState {
     category: getValue(query, 'cat'),
     minPrice: isNumeric(minPrice) ? minPrice : '',
     maxPrice: isNumeric(maxPrice) ? maxPrice : '',
-    inStock: ['1', 'true'].includes(getValue(query, 'in_stock')),
+    inStock: (() => {
+      const v = getValue(query, 'in_stock')
+      if (['1', 'true'].includes(v)) return true
+      if (['0', 'false'].includes(v)) return false
+      return !!defaults?.inStock
+    })(),
     sort: SORTS.includes(sort) ? sort : '',
     attrs,
     attrMin,
@@ -106,8 +122,8 @@ export function toStorefrontFilters(s: ShopFilterState): StorefrontListingFilter
 }
 
 /** Czy jest jakikolwiek aktywny filtr (sortowanie nim nie jest). */
-export function hasActiveShopFilters(s: ShopFilterState): boolean {
-  return !!(s.q || s.category || s.minPrice || s.maxPrice || s.inStock
+export function hasActiveShopFilters(s: ShopFilterState, defaults?: Partial<ShopFilterDefaults>): boolean {
+  return !!(s.q || s.category || s.minPrice || s.maxPrice || s.inStock !== !!defaults?.inStock
     || Object.keys(s.attrs).length || Object.keys(s.attrMin).length || Object.keys(s.attrMax).length)
 }
 

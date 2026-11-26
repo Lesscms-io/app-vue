@@ -17,6 +17,7 @@ import LcmsSortDropdown from '../../common/LcmsSortDropdown.vue'
 import type { StorefrontCategory, StorefrontSearchFacets, StorefrontFacetFilter } from '../../../api/storefront'
 import {
   readShopFilterQuery,
+  useShopFilterDefaults,
   toStorefrontFilters,
   hasActiveShopFilters,
   buildShopFilterSearch,
@@ -48,6 +49,12 @@ const mode = computed<'sidebar' | 'bar'>(() => (configGroup.value.mode === 'bar'
 const showSearch = computed(() => configGroup.value.show_search !== false)
 const showCategories = computed(() => configGroup.value.show_categories !== false)
 const showPrice = computed(() => configGroup.value.show_price !== false)
+const showInStock = computed(() => configGroup.value.show_in_stock !== false)
+// Domyślnie tylko dostępne: brak parametru in_stock w URL = wartość z ustawień, wyłączenie = in_stock=0.
+const inStockDefault = computed(() => configGroup.value.in_stock_default !== false)
+const shopDefaults = useShopFilterDefaults()
+shopDefaults.inStock = inStockDefault.value
+watch(inStockDefault, (v) => { shopDefaults.inStock = v })
 const showAttributes = computed(() => configGroup.value.show_attributes !== false)
 const showSort = computed(() => configGroup.value.show_sort !== false)
 const showChips = computed(() => configGroup.value.show_chips !== false)
@@ -80,7 +87,7 @@ const DEFAULT_LABELS: Record<string, Record<string, string>> = {
     title: 'Filtry', filters_button: 'Filtry', clear: 'Wyczyść', sort: 'Sortowanie',
     search_placeholder: 'Szukaj produktów...', categories: 'Kategorie', price: 'Cena',
     attributes: 'Atrybuty', show_more: 'Pokaż więcej', results: 'wyników', apply: 'Zastosuj',
-    close: 'Zamknij', from: 'Od', to: 'Do', in_stock: 'Tylko dostępne', default_sort: 'Domyślne',
+    close: 'Zamknij', from: 'Od', to: 'Do', in_stock: 'Tylko dostępne', availability: 'Dostępność', include_unavailable: 'Także niedostępne', default_sort: 'Domyślne',
     price_asc: 'Cena rosnąco', price_desc: 'Cena malejąco', newest: 'Najnowsze', name_asc: 'Nazwa (A–Z)',
     name_desc: 'Nazwa (Z–A)', show_less: 'Pokaż mniej', yes: 'Tak', no: 'Nie', currency_suffix: 'zł', all_products: 'Wszystkie produkty',
   },
@@ -88,7 +95,7 @@ const DEFAULT_LABELS: Record<string, Record<string, string>> = {
     title: 'Filters', filters_button: 'Filters', clear: 'Clear', sort: 'Sort by',
     search_placeholder: 'Search products...', categories: 'Categories', price: 'Price',
     attributes: 'Attributes', show_more: 'Show more', results: 'results', apply: 'Apply',
-    close: 'Close', from: 'From', to: 'To', in_stock: 'In stock only', default_sort: 'Default',
+    close: 'Close', from: 'From', to: 'To', in_stock: 'In stock only', availability: 'Availability', include_unavailable: 'Including out of stock', default_sort: 'Default',
     price_asc: 'Price: low to high', price_desc: 'Price: high to low', newest: 'Newest', name_asc: 'Name (A–Z)',
     name_desc: 'Name (Z–A)', show_less: 'Show less', yes: 'Yes', no: 'No', currency_suffix: '', all_products: 'All products',
   },
@@ -105,15 +112,15 @@ function t(key: string): string {
 const urlTick = ref(0)
 const state = computed<ShopFilterState>(() => {
   void urlTick.value
-  if (typeof window !== 'undefined') return readShopFilterQuery(new URLSearchParams(window.location.search))
-  return readShopFilterQuery(routeQuery?.value ?? null)
+  if (typeof window !== 'undefined') return readShopFilterQuery(new URLSearchParams(window.location.search), shopDefaults)
+  return readShopFilterQuery(routeQuery?.value ?? null, shopDefaults)
 })
 const apiFilters = computed(() => {
   const { sort_by, ...rest } = toStorefrontFilters(state.value)
   return rest
 })
 const filtersKey = computed(() => JSON.stringify(apiFilters.value))
-const hasActive = computed(() => hasActiveShopFilters(state.value))
+const hasActive = computed(() => hasActiveShopFilters(state.value, shopDefaults))
 
 function applyChanges(changes: Record<string, string | null>) {
   const current = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '')
@@ -196,6 +203,7 @@ const sections = computed(() => {
   if (showSearch.value) list.push({ key: 'search', title: t('title') })
   if (showCategories.value && categoryRows.value.length) list.push({ key: 'categories', title: t('categories') })
   if (showPrice.value && priceBounds.value) list.push({ key: 'price', title: t('price') })
+  if (showInStock.value) list.push({ key: 'availability', title: t('availability') })
   if (showAttributes.value) for (const f of facetList.value) list.push({ key: `attr:${f.code}`, title: f.label })
   return list
 })
@@ -218,7 +226,8 @@ function sectionHasActive(key: string): boolean {
   const s = state.value
   if (key === 'search') return !!s.q
   if (key === 'categories') return !!s.category
-  if (key === 'price') return !!(s.minPrice || s.maxPrice || s.inStock)
+  if (key === 'price') return !!(s.minPrice || s.maxPrice)
+  if (key === 'availability') return s.inStock !== inStockDefault.value
   if (key.startsWith('attr:')) {
     const code = key.slice(5)
     return !!(s.attrs[code]?.length || s.attrMin[code] || s.attrMax[code])
@@ -341,7 +350,7 @@ function setPrice(kind: 'min_price' | 'max_price', value: string) {
 }
 
 function setInStock(checked: boolean) {
-  applyChanges({ in_stock: checked ? '1' : null })
+  applyChanges({ in_stock: checked === inStockDefault.value ? null : (checked ? '1' : '0') })
 }
 
 function setSort(value: string) {
@@ -394,7 +403,7 @@ const chips = computed(() => {
       : s.minPrice ? `${t('from').toLowerCase()} ${s.minPrice}${cur}` : `${t('to').toLowerCase()} ${s.maxPrice}${cur}`
     out.push({ label: `${t('price')}: ${range}`, remove: { min_price: null, max_price: null } })
   }
-  if (s.inStock) out.push({ label: t('in_stock'), remove: { in_stock: null } })
+  if (s.inStock !== inStockDefault.value) out.push({ label: s.inStock ? t('in_stock') : t('include_unavailable'), remove: { in_stock: null } })
   for (const [code, values] of Object.entries(s.attrs)) {
     const label = facetList.value.find((f) => f.code === code)?.label || code
     for (const v of values) {
@@ -625,6 +634,12 @@ function priceFill(bounds: { min: number; max: number }): Record<string, string>
                 >{{ t('currency_suffix') }}</span>
               </label>
             </div>
+          </div>
+
+          <div
+            v-else-if="sec.key === 'availability'"
+            class="lcms-shop-filters__availability"
+          >
             <label class="lcms-shop-filters__switch">
               <input
                 type="checkbox"
@@ -721,7 +736,7 @@ function priceFill(bounds: { min: number; max: number }): Record<string, string>
                   :class="{ 'is-expanded': expandedFacets[f.code] }"
                   @click="expandedFacets[f.code] = !expandedFacets[f.code]"
                 >
-                  {{ expandedFacets[f.code] ? t('show_less') : t('show_more') }}
+                  <span>{{ expandedFacets[f.code] ? t('show_less') : `${t('show_more')} (${(f.values || []).filter((x) => x.count > 0).length - visibleLimit})` }}</span>
                   <svg class="lcms-shop-filters__icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m6 9 6 6 6-6" /></svg>
                 </button>
               </template>
@@ -861,9 +876,14 @@ a.lcms-shop-filters__count:hover, button.lcms-shop-filters__count:hover { filter
 .lcms-shop-filters__pill.is-active { background: var(--sf-primary); border-color: var(--sf-primary); color: #fff; }
 .lcms-shop-filters__pill.is-active .lcms-shop-filters__count-badge { background: rgba(255, 255, 255, 0.22); color: #fff; }
 .lcms-shop-filters__more {
-  display: inline-flex; align-items: center; gap: 6px; margin-top: 10px; background: none; border: 0; padding: 0;
-  cursor: pointer; color: var(--sf-primary); font: inherit; font-size: 0.8125rem; font-weight: 500;
+  display: flex; align-items: center; justify-content: center; gap: 6px; width: calc(100% + 32px); height: 40px;
+  margin: 14px -16px -16px; padding: 0 16px; border: 0; border-top: 1px solid var(--sf-border);
+  border-radius: 0 0 calc(var(--sf-radius) - 1px) calc(var(--sf-radius) - 1px);
+  background: none; cursor: pointer; color: var(--sf-primary); font: inherit; font-size: 0.8125rem; font-weight: 500;
+  transition: background 0.15s;
 }
+.lcms-shop-filters__more:hover { background: var(--sf-more-hover, color-mix(in srgb, var(--sf-primary) 6%, var(--sf-bg))); }
+.lcms-shop-filters__more:focus-visible { outline: none; box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--sf-primary) 35%, transparent); }
 .lcms-shop-filters__more .lcms-shop-filters__icon { transition: transform 0.2s; }
 .lcms-shop-filters__more.is-expanded .lcms-shop-filters__icon { transform: rotate(180deg); }
 .lcms-shop-filters__range { display: flex; flex-direction: column; gap: 14px; }
@@ -948,6 +968,7 @@ a.lcms-shop-filters__count:hover, button.lcms-shop-filters__count:hover { filter
   }
   .lcms-shop-filters__panel-head { display: flex; }
   .lcms-shop-filters--bar .lcms-shop-filters__section-body { position: static; box-shadow: none; min-width: 0; max-width: none; border: 0; padding: 0; }
+  .lcms-shop-filters--bar .lcms-shop-filters__more { width: 100%; margin: 10px 0 0; border: 1px solid var(--sf-border); border-radius: 8px; }
   .lcms-shop-filters--bar .lcms-shop-filters__section-title--toggle { width: 100%; }
   .lcms-shop-filters--bar .lcms-shop-filters__panel { flex-direction: column; }
 }
