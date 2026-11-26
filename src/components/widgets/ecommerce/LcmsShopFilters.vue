@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { pluralWord } from '../../../utils/pluralCount'
 /**
  * Shop Filters Widget (E-commerce)
  *
@@ -409,7 +410,7 @@ const chips = computed(() => {
   return out
 })
 
-const resultsLabel = computed(() => (total.value != null ? `${total.value} ${t('results')}` : ''))
+const resultsWord = computed(() => pluralWord(total.value ?? 0, t('results'), props.language || 'pl'))
 
 // Wypełnienie toru suwaka ceny między uchwytami (procenty dla CSS).
 function priceFill(bounds: { min: number; max: number }): Record<string, string> {
@@ -446,7 +447,7 @@ function priceFill(bounds: { min: number; max: number }): Record<string, string>
           :title="t('clear')"
           @click="clearAll"
         >
-          <span>{{ total }} {{ t('results') }}</span>
+          <span>{{ total }} {{ resultsWord }}</span>
           <svg class="lcms-shop-filters__icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M18 6 6 18M6 6l12 12" /></svg>
         </button>
         <a
@@ -457,7 +458,7 @@ function priceFill(bounds: { min: number; max: number }): Record<string, string>
         <span
           v-else
           class="lcms-shop-filters__count"
-        >{{ total }} {{ t('results') }}</span>
+        >{{ total }} {{ resultsWord }}</span>
       </template>
       <LcmsSortDropdown
         v-if="showSort"

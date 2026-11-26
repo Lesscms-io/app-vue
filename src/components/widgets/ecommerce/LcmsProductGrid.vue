@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { pluralWord } from '../../../utils/pluralCount'
 /**
  * Product Grid Widget (E-commerce)
  *
@@ -543,7 +544,7 @@ const t = (key: string) => {
         <span
           v-if="toolbarCount && paginationMeta"
           class="lcms-product-grid__count"
-        ><strong>{{ paginationMeta.total }}</strong> {{ t('results') }}</span>
+        ><strong>{{ paginationMeta.total }}</strong> {{ pluralWord(paginationMeta.total, t('results'), language || 'pl') }}</span>
       </div>
       <div class="lcms-product-grid__toolbar-right">
         <LcmsSortDropdown

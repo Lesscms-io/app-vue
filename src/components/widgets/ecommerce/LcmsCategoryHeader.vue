@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { pluralWord } from '../../../utils/pluralCount'
 /**
  * Category Header Widget (E-commerce)
  *
@@ -162,7 +163,7 @@ const descriptionIsHtml = computed(() => /<\/?[a-z][^>]*>/i.test(category.value?
           {{ category.description }}
         </p>
         <span v-if="showProductCount" class="lcms-category-header__count">
-          {{ productCount }} {{ t('products') }}
+          {{ productCount }} {{ pluralWord(Number(productCount) || 0, t('products'), language || 'pl') }}
         </span>
       </div>
     </div>
