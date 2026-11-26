@@ -405,9 +405,10 @@ const chips = computed(() => {
   }
   if (s.inStock !== inStockDefault.value) out.push({ label: s.inStock ? t('in_stock') : t('include_unavailable'), remove: { in_stock: null } })
   for (const [code, values] of Object.entries(s.attrs)) {
-    const label = facetList.value.find((f) => f.code === code)?.label || code
+    const facet = facetList.value.find((f) => f.code === code)
+    const label = facet?.label || code
     for (const v of values) {
-      out.push({ label: `${label}: ${facetLabel(code, v)}`, remove: { [`f_${code}`]: values.filter((x) => x !== v).join(',') || null } })
+      out.push({ label: facet?.type === 'bool' ? label : `${label}: ${facetLabel(code, v)}`, remove: { [`f_${code}`]: values.filter((x) => x !== v).join(',') || null } })
     }
   }
   for (const code of new Set([...Object.keys(s.attrMin), ...Object.keys(s.attrMax)])) {
