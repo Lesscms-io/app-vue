@@ -12,6 +12,7 @@
 import { computed, inject, onBeforeUnmount, onMounted, onServerPrefetch, ref, watch, type Ref } from 'vue'
 import { useLanguage } from '../../../composables/useLanguage'
 import { useStorefront } from '../../../composables/useStorefront'
+import LcmsSortDropdown from '../../common/LcmsSortDropdown.vue'
 import type { StorefrontCategory, StorefrontSearchFacets, StorefrontFacetFilter } from '../../../api/storefront'
 import {
   readShopFilterQuery,
@@ -50,6 +51,9 @@ const showAttributes = computed(() => configGroup.value.show_attributes !== fals
 const showSort = computed(() => configGroup.value.show_sort !== false)
 const showChips = computed(() => configGroup.value.show_chips !== false)
 const showResultsCount = computed(() => configGroup.value.show_results_count !== false)
+// Grupy domyślnie zwinięte; rozwinięte tylko te z aktywnym filtrem.
+const defaultCollapsed = computed(() => configGroup.value.default_collapsed !== false)
+const allProductsUrl = computed(() => String(configGroup.value.all_products_url || '/sklep'))
 const visibleLimit = computed(() => {
   const n = Number(configGroup.value.attr_visible_limit)
   return Number.isFinite(n) && n >= 1 ? Math.floor(n) : 8
@@ -77,7 +81,7 @@ const DEFAULT_LABELS: Record<string, Record<string, string>> = {
     attributes: 'Atrybuty', show_more: 'Pokaż więcej', results: 'wyników', apply: 'Zastosuj',
     close: 'Zamknij', from: 'Od', to: 'Do', in_stock: 'Tylko dostępne', default_sort: 'Domyślne',
     price_asc: 'Cena rosnąco', price_desc: 'Cena malejąco', newest: 'Najnowsze', name_asc: 'Nazwa (A–Z)',
-    name_desc: 'Nazwa (Z–A)', show_less: 'Pokaż mniej', yes: 'Tak', no: 'Nie', currency_suffix: 'zł',
+    name_desc: 'Nazwa (Z–A)', show_less: 'Pokaż mniej', yes: 'Tak', no: 'Nie', currency_suffix: 'zł', all_products: 'Wszystkie produkty',
   },
   en: {
     title: 'Filters', filters_button: 'Filters', clear: 'Clear', sort: 'Sort by',
@@ -85,7 +89,7 @@ const DEFAULT_LABELS: Record<string, Record<string, string>> = {
     attributes: 'Attributes', show_more: 'Show more', results: 'results', apply: 'Apply',
     close: 'Close', from: 'From', to: 'To', in_stock: 'In stock only', default_sort: 'Default',
     price_asc: 'Price: low to high', price_desc: 'Price: high to low', newest: 'Newest', name_asc: 'Name (A–Z)',
-    name_desc: 'Name (Z–A)', show_less: 'Show less', yes: 'Yes', no: 'No', currency_suffix: '',
+    name_desc: 'Name (Z–A)', show_less: 'Show less', yes: 'Yes', no: 'No', currency_suffix: '', all_products: 'All products',
   },
 }
 
@@ -143,7 +147,19 @@ const categoryPageSlug = computed(() => {
   return decodeURIComponent(path.slice(prefix.length).split('/')[0] || '')
 })
 
-const priceBounds = computed(() => facets.value?.price || fallbackPrice.value)
+const priceBounds = computed(() => {
+  const p = facets.value?.price
+  if (p && p.min != null && p.max != null) return { min: Math.floor(p.min), max: Math.ceil(p.max) }
+  return fallbackPrice.value
+})
+// Zakres do placeholderów: najszerszy znany (facet ceny nie zawęża się własnym filtrem).
+const priceHint = computed(() => {
+  const a = priceBounds.value
+  const b = fallbackPrice.value
+  if (!a) return b
+  if (!b) return a
+  return { min: Math.min(a.min, b.min), max: Math.max(a.max, b.max) }
+})
 
 const categoryCounts = computed(() => {
   const map = new Map<string, number>()
@@ -195,10 +211,23 @@ function toggleSection(key: string) {
 // Sidebar: sekcje jako akordeon, domyślnie rozwinięte.
 const collapsed = ref<Record<string, boolean>>({})
 function toggleCollapse(key: string) {
-  collapsed.value = { ...collapsed.value, [key]: !collapsed.value[key] }
+  collapsed.value = { ...collapsed.value, [key]: sectionOpen(key) }
+}
+function sectionHasActive(key: string): boolean {
+  const s = state.value
+  if (key === 'search') return !!s.q
+  if (key === 'categories') return !!s.category
+  if (key === 'price') return !!(s.minPrice || s.maxPrice || s.inStock)
+  if (key.startsWith('attr:')) {
+    const code = key.slice(5)
+    return !!(s.attrs[code]?.length || s.attrMin[code] || s.attrMax[code])
+  }
+  return false
 }
 function sectionOpen(key: string): boolean {
-  return mode.value === 'bar' ? openSection.value === key : !collapsed.value[key]
+  if (mode.value === 'bar') return openSection.value === key
+  if (key in collapsed.value) return !collapsed.value[key]
+  return !defaultCollapsed.value || sectionHasActive(key)
 }
 
 async function fetchData() {
@@ -245,9 +274,18 @@ onServerPrefetch(async () => {
   if (isAvailable.value) await Promise.all([fetchData(), fetchCategories()])
 })
 
+// Pasek nad listingiem (product-grid) ma własny przycisk „Filtry” i sortowanie —
+// wtedy na telefonie chowamy topbar panelu, a szufladę otwiera zdarzenie.
+const gridToolbar = ref(false)
+function openDrawer() { mobileOpen.value = true }
+
 onMounted(() => {
   window.addEventListener(SHOP_FILTER_EVENT, bumpUrlTick)
   window.addEventListener('popstate', bumpUrlTick)
+  window.addEventListener('lcms:shop-filters-open', openDrawer)
+  const detect = () => { gridToolbar.value = !!document.querySelector('.lcms-product-grid__toolbar') }
+  detect()
+  setTimeout(detect, 800)
   if (isAvailable.value) {
     if (!facets.value) fetchData()
     if (!categories.value.length) fetchCategories()
@@ -257,6 +295,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   window.removeEventListener(SHOP_FILTER_EVENT, bumpUrlTick)
   window.removeEventListener('popstate', bumpUrlTick)
+  window.removeEventListener('lcms:shop-filters-open', openDrawer)
 })
 
 function bumpUrlTick() {
@@ -349,7 +388,10 @@ const chips = computed(() => {
     out.push({ label: row?.name || t('categories'), remove: { cat: null } })
   }
   if (s.minPrice || s.maxPrice) {
-    out.push({ label: `${t('price')}: ${s.minPrice || '0'}–${s.maxPrice || '∞'}`, remove: { min_price: null, max_price: null } })
+    const cur = t('currency_suffix') ? ` ${t('currency_suffix')}` : ''
+    const range = s.minPrice && s.maxPrice ? `${s.minPrice}–${s.maxPrice}${cur}`
+      : s.minPrice ? `${t('from').toLowerCase()} ${s.minPrice}${cur}` : `${t('to').toLowerCase()} ${s.maxPrice}${cur}`
+    out.push({ label: `${t('price')}: ${range}`, remove: { min_price: null, max_price: null } })
   }
   if (s.inStock) out.push({ label: t('in_stock'), remove: { in_stock: null } })
   for (const [code, values] of Object.entries(s.attrs)) {
@@ -384,7 +426,10 @@ function priceFill(bounds: { min: number; max: number }): Record<string, string>
     class="lcms-shop-filters"
     :class="[`lcms-shop-filters--${mode}`, { 'is-drawer-open': mobileOpen }]"
   >
-    <div class="lcms-shop-filters__topbar">
+    <div
+      class="lcms-shop-filters__topbar"
+      :class="{ 'has-grid-toolbar': gridToolbar }"
+    >
       <button
         type="button"
         class="lcms-shop-filters__toggle"
@@ -393,29 +438,35 @@ function priceFill(bounds: { min: number; max: number }): Record<string, string>
         <svg class="lcms-shop-filters__icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0" /><circle cx="16" cy="6" r="2" /><circle cx="10" cy="12" r="2" /><circle cx="18" cy="18" r="2" /></svg>
         {{ t('filters_button') }}
       </button>
-      <span
-        v-if="showResultsCount && total != null"
-        class="lcms-shop-filters__count"
-      ><strong class="lcms-shop-filters__count-num">{{ total }}</strong> {{ t('results') }}</span>
-      <label
+      <template v-if="showResultsCount && total != null">
+        <button
+          v-if="hasActive"
+          type="button"
+          class="lcms-shop-filters__count is-action"
+          :title="t('clear')"
+          @click="clearAll"
+        >
+          <span>{{ total }} {{ t('results') }}</span>
+          <svg class="lcms-shop-filters__icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M18 6 6 18M6 6l12 12" /></svg>
+        </button>
+        <a
+          v-else-if="(currentPath || '').replace(/\/+$/, '') !== allProductsUrl.replace(/\/+$/, '')"
+          :href="allProductsUrl"
+          class="lcms-shop-filters__count is-action"
+        >{{ t('all_products') }} · {{ total }}</a>
+        <span
+          v-else
+          class="lcms-shop-filters__count"
+        >{{ total }} {{ t('results') }}</span>
+      </template>
+      <LcmsSortDropdown
         v-if="showSort"
         class="lcms-shop-filters__sort"
-      >
-        <span class="lcms-shop-filters__sort-label">{{ t('sort') }}</span>
-        <select
-          class="lcms-shop-filters__select lcms-shop-filters__select--sort"
-          :value="state.sort"
-          @change="setSort(($event.target as HTMLSelectElement).value)"
-        >
-          <option
-            v-for="opt in sortOptions"
-            :key="opt.value"
-            :value="opt.value"
-          >
-            {{ opt.label }}
-          </option>
-        </select>
-      </label>
+        :label="t('sort')"
+        :model-value="state.sort"
+        :options="sortOptions"
+        @update:model-value="setSort"
+      />
     </div>
 
     <div
@@ -521,6 +572,7 @@ function priceFill(bounds: { min: number; max: number }): Record<string, string>
             class="lcms-shop-filters__range"
           >
             <div
+              v-if="priceBounds.max > priceBounds.min"
               class="lcms-shop-filters__dual"
               :style="priceFill(priceBounds)"
             >
@@ -547,7 +599,7 @@ function priceFill(bounds: { min: number; max: number }): Record<string, string>
                   type="text"
                   inputmode="decimal"
                   class="lcms-shop-filters__input"
-                  :placeholder="`${t('from')} ${priceBounds.min}`"
+                  :placeholder="`${t('from')} ${priceHint?.min ?? priceBounds.min}`"
                   :value="state.minPrice"
                   @change="setPrice('min_price', ($event.target as HTMLInputElement).value.replace(',', '.').replace(/[^0-9.]/g, ''))"
                 >
@@ -562,7 +614,7 @@ function priceFill(bounds: { min: number; max: number }): Record<string, string>
                   type="text"
                   inputmode="decimal"
                   class="lcms-shop-filters__input"
-                  :placeholder="`${t('to')} ${priceBounds.max}`"
+                  :placeholder="`${t('to')} ${priceHint?.max ?? priceBounds.max}`"
                   :value="state.maxPrice"
                   @change="setPrice('max_price', ($event.target as HTMLInputElement).value.replace(',', '.').replace(/[^0-9.]/g, ''))"
                 >
@@ -713,9 +765,14 @@ function priceFill(bounds: { min: number; max: number }): Record<string, string>
   --sf-soft: color-mix(in srgb, var(--sf-primary) 8%, var(--sf-bg));
   --sf-radius: 10px;
 }
-.lcms-shop-filters__count { color: var(--sf-muted); font-size: 0.875rem; }
-.lcms-shop-filters__count-num { color: var(--sf-primary); font-weight: 700; font-size: 1rem; }
-.lcms-shop-filters__sort { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; }
+.lcms-shop-filters__count {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 100%; box-sizing: border-box;
+  min-height: 44px; padding: 10px 18px; border: 0; border-radius: var(--sf-radius); background: var(--sf-primary);
+  color: #fff; font: inherit; font-size: 0.9375rem; font-weight: 600; text-decoration: none; text-align: center;
+}
+a.lcms-shop-filters__count, button.lcms-shop-filters__count { cursor: pointer; transition: filter 0.15s, transform 0.15s; }
+a.lcms-shop-filters__count:hover, button.lcms-shop-filters__count:hover { filter: brightness(1.07); transform: translateY(-1px); color: #fff; }
+.lcms-shop-filters__sort { margin-left: auto; }
 .lcms-shop-filters__sort-label { color: var(--sf-muted); font-size: 0.875rem; white-space: nowrap; }
 .lcms-shop-filters__select,
 .lcms-shop-filters__input {
@@ -876,6 +933,7 @@ function priceFill(bounds: { min: number; max: number }): Record<string, string>
 
 @media (max-width: 768px) {
   .lcms-shop-filters__toggle { display: inline-flex; }
+  .lcms-shop-filters__topbar.has-grid-toolbar { display: none; }
   .lcms-shop-filters__sort { margin-left: 0; }
   .lcms-shop-filters__panel {
     position: fixed; top: 0; bottom: 0; left: 0; width: min(88vw, 340px); z-index: 1000;
