@@ -479,7 +479,7 @@ const t = (key: string) => {
       searchPrompt: 'Wpisz szukaną frazę w wyszukiwarce',
       searchEmpty: 'Brak wyników dla',
       searchResults: 'Wyniki wyszukiwania dla',
-      results: 'produktów', sort: 'Sortuj', sortDefault: 'Domyślnie', sortPriceAsc: 'Cena rosnąco',
+      results: 'produktów', details: 'Szczegóły', sort: 'Sortuj', sortDefault: 'Domyślnie', sortPriceAsc: 'Cena rosnąco',
       sortPriceDesc: 'Cena malejąco', sortNewest: 'Najnowsze', sortNameAsc: 'Nazwa (A–Z)', sortNameDesc: 'Nazwa (Z–A)',
       viewGrid: 'Widok siatki', viewList: 'Widok listy', filters: 'Filtry', addToCart: 'Do koszyka', added: 'Dodano',
     },
@@ -494,7 +494,7 @@ const t = (key: string) => {
       searchPrompt: 'Type a phrase in the search bar',
       searchEmpty: 'No results for',
       searchResults: 'Search results for',
-      results: 'products', sort: 'Sort by', sortDefault: 'Default', sortPriceAsc: 'Price: low to high',
+      results: 'products', details: 'Details', sort: 'Sort by', sortDefault: 'Default', sortPriceAsc: 'Price: low to high',
       sortPriceDesc: 'Price: high to low', sortNewest: 'Newest', sortNameAsc: 'Name (A–Z)', sortNameDesc: 'Name (Z–A)',
       viewGrid: 'Grid view', viewList: 'List view', filters: 'Filters', addToCart: 'Add to cart', added: 'Added',
     },
@@ -706,6 +706,7 @@ const t = (key: string) => {
             <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="9" cy="20" r="1.5" /><circle cx="18" cy="20" r="1.5" /><path d="M3 4h2l2.4 11.2a2 2 0 0 0 2 1.6h8.2a2 2 0 0 0 2-1.6L21 8H6.2" /></svg>
             {{ adding[product.uuid] === 'done' ? t('added') : t('addToCart') }}
           </button>
+          <span class="lcms-product-card__details-btn">{{ t('details') }}</span>
         </div>
       </a>
 
@@ -1152,11 +1153,19 @@ const t = (key: string) => {
   margin: 2px 0 0; font-size: 0.875rem; line-height: 1.55; color: var(--lcms-muted-color, #6b7280);
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
+.lcms-product-grid .lcms-product-grid__grid--list > .lcms-product-card > .lcms-product-card__body { align-self: start; }
 .lcms-product-grid .lcms-product-grid__grid--list .lcms-product-card__actions {
-  display: flex; flex-direction: column; align-items: flex-end; justify-content: center; gap: 12px; padding: 0;
+  align-self: start; display: flex; flex-direction: column; align-items: stretch; gap: 10px; padding: 0; width: 170px;
 }
+.lcms-product-grid .lcms-product-grid__grid--list .lcms-product-card__actions .lcms-product-card__cart-btn { justify-content: center; width: 100%; }
+.lcms-product-card__details-btn {
+  display: inline-flex; align-items: center; justify-content: center; height: 42px; padding: 0 18px; border-radius: 10px;
+  border: 1px solid var(--lcms-color-primary, #2563eb); color: var(--lcms-color-primary, #2563eb); background: transparent;
+  font-size: 0.875rem; font-weight: 600; white-space: nowrap; transition: background 0.15s;
+}
+.lcms-product-card:hover .lcms-product-card__details-btn { background: color-mix(in srgb, var(--lcms-color-primary, #2563eb) 7%, transparent); }
 .lcms-product-grid .lcms-product-grid__grid--list .lcms-product-card__actions .lcms-product-card__price-wrap {
-  margin: 0 !important; padding: 0 !important; display: flex; flex-direction: column; align-items: flex-end; gap: 2px;
+  margin: 0 0 2px !important; padding: 0 !important; display: flex; flex-direction: column; align-items: flex-end; gap: 2px;
 }
 .lcms-product-card__cart-btn {
   display: inline-flex; align-items: center; gap: 8px; height: 42px; padding: 0 18px; border: 0; border-radius: 10px;
@@ -1178,9 +1187,10 @@ const t = (key: string) => {
   .lcms-product-grid .lcms-product-grid__grid--list > .lcms-product-card > .lcms-product-card__image-wrap { width: 96px !important; height: 96px !important; grid-row: span 2; }
   .lcms-product-grid .lcms-product-grid__grid--list .lcms-product-card .lcms-product-card__image { inset: 6px !important; width: calc(100% - 12px) !important; height: calc(100% - 12px) !important; }
   .lcms-product-grid .lcms-product-grid__grid--list .lcms-product-card__actions {
-    grid-column: 2; flex-direction: row; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;
+    grid-column: 2; width: auto; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 8px;
   }
-  .lcms-product-grid .lcms-product-grid__grid--list .lcms-product-card__actions .lcms-product-card__price-wrap { align-items: flex-start; }
-  .lcms-product-grid .lcms-product-grid__grid--list .lcms-product-card__cart-btn { height: 36px; padding: 0 12px; font-size: 0.8125rem; }
+  .lcms-product-grid .lcms-product-grid__grid--list .lcms-product-card__actions .lcms-product-card__price-wrap { flex: 1 0 100%; align-items: flex-start; }
+  .lcms-product-grid .lcms-product-grid__grid--list .lcms-product-card__actions .lcms-product-card__cart-btn,
+  .lcms-product-grid .lcms-product-grid__grid--list .lcms-product-card__details-btn { flex: 1 1 0; width: auto; height: 36px; padding: 0 10px; font-size: 0.8125rem; }
 }
 </style>
