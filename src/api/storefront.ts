@@ -446,6 +446,8 @@ export interface StorefrontOrder {
     unit_price: number
     subtotal: number
     product?: { uuid: string; name: string; slug: string | null; image: string | null } | null
+    // Only configured_options is exposed (product configurator choices).
+    metadata?: { configured_options?: unknown } | null
   }>
   created_at: string
   updated_at: string

@@ -11,6 +11,7 @@ import { useCart } from '../../../composables/useCart'
 import { useToast } from '../../../composables/useToast'
 import { formatPrice } from '../../../utils/currency'
 import PluginSlot from '../../PluginSlot.vue'
+import { normalizedConfiguredOptions } from './configuredOptions'
 
 defineOptions({ inheritAttrs: false })
 
@@ -133,40 +134,6 @@ function tierHint(tier: { missing_quantity: number, product_name: string, discou
     .replace('{n}', String(tier.missing_quantity))
     .replace('{product}', tier.product_name)
     .replace('{value}', tierValue(tier.discount_type, tier.discount_value))
-}
-
-// Normalize configured options into a uniform [{label, value}] list. Shape is
-// what LcmsProductConfigurator.buildConfiguredCartMetadata produces:
-// Array<{ group_name, option_name?, value?, type, price_delta?, ... }>.
-// Plain Record<group, label> objects are accepted as a fallback for items
-// added through producers that don't emit the typed array shape.
-interface ConfiguredRow { label: string; value: string }
-function normalizedConfiguredOptions(metadata: any): ConfiguredRow[] {
-  const raw = metadata?.configured_options
-  if (!raw) return []
-  if (Array.isArray(raw)) {
-    return raw
-      .map((opt: any): ConfiguredRow | null => {
-        const label = String(opt?.group_name ?? opt?.group_uuid ?? '').trim()
-        let value: string
-        if (opt?.type === 'option') value = String(opt?.option_name ?? opt?.option_uuid ?? '')
-        else if (opt?.type === 'checkbox') value = String(opt?.checkbox_label ?? 'TAK')
-        else if (opt?.type === 'numeric') value = String(opt?.value ?? '')
-        else if (opt?.type === 'file') {
-          const files = Array.isArray(opt?.files_meta) ? opt.files_meta : []
-          value = files.map((f: any) => f?.name).filter(Boolean).join(', ') || `${files.length} plik(i)`
-        } else value = String(opt?.value ?? '')
-        if (!label || !value) return null
-        return { label, value }
-      })
-      .filter((x): x is ConfiguredRow => x !== null)
-  }
-  if (typeof raw === 'object') {
-    return Object.entries(raw)
-      .map(([k, v]): ConfiguredRow => ({ label: String(k), value: String(v) }))
-      .filter((row) => row.label && row.value)
-  }
-  return []
 }
 
 // Per-item expanded state for the configured-options list. Collapsed by

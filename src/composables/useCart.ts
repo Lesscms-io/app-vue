@@ -335,12 +335,33 @@ function createCartStore(): CartStore {
  * Get the cart store singleton.
  * Auto-initializes on first call (loads cart from cookie if present).
  */
+/**
+ * Bridge for custom HTML (embed widgets): they can't import the store, so they
+ * dispatch `lcms:add-to-cart` with { product_uuid, quantity } and get
+ * `lcms:add-to-cart:done` back with { product_uuid, ok, error? }.
+ */
+function listenForEmbedAddToCart(store: CartStore): void {
+  window.addEventListener('lcms:add-to-cart', (e: Event) => {
+    const detail = (e as CustomEvent).detail || {}
+    const productUuid = typeof detail.product_uuid === 'string' ? detail.product_uuid : ''
+    const quantity = Math.max(1, Math.floor(Number(detail.quantity) || 1))
+    const done = (ok: boolean, error?: string) =>
+      window.dispatchEvent(new CustomEvent('lcms:add-to-cart:done', { detail: { product_uuid: productUuid, ok, error } }))
+    if (!productUuid) return done(false, 'Missing product_uuid')
+    store.addItem(productUuid, quantity).then(
+      () => done(true),
+      (err: any) => done(false, err?.message || 'Failed to add item')
+    )
+  })
+}
+
 export function useCart(): CartStore {
   if (!cartStoreSingleton) {
     cartStoreSingleton = createCartStore()
     // Auto-init on client side
     if (typeof window !== 'undefined') {
       cartStoreSingleton.init().catch(() => { /* swallow */ })
+      listenForEmbedAddToCart(cartStoreSingleton)
     }
   }
   return cartStoreSingleton

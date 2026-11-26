@@ -15,6 +15,7 @@ import { useToast } from '../../../composables/useToast'
 import { formatPrice } from '../../../utils/currency'
 import LcmsLoginForm from './LcmsLoginForm.vue'
 import LcmsRegisterForm from './LcmsRegisterForm.vue'
+import { normalizedConfiguredOptions } from './configuredOptions'
 import type { StorefrontOrder, StorefrontAddress } from '../../../api/storefront'
 import { countriesFor } from '../../../data/countries'
 import LcmsCountrySelect from '../../common/LcmsCountrySelect.vue'
@@ -773,11 +774,35 @@ function formatDate(date: string) {
                       class="lcms-customer-account__order-item"
                     >
                       <div class="lcms-customer-account__order-item-main">
-                        <div class="lcms-customer-account__order-item-name">{{ item.name }}</div>
+                        <div class="lcms-customer-account__order-item-name">{{ item.product_name || item.name || item.product?.name }}</div>
                         <div class="lcms-customer-account__order-item-meta">
                           <span v-if="item.sku">SKU: {{ item.sku }}</span>
                           <span>{{ item.quantity }} × {{ formatPrice(item.unit_price, currency) }}</span>
                         </div>
+                        <dl
+                          v-if="normalizedConfiguredOptions(item.metadata).length"
+                          class="lcms-customer-account__order-item-options"
+                        >
+                          <template v-for="(opt, i) in normalizedConfiguredOptions(item.metadata)" :key="i">
+                            <dt>{{ opt.label }}</dt>
+                            <dd>
+                              <template v-if="opt.files">
+                                <template v-for="(file, fi) in opt.files" :key="fi">
+                                  <span v-if="fi">, </span>
+                                  <a v-if="file.url" :href="file.url" target="_blank" rel="noopener">{{ file.name }}</a>
+                                  <span v-else>{{ file.name }}</span>
+                                </template>
+                              </template>
+                              <a
+                                v-else-if="/^https?:\/\//.test(opt.value)"
+                                :href="opt.value"
+                                target="_blank"
+                                rel="noopener"
+                              >{{ opt.value }}</a>
+                              <template v-else>{{ opt.value }}</template>
+                            </dd>
+                          </template>
+                        </dl>
                       </div>
                       <div class="lcms-customer-account__order-item-subtotal">
                         {{ formatPrice(item.subtotal, currency) }}
@@ -1347,6 +1372,34 @@ function formatDate(date: string) {
   font-size: 0.8125rem;
   color: var(--lcms-color-muted, #6b7280);
   margin-top: 2px;
+}
+
+.lcms-customer-account__order-item-options {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 2px 0.75rem;
+  margin: 0.5rem 0 0;
+  font-size: 0.8125rem;
+}
+
+.lcms-customer-account__order-item-options dt {
+  font-weight: 400;
+  color: var(--lcms-color-muted, #6b7280);
+}
+
+.lcms-customer-account__order-item-options dd {
+  margin: 0;
+  color: var(--lcms-color-text, #1f2937);
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 480px) {
+  .lcms-customer-account__order-item-options {
+    grid-template-columns: 1fr;
+  }
+  .lcms-customer-account__order-item-options dd {
+    margin-bottom: 0.25rem;
+  }
 }
 
 .lcms-customer-account__order-item-subtotal {
