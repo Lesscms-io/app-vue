@@ -31,6 +31,8 @@ const config = computed(() => props.data?.config || {})
 const iconGroup = computed(() => props.data?.icon || {})
 
 const iconClass = computed(() => config.value.icon || 'fa-solid fa-magnifying-glass')
+// Domyślna lupa jako inline SVG (bez fontu ikon — w części przeglądarek glif FA bywał pustym kwadratem).
+const svgIcon = computed(() => /magnifying-glass|fa-search\b/.test(iconClass.value))
 const iconSize = computed(() => Number(config.value.size) || 20)
 const clickAction = computed(() => config.value.click_action || 'dropdown')
 const navigateUrl = computed(() => config.value.navigate_url || '/search')
@@ -152,7 +154,8 @@ onUnmounted(() => {
       :aria-label="placeholderText"
       @click="handleTriggerClick"
     >
-      <i :class="iconClass" class="lcms-search-icon__i" />
+      <svg v-if="svgIcon" class="lcms-search-icon__i lcms-search-icon__svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.6-3.6" /></svg>
+      <i v-else :class="iconClass" class="lcms-search-icon__i" />
     </button>
 
     <div v-if="isOpen && clickAction === 'dropdown'" class="lcms-search-icon__dropdown" @click.stop>
@@ -165,7 +168,8 @@ onUnmounted(() => {
           :placeholder="placeholderText"
         >
         <button type="submit" class="lcms-search-icon__submit" :aria-label="placeholderText">
-          <i :class="iconClass" />
+          <svg v-if="svgIcon" class="lcms-search-icon__svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.6-3.6" /></svg>
+          <i v-else :class="iconClass" />
         </button>
       </form>
 
@@ -343,4 +347,5 @@ onUnmounted(() => {
   font-size: 0.75rem;
   color: var(--lcms-color-muted, #6b7280);
 }
+.lcms-search-icon__svg { display: inline-block; vertical-align: -0.125em; }
 </style>
