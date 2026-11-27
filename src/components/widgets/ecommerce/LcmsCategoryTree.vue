@@ -11,6 +11,7 @@ import { computed, ref, onMounted, onServerPrefetch, watch, inject, type Ref } f
 import { useLanguage } from '../../../composables/useLanguage'
 import { useStorefront } from '../../../composables/useStorefront'
 import type { StorefrontCategory } from '../../../api/storefront'
+import { categoryName } from '../../../api/storefront'
 
 defineOptions({ inheritAttrs: false })
 
@@ -32,6 +33,8 @@ const headingText = computed(() => extractValue(props.data?.heading?.text) || ''
 const expandMode = computed(() => config.value.expand_mode || 'active')
 const showAllLink = computed(() => config.value.show_all_link === true)
 const allLinkUrl = computed(() => config.value.all_link_url || '/produkty')
+// Ukryj kategorie bez produktów widocznych w sklepie (gałąź zostaje, gdy ma je podkategoria).
+const hideEmpty = computed(() => config.value.hide_empty === true)
 
 const categories = ref<StorefrontCategory[]>([])
 const isLoading = ref(false)
@@ -108,8 +111,25 @@ async function fetchCategories() {
   isLoading.value = true
   error.value = null
   try {
-    const response = await client.value.getCategories()
-    categories.value = response.data || []
+    const lang = props.language || 'pl'
+    const localize = (nodes: StorefrontCategory[]): StorefrontCategory[] =>
+      nodes.map((n) => ({ ...n, name: categoryName(n, lang), children: localize(n.children || []) }))
+    const [response, counts] = await Promise.all([
+      client.value.getCategories(),
+      hideEmpty.value
+        ? client.value.getProducts({ per_page: 1 }).then((r: any) => r?.search?.facets?.categories || null).catch(() => null)
+        : Promise.resolve(null),
+    ])
+    let tree = localize(response.data || [])
+    if (Array.isArray(counts)) {
+      const map = new Map<string, number>(counts.map((c: { uuid: string; count: number }) => [c.uuid, c.count]))
+      const prune = (nodes: StorefrontCategory[]): StorefrontCategory[] =>
+        nodes
+          .map((n) => ({ ...n, children: prune(n.children || []) }))
+          .filter((n) => (map.get(n.uuid) ?? 0) > 0 || n.children.length > 0)
+      tree = prune(tree)
+    }
+    categories.value = tree
     applyInitialExpansion()
   } catch (err: any) {
     error.value = err.message || (props.language === 'en' ? 'Failed to load categories' : 'Nie udało się załadować kategorii')

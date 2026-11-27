@@ -277,11 +277,18 @@ export interface StorefrontMarketingLabel {
 export interface StorefrontCategory {
   uuid: string
   name: string
+  name_translation?: Record<string, string> | null
   slug: string | null
   description: string | null
   image: string | null
   sort_order: number
   children: StorefrontCategory[]
+}
+
+/** Nazwa kategorii w języku strony (name_translation), inaczej nazwa podstawowa. */
+export function categoryName(c: { name?: string | null; name_translation?: Record<string, string> | null } | null | undefined, lang?: string): string {
+  if (!c) return ''
+  return (lang && c.name_translation?.[lang]) || c.name || ''
 }
 
 export interface StorefrontCartItem {

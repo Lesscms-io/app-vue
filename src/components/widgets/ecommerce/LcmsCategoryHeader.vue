@@ -10,6 +10,7 @@ import { pluralWord } from '../../../utils/pluralCount'
 import { computed, ref, onMounted, onServerPrefetch, watch, inject, type Ref } from 'vue'
 import { useStorefront } from '../../../composables/useStorefront'
 import type { StorefrontCategory } from '../../../api/storefront'
+import { categoryName } from '../../../api/storefront'
 
 defineOptions({ inheritAttrs: false })
 
@@ -137,21 +138,21 @@ const descriptionIsHtml = computed(() => /<\/?[a-z][^>]*>/i.test(category.value?
       <a :href="homeUrl">{{ t('home') }}</a>
       <template v-for="crumb in ancestors" :key="crumb.uuid">
         <span class="lcms-category-header__breadcrumb-separator">/</span>
-        <a :href="categoryUrl(crumb.slug)">{{ crumb.name }}</a>
+        <a :href="categoryUrl(crumb.slug)">{{ categoryName(crumb, language) }}</a>
       </template>
       <template v-if="category">
         <span class="lcms-category-header__breadcrumb-separator">/</span>
-        <span>{{ category.name }}</span>
+        <span>{{ categoryName(category, language) }}</span>
       </template>
     </nav>
 
     <div v-if="category" class="lcms-category-header__content">
       <div v-if="showImage && category.image" class="lcms-category-header__image-wrap">
-        <img :src="category.image" :alt="category.name" class="lcms-category-header__image" />
+        <img :src="category.image" :alt="categoryName(category, language)" class="lcms-category-header__image" />
       </div>
 
       <div class="lcms-category-header__text">
-        <h1 class="lcms-category-header__name">{{ category.name }}</h1>
+        <h1 class="lcms-category-header__name">{{ categoryName(category, language) }}</h1>
         <!-- Opis z panelu sklepu bywa HTML-em (nagłówki, akapity, linki — importy z PrestaShop/Woo);
              renderujemy go jak opis produktu, zamiast pokazywać surowe tagi. -->
         <div

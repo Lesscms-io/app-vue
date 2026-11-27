@@ -9,6 +9,7 @@ import { computed, ref, onMounted, onServerPrefetch, watch, inject, type Ref } f
 import { useLanguage } from '../../../composables/useLanguage'
 import { useStorefront } from '../../../composables/useStorefront'
 import type { StorefrontCategory } from '../../../api/storefront'
+import { categoryName } from '../../../api/storefront'
 
 defineOptions({ inheritAttrs: false })
 
@@ -112,7 +113,7 @@ const t = (key: string) => {
           <img
             v-if="category.image"
             :src="category.image"
-            :alt="category.name"
+            :alt="categoryName(category, language)"
             class="lcms-category-card__image"
             loading="lazy"
           />
@@ -122,7 +123,7 @@ const t = (key: string) => {
             </svg>
           </div>
           <div class="lcms-category-card__overlay">
-            <h4 class="lcms-category-card__name">{{ category.name }}</h4>
+            <h4 class="lcms-category-card__name">{{ categoryName(category, language) }}</h4>
             <p v-if="showDescription && category.description" class="lcms-category-card__description">
               {{ category.description }}
             </p>
