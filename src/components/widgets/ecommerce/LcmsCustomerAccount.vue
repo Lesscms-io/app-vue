@@ -743,7 +743,7 @@ function formatDate(date: string) {
                   {{ orderStatusLabel(order.status) }}
                 </span>
                 <div class="lcms-customer-account__order-total">
-                  {{ formatPrice(order.total, currency) }}
+                  {{ formatPrice(order.total, order.currency || currency) }}
                 </div>
                 <svg
                   class="lcms-customer-account__order-chevron"
@@ -777,7 +777,7 @@ function formatDate(date: string) {
                         <div class="lcms-customer-account__order-item-name">{{ item.product_name || item.name || item.product?.name }}</div>
                         <div class="lcms-customer-account__order-item-meta">
                           <span v-if="item.sku">SKU: {{ item.sku }}</span>
-                          <span>{{ item.quantity }} × {{ formatPrice(item.unit_price, currency) }}</span>
+                          <span>{{ item.quantity }} × {{ formatPrice(item.unit_price, order.currency || currency) }}</span>
                         </div>
                         <dl
                           v-if="normalizedConfiguredOptions(item.metadata).length"
@@ -805,7 +805,7 @@ function formatDate(date: string) {
                         </dl>
                       </div>
                       <div class="lcms-customer-account__order-item-subtotal">
-                        {{ formatPrice(item.subtotal, currency) }}
+                        {{ formatPrice(item.subtotal, order.currency || currency) }}
                       </div>
                     </div>
                   </div>
@@ -827,19 +827,19 @@ function formatDate(date: string) {
                 <div class="lcms-customer-account__order-section lcms-customer-account__order-totals">
                   <div v-if="orderDetails[order.uuid].subtotal" class="lcms-customer-account__order-total-row">
                     <span>{{ t('subtotal') }}</span>
-                    <span>{{ formatPrice(orderDetails[order.uuid].subtotal, currency) }}</span>
+                    <span>{{ formatPrice(orderDetails[order.uuid].subtotal, order.currency || currency) }}</span>
                   </div>
                   <div v-if="orderDetails[order.uuid].discount" class="lcms-customer-account__order-total-row">
                     <span>{{ t('discount') }}</span>
-                    <span>-{{ formatPrice(orderDetails[order.uuid].discount, currency) }}</span>
+                    <span>-{{ formatPrice(orderDetails[order.uuid].discount, order.currency || currency) }}</span>
                   </div>
                   <div v-if="orderDetails[order.uuid].shipping_cost" class="lcms-customer-account__order-total-row">
                     <span>{{ t('shippingCost') }}</span>
-                    <span>{{ formatPrice(orderDetails[order.uuid].shipping_cost, currency) }}</span>
+                    <span>{{ formatPrice(orderDetails[order.uuid].shipping_cost, order.currency || currency) }}</span>
                   </div>
                   <div class="lcms-customer-account__order-total-row lcms-customer-account__order-total-row--grand">
                     <span>{{ t('orderTotal') }}</span>
-                    <span>{{ formatPrice(orderDetails[order.uuid].total, currency) }}</span>
+                    <span>{{ formatPrice(orderDetails[order.uuid].total, order.currency || currency) }}</span>
                   </div>
                 </div>
 

@@ -10,7 +10,7 @@
 import { computed, ref, watch, inject, onMounted, onUnmounted, type Ref } from 'vue'
 import { useLanguage } from '../../../composables/useLanguage'
 import { useStorefront } from '../../../composables/useStorefront'
-import { formatPrice } from '../../../utils/currency'
+import { useShopCurrency } from '../../../composables/useShopCurrency'
 import type { StorefrontProduct } from '../../../api/storefront'
 
 defineOptions({ inheritAttrs: false })
@@ -51,7 +51,7 @@ const inputEl = ref<HTMLInputElement | null>(null)
 
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
 
-const currency = computed(() => projectConfig?.value?.commerce?.currency || 'PLN')
+const { money } = useShopCurrency(projectConfig)
 
 const productUrl = (product: StorefrontProduct) => {
   const route = projectConfig?.value?.commerce?.routes?.product || '/produkt/:slug'
@@ -188,7 +188,7 @@ onUnmounted(() => {
           <div class="lcms-search-icon__result-info">
             <div class="lcms-search-icon__result-name">{{ product.name }}</div>
             <div class="lcms-search-icon__result-price">
-              {{ formatPrice(product.price, currency) }}
+              {{ money(product.price) }}
             </div>
           </div>
         </a>

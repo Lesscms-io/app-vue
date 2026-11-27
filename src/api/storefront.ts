@@ -608,6 +608,8 @@ export class StorefrontApiError extends Error {
 export interface StorefrontClient {
   // Config
   getConfig(): Promise<{ data: any }>
+  /** Kraj klienta (Cloudflare) i domyślna waluta dla niego. */
+  getGeo(): Promise<{ data: { country: string | null; currency: string } }>
 
   // Products
   getProducts(params?: StorefrontListingFilters & {
@@ -653,7 +655,7 @@ export interface StorefrontClient {
   clearCart(uuid: string): Promise<{ data: StorefrontCart }>
   validateCart(uuid: string): Promise<{ data: any }>
   mergeCart(guest: { cart_uuid?: string | null, session_id?: string | null }): Promise<{ data: StorefrontCart | null }>
-  checkout(cartUuid: string, data: CheckoutRequest): Promise<{ data: StorefrontOrder }>
+  checkout(cartUuid: string, data: CheckoutRequest, currency?: string | null): Promise<{ data: StorefrontOrder }>
 
   // Customer auth
   register(data: RegisterRequest): Promise<{ data: { token: string; customer: StorefrontCustomer } }>
@@ -709,7 +711,7 @@ export interface StorefrontClient {
 
   // Payments
   initPayment(orderUuid: string, method: string, returnUrl?: string, blikCode?: string): Promise<{ data: PaymentInitResponse }>
-  getPaymentMethods(): Promise<{ data: Array<{ code: string; name: string; sandbox?: boolean | null; logo_url?: string | null }> }>
+  getPaymentMethods(currency?: string | null): Promise<{ data: Array<{ code: string; name: string; sandbox?: boolean | null; logo_url?: string | null }> }>
   getPaymentStatus(paymentId: string): Promise<{ data: { payment_id: string; status: string; order_uuid?: string } }>
   chargeBlik(paymentId: string, blikCode: string): Promise<{ data: { payment_uuid: string; status: string } }>
 
@@ -877,6 +879,7 @@ export function createStorefrontClient(options: StorefrontClientOptions): Storef
   return {
     // Config
     getConfig: () => request('GET', '/config'),
+    getGeo: () => request('GET', '/geo'),
 
     // Products
     getProducts: (params) => request('GET', '/products', { params }),
@@ -904,7 +907,7 @@ export function createStorefrontClient(options: StorefrontClientOptions): Storef
     clearCart: (uuid) => request('DELETE', `/cart/${uuid}`),
     validateCart: (uuid) => request('GET', `/cart/${uuid}/validate`),
     mergeCart: (guest) => request('POST', '/cart/merge', { body: guest, requireAuth: true }),
-    checkout: (cartUuid, data) => request('POST', `/cart/${cartUuid}/checkout`, { body: data }),
+    checkout: (cartUuid, data, currency) => request('POST', `/cart/${cartUuid}/checkout`, { body: data, params: currency ? { currency } : undefined }),
 
     // Customer auth
     register: (data) => request('POST', '/customers/register', { body: data }),
@@ -955,7 +958,7 @@ export function createStorefrontClient(options: StorefrontClientOptions): Storef
           ...(blikCode ? { blik_code: blikCode } : {}),
         },
       }),
-    getPaymentMethods: () => request('GET', '/payments/methods'),
+    getPaymentMethods: (currency) => request('GET', '/payments/methods', { params: currency ? { currency } : undefined }),
     getPaymentStatus: (paymentId) => request('GET', `/payments/${paymentId}/status`),
     chargeBlik: (paymentId, blikCode) =>
       request('POST', `/payments/${paymentId}/blik-charge`, { body: { blik_code: blikCode } }),

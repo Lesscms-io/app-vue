@@ -9,7 +9,8 @@
 import { computed, inject, type Ref } from 'vue'
 import { useLanguage } from '../../../composables/useLanguage'
 import { getProductField, getProductFieldRaw, formatAttributeValue } from '../../../utils/productField'
-import { formatPrice, hasDisplayablePrice } from '../../../utils/currency'
+import { hasDisplayablePrice } from '../../../utils/currency'
+import { useShopCurrency } from '../../../composables/useShopCurrency'
 import { resolveColor } from '../../../utils/resolveColor'
 
 defineOptions({ inheritAttrs: false })
@@ -50,7 +51,7 @@ const textStyle = computed(() => {
   return s
 })
 
-const currency = computed(() => projectConfig?.value?.commerce?.currency || 'PLN')
+const { currency, money } = useShopCurrency(projectConfig)
 
 const rawValue = computed(() => {
   if (!product?.value || !fieldPath.value) return null
@@ -65,7 +66,7 @@ const displayValue = computed(() => {
 const formattedValue = computed(() => {
   const val = rawValue.value
   if (val == null) return ''
-  if (displayAs.value === 'price') return formatPrice(Number(val), currency.value)
+  if (displayAs.value === 'price') return money(Number(val))
   return formatAttributeValue(val, displayAs.value, props.language || 'pl')
 })
 

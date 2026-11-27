@@ -73,6 +73,7 @@ import LcmsSocialIcons from './navigation/LcmsSocialIcons.vue'
 import LcmsBreadcrumbs from './navigation/LcmsBreadcrumbs.vue'
 import LcmsToc from './navigation/LcmsToc.vue'
 import LcmsLanguageSwitcher from './navigation/LcmsLanguageSwitcher.vue'
+import LcmsCurrencySwitcher from './ecommerce/LcmsCurrencySwitcher.vue'
 
 // Interactive widgets (forms)
 import LcmsForm from './interactive/LcmsForm.vue'
@@ -193,6 +194,7 @@ export const widgetComponents: Record<string, Component> = {
   breadcrumbs: LcmsBreadcrumbs,
   toc: LcmsToc,
   'language-switcher': LcmsLanguageSwitcher,
+  'currency-switcher': LcmsCurrencySwitcher,
 
   // Forms
   form: LcmsForm,
@@ -327,6 +329,7 @@ export {
   LcmsBreadcrumbs,
   LcmsToc,
   LcmsLanguageSwitcher,
+  LcmsCurrencySwitcher,
   // Forms
   LcmsForm,
   // Content

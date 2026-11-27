@@ -7,7 +7,7 @@
 
 import { computed, ref, inject, onMounted, onUnmounted, type Ref } from 'vue'
 import { useCart } from '../../../composables/useCart'
-import { formatPrice } from '../../../utils/currency'
+import { useShopCurrency } from '../../../composables/useShopCurrency'
 
 defineOptions({ inheritAttrs: false })
 
@@ -30,7 +30,8 @@ const clickAction = computed(() => config.value.click_action || 'dropdown')
 const isOpen = ref(false)
 const containerEl = ref<HTMLDivElement | null>(null)
 
-const currency = computed(() => projectConfig?.value?.commerce?.currency || 'PLN')
+const { money, format, cartSums } = useShopCurrency(projectConfig)
+const cartTotal = computed(() => cartSums(cart.cart.value?.items, cart.cart.value?.totals).total)
 const cartUrl = computed(() => projectConfig?.value?.commerce?.routes?.cart || '/koszyk')
 const checkoutUrl = computed(() => projectConfig?.value?.commerce?.routes?.checkout || '/zamowienie')
 const productUrl = (slug: string) => {
@@ -94,7 +95,7 @@ onUnmounted(() => {
       <span v-if="styleVariant === 'icon-text'" class="lcms-mini-cart__label">{{ t('cart') }}</span>
 
       <span v-if="showTotal && styleVariant !== 'icon-only' && cart.itemsCount.value > 0" class="lcms-mini-cart__total">
-        {{ formatPrice(cart.total.value, currency) }}
+        {{ format(cartTotal) }}
       </span>
     </button>
 
@@ -115,7 +116,7 @@ onUnmounted(() => {
             <div class="lcms-mini-cart__item-info">
               <div class="lcms-mini-cart__item-name">{{ item.product.name }}</div>
               <div class="lcms-mini-cart__item-meta">
-                {{ item.quantity }} × {{ formatPrice(item.unit_price, currency) }}
+                {{ item.quantity }} × {{ money(item.unit_price) }}
               </div>
             </div>
           </a>
@@ -123,7 +124,7 @@ onUnmounted(() => {
 
         <div class="lcms-mini-cart__total-row">
           <span>{{ t('total') }}</span>
-          <strong>{{ formatPrice(cart.total.value, currency) }}</strong>
+          <strong>{{ format(cartTotal) }}</strong>
         </div>
 
         <div class="lcms-mini-cart__actions">

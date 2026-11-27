@@ -14,6 +14,7 @@
  */
 
 import { ref, computed, watch, type Ref, type ComputedRef } from 'vue'
+import { selectedOrderCurrency } from './useShopCurrency'
 import { useStorefront } from './useStorefront'
 import { useCustomer } from './useCustomer'
 import type { StorefrontCart } from '../api/storefront'
@@ -288,7 +289,8 @@ function createCartStore(): CartStore {
     isLoading.value = true
     error.value = null
     try {
-      const response = await client.value.checkout(cartUuid.value, data)
+      // Zamówienie w walucie wybranej na stronie (np. EUR) — kwoty przelicza sklep.
+      const response = await client.value.checkout(cartUuid.value, data, selectedOrderCurrency())
       // Cart is consumed by checkout — clear local state
       cart.value = null
       cartUuid.value = null

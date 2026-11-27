@@ -16,7 +16,7 @@ import { useStorefront } from '../../../composables/useStorefront'
 import { useCart } from '../../../composables/useCart'
 import { useCustomer } from '../../../composables/useCustomer'
 import { useToast } from '../../../composables/useToast'
-import { formatPrice } from '../../../utils/currency'
+import { useShopCurrency } from '../../../composables/useShopCurrency'
 import { isVisible } from '../../../utils/visibility'
 import type {
   StorefrontProduct,
@@ -207,7 +207,7 @@ const slugSource = computed(() => config.value.slug_source || 'url')
 const slugUrlSegment = computed(() => Number(config.value.slug_url_segment ?? 2))
 const staticSlug = computed(() => config.value.slug || '')
 
-const currency = computed(() => projectConfig?.value?.commerce?.currency || 'PLN')
+const { money, moneyExact, format, lineAmount } = useShopCurrency(projectConfig)
 
 // Project-level input style defaults (padding, colors, border) — same source
 // as LcmsForm uses. Selects and text/numeric inputs inherit these so the
@@ -1977,7 +1977,7 @@ function optionPriceDeltaText(option: StorefrontProductOption): string {
   const delta = effectiveOptionModifier(option)
   if (!delta) return ''
   const sign = delta > 0 ? '+' : '−'
-  return `${sign}${formatPrice(Math.abs(delta), currency.value)}`
+  return `${sign}${moneyExact(Math.abs(delta))}`
 }
 
 function checkboxPriceDeltaText(group: StorefrontProductOptionGroup): string {
@@ -1995,7 +1995,7 @@ function checkboxPriceDeltaText(group: StorefrontProductOptionGroup): string {
   const delta = effectiveCheckboxModifier(group)
   if (!delta) return ''
   const sign = delta > 0 ? '+' : '−'
-  return `${sign}${formatPrice(Math.abs(delta), currency.value)}`
+  return `${sign}${moneyExact(Math.abs(delta))}`
 }
 
 async function fetchProduct() {
@@ -2672,7 +2672,7 @@ const cssVars = computed(() => {
             <span
               v-if="effectivePricePerUnit(group)"
               class="lcms-product-configurator__numeric-rate"
-            >× {{ formatPrice(effectivePricePerUnit(group), currency) }}<span
+            >× {{ money(effectivePricePerUnit(group)) }}<span
               v-if="freeUnitsHint(group)"
               class="lcms-product-configurator__numeric-free"
             > · {{ freeUnitsHint(group) }}</span></span>
@@ -2930,8 +2930,8 @@ const cssVars = computed(() => {
           <small
             v-if="quantity > 1"
             class="lcms-product-configurator__summary-unit"
-          >{{ quantity }} × {{ formatPrice(totalPrice, currency) }} =</small>
-          {{ formatPrice(displayTotal, currency) }}
+          >{{ quantity }} × {{ money(totalPrice) }} =</small>
+          {{ format(lineAmount(totalPrice, quantity)) }}
         </span>
       </div>
       <p

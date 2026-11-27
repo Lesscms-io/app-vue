@@ -9,7 +9,7 @@ import { computed, inject, reactive, type Ref } from 'vue'
 import { useLanguage } from '../../../composables/useLanguage'
 import { useCart } from '../../../composables/useCart'
 import { useToast } from '../../../composables/useToast'
-import { formatPrice } from '../../../utils/currency'
+import { useShopCurrency } from '../../../composables/useShopCurrency'
 import PluginSlot from '../../PluginSlot.vue'
 import { normalizedConfiguredOptions } from './configuredOptions'
 
@@ -41,7 +41,9 @@ const continueShoppingText = computed(() =>
   extractValue(props.data?.continue_shopping?.text) || (props.language === 'en' ? 'Continue shopping' : 'Kontynuuj zakupy')
 )
 
-const currency = computed(() => projectConfig?.value?.commerce?.currency || 'PLN')
+const { money, moneyExact, format, lineAmount, cartSums } = useShopCurrency(projectConfig)
+// Sumy w walucie klienta liczone z zaokrąglonych cen (jak zamówienie).
+const sums = computed(() => cartSums(cart.cart.value?.items, cart.cart.value?.totals))
 
 const productUrl = (slug: string) => {
   const route = projectConfig?.value?.commerce?.routes?.product || '/produkt/:slug'
@@ -126,7 +128,7 @@ const otherDiscount = computed(() => {
 })
 
 function tierValue(type: string, value: number): string {
-  return type === 'percentage' ? `−${value}%` : `${formatPrice(value, currency.value)} / ${t('perItem')}`
+  return type === 'percentage' ? `−${value}%` : `${moneyExact(value)} / ${t('perItem')}`
 }
 
 function tierHint(tier: { missing_quantity: number, product_name: string, discount_type: string, discount_value: number }): string {
@@ -253,7 +255,7 @@ function handleCheckout() {
                  plugins; whichever ones the host registered for this slot
                  mount themselves and receive the `item` as a prop. -->
             <PluginSlot name="cart.item.extras" :context="{ item }" />
-            <div class="lcms-cart__item-price">{{ formatPrice(item.unit_price, currency) }}</div>
+            <div class="lcms-cart__item-price">{{ money(item.unit_price) }}</div>
           </div>
 
           <div class="lcms-cart__item-actions">
@@ -273,7 +275,7 @@ function handleCheckout() {
             </div>
 
             <div class="lcms-cart__item-subtotal">
-              {{ formatPrice(item.subtotal, currency) }}
+              {{ format(lineAmount(item.unit_price, item.quantity)) }}
             </div>
 
             <button
@@ -297,7 +299,7 @@ function handleCheckout() {
 
         <div class="lcms-cart__summary-row">
           <span>{{ t('subtotal') }} ({{ cart.cart.value?.totals.items_count || 0 }} {{ t('itemsCount') }})</span>
-          <span>{{ formatPrice(cart.cart.value?.totals.subtotal || 0, currency) }}</span>
+          <span>{{ format(sums.subtotal) }}</span>
         </div>
 
         <div
@@ -306,18 +308,18 @@ function handleCheckout() {
           class="lcms-cart__summary-row lcms-cart__summary-row--discount"
         >
           <span>{{ d.rule_name }} ({{ tierValue(d.discount_type, d.discount_value) }})</span>
-          <span>−{{ formatPrice(d.amount, currency) }}</span>
+          <span>−{{ moneyExact(d.amount) }}</span>
         </div>
 
         <div v-if="otherDiscount > 0" class="lcms-cart__summary-row lcms-cart__summary-row--discount">
           <span>{{ t('discount') }}</span>
-          <span>−{{ formatPrice(otherDiscount, currency) }}</span>
+          <span>−{{ moneyExact(otherDiscount) }}</span>
         </div>
 
         <div class="lcms-cart__summary-row">
           <span>{{ t('shipping') }}</span>
           <span v-if="cart.cart.value && cart.cart.value.totals.shipping_cost > 0">
-            {{ formatPrice(cart.cart.value.totals.shipping_cost, currency) }}
+            {{ moneyExact(cart.cart.value.totals.shipping_cost) }}
           </span>
           <span v-else class="lcms-cart__shipping-info">{{ t('shippingCalc') }}</span>
         </div>
@@ -326,7 +328,7 @@ function handleCheckout() {
 
         <div class="lcms-cart__summary-row lcms-cart__summary-row--total">
           <span>{{ t('total') }}</span>
-          <span>{{ formatPrice(cart.cart.value?.totals.total || 0, currency) }}</span>
+          <span>{{ format(sums.total) }}</span>
         </div>
 
         <p v-for="n in nextTiers" :key="n.product_uuid" class="lcms-cart__tier-hint">

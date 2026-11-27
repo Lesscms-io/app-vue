@@ -10,7 +10,8 @@ import { pluralWord } from '../../../utils/pluralCount'
 import { computed, ref, onMounted, onBeforeUnmount, onServerPrefetch, watch, inject, type Ref } from 'vue'
 import { useLanguage } from '../../../composables/useLanguage'
 import { useStorefront } from '../../../composables/useStorefront'
-import { formatPrice, calculateDiscount, hasDisplayablePrice } from '../../../utils/currency'
+import { calculateDiscount, hasDisplayablePrice } from '../../../utils/currency'
+import { useShopCurrency } from '../../../composables/useShopCurrency'
 import type { StorefrontProduct } from '../../../api/storefront'
 import { readShopFilterQuery, useShopFilterDefaults, toStorefrontFilters, SHOP_FILTER_EVENT, buildShopFilterSearch, commitShopFilterSearch } from '../../../utils/shopFilters'
 import { useCart } from '../../../composables/useCart'
@@ -289,8 +290,8 @@ function hasPrice(product: any): boolean {
 // Variants that disagree on price: quote the cheapest one as "od X zł"
 // (price_min from the cache) rather than one arbitrary variant's price.
 function priceLabel(product: any): string {
-  if (product?.price_varies === true) return `${t('from')} ${formatPrice(product.price_min, currency.value)}`
-  return formatPrice(getField(product, fieldPrice.value), currency.value)
+  if (product?.price_varies === true) return `${t('from')} ${money(product.price_min)}`
+  return money(getField(product, fieldPrice.value))
 }
 
 function hasDiscount(product: any): boolean {
@@ -313,7 +314,7 @@ const products = ref<StorefrontProduct[]>([])
 const isLoading = ref(false)
 const error = ref<string | null>(null)
 
-const currency = computed(() => projectConfig?.value?.commerce?.currency || 'PLN')
+const { currency, money } = useShopCurrency(projectConfig)
 
 // Resolve product detail URL using project's commerce route schema
 const productUrl = (product: StorefrontProduct) => {
@@ -681,7 +682,7 @@ const t = (key: string) => {
               v-if="hasDiscount(product)"
               class="lcms-product-card__price-original"
             >
-              {{ formatPrice(product.compare_at_price, currency) }}
+              {{ money(product.compare_at_price) }}
             </span>
             <span class="lcms-product-card__price">{{ priceLabel(product) }}</span>
           </div>
@@ -691,7 +692,7 @@ const t = (key: string) => {
           class="lcms-product-card__actions"
         >
           <div v-if="showPrice && hasPrice(product)" class="lcms-product-card__price-wrap">
-            <span v-if="hasDiscount(product)" class="lcms-product-card__price-original">{{ formatPrice(product.compare_at_price, currency) }}</span>
+            <span v-if="hasDiscount(product)" class="lcms-product-card__price-original">{{ money(product.compare_at_price) }}</span>
             <span class="lcms-product-card__price">{{ priceLabel(product) }}</span>
           </div>
           <button

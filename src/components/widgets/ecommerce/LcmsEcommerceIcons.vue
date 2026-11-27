@@ -13,7 +13,7 @@ import { computed, ref, watch, inject, onMounted, onUnmounted, type Ref } from '
 import { useCart } from '../../../composables/useCart'
 import { useLanguage } from '../../../composables/useLanguage'
 import { useStorefront } from '../../../composables/useStorefront'
-import { formatPrice } from '../../../utils/currency'
+import { useShopCurrency } from '../../../composables/useShopCurrency'
 import type { StorefrontProduct } from '../../../api/storefront'
 
 defineOptions({ inheritAttrs: false })
@@ -58,7 +58,8 @@ const gap = computed(() => Number(config.value.gap) || 16)
 // the logo inside the header.
 const mobileDock = computed(() => config.value.mobile_dock === true)
 
-const currency = computed(() => projectConfig?.value?.commerce?.currency || 'PLN')
+const { money, format, cartSums } = useShopCurrency(projectConfig)
+const cartTotal = computed(() => cartSums(cart.cart.value?.items, cart.cart.value?.totals).total)
 const cartUrl = computed(() => projectConfig?.value?.commerce?.routes?.cart || '/koszyk')
 const checkoutUrl = computed(() => projectConfig?.value?.commerce?.routes?.checkout || '/zamowienie')
 const accountUrl = computed(() => projectConfig?.value?.commerce?.routes?.account || '/konto')
@@ -320,14 +321,14 @@ onUnmounted(() => {
               <div class="lcms-ei__cart-info">
                 <div class="lcms-ei__cart-name">{{ ci.product.name }}</div>
                 <div class="lcms-ei__cart-meta">
-                  {{ ci.quantity }} × {{ formatPrice(ci.unit_price, currency) }}
+                  {{ ci.quantity }} × {{ money(ci.unit_price) }}
                 </div>
               </div>
             </a>
           </div>
           <div class="lcms-ei__cart-total">
             <span>{{ props.language === 'en' ? 'Total' : 'Razem' }}</span>
-            <strong>{{ formatPrice(cart.total.value, currency) }}</strong>
+            <strong>{{ format(cartTotal) }}</strong>
           </div>
           <div class="lcms-ei__cart-actions">
             <a :href="cartUrl" class="lcms-ei__btn lcms-ei__btn--secondary">
@@ -376,7 +377,7 @@ onUnmounted(() => {
             <img v-if="product.image" :src="product.image" :alt="product.name">
             <div class="lcms-ei__search-info">
               <div class="lcms-ei__search-name">{{ product.name }}</div>
-              <div class="lcms-ei__search-price">{{ formatPrice(product.price, currency) }}</div>
+              <div class="lcms-ei__search-price">{{ money(product.price) }}</div>
             </div>
           </a>
         </div>

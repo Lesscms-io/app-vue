@@ -8,7 +8,8 @@
 import { computed, ref, watch, inject, onMounted, onUnmounted, type Ref } from 'vue'
 import { useLanguage } from '../../../composables/useLanguage'
 import { useStorefront } from '../../../composables/useStorefront'
-import { formatPrice, hasDisplayablePrice } from '../../../utils/currency'
+import { hasDisplayablePrice } from '../../../utils/currency'
+import { useShopCurrency } from '../../../composables/useShopCurrency'
 import type { StorefrontProduct } from '../../../api/storefront'
 
 defineOptions({ inheritAttrs: false })
@@ -40,7 +41,7 @@ const containerEl = ref<HTMLDivElement | null>(null)
 
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
 
-const currency = computed(() => projectConfig?.value?.commerce?.currency || 'PLN')
+const { currency, money } = useShopCurrency(projectConfig)
 
 const productUrl = (product: StorefrontProduct) => {
   const route = projectConfig?.value?.commerce?.routes?.product || '/produkt/:slug'
@@ -133,7 +134,7 @@ onUnmounted(() => {
         <img v-if="product.image" :src="product.image" :alt="product.name" class="lcms-search-bar__result-image" />
         <div class="lcms-search-bar__result-info">
           <div class="lcms-search-bar__result-name">{{ product.name }}</div>
-          <div v-if="hasDisplayablePrice(product.price)" class="lcms-search-bar__result-price">{{ formatPrice(product.price, currency) }}</div>
+          <div v-if="hasDisplayablePrice(product.price)" class="lcms-search-bar__result-price">{{ money(product.price) }}</div>
         </div>
       </a>
     </div>

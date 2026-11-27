@@ -8,7 +8,8 @@
 import { computed, ref, onMounted, onServerPrefetch, watch, inject, onUnmounted, type Ref } from 'vue'
 import { useLanguage } from '../../../composables/useLanguage'
 import { useStorefront } from '../../../composables/useStorefront'
-import { formatPrice, hasDisplayablePrice } from '../../../utils/currency'
+import { hasDisplayablePrice } from '../../../utils/currency'
+import { useShopCurrency } from '../../../composables/useShopCurrency'
 import type { StorefrontProduct } from '../../../api/storefront'
 
 defineOptions({ inheritAttrs: false })
@@ -57,7 +58,7 @@ const trackEl = ref<HTMLDivElement | null>(null)
 const currentIdx = ref(0)
 const itemsPerView = ref(visibleItems.value)
 
-const currency = computed(() => projectConfig?.value?.commerce?.currency || 'PLN')
+const { currency, money } = useShopCurrency(projectConfig)
 
 const productUrl = (product: StorefrontProduct) => {
   const route = projectConfig?.value?.commerce?.routes?.product || '/produkt/:slug'
@@ -226,7 +227,7 @@ watch([source, resolvedCategorySlug, productSlugs, isAvailable], () => {
         <div class="lcms-product-carousel__card-body">
           <div class="lcms-product-carousel__card-name">{{ product.name }}</div>
           <div v-if="showPrice && hasDisplayablePrice(product.price)" class="lcms-product-carousel__card-price">
-            {{ formatPrice(product.price, currency) }}
+            {{ money(product.price) }}
           </div>
         </div>
       </a>

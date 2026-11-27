@@ -2,7 +2,8 @@
 import { computed, ref, onMounted, onServerPrefetch, watch, inject, type Ref } from 'vue'
 import { useLanguage } from '../../../composables/useLanguage'
 import { useStorefront } from '../../../composables/useStorefront'
-import { formatPrice, calculateDiscount, hasDisplayablePrice } from '../../../utils/currency'
+import { calculateDiscount, hasDisplayablePrice } from '../../../utils/currency'
+import { useShopCurrency } from '../../../composables/useShopCurrency'
 import type { StorefrontProduct } from '../../../api/storefront'
 
 defineOptions({ inheritAttrs: false })
@@ -62,7 +63,7 @@ const columnsMobile = computed(() => Number(config.value.columns_mobile) || 2)
 const showPrice = computed(() => config.value.show_price !== false)
 const showCategory = computed(() => config.value.show_category === true)
 
-const currency = computed(() => projectConfig?.value?.commerce?.currency || 'PLN')
+const { currency, money } = useShopCurrency(projectConfig)
 
 // Base price 0 = product priced by the configurator — hide the price (and any
 // discount derived from it) instead of showing "0,00 zł".
@@ -273,9 +274,9 @@ const t = (key: string) => {
               v-if="hasDiscount(product)"
               class="lcms-related-card__price-original"
             >
-              {{ formatPrice(product.compare_at_price, currency) }}
+              {{ money(product.compare_at_price) }}
             </span>
-            <span class="lcms-related-card__price">{{ formatPrice(product.price, currency) }}</span>
+            <span class="lcms-related-card__price">{{ money(product.price) }}</span>
           </div>
         </div>
       </a>

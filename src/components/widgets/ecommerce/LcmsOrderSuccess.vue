@@ -254,7 +254,7 @@ onBeforeUnmount(() => {
 
 function formatOrderPrice(value: number | null | undefined): string {
   if (value === null || value === undefined) return ''
-  return formatPrice(value, currency.value)
+  return formatPrice(value, (order.value as any)?.currency || currency.value)
 }
 </script>
 

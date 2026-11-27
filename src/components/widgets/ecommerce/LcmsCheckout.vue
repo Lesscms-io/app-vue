@@ -12,7 +12,7 @@ import { useStorefront } from '../../../composables/useStorefront'
 import { useCart } from '../../../composables/useCart'
 import { useCustomer } from '../../../composables/useCustomer'
 import { useToast } from '../../../composables/useToast'
-import { formatPrice } from '../../../utils/currency'
+import { useShopCurrency, selectedOrderCurrency } from '../../../composables/useShopCurrency'
 import type { StorefrontShippingMethod, StorefrontPickupPoint, StorefrontAddress } from '../../../api/storefront'
 import { countriesFor } from '../../../data/countries'
 import LcmsCountrySelect from '../../common/LcmsCountrySelect.vue'
@@ -45,7 +45,7 @@ const submitButtonText = computed(() =>
 const requireLogin = computed(() => config.value.require_login === true)
 const successRoute = computed(() => config.value.success_route || '/zamowienie/sukces')
 
-const currency = computed(() => projectConfig?.value?.commerce?.currency || 'PLN')
+const { currency, money, moneyExact, format, lineAmount, cartSums } = useShopCurrency(projectConfig)
 const cartUrl = computed(() => projectConfig?.value?.commerce?.routes?.cart || '/koszyk')
 const loginUrl = computed(() => projectConfig?.value?.commerce?.routes?.account || '/konto')
 
@@ -406,9 +406,15 @@ const otherDiscount = computed(() => {
   return Math.max(0, Math.round((discount.value - tiers) * 100) / 100)
 })
 const total = computed(() => Math.max(0, subtotal.value - discount.value) + shippingCost.value)
+// To samo w walucie klienta: suma z zaokrąglonych cen pozycji, rabat i dostawa dokładnie (jak zamówienie).
+const currencyIsBase = computed(() => !selectedOrderCurrency())
+const displaySums = computed(() => cartSums(cart.cart.value?.items, {
+  discount: discount.value,
+  shipping_cost: shippingCost.value,
+}))
 
 function tierValue(type: string, value: number): string {
-  return type === 'percentage' ? `−${value}%` : `${formatPrice(value, currency.value)} / ${t('perItem')}`
+  return type === 'percentage' ? `−${value}%` : `${moneyExact(value)} / ${t('perItem')}`
 }
 
 const pickupPointRequired = computed(() =>
@@ -625,8 +631,12 @@ async function loadPaymentMethods() {
   if (!client.value) return
   isLoadingPaymentMethods.value = true
   try {
-    const response = await client.value.getPaymentMethods()
+    // Metody dostępne w walucie klienta (np. Autopay tylko w PLN).
+    const response = await client.value.getPaymentMethods(selectedOrderCurrency())
     remotePaymentMethods.value = response.data || []
+    if (form.payment_method && !remotePaymentMethods.value.some((m) => m.code === form.payment_method)) {
+      form.payment_method = ''
+    }
     if (remotePaymentMethods.value.length > 0 && !form.payment_method) {
       form.payment_method = remotePaymentMethods.value[0].code
     }
@@ -636,6 +646,9 @@ async function loadPaymentMethods() {
     isLoadingPaymentMethods.value = false
   }
 }
+
+// Zmiana waluty na stronie = inne metody płatności.
+watch(currency, () => { void loadPaymentMethods() })
 
 // Load shipping methods up-front so the picker is visible before postal code is entered.
 // Postal-code watcher later refines the list via /shipping/calculate (country filter, future per-weight quotes).
@@ -1675,7 +1688,7 @@ async function retryBlik() {
                     {{ props.language === 'en' ? 'Delivery' : 'Dostawa' }}: {{ method.estimated_days }}
                   </div>
                 </div>
-                <div class="lcms-checkout__tile-price">{{ formatPrice(methodAmount(method), currency) }}</div>
+                <div class="lcms-checkout__tile-price">{{ moneyExact(methodAmount(method)) }}</div>
               </label>
             </div>
             <span v-if="errors.shipping_method" class="lcms-checkout__error">{{ errors.shipping_method }}</span>
@@ -1891,7 +1904,7 @@ async function retryBlik() {
                 {{ item.product.name }} × {{ item.quantity }}
               </span>
               <span class="lcms-checkout__summary-item-price">
-                {{ formatPrice(item.subtotal, currency) }}
+                {{ format(lineAmount(item.unit_price, item.quantity)) }}
               </span>
             </div>
           </div>
@@ -1900,7 +1913,7 @@ async function retryBlik() {
 
           <div class="lcms-checkout__summary-row">
             <span>{{ t('subtotal') }}</span>
-            <span>{{ formatPrice(subtotal, currency) }}</span>
+            <span>{{ format(currencyIsBase ? subtotal : displaySums.subtotal) }}</span>
           </div>
 
           <div
@@ -1909,24 +1922,24 @@ async function retryBlik() {
             class="lcms-checkout__summary-row lcms-checkout__summary-row--discount"
           >
             <span>{{ d.rule_name }} ({{ tierValue(d.discount_type, d.discount_value) }})</span>
-            <span>−{{ formatPrice(d.amount, currency) }}</span>
+            <span>−{{ moneyExact(d.amount) }}</span>
           </div>
 
           <div v-if="otherDiscount > 0" class="lcms-checkout__summary-row lcms-checkout__summary-row--discount">
             <span>{{ t('discount') }}</span>
-            <span>−{{ formatPrice(otherDiscount, currency) }}</span>
+            <span>−{{ moneyExact(otherDiscount) }}</span>
           </div>
 
           <div class="lcms-checkout__summary-row">
             <span>{{ t('shippingCost') }}</span>
-            <span>{{ formatPrice(shippingCost, currency) }}</span>
+            <span>{{ moneyExact(shippingCost) }}</span>
           </div>
 
           <div class="lcms-checkout__summary-divider" />
 
           <div class="lcms-checkout__summary-row lcms-checkout__summary-row--total">
             <span>{{ t('total') }}</span>
-            <span>{{ formatPrice(total, currency) }}</span>
+            <span>{{ format(currencyIsBase ? total : displaySums.total) }}</span>
           </div>
 
           <button

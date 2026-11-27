@@ -7,7 +7,8 @@
 
 import { computed, inject, type Ref } from 'vue'
 import { getProductField } from '../../../utils/productField'
-import { formatPrice, calculateDiscount, hasDisplayablePrice } from '../../../utils/currency'
+import { calculateDiscount, hasDisplayablePrice } from '../../../utils/currency'
+import { useShopCurrency } from '../../../composables/useShopCurrency'
 import { resolveColor } from '../../../utils/resolveColor'
 
 defineOptions({ inheritAttrs: false })
@@ -27,7 +28,7 @@ const config = computed(() => props.data?.config || props.data || {})
 const fieldPrice = computed(() => config.value.field_price || 'price')
 const fieldComparePrice = computed(() => config.value.field_compare_price || 'compare_at_price')
 
-const currency = computed(() => projectConfig?.value?.commerce?.currency || 'PLN')
+const { currency, money } = useShopCurrency(projectConfig)
 
 const price = computed(() => {
   const val = getProductField(product?.value, fieldPrice.value)
@@ -83,10 +84,10 @@ const badgeStyle = computed(() => {
 <template>
   <div v-if="showPrice" class="lcms-product-price">
     <span v-if="hasDiscount" class="lcms-product-price__original" :style="compareStyle">
-      {{ formatPrice(comparePrice!, currency) }}
+      {{ money(comparePrice!) }}
     </span>
     <span class="lcms-product-price__current" :style="priceStyle">
-      {{ formatPrice(price, currency) }}
+      {{ money(price) }}
     </span>
     <span v-if="hasDiscount && showBadge" class="lcms-product-price__discount" :style="badgeStyle">
       -{{ discountPercent }}%

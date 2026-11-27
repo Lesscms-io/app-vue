@@ -10,7 +10,8 @@ import { useLanguage } from '../../../composables/useLanguage'
 import { useStorefront } from '../../../composables/useStorefront'
 import { useCart } from '../../../composables/useCart'
 import { useToast } from '../../../composables/useToast'
-import { formatPrice, calculateDiscount, hasDisplayablePrice } from '../../../utils/currency'
+import { calculateDiscount, hasDisplayablePrice } from '../../../utils/currency'
+import { useShopCurrency } from '../../../composables/useShopCurrency'
 import type { StorefrontProduct } from '../../../api/storefront'
 import LcmsProductVariants from './LcmsProductVariants.vue'
 
@@ -62,7 +63,7 @@ const selectedImageIdx = ref(0)
 const quantity = ref(1)
 const isAdding = ref(false)
 
-const currency = computed(() => projectConfig?.value?.commerce?.currency || 'PLN')
+const { currency, money } = useShopCurrency(projectConfig)
 
 // Use injected product if available
 const effectiveProduct = computed<any>(() => {
@@ -309,9 +310,9 @@ watch([resolvedSlug, isAvailable], () => {
 
         <div v-if="showPrice" class="lcms-product-detail__price-wrap">
           <span v-if="hasDiscount" class="lcms-product-detail__price-original">
-            {{ formatPrice(effectiveProduct.compare_at_price, currency) }}
+            {{ money(effectiveProduct.compare_at_price) }}
           </span>
-          <span class="lcms-product-detail__price">{{ formatPrice(effectiveProduct.price, currency) }}</span>
+          <span class="lcms-product-detail__price">{{ money(effectiveProduct.price) }}</span>
         </div>
 
         <div
