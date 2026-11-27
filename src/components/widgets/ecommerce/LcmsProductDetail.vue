@@ -12,6 +12,7 @@ import { useCart } from '../../../composables/useCart'
 import { useToast } from '../../../composables/useToast'
 import { formatPrice, calculateDiscount, hasDisplayablePrice } from '../../../utils/currency'
 import type { StorefrontProduct } from '../../../api/storefront'
+import LcmsProductVariants from './LcmsProductVariants.vue'
 
 interface ResolvedRoute {
   pageCode: string
@@ -94,6 +95,9 @@ const discountPercent = computed(() => {
   return calculateDiscount(effectiveProduct.value.compare_at_price, effectiveProduct.value.price)
 })
 
+// Rodzic rodziny wariantów sam nie jest towarem — kupuje się konkretny wariant.
+const isFamilyParent = computed(() => !!effectiveProduct.value?.has_children)
+
 const inStock = computed(() => {
   if (!effectiveProduct.value) return false
   if (!effectiveProduct.value.track_stock) return true
@@ -163,6 +167,7 @@ const t = (key: string) => {
       loading: 'Ładowanie...',
       notFound: 'Produkt nie znaleziony',
       sku: 'SKU',
+      chooseVariant: 'Wybierz wariant, aby dodać do koszyka',
       stockAvailable: 'Dostępny',
       stockLow: 'Mało sztuk',
       stockOut: 'Brak',
@@ -176,6 +181,7 @@ const t = (key: string) => {
       loading: 'Loading...',
       notFound: 'Product not found',
       sku: 'SKU',
+      chooseVariant: 'Choose a variant to add it to the cart',
       stockAvailable: 'In stock',
       stockLow: 'Low stock',
       stockOut: 'Out of stock',
@@ -309,6 +315,7 @@ watch([resolvedSlug, isAvailable], () => {
         </div>
 
         <div
+          v-if="!isFamilyParent"
           class="lcms-product-detail__stock"
           :class="`lcms-product-detail__stock--${stockStatus}`"
         >
@@ -320,7 +327,17 @@ watch([resolvedSlug, isAvailable], () => {
           {{ effectiveProduct.short_description }}
         </p>
 
-        <div v-if="inStock" class="lcms-product-detail__actions">
+        <LcmsProductVariants
+          v-if="showVariants"
+          :data="{ config: {} }"
+          :language="language"
+        />
+
+        <p v-if="isFamilyParent" class="lcms-product-detail__choose-variant">
+          {{ t('chooseVariant') }}
+        </p>
+
+        <div v-else-if="inStock" class="lcms-product-detail__actions">
           <div class="lcms-product-detail__qty">
             <span class="lcms-product-detail__qty-label">{{ t('quantity') }}:</span>
             <div class="lcms-product-detail__qty-control">
@@ -604,6 +621,11 @@ watch([resolvedSlug, isAvailable], () => {
   color: var(--lcms-color-text, #4b5563);
   line-height: 1.6;
   margin: 0 0 1.5rem;
+}
+
+.lcms-product-detail__choose-variant {
+  margin: 0.5rem 0 1rem;
+  color: var(--lcms-color-text-muted, #6b7280);
 }
 
 .lcms-product-detail__actions {
