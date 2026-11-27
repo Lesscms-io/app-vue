@@ -384,6 +384,15 @@ function getItemLabel(item: MenuItem): string {
       if (resolved) return resolved as string
     }
   }
+  // Bez label_field w konfiguracji: etykieta per język z pól pozycji (np. fields.etykieta = {pl, en}).
+  const lang = props.language
+  if (lang && item.fields) {
+    for (const val of Object.values(item.fields)) {
+      if (val && typeof val === 'object' && typeof (val as Record<string, unknown>)[lang] === 'string' && (val as Record<string, string>)[lang]) {
+        return (val as Record<string, string>)[lang]
+      }
+    }
+  }
   return extractValue(item.label) as string
 }
 
